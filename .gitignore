@@ -1,0 +1,26 @@
+# Autotools
+Makefile
+Makefile.in
+
+aclocal.m4
+autom4te.cache/
+config*
+depcomp
+install-sh
+libtool
+ltmain.sh
+missing
+stamp-h*
+.deps/
+.dirstamp
+.libs/
+
+# Build files 
+*.o
+*.sym
+*.a
+*.la
+
+# Tmp files
+*~
+
