@@ -2,16 +2,13 @@
 
 MAINTAINERCLEANFILES = Makefile.in
 
-INCLUDES  = -Icommon
+INCLUDES  = -I$(srcdir)/common
 
 bin_PROGRAMS = server client
  
 AM_CPPFLAGS = $(BOOST_CPPFLAGS)
-AM_LDFLAGS = $(BOOST_SYSTEM_LDFLAGS) $(BOOST_SERIALIZATION_LDFLAGS) -lpthread 
-LIBS = $(BOOST_SYSTEM_LIBS) $(BOOST_SERIALIZATION_LIBS)
+AM_LDFLAGS = $(BOOST_SYSTEM_LDFLAGS) $(BOOST_SERIALIZATION_LDFLAGS)  
+LIBS = $(BOOST_SYSTEM_LIBS) $(BOOST_SERIALIZATION_LIBS) $(PTHREAD_CFLAGS)
  
 server_SOURCES  =  server.cpp 
 client_SOURCES  =  client.cpp
-
-#server_LDFLAGS = -lpthread -lboost_system -lboost_serialization
-#client_LDFLAGS = -lpthread -lboost_system -lboost_serialization

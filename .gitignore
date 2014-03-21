@@ -14,6 +14,7 @@ stamp-h*
 .deps/
 .dirstamp
 .libs/
+m4/*.m4
 
 # Build files 
 *.o

@@ -13,6 +13,9 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_LIBTOOL
 
+# Check for pthreads (uses m4/acx_pthread.m4).
+ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
+
 BOOST_REQUIRE([1.45])
 BOOST_SYSTEM
 BOOST_SERIALIZATION
