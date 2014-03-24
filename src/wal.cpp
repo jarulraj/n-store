@@ -13,6 +13,8 @@
 #include <memory>
 
 #include <boost/thread.hpp>
+#include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 
 using namespace std;
@@ -92,13 +94,14 @@ public:
 class logger {
 public:
 	logger(){
-		logFile = fopen("log", "w");
+		std::string logFileName = "log";
+
+		logFile = fopen(logFileName.c_str(), "w");
 		if (logFile != NULL) {
-			cout << "Opened log file" << endl;
+			cout << "Log file" <<logFileName<< endl;
 		}
 
 		logFileFD = fileno(logFile);
-		cout << "File fd " << logFileFD << endl;
 	}
 
 
@@ -138,6 +141,8 @@ public:
 	}
 
 	int sync(){
+		cout<<"fsync"<<endl;
+
 		int ret = fsync(logFileFD);
 		return ret;
 	}
@@ -204,9 +209,11 @@ std::string read(txn t){
 
 // RUNNER + LOADER
 
-long num_keys = 1000000 ;
-long num_txn  = 1000000 ;
-long num_wr   = 100000 ;
+int num_threads = 4;
+
+long num_keys = 100 ;
+long num_txn  = 1000 ;
+long num_wr   = 10 ;
 
 void runner(){
 	std::string val;
@@ -266,21 +273,31 @@ void load(){
 	_logger.sync();
 }
 
+void cleanup(){
+	for (std::vector<record*>::iterator it = table.begin() ; it != table.end(); ++it){
+		if(*it != NULL){
+			delete (*it);
+		}
+	}
+}
+
 int main(){
 
 	load();
 
-	boost::thread t1(runner);
-	boost::thread t2(runner);
+	boost::thread_group th_group;
+	for(int i=0 ; i<num_threads ; i++)
+		th_group.create_thread(boost::bind(runner));
 
-	t1.join();
-	t2.join();
+	th_group.join_all();
 
 	//check();
 
 	// sync
 	_logger.write();
 	_logger.sync();
+
+	cleanup();
 
 	return 0;
 }
