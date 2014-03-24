@@ -6,16 +6,16 @@
 #include <algorithm>
 #include <sstream>
 #include <utility>
-
-#include <unordered_map>
-#include <mutex>
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <unordered_map>
+#include <memory>
+
+#include <boost/thread.hpp>
+
 
 using namespace std;
-
 
 // UTILS
 std::string random_string( size_t length )
@@ -44,7 +44,7 @@ public:
 			key(_key),
 			value(_value) {}
 
-private:
+//private:
 	unsigned long txn_id;
 	std::string txn_type;
 
@@ -53,86 +53,189 @@ private:
 };
 
 // TUPLE + TABLE + INDEX
-static int num_keys = 10;
 
-class tuple{
-	tuple(unsigned int _key, std::string _value, std::mutex _mx) :
+class record{
+public:
+	record(unsigned int _key, std::string _value) :
 		key(_key),
-		value(_value),
-		mx(_mx){}
+		value(_value){}
 
-private:
-	std::mutex mx;
+//private:
 	unsigned int key;
 	std::string value;
 };
 
-vector<tuple> table;
-unordered_map<unsigned int, tuple*> index;
+boost::shared_mutex table_access;
+vector<record*> table;
+
+unordered_map<unsigned int, record*> table_index;
 
 // LOGGING
 
 class entry{
 public:
-	entry(unsigned long _txn_id, std::string _txn_type, tuple _before_image, tuple _after_image) :
+	entry(unsigned long _txn_id, std::string _txn_type, record* _before_image, record* _after_image) :
 			txn_id(_txn_id),
 			txn_type(_txn_type),
 			before_image(_before_image),
 			after_image(_after_image){}
 
-private:
+//private:
 	unsigned long txn_id;
 	std::string txn_type;
 
-	tuple before_image;
-	tuple after_image;
+	record* before_image;
+	record* after_image;
 };
 
-FILE* logFile ;
-int logFileFD;
 
-vector<entry> queue;
+class logger {
+public:
+	logger(){
+		logFile = fopen("log", "w");
+		if (logFile != NULL) {
+			cout << "Opened log file" << endl;
+		}
 
-int log(entry e){
-	int ret ;
+		logFileFD = fileno(logFile);
+		cout << "File fd " << logFileFD << endl;
+	}
 
-	stringstream buffer_stream;
-	string buffer;
-	buffer_stream << e.txn_type << e.after_image ;
-	buffer = buffer_stream.str();
 
-	ret = fwrite(&buffer, sizeof(char), sizeof(buffer), logFile);
+	void push(entry e){
+		boost::upgrade_lock< boost::shared_mutex > lock(log_access);
+		boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
+		// exclusive access
 
-	return ret;
-}
+		log_queue.push_back(e);
+	}
+
+	int write(){
+		int ret ;
+		stringstream buffer_stream;
+		string buffer;
+
+		//cout<<"queue size :"<<log_queue.size()<<endl;
+
+		boost::upgrade_lock< boost::shared_mutex > lock(log_access);
+		boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
+		// exclusive access
+
+		for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
+			buffer_stream << (*it).txn_type << (*it).before_image << (*it).after_image ;
+		}
+
+		buffer = buffer_stream.str();
+		size_t buffer_size = buffer.size();
+
+		ret = fwrite(buffer.c_str(), sizeof(char), buffer_size, logFile);
+		//cout<<"write size :"<<ret<<endl;
+
+		// reset queue
+		log_queue.clear();
+
+		return ret;
+	}
+
+	int sync(){
+		int ret = fsync(logFileFD);
+		return ret;
+	}
+
+private:
+	FILE* logFile ;
+	int logFileFD;
+
+	boost::shared_mutex log_access;
+	vector<entry> log_queue;
+};
+
+logger _logger;
 
 // TRANSACTION OPERATIONS
 
 int update(txn t){
 	int key = t.key;
 
-	if(index.count(t.key) == 0) // key does not exist
+	if(table_index.count(t.key) == 0) // key does not exist
 		return -1;
 
-	tuple before_image = index.at(t.key);
-	tuple after_image = new tuple(t.key, t.value, before_image.mx);
+	record* before_image;
+	record* after_image = new record(t.key, t.value);
 
-	// grab mutex
-	std::unique_lock<std::mutex> lock(val.mx);
-	table.push_back(*after_image);
+	{
+		boost::upgrade_lock< boost::shared_mutex > lock(table_access);
+		// shared access
+		before_image = table_index.at(t.key);
 
+		boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
+		// exclusive access
+
+		table.push_back(after_image);
+		table_index[key] = after_image;
+	}
 
 	// Add log entry
-	entry e = new entry(t.txn_id, "Insert", NULL, *after_image);
-	queue.push_back(e);
+	entry e(t.txn_id, "Update", before_image, after_image);
+	_logger.push(e);
 
+	return 0;
+}
 
-		return 0;
+std::string read(txn t){
+	int key = t.key;
+	if (table_index.count(t.key) == 0) // key does not exist
+		return "";
+
+	std::string val = "" ;
+
+	{
+		boost::upgrade_lock<boost::shared_mutex> lock(table_access);
+		// shared access
+
+		record* r = table_index[key];
+		if(r != NULL){
+			val = r->value;
+		}
+	}
+
+	return val;
+}
+
+// RUNNER + LOADER
+
+long num_keys = 1000000 ;
+long num_txn  = 1000000 ;
+long num_wr   = 100000 ;
+
+void runner(){
+	std::string val;
+
+	for(int i=0 ; i<num_txn ; i++){
+		long r = rand();
+		std::string val = "xxx";
+		long key = r%num_keys;
+
+		if(r % num_txn < num_wr){
+			txn t(i, "Update", key, val);
+			update(t);
+		}
+		else{
+			txn t(i, "Read", key, val);
+			val = read(t);
+		}
+	}
 
 }
 
-std::string read(unsigned int){
-	return "";
+void check(){
+
+	for (std::vector<record*>::iterator it = table.begin() ; it != table.end(); ++it){
+		if(*it != NULL){
+			cout << (*it)->key <<" "<< (*it)->value << endl;
+		}
+	}
+
 }
 
 void load(){
@@ -141,40 +244,43 @@ void load(){
 	string buffer;
 
 	for(int i=0 ; i<num_keys ; i++){
-		tuple r = std::make_tuple(i, random_string(3));
-		cout << std::get<0>(r) << ' ';
-		cout << std::get<1>(r) << '\n';
+		int key = i;
+		record* after_image = new record(key, random_string(3));
 
-		buffer_stream << "Insert"<<std::get<0>(r)<<std::get<1>(r);
-		buffer = buffer_stream.str();
+		{
+			boost::upgrade_lock<boost::shared_mutex> lock(table_access);
+			boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
+			// exclusive access
 
-		// log entry
-		log(buffer);
+			table.push_back(after_image);
+			table_index[key] = after_image;
+		}
 
-		// update table and index
-		table.push_back(r);
-		index[i] = &r;
+		// Add log entry
+		entry e(0, "Insert", NULL, after_image);
+		_logger.push(e);
 	}
 
-	// loading - so no strict ordering
-	fsync(logFileFD);
-}
-
-void open_log(){
-	logFile = fopen("log", "w");
-	if (logFile != NULL) {
-		cout << "Opened log file" << endl;
-	}
-
-	logFileFD = fileno(logFile);
-	cout << "File fd " << logFileFD << endl;
+	// sync
+	_logger.write();
+	_logger.sync();
 }
 
 int main(){
 
-	open_log();
-
 	load();
+
+	boost::thread t1(runner);
+	boost::thread t2(runner);
+
+	t1.join();
+	t2.join();
+
+	//check();
+
+	// sync
+	_logger.write();
+	_logger.sync();
 
 	return 0;
 }

@@ -15,12 +15,18 @@ stamp-h*
 .dirstamp
 .libs/
 m4/*.m4
+.settings/*
 
 # Build files 
+build/*
 *.o
 *.sym
 *.a
 *.la
+*.out
+
+# Log files
+*log
 
 # Tmp files
 *~
