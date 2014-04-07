@@ -20,8 +20,7 @@
 using namespace std;
 
 // UTILS
-std::string random_string( size_t length )
-{
+std::string random_string( size_t length ){
     auto randchar = []() -> char
     {
         const char charset[] =
@@ -61,6 +60,24 @@ public:
 	record(unsigned int _key, std::string _value) :
 		key(_key),
 		value(_value){}
+
+	friend ostream& operator<<(ostream& out, const record& rec){
+	    out << "|" << rec.key << "|" << rec.value << "|";
+	    return out;
+	}
+
+	friend istream& operator>>(istream& in, record& rec){
+	    in.ignore(1); // skip delimiter
+
+	    in >> rec.key;
+	    in.ignore(1); // skip delimiter
+	    in >> rec.value;
+	    in.ignore(1); // skip delimiter
+	    //in.ignore(1); // skip endline
+
+	    return in;
+	}
+
 
 //private:
 	unsigned int key;
@@ -125,7 +142,14 @@ public:
 		// exclusive access
 
 		for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
-			buffer_stream << (*it).txn_type << (*it).before_image << (*it).after_image ;
+			buffer_stream << (*it).txn_type ;
+
+			if((*it).before_image != NULL)
+				buffer_stream << *((*it).before_image) ;
+			// XXX Add dummy before image
+
+			if((*it).after_image != NULL)
+				buffer_stream << *((*it).after_image) <<endl;
 		}
 
 		buffer = buffer_stream.str();
@@ -239,7 +263,7 @@ void check(){
 
 	for (std::vector<record*>::iterator it = table.begin() ; it != table.end(); ++it){
 		if(*it != NULL){
-			cout << (*it)->key <<" "<< (*it)->value << endl;
+			cout << *(*it) << endl;
 		}
 	}
 
