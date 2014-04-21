@@ -20,8 +20,8 @@
 
 using namespace std;
 
-#define NUM_KEYS 10
-#define NUM_TXNS 100
+#define NUM_KEYS 10000
+#define NUM_TXNS 10000
 
 #define VALUE_SIZE 16
 
@@ -325,9 +325,6 @@ int main(){
     boost::asio::io_service io;
     boost::asio::deadline_timer t(io, boost::posix_time::seconds(1));
 
-    t.async_wait(&logger_func);
-    io.run();
-
     boost::thread_group th_group;
     for(int i=0 ; i<num_threads ; i++)
         th_group.create_thread(boost::bind(runner));
@@ -335,6 +332,8 @@ int main(){
     th_group.join_all();
 
     //check();
-
+    t.async_wait(&logger_func);
+    io.run();
+ 
     return 0;
 }
