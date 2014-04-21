@@ -14,6 +14,7 @@
 
 #include <boost/thread.hpp>
 #include <boost/asio.hpp>
+#include <boost/bind.hpp>
 
 #include <chrono>
 #include <random>
@@ -21,9 +22,11 @@
 using namespace std;
 
 #define NUM_KEYS 10000
-#define NUM_TXNS 10000
+#define NUM_TXNS 100000
 
-#define VALUE_SIZE 16
+#define VALUE_SIZE 128
+
+int log_enable ;
 
 // UTILS
 std::string random_string( size_t length ){
@@ -51,7 +54,7 @@ class txn{
             key(_key),
             value(_value)
     {
-        start = std::chrono::system_clock::now();
+        //start = std::chrono::system_clock::now();
     }
 
         //private:
@@ -169,11 +172,13 @@ class logger {
             ret = fsync(logFileFD);
 
             // Set end time
+            /*
             for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
                 (*it).transaction.end = std::chrono::system_clock::now();
                 std::chrono::duration<double> elapsed_seconds = (*it).transaction.end - (*it).transaction.start;
                 cout<<"Duration: "<< elapsed_seconds.count()<<endl;
             }
+            */
 
             // Clear queue
             log_queue.clear();
@@ -190,12 +195,25 @@ class logger {
 };
 
 logger _logger;
-
-void logger_func(const boost::system::error_code& /*e*/){
+      
+void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t){
     std::cout << "Syncing log !\n"<<endl;
 
     // sync
     _logger.write();
+
+    t->expires_at(t->expires_at() + boost::posix_time::seconds(1));
+    t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
+}
+
+void group_commit(){
+    if(log_enable){
+        boost::asio::io_service io;
+        boost::asio::deadline_timer t(io, boost::posix_time::seconds(1));
+
+        t.async_wait(boost::bind(logger_func, boost::asio::placeholders::error, &t));
+        io.run();
+    }
 }
 
 // TRANSACTION OPERATIONS
@@ -254,7 +272,7 @@ int num_threads = 4;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
-long num_wr   = 10 ;
+long num_wr   = 50 ;
 
 void runner(){
     std::string val;
@@ -315,25 +333,33 @@ void load(){
 }
 
 int main(){
+    std::chrono::time_point<std::chrono::system_clock> start, end;
 
     // Loader
     load();
-
     std::cout<<"Loading finished "<<endl;
 
+    start = std::chrono::system_clock::now();
+    
     // Logger
-    boost::asio::io_service io;
-    boost::asio::deadline_timer t(io, boost::posix_time::seconds(1));
+    log_enable = 1;
+    boost::thread group_committer(group_commit);
 
+    // Runner
     boost::thread_group th_group;
     for(int i=0 ; i<num_threads ; i++)
         th_group.create_thread(boost::bind(runner));
 
     th_group.join_all();
-
     //check();
-    t.async_wait(&logger_func);
-    io.run();
- 
+
+    // Logger
+    log_enable = 0;
+    _logger.write();
+
+    end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::cout<<"Duration: "<< elapsed_seconds.count()<<endl;
+
     return 0;
 }
