@@ -122,7 +122,8 @@ class entry{
 class logger {
     public:
         logger(){
-            std::string logFileName = "/mnt/pmfs/n-store/log";
+            //std::string logFileName = "/mnt/pmfs/n-store/log";
+            std::string logFileName = "./log";
 
             logFile = fopen(logFileName.c_str(), "w");
             if (logFile != NULL) {
