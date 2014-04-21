@@ -14,8 +14,8 @@
 
 #include <boost/thread.hpp>
 #include <boost/asio.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 
+#include <chrono>
 
 using namespace std;
 
@@ -43,7 +43,10 @@ public:
 			txn_id(_txn_id),
 			txn_type(_txn_type),
 			key(_key),
-			value(_value) {}
+			value(_value)
+	{
+		//start = std::chrono::system_clock::now();
+	}
 
 //private:
 	unsigned long txn_id;
@@ -51,6 +54,8 @@ public:
 
 	unsigned int key;
 	std::string value;
+
+	std::chrono::time_point<std::chrono::system_clock> start, end;
 };
 
 // TUPLE + TABLE + INDEX
@@ -85,7 +90,7 @@ public:
 };
 
 boost::shared_mutex table_access;
-vector<record*> table;
+vector<record> table;
 
 unordered_map<unsigned int, record*> table_index;
 
@@ -93,16 +98,13 @@ unordered_map<unsigned int, record*> table_index;
 
 class entry{
 public:
-	entry(unsigned long _txn_id, std::string _txn_type, record* _before_image, record* _after_image) :
-			txn_id(_txn_id),
-			txn_type(_txn_type),
+	entry(txn _txn, record* _before_image, record* _after_image) :
+			transaction(_txn),
 			before_image(_before_image),
 			after_image(_after_image){}
 
 //private:
-	unsigned long txn_id;
-	std::string txn_type;
-
+	txn transaction;
 	record* before_image;
 	record* after_image;
 };
@@ -142,7 +144,7 @@ public:
 		// exclusive access
 
 		for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
-			buffer_stream << (*it).txn_type ;
+			buffer_stream << (*it).transaction.txn_type ;
 
 			if((*it).before_image != NULL)
 				buffer_stream << *((*it).before_image) ;
@@ -158,16 +160,20 @@ public:
 		ret = fwrite(buffer.c_str(), sizeof(char), buffer_size, logFile);
 		//cout<<"write size :"<<ret<<endl;
 
-		// reset queue
+		ret = fsync(logFileFD);
+
+		// Set end time
+		/*
+		for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
+			(*it).transaction.end = std::chrono::system_clock::now();
+			 std::chrono::duration<double> elapsed_seconds = (*it).transaction.end - (*it).transaction.start;
+			 cout<<"Duration: "<< elapsed_seconds.count()<<endl;
+		}
+		*/
+
+		// Clear queue
 		log_queue.clear();
 
-		return ret;
-	}
-
-	int sync(){
-		cout<<"fsync"<<endl;
-
-		int ret = fsync(logFileFD);
 		return ret;
 	}
 
@@ -180,6 +186,13 @@ private:
 };
 
 logger _logger;
+
+void logger_func(const boost::system::error_code& /*e*/){
+  std::cout << "Syncing log !\n"<<endl;
+
+  // sync
+  _logger.write();
+}
 
 // TRANSACTION OPERATIONS
 
@@ -200,12 +213,12 @@ int update(txn t){
 		boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
 		// exclusive access
 
-		table.push_back(after_image);
+		table.push_back(*after_image);
 		table_index[key] = after_image;
 	}
 
 	// Add log entry
-	entry e(t.txn_id, "Update", before_image, after_image);
+	entry e(t, before_image, after_image);
 	_logger.push(e);
 
 	return 0;
@@ -261,10 +274,8 @@ void runner(){
 
 void check(){
 
-	for (std::vector<record*>::iterator it = table.begin() ; it != table.end(); ++it){
-		if(*it != NULL){
-			cout << *(*it) << endl;
-		}
+	for (std::vector<record>::iterator it = table.begin() ; it != table.end(); ++it){
+			cout << *it << endl;
 	}
 
 }
@@ -276,33 +287,27 @@ void load(){
 
 	for(int i=0 ; i<num_keys ; i++){
 		int key = i;
-		record* after_image = new record(key, random_string(3));
+		string value = random_string(3);
+		record* after_image = new record(key, value);
 
 		{
 			boost::upgrade_lock<boost::shared_mutex> lock(table_access);
 			boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
 			// exclusive access
 
-			table.push_back(after_image);
+			table.push_back(*after_image);
 			table_index[key] = after_image;
 		}
 
 		// Add log entry
-		entry e(0, "Insert", NULL, after_image);
+		txn t(0, "Insert", key, value);
+
+		entry e(t, NULL, after_image);
 		_logger.push(e);
 	}
 
 	// sync
 	_logger.write();
-	_logger.sync();
-}
-
-void cleanup(){
-	for (std::vector<record*>::iterator it = table.begin() ; it != table.end(); ++it){
-		if(*it != NULL){
-			delete (*it);
-		}
-	}
 }
 
 int main(){
@@ -316,12 +321,11 @@ int main(){
 	th_group.join_all();
 
 	//check();
+	boost::asio::io_service io;
+	boost::asio::deadline_timer t(io, boost::posix_time::seconds(1));
 
-	// sync
-	_logger.write();
-	_logger.sync();
-
-	cleanup();
+	t.async_wait(&logger_func);
+	io.run();
 
 	return 0;
 }

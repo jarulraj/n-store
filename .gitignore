@@ -27,7 +27,9 @@ build/*
 
 # Log files
 *log
-
+*log.txt
 # Tmp files
 *~
 
+src/client
+src/server
