@@ -19,6 +19,13 @@
 #include <chrono>
 #include <random>
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
+
 using namespace std;
 
 #define NUM_KEYS 1000
@@ -26,12 +33,7 @@ using namespace std;
 
 #define VALUE_SIZE 128
 
-int log_enable ;
-int num_threads = 4;
-
-long num_keys = NUM_KEYS ;
-long num_txn  = NUM_TXNS ;
-long num_wr   = 50 ;
+int log_enable = 0 ;
 
 // UTILS
 std::string random_string( size_t length ){
@@ -104,9 +106,84 @@ class record{
 };
 
 boost::shared_mutex table_access;
-vector<record> table;
 
 unordered_map<unsigned int, record*> table_index;
+
+// MMAP
+class mmap_table{
+	public:
+		mmap_table();
+
+		mmap_table(std::string table_name) :
+			_table_name(table_name)
+		{
+			if ((_table_fd = open(_table_name.c_str(), O_RDWR | O_CREAT, 0644)) == -1) {
+				cout<<"open failed "<<_table_name<<" \n";
+				exit(EXIT_FAILURE);
+			}
+
+			struct stat sbuf;
+
+		    if (stat(_table_name.c_str(), &sbuf) == -1) {
+				cout<<"stat failed "<<_table_name<<" \n";
+		        exit(EXIT_FAILURE);
+		    }
+
+		    cout<<"size :"<< sbuf.st_size << endl;
+
+		    caddr_t location = (caddr_t) 0x01c00000;
+
+		    // new file check
+		    if(sbuf.st_size == 0){
+			    off_t offset = 0;
+			    off_t len = 1024*1024;
+
+		    	if(fallocate(_table_fd, 0, offset, len) == -1){
+					cout<<"fallocate failed "<<_table_name<<" \n";
+			        exit(EXIT_FAILURE);
+		    	}
+
+		    	if (stat(_table_name.c_str(), &sbuf) == -1) {
+		    		cout << "stat failed " << _table_name << " \n";
+		    		exit(EXIT_FAILURE);
+		    	}
+
+		    	_table_offset = 0;
+		    }
+
+		    // XXX Fix -- scan max pointer from clean dir
+	    	_table_offset = 0;
+
+		    if ((_table_data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, _table_fd, 0)) == (caddr_t)(-1)) {
+				cout<<"mmap failed "<<_table_name<<" \n";
+		        exit(EXIT_FAILURE);
+		    }
+
+		    cout<<"data :"<< _table_data << endl;
+		}
+
+	char* push_back (const record& rec){
+        stringstream rec_stream;
+        string rec_str;
+
+        rec_stream << rec.key << rec.value;
+        rec_str = rec_stream.str();
+
+        char* cur_offset = (_table_data + _table_offset);
+		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
+
+		_table_offset += rec_str.size();
+
+		return cur_offset;
+	}
+
+	//private:
+		int _table_fd;
+		std::string _table_name;
+		char* _table_data;
+		off_t _table_offset;
+
+};
 
 // LOGGING
 
@@ -202,12 +279,11 @@ class logger {
 };
 
 logger _undo_buffer;
-      
+
 void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t){
     std::cout << "Syncing log !\n"<<endl;
 
     // sync
-    _undo_buffer.write();
 
     t->expires_at(t->expires_at() + boost::posix_time::milliseconds(100));
     t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
@@ -242,7 +318,7 @@ int update(txn t){
         boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
         // exclusive access
 
-        table.push_back(*after_image);
+        //table.push_back(*after_image);
         table_index[key] = after_image;
     }
 
@@ -275,6 +351,12 @@ std::string read(txn t){
 
 // RUNNER + LOADER
 
+int num_threads = 4;
+
+long num_keys = NUM_KEYS ;
+long num_txn  = NUM_TXNS ;
+long num_wr   = 50 ;
+
 void runner(){
     std::string val;
 
@@ -297,9 +379,9 @@ void runner(){
 
 void check(){
 
-    for (std::vector<record>::iterator it = table.begin() ; it != table.end(); ++it){
-        cout << *it << endl;
-    }
+    //for (std::vector<record>::iterator it = table.begin() ; it != table.end(); ++it){
+    //    cout << *it << endl;
+    //}
 
 }
 
@@ -318,7 +400,7 @@ void load(){
             boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
             // exclusive access
 
-            table.push_back(*after_image);
+            //table.push_back(*after_image);
             table_index[key] = after_image;
         }
 
@@ -329,8 +411,8 @@ void load(){
         _undo_buffer.push(e);
     }
 
-    // sync
-    _undo_buffer.write();
+    group_commit();
+
 }
 
 int main(){
@@ -340,28 +422,32 @@ int main(){
     load();
     std::cout<<"Loading finished "<<endl;
 
-    start = std::chrono::system_clock::now();
-    
-    // Logger
-    log_enable = 1;
-    boost::thread group_committer(group_commit);
+    mmap_table user_table("usertable");
+
+    record r1(1,"v1");
+    record r2(2,"v2");
+
+    char* ret ;
+
+    ret = user_table.push_back(r1);
+    printf("ret: %p \n", ret);
+
+    ret = user_table.push_back(r2);
+    printf("ret: %p \n", ret);
+
+    //boost::thread group_committer(group_commit);
 
     // Runner
+    /*
     boost::thread_group th_group;
     for(int i=0 ; i<num_threads ; i++)
         th_group.create_thread(boost::bind(runner));
 
     th_group.join_all();
+    */
     //check();
-
-    // Logger
-    log_enable = 0;
-    _undo_buffer.write();
-
-    end = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    std::cout<<"Duration: "<< elapsed_seconds.count()<<endl;
 
 
     return 0;
 }
+
