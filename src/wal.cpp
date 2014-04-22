@@ -21,8 +21,8 @@
 
 using namespace std;
 
-#define NUM_KEYS 10000
-#define NUM_TXNS 100000
+#define NUM_KEYS 1000
+#define NUM_TXNS 10000
 
 #define VALUE_SIZE 128
 
@@ -181,6 +181,7 @@ class logger {
             }
             */
 
+
             // Clear queue
             log_queue.clear();
 
@@ -203,14 +204,14 @@ void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_t
     // sync
     _logger.write();
 
-    t->expires_at(t->expires_at() + boost::posix_time::seconds(1));
+    t->expires_at(t->expires_at() + boost::posix_time::milliseconds(100));
     t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
 }
 
 void group_commit(){
     if(log_enable){
         boost::asio::io_service io;
-        boost::asio::deadline_timer t(io, boost::posix_time::seconds(1));
+        boost::asio::deadline_timer t(io, boost::posix_time::milliseconds(100));
 
         t.async_wait(boost::bind(logger_func, boost::asio::placeholders::error, &t));
         io.run();
@@ -361,6 +362,7 @@ int main(){
     end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout<<"Duration: "<< elapsed_seconds.count()<<endl;
+
 
     return 0;
 }
