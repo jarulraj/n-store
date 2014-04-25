@@ -28,10 +28,15 @@
 
 using namespace std;
 
-#define NUM_KEYS 1000
-#define NUM_TXNS 10000
+#define NUM_KEYS 10
+#define NUM_TXNS 10
 
-#define VALUE_SIZE 128
+#define VALUE_SIZE 4
+
+#define MASTER_LOC 0x01a00000
+#define TABLE_LOC  0x01b00000
+#define DIR1_LOC   0x01c00000
+#define DIR2_LOC   0x01d00000
 
 int log_enable = 0 ;
 
@@ -117,10 +122,14 @@ class mmap_table{
 		mmap_table(std::string table_name) :
 			_table_name(table_name)
 		{
-			if ((_table_fd = open(_table_name.c_str(), O_RDWR | O_CREAT, 0644)) == -1) {
-				cout<<"open failed "<<_table_name<<" \n";
+			if ((_table_fp = fopen(_table_name.c_str(), "w+")) == NULL) {
+				cout<<"fopen failed "<<_table_name<<" \n";
 				exit(EXIT_FAILURE);
 			}
+
+			_table_fd = fileno(_table_fp);
+
+			cout<<"table fd :"<<_table_fd << endl;
 
 			struct stat sbuf;
 
@@ -131,7 +140,7 @@ class mmap_table{
 
 		    cout<<"size :"<< sbuf.st_size << endl;
 
-		    caddr_t location = (caddr_t) 0x01c00000;
+		    caddr_t location = (caddr_t) TABLE_LOC;
 
 		    // new file check
 		    if(sbuf.st_size == 0){
@@ -148,6 +157,8 @@ class mmap_table{
 		    		exit(EXIT_FAILURE);
 		    	}
 
+			    cout<<"after fallocate: size :"<< sbuf.st_size << endl;
+
 		    	_table_offset = 0;
 		    }
 
@@ -155,7 +166,8 @@ class mmap_table{
 	    	_table_offset = 0;
 
 		    if ((_table_data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, _table_fd, 0)) == (caddr_t)(-1)) {
-				cout<<"mmap failed "<<_table_name<<" \n";
+		    	perror(" mmap_error ");
+				cout<<"mmap failed "<<_table_name<<endl;
 		        exit(EXIT_FAILURE);
 		    }
 
@@ -177,13 +189,30 @@ class mmap_table{
 		return cur_offset;
 	}
 
+	void sync(){
+		int ret = 0;
+
+		cout<<"data: "<<_table_data<<" offset: "<<_table_offset<<endl;
+
+		ret = msync(_table_data, _table_offset, MS_SYNC);
+		if(ret == -1){
+			perror("msync failed");
+	        exit(EXIT_FAILURE);
+		}
+
+		cout<<"msync table"<<endl;
+	}
+
 	//private:
+		FILE* _table_fp = NULL;
 		int _table_fd;
 		std::string _table_name;
 		char* _table_data;
 		off_t _table_offset;
 
 };
+
+mmap_table table("usertable");
 
 // LOGGING
 
@@ -203,18 +232,6 @@ class entry{
 
 class logger {
     public:
-        logger(){
-            //std::string logFileName = "/mnt/pmfs/n-store/log";
-            std::string logFileName = "./log";
-
-            logFile = fopen(logFileName.c_str(), "w");
-            if (logFile != NULL) {
-                cout << "Log file: " <<logFileName<< endl;
-            }
-
-            logFileFD = fileno(logFile);
-        }
-
 
         void push(entry e){
             boost::upgrade_lock< boost::shared_mutex > lock(log_access);
@@ -224,55 +241,11 @@ class logger {
             log_queue.push_back(e);
         }
 
-        int write(){
-            int ret ;
-            stringstream buffer_stream;
-            string buffer;
-
-            //cout<<"queue size :"<<log_queue.size()<<endl;
-
-            boost::upgrade_lock< boost::shared_mutex > lock(log_access);
-            boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
-            // exclusive access
-
-            for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
-                buffer_stream << (*it).transaction.txn_type ;
-
-                if((*it).before_image != NULL)
-                    buffer_stream << *((*it).before_image) ;
-                // XXX Add dummy before image
-
-                if((*it).after_image != NULL)
-                    buffer_stream << *((*it).after_image) <<endl;
-            }
-
-            buffer = buffer_stream.str();
-            size_t buffer_size = buffer.size();
-
-            ret = fwrite(buffer.c_str(), sizeof(char), buffer_size, logFile);
-            //cout<<"write size :"<<ret<<endl;
-
-            ret = fsync(logFileFD);
-
-            // Set end time
-            /*
-            for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
-                (*it).transaction.end = std::chrono::system_clock::now();
-                std::chrono::duration<double> elapsed_seconds = (*it).transaction.end - (*it).transaction.start;
-                cout<<"Duration: "<< elapsed_seconds.count()<<endl;
-            }
-            */
-
-
-            // Clear queue
-            log_queue.clear();
-
-            return ret;
+        void clear(){
+        	log_queue.clear();
         }
 
     private:
-        FILE* logFile ;
-        int logFileFD;
 
         boost::shared_mutex log_access;
         vector<entry> log_queue;
@@ -283,7 +256,14 @@ logger _undo_buffer;
 void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t){
     std::cout << "Syncing log !\n"<<endl;
 
-    // sync
+    // sync table
+    table.sync();
+
+    // sync dir
+    //dir.sync();
+
+    // sync master
+    //master.sync();
 
     t->expires_at(t->expires_at() + boost::posix_time::milliseconds(100));
     t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
@@ -389,6 +369,7 @@ void load(){
     size_t ret;
     stringstream buffer_stream;
     string buffer;
+    char* tuple_ptr;
 
     for(int i=0 ; i<num_keys ; i++){
         int key = i;
@@ -400,8 +381,10 @@ void load(){
             boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
             // exclusive access
 
-            //table.push_back(*after_image);
+            tuple_ptr = table.push_back(*after_image);
             table_index[key] = after_image;
+
+            // dir <- tuple_ptr
         }
 
         // Add log entry
@@ -411,8 +394,7 @@ void load(){
         _undo_buffer.push(e);
     }
 
-    group_commit();
-
+    table.sync();
 }
 
 int main(){
@@ -422,20 +404,7 @@ int main(){
     load();
     std::cout<<"Loading finished "<<endl;
 
-    mmap_table user_table("usertable");
-
-    record r1(1,"v1");
-    record r2(2,"v2");
-
-    char* ret ;
-
-    ret = user_table.push_back(r1);
-    printf("ret: %p \n", ret);
-
-    ret = user_table.push_back(r2);
-    printf("ret: %p \n", ret);
-
-    //boost::thread group_committer(group_commit);
+    boost::thread group_committer(group_commit);
 
     // Runner
     /*
@@ -445,6 +414,7 @@ int main(){
 
     th_group.join_all();
     */
+
     //check();
 
 
