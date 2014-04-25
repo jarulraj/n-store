@@ -83,9 +83,10 @@ class txn{
 
 class record{
     public:
-        record(unsigned int _key, std::string _value) :
+        record(unsigned int _key, std::string _value, char* _location) :
             key(_key),
-            value(_value){}
+            value(_value),
+            location(_location){}
 
         friend ostream& operator<<(ostream& out, const record& rec){
             out << "|" << rec.key << "|" << rec.value << "|";
@@ -108,6 +109,7 @@ class record{
         //private:
         unsigned int key;
         std::string value;
+        char* location;
 };
 
 boost::shared_mutex table_access;
@@ -115,26 +117,26 @@ boost::shared_mutex table_access;
 unordered_map<unsigned int, record*> table_index;
 
 // MMAP
-class mmap_table{
+class mmap_fd{
 	public:
-		mmap_table();
+		//mmap_fd();
 
-		mmap_table(std::string table_name) :
-			_table_name(table_name)
+		mmap_fd(std::string table_name) :
+			name(table_name)
 		{
-			if ((_table_fp = fopen(_table_name.c_str(), "w+")) == NULL) {
-				cout<<"fopen failed "<<_table_name<<" \n";
+			if ((fp = fopen(name.c_str(), "w+")) == NULL) {
+				cout<<"fopen failed "<<name<<" \n";
 				exit(EXIT_FAILURE);
 			}
 
-			_table_fd = fileno(_table_fp);
+			fd = fileno(fp);
 
-			cout<<"table fd :"<<_table_fd << endl;
+			cout<<"table fd :"<<fd << endl;
 
 			struct stat sbuf;
 
-		    if (stat(_table_name.c_str(), &sbuf) == -1) {
-				cout<<"stat failed "<<_table_name<<" \n";
+		    if (stat(name.c_str(), &sbuf) == -1) {
+				cout<<"stat failed "<<name<<" \n";
 		        exit(EXIT_FAILURE);
 		    }
 
@@ -147,54 +149,67 @@ class mmap_table{
 			    off_t offset = 0;
 			    off_t len = 1024*1024;
 
-		    	if(fallocate(_table_fd, 0, offset, len) == -1){
-					cout<<"fallocate failed "<<_table_name<<" \n";
+		    	if(fallocate(fd, 0, offset, len) == -1){
+					cout<<"fallocate failed "<<name<<" \n";
 			        exit(EXIT_FAILURE);
 		    	}
 
-		    	if (stat(_table_name.c_str(), &sbuf) == -1) {
-		    		cout << "stat failed " << _table_name << " \n";
+		    	if (stat(name.c_str(), &sbuf) == -1) {
+		    		cout << "stat failed " << name << " \n";
 		    		exit(EXIT_FAILURE);
 		    	}
 
 			    cout<<"after fallocate: size :"<< sbuf.st_size << endl;
 
-		    	_table_offset = 0;
+		    	offset = 0;
 		    }
 
 		    // XXX Fix -- scan max pointer from clean dir
-	    	_table_offset = 0;
+	    	offset = 0;
 
-		    if ((_table_data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, _table_fd, 0)) == (caddr_t)(-1)) {
+		    if ((data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, fd, 0)) == (caddr_t)(-1)) {
 		    	perror(" mmap_error ");
-				cout<<"mmap failed "<<_table_name<<endl;
+				cout<<"mmap failed "<<name<<endl;
 		        exit(EXIT_FAILURE);
 		    }
 
-		    cout<<"data :"<< _table_data << endl;
+		    cout<<"data :"<< data << endl;
 		}
 
-	char* push_back (const record& rec){
+	char* push_back_record (const record& rec){
         stringstream rec_stream;
         string rec_str;
 
         rec_stream << rec.key << rec.value;
         rec_str = rec_stream.str();
 
-        char* cur_offset = (_table_data + _table_offset);
+        char* cur_offset = (data + offset);
 		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
 
-		_table_offset += rec_str.size();
+		offset += rec_str.size();
 
 		return cur_offset;
+	}
+
+	void push_back_dir_entry(const record& rec){
+		stringstream rec_stream;
+		string rec_str;
+
+		rec_stream << rec.key << static_cast<void *>(rec.location);
+		rec_str = rec_stream.str();
+
+		char* cur_offset = (data + offset);
+		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
+
+		offset += rec_str.size();
 	}
 
 	void sync(){
 		int ret = 0;
 
-		cout<<"data: "<<_table_data<<" offset: "<<_table_offset<<endl;
+		cout<<"data: "<<data<<" offset: "<<offset<<endl;
 
-		ret = msync(_table_data, _table_offset, MS_SYNC);
+		ret = msync(data, offset, MS_SYNC);
 		if(ret == -1){
 			perror("msync failed");
 	        exit(EXIT_FAILURE);
@@ -204,15 +219,51 @@ class mmap_table{
 	}
 
 	//private:
-		FILE* _table_fp = NULL;
-		int _table_fd;
-		std::string _table_name;
-		char* _table_data;
-		off_t _table_offset;
+		FILE* fp = NULL;
+		int fd;
+		std::string name;
+		char* data;
+		off_t offset;
 
 };
 
-mmap_table table("usertable");
+mmap_fd table("usertable");
+
+
+// MASTER
+
+class master{
+	public:
+
+	master(std::string table_name) :
+		name(table_name),
+		fd_dir1(name + "_dir1"),
+		fd_dir2(name + "_dir2")
+	{
+		fd_dir_master = &fd_dir1;
+	}
+
+	mmap_fd* dirty(){
+		return fd_dir_master;
+	}
+
+	void toggle(){
+		if(fd_dir_master == &fd_dir1){
+			fd_dir_master = &fd_dir2;
+		}
+		else{
+			fd_dir_master = &fd_dir1;
+		}
+	}
+
+	//private:
+	std::string name;
+	mmap_fd fd_dir1;
+	mmap_fd fd_dir2;
+	mmap_fd* fd_dir_master;
+};
+
+master m("usertable");
 
 // LOGGING
 
@@ -253,17 +304,13 @@ class logger {
 
 logger _undo_buffer;
 
+// GROUP COMMIT
+
 void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t){
     std::cout << "Syncing log !\n"<<endl;
 
     // sync table
     table.sync();
-
-    // sync dir
-    //dir.sync();
-
-    // sync master
-    //master.sync();
 
     t->expires_at(t->expires_at() + boost::posix_time::milliseconds(100));
     t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
@@ -288,7 +335,7 @@ int update(txn t){
         return -1;
 
     record* before_image;
-    record* after_image = new record(t.key, t.value);
+    record* after_image = new record(t.key, t.value, NULL);
 
     {
         boost::upgrade_lock< boost::shared_mutex > lock(table_access);
@@ -374,17 +421,18 @@ void load(){
     for(int i=0 ; i<num_keys ; i++){
         int key = i;
         string value = random_string(VALUE_SIZE);
-        record* after_image = new record(key, value);
+        record* after_image = new record(key, value, NULL);
 
         {
             boost::upgrade_lock<boost::shared_mutex> lock(table_access);
             boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
             // exclusive access
 
-            tuple_ptr = table.push_back(*after_image);
-            table_index[key] = after_image;
+            tuple_ptr = table.push_back_record(*after_image);
+            after_image->location = tuple_ptr;
+            m.dirty()->push_back_dir_entry(*after_image);
 
-            // dir <- tuple_ptr
+            table_index[key] = after_image;
         }
 
         // Add log entry
@@ -395,6 +443,9 @@ void load(){
     }
 
     table.sync();
+    m.dirty()->sync();
+    m.toggle();
+
 }
 
 int main(){
