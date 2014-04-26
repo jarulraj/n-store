@@ -114,15 +114,20 @@ class record{
 
 boost::shared_mutex table_access;
 
-unordered_map<unsigned int, record*> table_index;
-
 // MMAP
 class mmap_fd{
 	public:
-		//mmap_fd();
+		mmap_fd() :
+			name(""),
+			fd(-1),
+			offset(0),
+			data(NULL)
+		{
+		}
 
-		mmap_fd(std::string table_name) :
-			name(table_name)
+
+		mmap_fd(std::string _name) :
+			name(_name)
 		{
 			if ((fp = fopen(name.c_str(), "w+")) == NULL) {
 				cout<<"fopen failed "<<name<<" \n";
@@ -131,7 +136,7 @@ class mmap_fd{
 
 			fd = fileno(fp);
 
-			cout<<"table fd :"<<fd << endl;
+			cout<<"fd :"<<fd << endl;
 
 			struct stat sbuf;
 
@@ -202,6 +207,7 @@ class mmap_fd{
 		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
 
 		offset += rec_str.size();
+
 	}
 
 	void sync(){
@@ -215,10 +221,9 @@ class mmap_fd{
 	        exit(EXIT_FAILURE);
 		}
 
-		cout<<"msync table"<<endl;
 	}
 
-	//private:
+	private:
 		FILE* fp = NULL;
 		int fd;
 		std::string name;
@@ -236,34 +241,57 @@ class master{
 	public:
 
 	master(std::string table_name) :
-		name(table_name),
-		fd_dir1(name + "_dir1"),
-		fd_dir2(name + "_dir2")
+		name(table_name)
 	{
-		fd_dir_master = &fd_dir1;
+		for(int itr = 0; itr<2 ; itr++)
+			dir_fds[itr] = mmap_fd(name+"_dir"+std::to_string(itr));
+
+		// Initialize
+		dir_fd_ptr = 0;
+		dir = 0;
 	}
 
-	mmap_fd* dirty(){
-		return fd_dir_master;
+	mmap_fd& get_dir_fd(){
+		return dir_fds[dir_fd_ptr];
+	}
+
+	unordered_map<unsigned int, char*>& get_dir(){
+		return dirs[dir];
+	}
+
+	void sync(){
+		// Flush dirty dir
+		dir_fds[dir_fd_ptr].sync();
+
+		// Toggle
+		toggle();
+	}
+
+	unordered_map<unsigned int, char*>& get_clean_dir(){
+		// Toggle the dir bit
+		return dirs[!dir];
 	}
 
 	void toggle(){
-		if(fd_dir_master == &fd_dir1){
-			fd_dir_master = &fd_dir2;
-		}
-		else{
-			fd_dir_master = &fd_dir1;
-		}
+		dir_fd_ptr = !dir_fd_ptr;
+		dir = !dir;
 	}
 
 	//private:
 	std::string name;
-	mmap_fd fd_dir1;
-	mmap_fd fd_dir2;
-	mmap_fd* fd_dir_master;
+
+	// file dirs
+	mmap_fd dir_fds[2];
+
+	// in-memory dirs
+	unordered_map<unsigned int, char*> dirs[2];
+
+	// master
+	bool dir_fd_ptr;
+	bool dir;
 };
 
-master m("usertable");
+master mstr("usertable");
 
 // LOGGING
 
@@ -327,7 +355,7 @@ void group_commit(){
 }
 
 // TRANSACTION OPERATIONS
-
+/*
 int update(txn t){
     int key = t.key;
 
@@ -375,6 +403,7 @@ std::string read(txn t){
 
     return val;
 }
+*/
 
 // RUNNER + LOADER
 
@@ -384,6 +413,7 @@ long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
 long num_wr   = 50 ;
 
+/*
 void runner(){
     std::string val;
 
@@ -403,6 +433,7 @@ void runner(){
     }
 
 }
+*/
 
 void check(){
 
@@ -430,9 +461,9 @@ void load(){
 
             tuple_ptr = table.push_back_record(*after_image);
             after_image->location = tuple_ptr;
-            m.dirty()->push_back_dir_entry(*after_image);
 
-            table_index[key] = after_image;
+            mstr.get_dir_fd().push_back_dir_entry(*after_image);
+            mstr.get_dir()[key] = tuple_ptr;
         }
 
         // Add log entry
@@ -443,8 +474,7 @@ void load(){
     }
 
     table.sync();
-    m.dirty()->sync();
-    m.toggle();
+    mstr.sync();
 
 }
 
@@ -457,17 +487,16 @@ int main(){
 
     boost::thread group_committer(group_commit);
 
-    // Runner
     /*
+    // Runner
     boost::thread_group th_group;
     for(int i=0 ; i<num_threads ; i++)
         th_group.create_thread(boost::bind(runner));
 
     th_group.join_all();
-    */
+	*/
 
     //check();
-
 
     return 0;
 }
