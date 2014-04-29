@@ -31,6 +31,7 @@ using namespace std;
 #define NUM_KEYS 10
 #define NUM_TXNS 10
 
+#define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 1
 #define VALUE_SIZE 4
 
 #define MASTER_LOC 0x01a00000
@@ -83,13 +84,22 @@ class txn{
 
 class record{
     public:
-        record(unsigned int _key, std::string _value, char* _location) :
+		record() :
+			key(0),
+			len(0),
+			value(""),
+			location(NULL)
+    	{
+		}
+
+        record(unsigned int _key, unsigned int _len, std::string _value, char* _location) :
             key(_key),
+            len(_len),
             value(_value),
             location(_location){}
 
         friend ostream& operator<<(ostream& out, const record& rec){
-            out << "|" << rec.key << "|" << rec.value << "|";
+            out << "|" << rec.key << "|" << rec.len << "|" << rec.value << "|";
             return out;
         }
 
@@ -97,10 +107,11 @@ class record{
             in.ignore(1); // skip delimiter
 
             in >> rec.key;
-            in.ignore(1); // skip delimiter
+            in.ignore(1);
+            in >> rec.len;
+            in.ignore(1);
             in >> rec.value;
-            in.ignore(1); // skip delimiter
-            //in.ignore(1); // skip endline
+            in.ignore(1);
 
             return in;
         }
@@ -108,6 +119,7 @@ class record{
 
         //private:
         unsigned int key;
+        unsigned int len;
         std::string value;
         char* location;
 };
@@ -145,7 +157,7 @@ class mmap_fd{
 		        exit(EXIT_FAILURE);
 		    }
 
-		    cout<<"size :"<< sbuf.st_size << endl;
+		    //cout<<"size :"<< sbuf.st_size << endl;
 
 		    caddr_t location = (caddr_t) TABLE_LOC;
 
@@ -164,7 +176,7 @@ class mmap_fd{
 		    		exit(EXIT_FAILURE);
 		    	}
 
-			    cout<<"after fallocate: size :"<< sbuf.st_size << endl;
+			    //cout<<"after fallocate: size :"<< sbuf.st_size << endl;
 
 		    	offset = 0;
 		    }
@@ -185,7 +197,7 @@ class mmap_fd{
         stringstream rec_stream;
         string rec_str;
 
-        rec_stream << rec.key << rec.value;
+        rec_stream << rec.key <<" "<< rec.len <<" "<< rec.value;
         rec_str = rec_stream.str();
 
         char* cur_offset = (data + offset);
@@ -208,6 +220,28 @@ class mmap_fd{
 
 		offset += rec_str.size();
 
+	}
+
+	record get_record(char* location){
+		record r;
+		unsigned int key;
+		unsigned int len;
+		std::string value;
+
+		char tuple[TUPLE_SIZE];
+		memcpy(tuple, location, sizeof(tuple));
+
+		istringstream ss(tuple);
+		ss >> key >> len >> value;
+
+		r.key = key;
+		r.len = len;
+		r.value = value;
+		r.location = location;
+
+		cout<<r<<endl;
+
+		return r;
 	}
 
 	void sync(){
@@ -355,10 +389,11 @@ void group_commit(){
 }
 
 // TRANSACTION OPERATIONS
-/*
+
 int update(txn t){
     int key = t.key;
 
+    /*
     if(table_index.count(t.key) == 0) // key does not exist
         return -1;
 
@@ -380,40 +415,38 @@ int update(txn t){
     // Add log entry
     entry e(t, before_image, after_image);
     _undo_buffer.push(e);
+    */
 
     return 0;
 }
 
 std::string read(txn t){
     int key = t.key;
-    if (table_index.count(t.key) == 0) // key does not exist
+    if (mstr.get_clean_dir().count(t.key) == 0) // key does not exist
         return "";
 
     std::string val = "" ;
 
+    // No locking
     {
-        boost::upgrade_lock<boost::shared_mutex> lock(table_access);
-        // shared access
-
-        record* r = table_index[key];
-        if(r != NULL){
-            val = r->value;
-        }
+        char* location =  mstr.get_clean_dir()[key];
+        record r = table.get_record(location);
+        val = r.value;
     }
 
     return val;
 }
-*/
+
 
 // RUNNER + LOADER
 
-int num_threads = 4;
+int num_threads = 1;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
 long num_wr   = 50 ;
 
-/*
+
 void runner(){
     std::string val;
 
@@ -433,7 +466,7 @@ void runner(){
     }
 
 }
-*/
+
 
 void check(){
 
@@ -452,7 +485,8 @@ void load(){
     for(int i=0 ; i<num_keys ; i++){
         int key = i;
         string value = random_string(VALUE_SIZE);
-        record* after_image = new record(key, value, NULL);
+        int len = VALUE_SIZE;
+        record* after_image = new record(key, len, value, NULL);
 
         {
             boost::upgrade_lock<boost::shared_mutex> lock(table_access);
@@ -487,14 +521,13 @@ int main(){
 
     boost::thread group_committer(group_commit);
 
-    /*
+
     // Runner
     boost::thread_group th_group;
     for(int i=0 ; i<num_threads ; i++)
         th_group.create_thread(boost::bind(runner));
 
     th_group.join_all();
-	*/
 
     //check();
 

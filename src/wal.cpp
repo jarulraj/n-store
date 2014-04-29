@@ -106,6 +106,8 @@ class record{
 boost::shared_mutex table_access;
 vector<record> table;
 
+unordered_map<unsigned int, record*> table_index;
+
 // LOGGING
 
 class entry{
