@@ -29,15 +29,15 @@
 using namespace std;
 
 #define NUM_KEYS 10
-#define NUM_TXNS 10
+#define NUM_TXNS 1000
 
 #define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 1
 #define VALUE_SIZE 4
 
 #define MASTER_LOC 0x01a00000
 #define TABLE_LOC  0x01b00000
-#define DIR1_LOC   0x01c00000
-#define DIR2_LOC   0x01d00000
+#define DIR0_LOC   0x01c00000
+#define DIR1_LOC   0x01d00000
 
 int log_enable = 0 ;
 
@@ -86,20 +86,18 @@ class record{
     public:
 		record() :
 			key(0),
-			len(0),
 			value(""),
 			location(NULL)
     	{
 		}
 
-        record(unsigned int _key, unsigned int _len, std::string _value, char* _location) :
+        record(unsigned int _key, std::string _value, char* _location) :
             key(_key),
-            len(_len),
             value(_value),
             location(_location){}
 
         friend ostream& operator<<(ostream& out, const record& rec){
-            out << "|" << rec.key << "|" << rec.len << "|" << rec.value << "|";
+            out << "|" << rec.key << "|" << rec.value << "|";
             return out;
         }
 
@@ -107,8 +105,6 @@ class record{
             in.ignore(1); // skip delimiter
 
             in >> rec.key;
-            in.ignore(1);
-            in >> rec.len;
             in.ignore(1);
             in >> rec.value;
             in.ignore(1);
@@ -119,7 +115,6 @@ class record{
 
         //private:
         unsigned int key;
-        unsigned int len;
         std::string value;
         char* location;
 };
@@ -138,7 +133,7 @@ class mmap_fd{
 		}
 
 
-		mmap_fd(std::string _name) :
+		mmap_fd(std::string _name, caddr_t location) :
 			name(_name)
 		{
 			if ((fp = fopen(name.c_str(), "w+")) == NULL) {
@@ -148,8 +143,6 @@ class mmap_fd{
 
 			fd = fileno(fp);
 
-			cout<<"fd :"<<fd << endl;
-
 			struct stat sbuf;
 
 		    if (stat(name.c_str(), &sbuf) == -1) {
@@ -158,8 +151,6 @@ class mmap_fd{
 		    }
 
 		    //cout<<"size :"<< sbuf.st_size << endl;
-
-		    caddr_t location = (caddr_t) TABLE_LOC;
 
 		    // new file check
 		    if(sbuf.st_size == 0){
@@ -190,14 +181,14 @@ class mmap_fd{
 		        exit(EXIT_FAILURE);
 		    }
 
-		    cout<<"data :"<< data << endl;
+		    //cout<<"data :"<< data << endl;
 		}
 
 	char* push_back_record (const record& rec){
         stringstream rec_stream;
         string rec_str;
 
-        rec_stream << rec.key <<" "<< rec.len <<" "<< rec.value;
+        rec_stream << rec.key <<" "<< rec.value<<" ";
         rec_str = rec_stream.str();
 
         char* cur_offset = (data + offset);
@@ -225,21 +216,17 @@ class mmap_fd{
 	record get_record(char* location){
 		record r;
 		unsigned int key;
-		unsigned int len;
 		std::string value;
 
 		char tuple[TUPLE_SIZE];
 		memcpy(tuple, location, sizeof(tuple));
 
 		istringstream ss(tuple);
-		ss >> key >> len >> value;
+		ss >> key >> value;
 
 		r.key = key;
-		r.len = len;
 		r.value = value;
 		r.location = location;
-
-		cout<<r<<endl;
 
 		return r;
 	}
@@ -247,7 +234,7 @@ class mmap_fd{
 	void sync(){
 		int ret = 0;
 
-		cout<<"data: "<<data<<" offset: "<<offset<<endl;
+		//cout<<"msync offset: "<<offset<<endl;
 
 		ret = msync(data, offset, MS_SYNC);
 		if(ret == -1){
@@ -255,6 +242,29 @@ class mmap_fd{
 	        exit(EXIT_FAILURE);
 		}
 
+	}
+
+	void copy(std::unordered_map<unsigned int, char*> dir){
+		std::unordered_map<unsigned int, char*>::iterator itr;
+
+		for(itr = dir.begin() ; itr != dir.end() ; itr++){
+			record r((*itr).first, "", (*itr).second);
+			this->push_back_dir_entry(r);
+		}
+
+	}
+
+	void set(bool dir){
+		char* cur_offset = (data);
+
+		if(dir == false)
+			*cur_offset = '0';
+		else
+			*cur_offset = '1';
+	}
+
+	void reset_fd(){
+		offset = 0;
 	}
 
 	private:
@@ -266,7 +276,7 @@ class mmap_fd{
 
 };
 
-mmap_fd table("usertable");
+mmap_fd table("usertable", (caddr_t) TABLE_LOC);
 
 
 // MASTER
@@ -277,8 +287,10 @@ class master{
 	master(std::string table_name) :
 		name(table_name)
 	{
-		for(int itr = 0; itr<2 ; itr++)
-			dir_fds[itr] = mmap_fd(name+"_dir"+std::to_string(itr));
+		dir_fds[0] = mmap_fd(name+"_dir0",(caddr_t) DIR0_LOC);
+		dir_fds[1] = mmap_fd(name+"_dir1",(caddr_t) DIR1_LOC);
+
+		master_fd = mmap_fd("master",(caddr_t) MASTER_LOC);
 
 		// Initialize
 		dir_fd_ptr = 0;
@@ -294,11 +306,21 @@ class master{
 	}
 
 	void sync(){
-		// Flush dirty dir
+		// First copy and then flush dirty dir
+		dir_fds[dir_fd_ptr].copy(get_dir());
 		dir_fds[dir_fd_ptr].sync();
+
+		// Sync master
+		master_fd.set(dir);
+		master_fd.sync();
 
 		// Toggle
 		toggle();
+
+		// Clean up new dir fd and dir
+		get_dir_fd().reset_fd();
+		get_dir().clear();
+		get_dir().insert(get_clean_dir().begin(), get_clean_dir().end());
 	}
 
 	unordered_map<unsigned int, char*>& get_clean_dir(){
@@ -316,6 +338,7 @@ class master{
 
 	// file dirs
 	mmap_fd dir_fds[2];
+	mmap_fd master_fd;
 
 	// in-memory dirs
 	unordered_map<unsigned int, char*> dirs[2];
@@ -331,15 +354,15 @@ master mstr("usertable");
 
 class entry{
     public:
-        entry(txn _txn, record* _before_image, record* _after_image) :
+        entry(txn _txn, char* _before_image, char* _after_image) :
             transaction(_txn),
             before_image(_before_image),
             after_image(_after_image){}
 
         //private:
         txn transaction;
-        record* before_image;
-        record* after_image;
+        char* before_image;
+        char* after_image;
 };
 
 
@@ -369,19 +392,19 @@ logger _undo_buffer;
 // GROUP COMMIT
 
 void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t){
-    std::cout << "Syncing log !\n"<<endl;
+    std::cout << "Syncing table and master !\n"<<endl;
 
-    // sync table
     table.sync();
+    mstr.sync();
 
-    t->expires_at(t->expires_at() + boost::posix_time::milliseconds(100));
+    t->expires_at(t->expires_at() + boost::posix_time::milliseconds(10));
     t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
 }
 
 void group_commit(){
     if(log_enable){
         boost::asio::io_service io;
-        boost::asio::deadline_timer t(io, boost::posix_time::milliseconds(100));
+        boost::asio::deadline_timer t(io, boost::posix_time::milliseconds(10));
 
         t.async_wait(boost::bind(logger_func, boost::asio::placeholders::error, &t));
         io.run();
@@ -392,44 +415,46 @@ void group_commit(){
 
 int update(txn t){
     int key = t.key;
+    char* before_image;
+    char* after_image;
 
-    /*
-    if(table_index.count(t.key) == 0) // key does not exist
+    // key does not exist
+    if(mstr.get_dir().count(t.key) == 0){
+        std::cout<<"Key does not exist : "<<key<<endl;
         return -1;
+    }
 
-    record* before_image;
-    record* after_image = new record(t.key, t.value, NULL);
+    record* rec = new record(t.key, t.value, NULL);
 
     {
-        boost::upgrade_lock< boost::shared_mutex > lock(table_access);
-        // shared access
-        before_image = table_index.at(t.key);
+        after_image = table.push_back_record(*rec);
+        rec->location = after_image;
 
-        boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
-        // exclusive access
+        before_image = mstr.get_dir()[t.key];
+        mstr.get_dir()[t.key] = after_image;
 
-        //table.push_back(*after_image);
-        table_index[key] = after_image;
+        //std::cout<<"Updated "<<key<<endl;
     }
 
     // Add log entry
     entry e(t, before_image, after_image);
     _undo_buffer.push(e);
-    */
 
     return 0;
 }
 
 std::string read(txn t){
     int key = t.key;
-    if (mstr.get_clean_dir().count(t.key) == 0) // key does not exist
-        return "";
 
-    std::string val = "" ;
+    if (mstr.get_clean_dir().count(t.key) == 0) // key does not exist
+        return "not exists";
+
+    std::string val;
 
     // No locking
     {
         char* location =  mstr.get_clean_dir()[key];
+
         record r = table.get_record(location);
         val = r.value;
     }
@@ -470,34 +495,33 @@ void runner(){
 
 void check(){
 
-    //for (std::vector<record>::iterator it = table.begin() ; it != table.end(); ++it){
-    //    cout << *it << endl;
-    //}
+	std::cout<<"Check :"<<std::endl;
+	for(int i=0 ; i<num_keys ; i++){
+	    std::string val;
+
+        txn t(i, "Read", i, val);
+		val = read(t);
+
+		std::cout<<i<<" "<<val<<endl;
+	}
 
 }
 
 void load(){
     size_t ret;
-    stringstream buffer_stream;
-    string buffer;
-    char* tuple_ptr;
+    char* after_image;
 
     for(int i=0 ; i<num_keys ; i++){
         int key = i;
         string value = random_string(VALUE_SIZE);
-        int len = VALUE_SIZE;
-        record* after_image = new record(key, len, value, NULL);
+
+        record* rec = new record(key, value, NULL);
 
         {
-            boost::upgrade_lock<boost::shared_mutex> lock(table_access);
-            boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
-            // exclusive access
+            after_image = table.push_back_record(*rec);
+            rec->location = after_image;
 
-            tuple_ptr = table.push_back_record(*after_image);
-            after_image->location = tuple_ptr;
-
-            mstr.get_dir_fd().push_back_dir_entry(*after_image);
-            mstr.get_dir()[key] = tuple_ptr;
+            mstr.get_dir()[key] = after_image;
         }
 
         // Add log entry
@@ -509,7 +533,6 @@ void load(){
 
     table.sync();
     mstr.sync();
-
 }
 
 int main(){
@@ -519,8 +542,9 @@ int main(){
     load();
     std::cout<<"Loading finished "<<endl;
 
-    boost::thread group_committer(group_commit);
+    check();
 
+    boost::thread group_committer(group_commit);
 
     // Runner
     boost::thread_group th_group;
@@ -529,7 +553,10 @@ int main(){
 
     th_group.join_all();
 
-    //check();
+    table.sync();
+    mstr.sync();
+
+    check();
 
     return 0;
 }
