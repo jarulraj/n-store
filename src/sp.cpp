@@ -28,11 +28,12 @@
 
 using namespace std;
 
-#define NUM_KEYS 10
-#define NUM_TXNS 1000
+#define NUM_KEYS 1000
+#define NUM_TXNS 10000
+
+#define VALUE_SIZE 128
 
 #define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 1
-#define VALUE_SIZE 4
 
 #define MASTER_LOC 0x01a00000
 #define TABLE_LOC  0x01b00000
@@ -541,9 +542,11 @@ int main(){
     // Loader
     load();
     std::cout<<"Loading finished "<<endl;
+    //check();
 
-    check();
+    start = std::chrono::system_clock::now();
 
+    log_enable = 1;
     boost::thread group_committer(group_commit);
 
     // Runner
@@ -553,10 +556,17 @@ int main(){
 
     th_group.join_all();
 
+    // Logger
+    log_enable = 0;
+
     table.sync();
     mstr.sync();
 
-    check();
+    //check();
+
+    end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::cout<<"Duration: "<< elapsed_seconds.count()<<endl;
 
     return 0;
 }
