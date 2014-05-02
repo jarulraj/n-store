@@ -6,19 +6,19 @@
 #include <algorithm>
 #include <sstream>
 #include <utility>
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
-#include <stdlib.h>
-#include <unordered_map>
-#include <memory>
 
+#include <memory>
 #include <chrono>
 #include <random>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
+#include <unordered_map>
 
 using namespace std;
-using namespace ting;
 
 #define NUM_KEYS 1000
 #define NUM_TXNS 10000
@@ -31,6 +31,11 @@ int num_threads = 4;
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
 long num_wr   = 50 ;
+
+std::mutex gc_mutex;
+std::condition_variable cv;
+bool ready = false;
+
 
 // UTILS
 std::string random_string( size_t length ){
@@ -102,7 +107,7 @@ class record{
         std::string value;
 };
 
-ting::shared_mutex table_access;
+std::mutex table_access;
 vector<record> table;
 
 unordered_map<unsigned int, record*> table_index;
@@ -197,25 +202,22 @@ class logger {
 };
 
 logger _undo_buffer;
-      
-void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t){
-    std::cout << "Syncing log !\n"<<endl;
 
-    // sync
-    _undo_buffer.write();
-
-    t->expires_at(t->expires_at() + boost::posix_time::milliseconds(100));
-    t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
-}
+// GROUP COMMIT
 
 void group_commit(){
-    if(log_enable){
-        boost::asio::io_service io;
-        boost::asio::deadline_timer t(io, boost::posix_time::milliseconds(100));
+    std::unique_lock<std::mutex> lk(gc_mutex);
+    cv.wait(lk, []{return ready;});
 
-        t.async_wait(boost::bind(logger_func, boost::asio::placeholders::error, &t));
-        io.run();
+    while(ready){
+        std::cout << "Syncing log !\n"<<endl;
+
+        // sync
+        _undo_buffer.write();
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+
 }
 
 // TRANSACTION OPERATIONS
@@ -330,26 +332,31 @@ int main(){
 
     start = std::chrono::system_clock::now();
     
-    // Logger
-    log_enable = 1;
-    boost::thread group_committer(group_commit);
+    // Logger start
+    std::thread gc(group_commit);
+    {
+        std::lock_guard<std::mutex> lk(gc_mutex);
+        ready = true;
+    }
+    cv.notify_one();
 
     // Runner
-    boost::thread_group th_group;
+    std::vector<std::thread> th_group;
     for(int i=0 ; i<num_threads ; i++)
-        th_group.create_thread(boost::bind(runner));
+        th_group.push_back(std::thread(runner));
 
-    th_group.join_all();
-    //check();
+    for(int i=0 ; i<num_threads ; i++)
+    	th_group.at(i).join();
 
-    // Logger
-    log_enable = 0;
+    // Logger end
+    ready = false;
+    gc.join();
+
     _undo_buffer.write();
 
     end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout<<"Duration: "<< elapsed_seconds.count()<<endl;
-
 
     return 0;
 }

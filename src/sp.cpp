@@ -6,16 +6,18 @@
 #include <algorithm>
 #include <sstream>
 #include <utility>
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
-#include <stdlib.h>
-#include <unordered_map>
-#include <memory>
 
+#include <memory>
 #include <chrono>
 #include <random>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
+#include <unordered_map>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -38,7 +40,9 @@ using namespace std;
 #define DIR0_LOC   0x01c00000
 #define DIR1_LOC   0x01d00000
 
-int log_enable = 0 ;
+std::mutex gc_mutex;
+std::condition_variable cv;
+bool ready = false;
 
 // UTILS
 std::string random_string( size_t length ){
@@ -388,24 +392,19 @@ logger _undo_buffer;
 
 // GROUP COMMIT
 
-void logger_func(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t){
-    std::cout << "Syncing table and master !\n"<<endl;
-
-    table.sync();
-    mstr.sync();
-
-    t->expires_at(t->expires_at() + boost::posix_time::milliseconds(10));
-    t->async_wait(boost::bind(logger_func, boost::asio::placeholders::error, t));
-}
-
 void group_commit(){
-    if(log_enable){
-        boost::asio::io_service io;
-        boost::asio::deadline_timer t(io, boost::posix_time::milliseconds(10));
+    std::unique_lock<std::mutex> lk(gc_mutex);
+    cv.wait(lk, []{return ready;});
 
-        t.async_wait(boost::bind(logger_func, boost::asio::placeholders::error, &t));
-        io.run();
+    while(ready){
+        std::cout << "Syncing table and master !\n"<<endl;
+
+        table.sync();
+        mstr.sync();
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+
 }
 
 // TRANSACTION OPERATIONS
@@ -462,7 +461,7 @@ std::string read(txn t){
 
 // RUNNER + LOADER
 
-int num_threads = 1;
+unsigned long int num_threads = 1;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -542,21 +541,25 @@ int main(){
 
     start = std::chrono::system_clock::now();
 
-    log_enable = 1;
-    boost::thread group_committer(group_commit);
+    // Logger start
+    std::thread gc(group_commit);
+    {
+        std::lock_guard<std::mutex> lk(gc_mutex);
+        ready = true;
+    }
+    cv.notify_one();
 
     // Runner
-    boost::thread_group th_group;
+    std::vector<std::thread> th_group;
     for(int i=0 ; i<num_threads ; i++)
-        th_group.create_thread(boost::bind(runner));
+        th_group.push_back(std::thread(runner));
 
-    th_group.join_all();
+    for(int i=0 ; i<num_threads ; i++)
+    	th_group.at(i).join();
 
-    // Logger
-    log_enable = 0;
-
-    table.sync();
-    mstr.sync();
+    // Logger end
+    ready = false;
+    gc.join();
 
     //check();
 
