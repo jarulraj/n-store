@@ -1,7 +1,8 @@
 #include <iostream>
-#include <boost/thread.hpp>
 #include <map>
 #include <string>
+
+#include <boost/thread.hpp>
 
 using namespace std;
 

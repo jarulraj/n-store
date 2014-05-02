@@ -1,23 +1,35 @@
 # Autotools
 Makefile
+Makefile.am
+configure
+m4
+m4/*
+*.o
+*~
+src/serve
+src/points2qt
+src/points2qtts
 Makefile.in
-
+config.*
+config-h.in
+libtool
+.deps
 aclocal.m4
-autom4te.cache/
-config*
+autom4te.cache
+autom4te.cache/*
+stamp-h1
+aux-scripts
+#*#
+#.#*
 depcomp
 install-sh
 libtool
 ltmain.sh
 missing
 stamp-h*
-.deps/
-.dirstamp
-.libs/
-m4/*.m4
-.settings/*
 
 # Build files 
+build
 build/*
 *.o
 *.sym
@@ -25,12 +37,11 @@ build/*
 *.la
 *.out
 
-# Log files
+# Log/Tmp files
 *log
 *log.txt
-# Tmp files
-*~
-
-src/client
-src/server
 *tmp
+
+# Editor
+.settings/*
+
