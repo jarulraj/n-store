@@ -15,15 +15,19 @@ AC_PROG_LIBTOOL
 # Check for pthreads (uses m4/acx_pthread.m4).
 ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
+AC_LANG([C++])
+
+# turn on c++11
+AX_CXX_COMPILE_STDCXX_11(noext)
+
 BOOST_REQUIRE([1.45])
 BOOST_SYSTEM
-BOOST_SERIALIZATION
 BOOST_ASIO
+BOOST_THREADS
+#BOOST_SERIALIZATION
 
-SUBDIRS = src
-
-#AC_CONFIG_FILES([Makefile 
-#                 src/Makefile])
+AC_CONFIG_FILES([Makefile
+                 src/Makefile])                  
                 
 #[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h.in])
 AC_OUTPUT
