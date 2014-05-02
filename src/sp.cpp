@@ -12,12 +12,10 @@
 #include <unordered_map>
 #include <memory>
 
-#include <boost/thread.hpp>
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
-
 #include <chrono>
 #include <random>
+#include <thread>
+#include <mutex>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -120,7 +118,7 @@ class record{
         char* location;
 };
 
-boost::shared_mutex table_access;
+std::mutex table_access;
 
 // MMAP
 class mmap_fd{
@@ -371,9 +369,7 @@ class logger {
     public:
 
         void push(entry e){
-            boost::upgrade_lock< boost::shared_mutex > lock(log_access);
-            boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
-            // exclusive access
+        	std::lock_guard<std::mutex> lock(log_access);
 
             log_queue.push_back(e);
         }
@@ -384,7 +380,7 @@ class logger {
 
     private:
 
-        boost::shared_mutex log_access;
+        std::mutex log_access;
         vector<entry> log_queue;
 };
 

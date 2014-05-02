@@ -12,14 +12,13 @@
 #include <unordered_map>
 #include <memory>
 
-#include <boost/thread.hpp>
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
-
 #include <chrono>
 #include <random>
+#include <thread>
+#include <mutex>
 
 using namespace std;
+using namespace ting;
 
 #define NUM_KEYS 1000
 #define NUM_TXNS 10000
@@ -103,7 +102,7 @@ class record{
         std::string value;
 };
 
-boost::shared_mutex table_access;
+ting::shared_mutex table_access;
 vector<record> table;
 
 unordered_map<unsigned int, record*> table_index;
@@ -140,9 +139,7 @@ class logger {
 
 
         void push(entry e){
-            boost::upgrade_lock< boost::shared_mutex > lock(log_access);
-            boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
-            // exclusive access
+        	std::lock_guard<std::mutex> lock(log_access);
 
             log_queue.push_back(e);
         }
@@ -154,9 +151,7 @@ class logger {
 
             //cout<<"queue size :"<<log_queue.size()<<endl;
 
-            boost::upgrade_lock< boost::shared_mutex > lock(log_access);
-            boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
-            // exclusive access
+        	std::lock_guard<std::mutex> lock(log_access);
 
             for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
                 buffer_stream << (*it).transaction.txn_type ;
@@ -197,7 +192,7 @@ class logger {
         FILE* logFile ;
         int logFileFD;
 
-        boost::shared_mutex log_access;
+        std::mutex log_access;
         vector<entry> log_queue;
 };
 
@@ -235,13 +230,9 @@ int update(txn t){
     record* after_image = new record(t.key, t.value);
 
     {
-        boost::upgrade_lock< boost::shared_mutex > lock(table_access);
-        // shared access
+    	std::lock_guard<std::mutex> lock(table_access);
+
         before_image = table_index.at(t.key);
-
-        boost::upgrade_to_unique_lock< boost::shared_mutex > uniqueLock(lock);
-        // exclusive access
-
         table.push_back(*after_image);
         table_index[key] = after_image;
     }
@@ -261,8 +252,7 @@ std::string read(txn t){
     std::string val = "" ;
 
     {
-        boost::upgrade_lock<boost::shared_mutex> lock(table_access);
-        // shared access
+    	std::lock_guard<std::mutex> lock(table_access);
 
         record* r = table_index[key];
         if(r != NULL){
@@ -314,9 +304,7 @@ void load(){
         record* after_image = new record(key, value);
 
         {
-            boost::upgrade_lock<boost::shared_mutex> lock(table_access);
-            boost::upgrade_to_unique_lock<boost::shared_mutex> uniqueLock(lock);
-            // exclusive access
+        	std::lock_guard<std::mutex> lock(table_access);
 
             table.push_back(*after_image);
             table_index[key] = after_image;
