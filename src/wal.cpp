@@ -23,7 +23,7 @@ using namespace std;
 #define NUM_KEYS 10000
 #define NUM_TXNS 10000
 
-#define VALUE_SIZE 128
+#define VALUE_SIZE 2
 
 int log_enable ;
 int num_threads = 4;

@@ -31,7 +31,7 @@ using namespace std;
 #define NUM_KEYS 10000
 #define NUM_TXNS 10000
 
-#define VALUE_SIZE 128
+#define VALUE_SIZE 2
 #define SIZE       NUM_KEYS*VALUE_SIZE*100
 
 unsigned long int num_threads = 4;
@@ -434,10 +434,17 @@ int update(txn t){
     int key = t.key;
     char* before_image;
     char* after_image;
+    int rc = -1;
+
+    rc = pthread_rwlock_wrlock(&table_access);
+    if(rc != 0){
+    	cout<<"update:: wrlock failed \n";
+    	return -1;
+    }
 
     // key does not exist
     if(mstr.get_dir().count(t.key) == 0){
-        std::cout<<"Key does not exist : "<<key<<endl;
+        std::cout<<"Update: key does not exist : "<<key<<endl;
         return -1;
     }
 
@@ -457,33 +464,27 @@ int update(txn t){
     entry e(t, before_image, after_image);
     _undo_buffer.push(e);
 
+	rc = pthread_rwlock_unlock(&table_access);
+	if (rc != 0) {
+		cout << "sync:: unlock failed \n";
+		return -1;
+	}
+
     return 0;
 }
 
 std::string read(txn t){
     int key = t.key;
     std::string val;
-    int rc = -1;
 
-	rc = pthread_rwlock_rdlock(&table_access);
-	if (rc != 0) {
-		cout << "read:: rdlock failed \n";
-		return "";
-	}
-
-    if (mstr.get_clean_dir().count(t.key) == 0) // key does not exist
+    if (mstr.get_clean_dir().count(t.key) == 0){
+        std::cout<<"Read: key does not exist : "<<key<<endl;
         return "not exists";
-
+    }
 
     char* location =  mstr.get_clean_dir()[key];
     record r = table.get_record(location);
     val = r.value;
-
-	rc = pthread_rwlock_unlock(&table_access);
-	if (rc != 0) {
-		cout << "read:: unlock failed \n";
-		return "";
-	}
 
     return val;
 }
