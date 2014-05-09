@@ -26,7 +26,7 @@ using namespace std;
 #define VALUE_SIZE 2
 
 int log_enable ;
-int num_threads = 4;
+int num_threads = 2;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -233,8 +233,14 @@ int update(txn t){
     	return -1;
     }
 
-    if(table_index.count(t.key) == 0) // key does not exist
+    if(table_index.count(t.key) == 0){
+        rc = pthread_rwlock_unlock(&table_access);
+        if(rc != 0){
+        	cout<<"update:: unlock failed \n";
+        	return -1;
+        }
         return -1;
+    }
 
     record* before_image;
     record* after_image = new record(t.key, t.value);
@@ -268,8 +274,14 @@ std::string read(txn t){
     	return "";
     }
 
-	if (table_index.count(t.key) == 0) // key does not exist
+	if (table_index.count(t.key) == 0){
+		rc = pthread_rwlock_unlock(&table_access);
+		if (rc != 0) {
+			cout << "read:: rdlock failed \n";
+			return "";
+		}
 		return "";
+	}
 
 	record* r = table_index[key];
 	if (r != NULL) {

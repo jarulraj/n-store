@@ -34,7 +34,7 @@ using namespace std;
 #define VALUE_SIZE 2
 #define SIZE       NUM_KEYS*VALUE_SIZE*100
 
-unsigned long int num_threads = 4;
+unsigned long int num_threads = 2;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -167,10 +167,9 @@ class mmap_fd{
 
 		    // new file check
 		    if(sbuf.st_size == 0){
-			    off_t offset = 0;
 			    off_t len = SIZE;
 
-		    	if(fallocate(fd, 0, offset, len) == -1){
+		    	if(ftruncate(fd, len) == -1){
 					cout<<"fallocate failed "<<name<<" \n";
 			        exit(EXIT_FAILURE);
 		    	}
@@ -448,6 +447,11 @@ int update(txn t){
     // key does not exist
     if(mstr.get_dir().count(t.key) == 0){
         std::cout<<"Update: key does not exist : "<<key<<endl;
+    	rc = pthread_rwlock_unlock(&table_access);
+    	if (rc != 0) {
+    		cout << "update:: unlock failed \n";
+    		return -1;
+    	}
         return -1;
     }
 
