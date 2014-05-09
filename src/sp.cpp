@@ -51,6 +51,9 @@ std::mutex gc_mutex;
 std::condition_variable cv;
 bool ready = false;
 
+//std::string prefix = "/mnt/pmfs/n-store/";
+std::string prefix = "./";
+
 // UTILS
 std::string random_string( size_t length ){
     auto randchar = []() -> char
@@ -286,7 +289,7 @@ class mmap_fd{
 
 };
 
-mmap_fd table("usertable", (caddr_t) TABLE_LOC);
+mmap_fd table(prefix + "usertable", (caddr_t) TABLE_LOC);
 
 // MASTER
 
@@ -296,10 +299,10 @@ class master{
 	master(std::string table_name) :
 		name(table_name)
 	{
-		dir_fds[0] = mmap_fd(name+"_dir0",(caddr_t) DIR0_LOC);
-		dir_fds[1] = mmap_fd(name+"_dir1",(caddr_t) DIR1_LOC);
+		dir_fds[0] = mmap_fd(prefix + name + "_dir0",(caddr_t) DIR0_LOC);
+		dir_fds[1] = mmap_fd(prefix + name + "_dir1",(caddr_t) DIR1_LOC);
 
-		master_fd = mmap_fd("master",(caddr_t) MASTER_LOC);
+		master_fd = mmap_fd(prefix + "master",(caddr_t) MASTER_LOC);
 
 		// Initialize
 		dir_fd_ptr = 0;

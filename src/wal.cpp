@@ -36,6 +36,8 @@ std::mutex gc_mutex;
 std::condition_variable cv;
 bool ready = false;
 
+//std::string prefix = "/mnt/pmfs/n-store/";
+std::string prefix = "./";
 
 // UTILS
 std::string random_string( size_t length ){
@@ -131,8 +133,7 @@ class entry{
 class logger {
     public:
         logger(){
-            //std::string logFileName = "/mnt/pmfs/n-store/log";
-            std::string logFileName = "./log";
+            std::string logFileName = prefix+"./log";
 
             logFile = fopen(logFileName.c_str(), "w");
             if (logFile != NULL) {
