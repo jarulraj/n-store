@@ -21,12 +21,12 @@
 using namespace std;
 
 #define NUM_KEYS 10000
-#define NUM_TXNS 10000
+#define NUM_TXNS 200000
 
 #define VALUE_SIZE 2
 
 int log_enable ;
-int num_threads = 4;
+int num_threads = 8;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -216,7 +216,7 @@ void group_commit(){
         // sync
         _undo_buffer.write();
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
 }
