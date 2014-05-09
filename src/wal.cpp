@@ -26,7 +26,7 @@ using namespace std;
 #define VALUE_SIZE 2
 
 int log_enable ;
-int num_threads = 8;
+int num_threads = 4;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -216,7 +216,7 @@ void group_commit(){
         // sync
         _undo_buffer.write();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
 }
@@ -227,34 +227,32 @@ int update(txn t){
     int key = t.key;
     int rc = -1;
 
+    rc = pthread_rwlock_wrlock(&table_access);
+    if(rc != 0){
+    	cout<<"update:: wrlock failed \n";
+    	return -1;
+    }
+
     if(table_index.count(t.key) == 0) // key does not exist
         return -1;
 
     record* before_image;
     record* after_image = new record(t.key, t.value);
 
-    {
-	    rc = pthread_rwlock_wrlock(&table_access);
-	    if(rc != 0){
-	    	cout<<"update:: wrlock failed \n";
-	    	return -1;
-	    }
-
-
-        before_image = table_index.at(t.key);
-        table.push_back(*after_image);
-        table_index[key] = after_image;
-
-	    rc = pthread_rwlock_unlock(&table_access);
-	    if(rc != 0){
-	    	cout<<"update:: unlock failed \n";
-	    	return -1;
-	    }
-    }
+	before_image = table_index.at(t.key);
+	table.push_back(*after_image);
+	table_index[key] = after_image;
 
     // Add log entry
     entry e(t, before_image, after_image);
     _undo_buffer.push(e);
+
+    rc = pthread_rwlock_unlock(&table_access);
+    if(rc != 0){
+    	cout<<"update:: unlock failed \n";
+    	return -1;
+    }
+
 
     return 0;
 }
@@ -262,30 +260,27 @@ int update(txn t){
 std::string read(txn t){
     int key = t.key;
     int rc = -1;
-
-    if (table_index.count(t.key) == 0) // key does not exist
-        return "";
-
     std::string val = "" ;
 
-    {
-	    rc = pthread_rwlock_rdlock(&table_access);
-	    if(rc != 0){
-	    	cout<<"read:: rdlock failed \n";
-	    	return "";
-	    }
-
-        record* r = table_index[key];
-        if(r != NULL){
-            val = r->value;
-        }
-
-	    rc = pthread_rwlock_unlock(&table_access);
-	    if(rc != 0){
-	    	cout<<"read:: rdlock failed \n";
-	    	return "";
-	    }
+    rc = pthread_rwlock_rdlock(&table_access);
+    if(rc != 0){
+    	cout<<"read:: rdlock failed \n";
+    	return "";
     }
+
+	if (table_index.count(t.key) == 0) // key does not exist
+		return "";
+
+	record* r = table_index[key];
+	if (r != NULL) {
+		val = r->value;
+	}
+
+	rc = pthread_rwlock_unlock(&table_access);
+	if (rc != 0) {
+		cout << "read:: rdlock failed \n";
+		return "";
+	}
 
     return val;
 }

@@ -34,7 +34,7 @@ using namespace std;
 #define VALUE_SIZE 2
 #define SIZE       NUM_KEYS*VALUE_SIZE*100
 
-unsigned long int num_threads = 8;
+unsigned long int num_threads = 4;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -426,7 +426,7 @@ void group_commit(){
         table.sync();
         mstr.sync();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
 }
@@ -453,15 +453,11 @@ int update(txn t){
 
     record* rec = new record(t.key, t.value, NULL);
 
-    {
-        after_image = table.push_back_record(*rec);
-        rec->location = after_image;
+	after_image = table.push_back_record(*rec);
+	rec->location = after_image;
 
-        before_image = mstr.get_dir()[t.key];
-        mstr.get_dir()[t.key] = after_image;
-
-        //std::cout<<"Updated "<<key<<endl;
-    }
+	before_image = mstr.get_dir()[t.key];
+	mstr.get_dir()[t.key] = after_image;
 
     // Add log entry
     entry e(t, before_image, after_image);
@@ -469,7 +465,7 @@ int update(txn t){
 
 	rc = pthread_rwlock_unlock(&table_access);
 	if (rc != 0) {
-		cout << "sync:: unlock failed \n";
+		cout << "update:: unlock failed \n";
 		return -1;
 	}
 
