@@ -20,7 +20,7 @@
 
 using namespace std;
 
-#define NUM_KEYS 1000
+#define NUM_KEYS 10000
 #define NUM_TXNS 10000
 
 #define VALUE_SIZE 128
@@ -30,7 +30,7 @@ int num_threads = 4;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
-long num_wr   = 50 ;
+long num_wr   = 10 ;
 
 std::mutex gc_mutex;
 std::condition_variable cv;
@@ -107,7 +107,7 @@ class record{
         std::string value;
 };
 
-std::mutex table_access;
+pthread_rwlock_t  table_access;
 vector<record> table;
 
 unordered_map<unsigned int, record*> table_index;
@@ -224,6 +224,7 @@ void group_commit(){
 
 int update(txn t){
     int key = t.key;
+    int rc = -1;
 
     if(table_index.count(t.key) == 0) // key does not exist
         return -1;
@@ -232,11 +233,22 @@ int update(txn t){
     record* after_image = new record(t.key, t.value);
 
     {
-    	std::lock_guard<std::mutex> lock(table_access);
+	    rc = pthread_rwlock_wrlock(&table_access);
+	    if(rc != 0){
+	    	cout<<"update:: wrlock failed \n";
+	    	return -1;
+	    }
+
 
         before_image = table_index.at(t.key);
         table.push_back(*after_image);
         table_index[key] = after_image;
+
+	    rc = pthread_rwlock_unlock(&table_access);
+	    if(rc != 0){
+	    	cout<<"update:: unlock failed \n";
+	    	return -1;
+	    }
     }
 
     // Add log entry
@@ -248,18 +260,30 @@ int update(txn t){
 
 std::string read(txn t){
     int key = t.key;
+    int rc = -1;
+
     if (table_index.count(t.key) == 0) // key does not exist
         return "";
 
     std::string val = "" ;
 
     {
-    	std::lock_guard<std::mutex> lock(table_access);
+	    rc = pthread_rwlock_rdlock(&table_access);
+	    if(rc != 0){
+	    	cout<<"read:: rdlock failed \n";
+	    	return "";
+	    }
 
         record* r = table_index[key];
         if(r != NULL){
             val = r->value;
         }
+
+	    rc = pthread_rwlock_unlock(&table_access);
+	    if(rc != 0){
+	    	cout<<"read:: rdlock failed \n";
+	    	return "";
+	    }
     }
 
     return val;
@@ -299,6 +323,7 @@ void load(){
     size_t ret;
     stringstream buffer_stream;
     string buffer;
+    int rc = -1;
 
     for(int i=0 ; i<num_keys ; i++){
         int key = i;
@@ -306,10 +331,21 @@ void load(){
         record* after_image = new record(key, value);
 
         {
-        	std::lock_guard<std::mutex> lock(table_access);
+    	    rc = pthread_rwlock_wrlock(&table_access);
+    	    if(rc != 0){
+    	    	cout<<"load:: wrlock failed \n";
+    	    	return;
+    	    }
+
 
             table.push_back(*after_image);
             table_index[key] = after_image;
+
+    	    rc = pthread_rwlock_unlock(&table_access);
+    	    if(rc != 0){
+    	    	cout<<"load:: unlock failed \n";
+    	    	return;
+    	    }
         }
 
         // Add log entry

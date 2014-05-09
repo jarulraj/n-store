@@ -28,10 +28,17 @@
 
 using namespace std;
 
-#define NUM_KEYS 1000
+#define NUM_KEYS 10000
 #define NUM_TXNS 10000
 
 #define VALUE_SIZE 128
+#define SIZE       NUM_KEYS*VALUE_SIZE*100
+
+unsigned long int num_threads = 4;
+
+long num_keys = NUM_KEYS ;
+long num_txn  = NUM_TXNS ;
+long num_wr   = 10 ;
 
 #define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 1
 
@@ -122,7 +129,7 @@ class record{
         char* location;
 };
 
-std::mutex table_access;
+pthread_rwlock_t  table_access;
 
 // MMAP
 class mmap_fd{
@@ -158,7 +165,7 @@ class mmap_fd{
 		    // new file check
 		    if(sbuf.st_size == 0){
 			    off_t offset = 0;
-			    off_t len = 1024*1024;
+			    off_t len = SIZE;
 
 		    	if(fallocate(fd, 0, offset, len) == -1){
 					cout<<"fallocate failed "<<name<<" \n";
@@ -281,7 +288,6 @@ class mmap_fd{
 
 mmap_fd table("usertable", (caddr_t) TABLE_LOC);
 
-
 // MASTER
 
 class master{
@@ -309,6 +315,14 @@ class master{
 	}
 
 	void sync(){
+	    int rc = -1;
+
+	    rc = pthread_rwlock_wrlock(&table_access);
+	    if(rc != 0){
+	    	cout<<"sync:: wrlock failed \n";
+	    	return;
+	    }
+
 		// First copy and then flush dirty dir
 		dir_fds[dir_fd_ptr].copy(get_dir());
 		dir_fds[dir_fd_ptr].sync();
@@ -324,6 +338,13 @@ class master{
 		get_dir_fd().reset_fd();
 		get_dir().clear();
 		get_dir().insert(get_clean_dir().begin(), get_clean_dir().end());
+
+		rc = pthread_rwlock_unlock(&table_access);
+		if (rc != 0) {
+			cout << "sync:: unlock failed \n";
+			return;
+		}
+
 	}
 
 	unordered_map<unsigned int, char*>& get_clean_dir(){
@@ -441,32 +462,34 @@ int update(txn t){
 
 std::string read(txn t){
     int key = t.key;
+    std::string val;
+    int rc = -1;
+
+	rc = pthread_rwlock_rdlock(&table_access);
+	if (rc != 0) {
+		cout << "read:: rdlock failed \n";
+		return "";
+	}
 
     if (mstr.get_clean_dir().count(t.key) == 0) // key does not exist
         return "not exists";
 
-    std::string val;
 
-    // No locking
-    {
-        char* location =  mstr.get_clean_dir()[key];
+    char* location =  mstr.get_clean_dir()[key];
+    record r = table.get_record(location);
+    val = r.value;
 
-        record r = table.get_record(location);
-        val = r.value;
-    }
+	rc = pthread_rwlock_unlock(&table_access);
+	if (rc != 0) {
+		cout << "read:: unlock failed \n";
+		return "";
+	}
 
     return val;
 }
 
 
 // RUNNER + LOADER
-
-unsigned long int num_threads = 1;
-
-long num_keys = NUM_KEYS ;
-long num_txn  = NUM_TXNS ;
-long num_wr   = 50 ;
-
 
 void runner(){
     std::string val;
