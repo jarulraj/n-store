@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#include <cassert>
 
 #include <memory>
 #include <chrono>
@@ -44,8 +45,17 @@ long num_wr   = 10 ;
 
 #define MASTER_LOC 0x01a00000
 #define TABLE_LOC  0x01b00000
-#define DIR0_LOC   0x01c00000
-#define DIR1_LOC   0x01d00000
+
+#define DIR_LOC    0x01c00000
+#define DIR0_LOC   0x01d00000
+#define DIR1_LOC   0x01e00000
+
+#define CHUNK_SIZE 1000
+
+typedef std::unordered_map<unsigned int, char*> inner_map;
+typedef std::unordered_map<unsigned int, inner_map*> outer_map;
+typedef std::unordered_map<unsigned int, char*> chunk_map;
+typedef std::unordered_map<unsigned int, bool> chunk_status;
 
 std::mutex gc_mutex;
 std::condition_variable cv;
@@ -90,7 +100,7 @@ class txn{
         unsigned int key;
         std::string value;
 
-        std::chrono::time_point<std::chrono::system_clock> start, end;
+        //std::chrono::time_point<std::chrono::system_clock> start, end;
 };
 
 // TUPLE + TABLE + INDEX
@@ -222,7 +232,29 @@ class mmap_fd{
 		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
 
 		offset += rec_str.size();
+	}
 
+	char* push_back_chunk(const inner_map* rec) {
+		stringstream rec_stream;
+		string rec_str;
+		inner_map::const_iterator itr;
+
+		if(rec == NULL){
+			cout<<"Empty chunk"<<endl;
+			return NULL;
+		}
+
+		for (itr = rec->begin(); itr != rec->end(); itr++) {
+			rec_stream << (*itr).first << static_cast<void *>((*itr).second);
+		}
+
+		rec_str = rec_stream.str();
+		char* cur_offset = (data + offset);
+		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
+
+		offset += rec_str.size();
+
+		return cur_offset;
 	}
 
 	record get_record(char* location){
@@ -256,8 +288,8 @@ class mmap_fd{
 
 	}
 
-	void copy(std::unordered_map<unsigned int, char*> dir){
-		std::unordered_map<unsigned int, char*>::iterator itr;
+	void copy(chunk_map dir){
+		chunk_map::iterator itr;
 
 		for(itr = dir.begin() ; itr != dir.end() ; itr++){
 			record r((*itr).first, "", (*itr).second);
@@ -298,6 +330,7 @@ class master{
 	master(std::string table_name) :
 		name(table_name)
 	{
+		chunk      = mmap_fd(prefix + name + "_chunk",(caddr_t) DIR_LOC);
 		dir_fds[0] = mmap_fd(prefix + name + "_dir0",(caddr_t) DIR0_LOC);
 		dir_fds[1] = mmap_fd(prefix + name + "_dir1",(caddr_t) DIR1_LOC);
 
@@ -305,18 +338,69 @@ class master{
 
 		// Initialize
 		dir_fd_ptr = 0;
-		dir = 0;
+		dir_ptr = 0;
 	}
 
 	mmap_fd& get_dir_fd(){
 		return dir_fds[dir_fd_ptr];
 	}
 
-	unordered_map<unsigned int, char*>& get_dir(){
-		return dirs[dir];
+	outer_map& get_dir(){
+		return dirs[dir_ptr];
+	}
+
+	outer_map& get_clean_dir() {
+		return dirs[!dir_ptr];
+	}
+
+	chunk_map& get_chunk_map(){
+		return cmaps[dir_ptr];
+	}
+
+	chunk_map& get_clean_chunk_map() {
+		return cmaps[!dir_ptr];
+	}
+
+	chunk_status& get_status(){
+		return status;
+	}
+
+	void display_clean_dir(){
+		outer_map::const_iterator o_itr;
+		inner_map::const_iterator i_itr;
+
+		for(o_itr = get_clean_dir().begin() ; o_itr != get_clean_dir().end() ; o_itr++){
+			cout<<(*o_itr).first<<"::";
+			inner_map* imap = (*o_itr).second;
+			for(i_itr = (*imap).begin() ; i_itr != (*imap).end() ; i_itr++)
+				cout<<(*i_itr).first<<" ";
+			cout<<endl;
+		}
+	}
+
+	void display_dir() {
+		outer_map::const_iterator o_itr;
+		inner_map::const_iterator i_itr;
+
+		for (o_itr = get_dir().begin(); o_itr != get_dir().end(); o_itr++) {
+			cout << (*o_itr).first << "::";
+			inner_map* imap = (*o_itr).second;
+			for (i_itr = (*imap).begin(); i_itr != (*imap).end(); i_itr++)
+				cout << (*i_itr).first << " ";
+			cout << endl;
+		}
+	}
+
+	void display_status(){
+		chunk_status::const_iterator c_itr;
+
+		for(c_itr = get_status().begin() ; c_itr != get_status().end() ; c_itr++)
+			cout<<(*c_itr).first<<" : "<<(*c_itr).second<<endl;
 	}
 
 	void sync(){
+        std::cout << "Syncing master !\n"<<endl;
+
 	    int rc = -1;
 
 	    rc = pthread_rwlock_wrlock(&table_access);
@@ -325,21 +409,49 @@ class master{
 	    	return;
 	    }
 
-		// First copy and then flush dirty dir
-		dir_fds[dir_fd_ptr].copy(get_dir());
+	    // Log the dirty dir
+		outer_map& outer = get_dir();
+	    chunk_status& status = get_status();
+
+		outer_map::iterator itr;
+		unsigned int chunk_id = 0;
+	    char* location;
+
+		for(itr = outer.begin() ; itr != outer.end() ; itr++){
+			chunk_id = (*itr).first;
+
+			if(status[chunk_id] == true){
+				//cout<<"Push back chunk :"<<chunk_id<<endl;
+				location = chunk.push_back_chunk(outer[chunk_id]);
+				get_chunk_map()[chunk_id] = location;
+			}
+			else{
+				//cout<<"Keep chunk from clean dir :"<<chunk_id<<endl;
+				get_chunk_map()[chunk_id] = get_clean_chunk_map()[chunk_id];
+			}
+		}
+
+		dir_fds[dir_fd_ptr].copy(get_chunk_map());
 		dir_fds[dir_fd_ptr].sync();
 
 		// Sync master
-		master_fd.set(dir);
+		master_fd.set(dir_ptr);
 		master_fd.sync();
 
 		// Toggle
 		toggle();
 
-		// Clean up new dir fd and dir
+		// Setup new dirty dir from old clean dir
 		get_dir_fd().reset_fd();
 		get_dir().clear();
-		get_dir().insert(get_clean_dir().begin(), get_clean_dir().end());
+		outer = get_clean_dir();
+
+		for(itr = outer.begin() ; itr != outer.end() ; itr++){
+			chunk_id = (*itr).first;
+
+			get_dir()[chunk_id] = get_clean_dir()[chunk_id];
+			status[chunk_id] = false;
+		}
 
 		rc = pthread_rwlock_unlock(&table_access);
 		if (rc != 0) {
@@ -347,16 +459,12 @@ class master{
 			return;
 		}
 
-	}
 
-	unordered_map<unsigned int, char*>& get_clean_dir(){
-		// Toggle the dir bit
-		return dirs[!dir];
 	}
 
 	void toggle(){
 		dir_fd_ptr = !dir_fd_ptr;
-		dir = !dir;
+		dir_ptr = !dir_ptr;
 	}
 
 	//private:
@@ -365,13 +473,20 @@ class master{
 	// file dirs
 	mmap_fd dir_fds[2];
 	mmap_fd master_fd;
+	mmap_fd chunk;
 
 	// in-memory dirs
-	unordered_map<unsigned int, char*> dirs[2];
+	outer_map dirs[2];
+
+	// dirty dir chunk status
+	chunk_status status;
+
+	// chunk maps
+    chunk_map cmaps[2];
 
 	// master
 	bool dir_fd_ptr;
-	bool dir;
+	bool dir_ptr;
 };
 
 master mstr("usertable");
@@ -420,8 +535,6 @@ void group_commit(){
     cv.wait(lk, []{return ready;});
 
     while(ready){
-        std::cout << "Syncing table and master !\n"<<endl;
-
         table.sync();
         mstr.sync();
 
@@ -434,9 +547,13 @@ void group_commit(){
 
 int update(txn t){
     int key = t.key;
+
     char* before_image;
     char* after_image;
     int rc = -1;
+    unsigned int chunk_id = 0;
+
+	chunk_id = key / CHUNK_SIZE;
 
     rc = pthread_rwlock_wrlock(&table_access);
     if(rc != 0){
@@ -444,9 +561,9 @@ int update(txn t){
     	return -1;
     }
 
-    // key does not exist
-    if(mstr.get_dir().count(t.key) == 0){
-        std::cout<<"Update: key does not exist : "<<key<<endl;
+    // chunk does not exist
+    if(mstr.get_clean_dir().count(chunk_id) == 0){
+        std::cout<<"Update: chunk does not exist : "<<key<<endl;
     	rc = pthread_rwlock_unlock(&table_access);
     	if (rc != 0) {
     		cout << "update:: unlock failed \n";
@@ -455,17 +572,58 @@ int update(txn t){
         return -1;
     }
 
-    record* rec = new record(t.key, t.value, NULL);
+    // key does not exist
+    inner_map* clean_chunk = mstr.get_clean_dir()[chunk_id];
+    if(clean_chunk == NULL){
+        std::cout<<"Update: chunk null "<<key<<endl;
+    	rc = pthread_rwlock_unlock(&table_access);
+    	if (rc != 0) {
+    		cout << "update:: unlock failed \n";
+    		return -1;
+    	}
+        return -1;
+    }
 
+    if((*clean_chunk).count(key) == 0){
+        std::cout<<"Update: key does not exist : "<<key<<" clean chunk size: "<<(*clean_chunk).size()<<endl;
+    	rc = pthread_rwlock_unlock(&table_access);
+    	if (rc != 0) {
+    		cout << "update:: unlock failed \n";
+    		return -1;
+    	}
+        return -1;
+    }
+
+    record* rec = new record(key, t.value, NULL);
 	after_image = table.push_back_record(*rec);
 	rec->location = after_image;
+	chunk_status& status = mstr.get_status();
 
-	before_image = mstr.get_dir()[t.key];
-	mstr.get_dir()[t.key] = after_image;
+	// New chunk
+	if (status[chunk_id] == false) {
+		inner_map* chunk = new inner_map;
 
-    // Add log entry
-    entry e(t, before_image, after_image);
-    _undo_buffer.push(e);
+		// Copy map from clean dir
+		(*chunk).insert((*clean_chunk).begin(),(*clean_chunk).end());
+
+		before_image = (*clean_chunk)[key];
+		(*chunk)[key] = after_image;
+
+		mstr.get_dir()[chunk_id] = chunk;
+		status[chunk_id] = true;
+
+        //std::cout<<"Update: create chunk for key :"<<key<<" clean chunk size: "<<(*clean_chunk).size()<<endl;
+	}
+	// Add to existing chunk
+	else{
+		inner_map* chunk = mstr.get_dir()[chunk_id];
+
+        //std::cout<<"Update: add key  :"<<key<<endl;
+		if(chunk != NULL){
+			before_image = (*chunk)[key];
+			(*chunk)[key] = after_image;
+		}
+	}
 
 	rc = pthread_rwlock_unlock(&table_access);
 	if (rc != 0) {
@@ -473,19 +631,35 @@ int update(txn t){
 		return -1;
 	}
 
+    // Add log entry
+    entry e(t, before_image, after_image);
+    _undo_buffer.push(e);
+
     return 0;
 }
 
 std::string read(txn t){
     int key = t.key;
+    unsigned int chunk_id = 0;
+
     std::string val;
 
-    if (mstr.get_clean_dir().count(t.key) == 0){
+	chunk_id = key / CHUNK_SIZE;
+
+	outer_map& outer = mstr.get_clean_dir();
+	if (outer.count(chunk_id) == 0){
+        std::cout<<"Read: chunk does not exist : "<<key<<endl;
+        return "not exists";
+    }
+
+    inner_map* clean_chunk = mstr.get_clean_dir()[chunk_id];
+    if(clean_chunk != NULL && clean_chunk->count(key) == 0){
         std::cout<<"Read: key does not exist : "<<key<<endl;
         return "not exists";
     }
 
-    char* location =  mstr.get_clean_dir()[key];
+
+    char* location = (*clean_chunk)[key];
     record r = table.get_record(location);
     val = r.value;
 
@@ -536,16 +710,34 @@ void load(){
 
     for(int i=0 ; i<num_keys ; i++){
         int key = i;
+        unsigned int chunk_id = 0;
         string value = random_string(VALUE_SIZE);
 
         record* rec = new record(key, value, NULL);
 
-        {
-            after_image = table.push_back_record(*rec);
-            rec->location = after_image;
+        after_image = table.push_back_record(*rec);
+		rec->location = after_image;
 
-            mstr.get_dir()[key] = after_image;
-        }
+		chunk_id = key / CHUNK_SIZE;
+
+		// New chunk
+		if (mstr.get_dir().count(chunk_id) == 0 || 	mstr.get_status()[chunk_id] == false){
+			inner_map* chunk = new inner_map;
+			(*chunk)[key] = after_image;
+
+			//cout<<"New chunk :"<<chunk_id<<endl;
+			mstr.get_dir()[chunk_id] = chunk;
+
+			mstr.get_status()[chunk_id] = true;
+		}
+		// Add to existing chunk
+		else {
+			inner_map* chunk = mstr.get_dir()[chunk_id];
+			//cout<<"Add to chunk :"<<chunk_id<<endl;
+
+			if(chunk != NULL)
+				(*chunk)[key] = after_image;
+		}
 
         // Add log entry
         txn t(0, "Insert", key, value);
@@ -560,6 +752,8 @@ void load(){
 
 int main(){
     std::chrono::time_point<std::chrono::system_clock> start, end;
+
+    assert(CHUNK_SIZE < NUM_KEYS);
 
     // Loader
     load();

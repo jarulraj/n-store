@@ -25,8 +25,7 @@ using namespace std;
 
 #define VALUE_SIZE 2
 
-int log_enable ;
-int num_threads = 2;
+unsigned long int num_threads = 2;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -35,6 +34,8 @@ long num_wr   = 10 ;
 std::mutex gc_mutex;
 std::condition_variable cv;
 bool ready = false;
+
+int log_enable ;
 
 //std::string prefix = "/mnt/pmfs/n-store/";
 std::string prefix = "./";
