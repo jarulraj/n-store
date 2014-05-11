@@ -29,12 +29,12 @@
 
 using namespace std;
 
-#define NUM_KEYS 1024*16
+#define NUM_KEYS 1024*32
 #define NUM_TXNS 200000
 #define CHUNK_SIZE 1024
 
 #define VALUE_SIZE 2
-#define SIZE       NUM_KEYS*VALUE_SIZE*100
+#define SIZE       NUM_KEYS*VALUE_SIZE*100 + NUM_TXNS*VALUE_SIZE*2
 
 unsigned long int num_threads = 2;
 
@@ -42,7 +42,7 @@ long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
 long num_wr   = 10 ;
 
-#define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 1
+#define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 10
 
 #define MASTER_LOC 0x01a00000
 #define TABLE_LOC  0x01b00000
@@ -196,9 +196,8 @@ class mmap_fd{
 		sprintf(rec_str, "%ud %s ", rec.key, rec.value.c_str());
 		len = strlen(rec_str);
 
-        char* cur_offset = (data + offset);
+		char* cur_offset = (data + offset);
 		memcpy(cur_offset, rec_str, len);
-
 		offset += len;
 
 		return cur_offset;
@@ -240,22 +239,15 @@ class mmap_fd{
 		return cur_offset;
 	}
 
-	record get_record(char* location){
-		record r;
+	std::string get_value(char* location){
 		unsigned int key;
-		std::string value;
-
+		char val[VALUE_SIZE];
 		char tuple[TUPLE_SIZE];
+
 		memcpy(tuple, location, sizeof(tuple));
+		sscanf(tuple,"%ud %s ", &key, val);
 
-		istringstream ss(tuple);
-		ss >> key >> value;
-
-		r.key = key;
-		r.value = value;
-		r.location = location;
-
-		return r;
+		return std::string(val);
 	}
 
 	void sync(){
@@ -391,6 +383,7 @@ class master{
 	    	cout<<"sync:: wrlock failed \n";
 	    	return;
 	    }
+
 
 	    // Log the dirty dir
 		outer_map& outer = get_dir();
@@ -601,7 +594,6 @@ int update(txn t){
 std::string read(txn t){
     int key = t.key;
     unsigned int chunk_id = 0;
-    std::string val;
 
 	chunk_id = key / CHUNK_SIZE;
 
@@ -618,9 +610,7 @@ std::string read(txn t){
     }
 
     char* location = (*clean_chunk)[key];
-    val = table.get_record(location).value;
-
-    return val;
+    return table.get_value(location);
 }
 
 

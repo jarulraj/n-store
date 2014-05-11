@@ -20,7 +20,7 @@
 
 using namespace std;
 
-#define NUM_KEYS 1024*16
+#define NUM_KEYS 1024*32
 #define NUM_TXNS 200000
 
 #define VALUE_SIZE 2
@@ -250,16 +250,15 @@ int update(txn t){
 	table.push_back(*after_image);
 	table_index[key] = after_image;
 
-    // Add log entry
-    entry e(t, before_image, after_image);
-    _undo_buffer.push(e);
-
     rc = pthread_rwlock_unlock(&table_access);
     if(rc != 0){
     	cout<<"update:: unlock failed \n";
     	return -1;
     }
 
+    // Add log entry
+    entry e(t, before_image, after_image);
+    _undo_buffer.push(e);
 
     return 0;
 }
