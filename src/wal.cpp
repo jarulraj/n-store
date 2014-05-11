@@ -20,12 +20,13 @@
 
 using namespace std;
 
-#define NUM_KEYS 1024*32
-#define NUM_TXNS 200000
+#define NUM_KEYS   1024*128
+#define NUM_TXNS   200000
+#define NUM_THDS   2
 
 #define VALUE_SIZE 2
 
-unsigned long int num_threads = 2;
+unsigned long int num_threads = NUM_THDS;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
@@ -37,8 +38,8 @@ bool ready = false;
 
 int log_enable ;
 
-//std::string prefix = "/mnt/pmfs/n-store/";
-std::string prefix = "./";
+std::string prefix = "/mnt/pmfs/n-store/";
+//std::string prefix = "./";
 
 // UTILS
 std::string random_string( size_t length ){
@@ -217,7 +218,7 @@ void group_commit(){
         // sync
         _undo_buffer.write();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
 }
