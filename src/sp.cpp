@@ -29,8 +29,9 @@
 
 using namespace std;
 
-#define NUM_KEYS 10000
+#define NUM_KEYS 1024*16
 #define NUM_TXNS 200000
+#define CHUNK_SIZE 1024
 
 #define VALUE_SIZE 2
 #define SIZE       NUM_KEYS*VALUE_SIZE*100
@@ -50,7 +51,6 @@ long num_wr   = 10 ;
 #define DIR0_LOC   0x01d00000
 #define DIR1_LOC   0x01e00000
 
-#define CHUNK_SIZE 1000
 
 typedef std::unordered_map<unsigned int, char*> inner_map;
 typedef std::unordered_map<unsigned int, inner_map*> outer_map;
@@ -118,23 +118,6 @@ class record{
             key(_key),
             value(_value),
             location(_location){}
-
-        friend ostream& operator<<(ostream& out, const record& rec){
-            out << "|" << rec.key << "|" << rec.value << "|";
-            return out;
-        }
-
-        friend istream& operator>>(istream& in, record& rec){
-            in.ignore(1); // skip delimiter
-
-            in >> rec.key;
-            in.ignore(1);
-            in >> rec.value;
-            in.ignore(1);
-
-            return in;
-        }
-
 
         //private:
         unsigned int key;
@@ -207,31 +190,31 @@ class mmap_fd{
 		}
 
 	char* push_back_record (const record& rec){
-        stringstream rec_stream;
-        string rec_str;
+		char rec_str[TUPLE_SIZE];
+		int len = 0;
 
-        rec_stream << rec.key <<" "<< rec.value<<" ";
-        rec_str = rec_stream.str();
+		sprintf(rec_str, "%ud %s ", rec.key, rec.value.c_str());
+		len = strlen(rec_str);
 
         char* cur_offset = (data + offset);
-		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
+		memcpy(cur_offset, rec_str, len);
 
-		offset += rec_str.size();
+		offset += len;
 
 		return cur_offset;
 	}
 
 	void push_back_dir_entry(const record& rec){
-		stringstream rec_stream;
-		string rec_str;
+		char rec_str[TUPLE_SIZE];
+		int len = 0;
 
-		rec_stream << rec.key << static_cast<void *>(rec.location);
-		rec_str = rec_stream.str();
+		sprintf(rec_str, "%ud %p ", rec.key, rec.location);
+		len = strlen(rec_str);
 
 		char* cur_offset = (data + offset);
-		memcpy(cur_offset, rec_str.c_str(), rec_str.size());
+		memcpy(cur_offset, rec_str, len);
 
-		offset += rec_str.size();
+		offset += len;
 	}
 
 	char* push_back_chunk(const inner_map* rec) {
@@ -413,7 +396,7 @@ class master{
 		outer_map& outer = get_dir();
 	    chunk_status& status = get_status();
 
-		outer_map::iterator itr;
+	    outer_map::iterator itr;
 		unsigned int chunk_id = 0;
 	    char* location;
 
@@ -538,7 +521,7 @@ void group_commit(){
         table.sync();
         mstr.sync();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
 }
@@ -555,48 +538,32 @@ int update(txn t){
 
 	chunk_id = key / CHUNK_SIZE;
 
+	outer_map& outer = mstr.get_clean_dir();
+
+	// chunk does not exist
+	if (outer.count(chunk_id) == 0) {
+		std::cout << "Update: chunk does not exist : " << key << endl;
+		return -1;
+	}
+
+	// key does not exist
+	inner_map* clean_chunk = outer[chunk_id];
+	if (clean_chunk->count(key) == 0) {
+		std::cout << "Update: key does not exist : " << key << endl;
+		return -1;
+	}
+
+    record* rec = new record(key, t.value, NULL);
+	after_image = table.push_back_record(*rec);
+	rec->location = after_image;
+	before_image = (*clean_chunk)[key];
+
     rc = pthread_rwlock_wrlock(&table_access);
     if(rc != 0){
     	cout<<"update:: wrlock failed \n";
     	return -1;
     }
 
-    // chunk does not exist
-    if(mstr.get_clean_dir().count(chunk_id) == 0){
-        std::cout<<"Update: chunk does not exist : "<<key<<endl;
-    	rc = pthread_rwlock_unlock(&table_access);
-    	if (rc != 0) {
-    		cout << "update:: unlock failed \n";
-    		return -1;
-    	}
-        return -1;
-    }
-
-    // key does not exist
-    inner_map* clean_chunk = mstr.get_clean_dir()[chunk_id];
-    if(clean_chunk == NULL){
-        std::cout<<"Update: chunk null "<<key<<endl;
-    	rc = pthread_rwlock_unlock(&table_access);
-    	if (rc != 0) {
-    		cout << "update:: unlock failed \n";
-    		return -1;
-    	}
-        return -1;
-    }
-
-    if((*clean_chunk).count(key) == 0){
-        std::cout<<"Update: key does not exist : "<<key<<" clean chunk size: "<<(*clean_chunk).size()<<endl;
-    	rc = pthread_rwlock_unlock(&table_access);
-    	if (rc != 0) {
-    		cout << "update:: unlock failed \n";
-    		return -1;
-    	}
-        return -1;
-    }
-
-    record* rec = new record(key, t.value, NULL);
-	after_image = table.push_back_record(*rec);
-	rec->location = after_image;
 	chunk_status& status = mstr.get_status();
 
 	// New chunk
@@ -605,24 +572,17 @@ int update(txn t){
 
 		// Copy map from clean dir
 		(*chunk).insert((*clean_chunk).begin(),(*clean_chunk).end());
-
-		before_image = (*clean_chunk)[key];
 		(*chunk)[key] = after_image;
 
 		mstr.get_dir()[chunk_id] = chunk;
 		status[chunk_id] = true;
-
-        //std::cout<<"Update: create chunk for key :"<<key<<" clean chunk size: "<<(*clean_chunk).size()<<endl;
 	}
 	// Add to existing chunk
 	else{
 		inner_map* chunk = mstr.get_dir()[chunk_id];
 
-        //std::cout<<"Update: add key  :"<<key<<endl;
-		if(chunk != NULL){
-			before_image = (*chunk)[key];
-			(*chunk)[key] = after_image;
-		}
+		before_image = (*chunk)[key];
+		(*chunk)[key] = after_image;
 	}
 
 	rc = pthread_rwlock_unlock(&table_access);
@@ -641,7 +601,6 @@ int update(txn t){
 std::string read(txn t){
     int key = t.key;
     unsigned int chunk_id = 0;
-
     std::string val;
 
 	chunk_id = key / CHUNK_SIZE;
@@ -652,16 +611,14 @@ std::string read(txn t){
         return "not exists";
     }
 
-    inner_map* clean_chunk = mstr.get_clean_dir()[chunk_id];
-    if(clean_chunk != NULL && clean_chunk->count(key) == 0){
+    inner_map* clean_chunk = outer[chunk_id];
+    if(clean_chunk->count(key) == 0){
         std::cout<<"Read: key does not exist : "<<key<<endl;
         return "not exists";
     }
 
-
     char* location = (*clean_chunk)[key];
-    record r = table.get_record(location);
-    val = r.value;
+    val = table.get_record(location).value;
 
     return val;
 }
