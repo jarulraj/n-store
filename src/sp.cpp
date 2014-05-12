@@ -29,9 +29,9 @@
 
 using namespace std;
 
-#define NUM_KEYS   1024*128
-#define NUM_TXNS   200000
-#define CHUNK_SIZE 1024
+#define NUM_KEYS   10
+#define NUM_TXNS   10
+#define CHUNK_SIZE 2
 #define NUM_THDS   2
 
 #define VALUE_SIZE 2
@@ -41,7 +41,7 @@ unsigned long int num_threads = NUM_THDS;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
-long num_wr   = 10 ;
+long num_wr   = 20 ;
 
 #define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 10
 
@@ -52,6 +52,8 @@ long num_wr   = 10 ;
 #define DIR0_LOC   0x01d00000
 #define DIR1_LOC   0x01e00000
 
+std::chrono::time_point<std::chrono::system_clock> start, finish;
+std::chrono::duration<double> elapsed_seconds ;
 
 typedef std::unordered_map<unsigned int, char*> inner_map;
 typedef std::unordered_map<unsigned int, inner_map*> outer_map;
@@ -698,15 +700,26 @@ void load(){
     mstr.sync();
 }
 
+void recovery(){
+
+	// XXX Clear chunks
+
+	// Clear dirs
+	mstr.get_dir().clear();
+	mstr.get_clean_dir().clear();
+
+	cout<<"Rebuild clean dir"<<endl;
+
+}
+
 int main(){
-    std::chrono::time_point<std::chrono::system_clock> start, end;
 
     assert(CHUNK_SIZE < NUM_KEYS);
 
     // Loader
     load();
     std::cout<<"Loading finished "<<endl;
-    //check();
+    check();
 
     start = std::chrono::system_clock::now();
 
@@ -730,11 +743,22 @@ int main(){
     ready = false;
     gc.join();
 
-    //check();
+    finish = std::chrono::system_clock::now();
+    elapsed_seconds = finish - start;
+    std::cout<<"Execution duration: "<< elapsed_seconds.count()<<endl;
 
-    end = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    std::cout<<"Duration: "<< elapsed_seconds.count()<<endl;
+    check();
+
+    // Recover
+    start = std::chrono::system_clock::now();
+
+    recovery();
+
+    finish = std::chrono::system_clock::now();
+    elapsed_seconds = finish - start;
+    std::cout<<"Recovery duration: "<< elapsed_seconds.count()<<endl;
+
+    //check();
 
     return 0;
 }

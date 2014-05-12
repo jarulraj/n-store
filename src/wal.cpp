@@ -467,9 +467,9 @@ void snapshot(){
 void recovery(){
 
 	// Clear stuff
+	undo_buffer.close();
 	table.clear();
 	table_index.clear();
-	undo_buffer.close();
 
 	cout<<"Read snapshot"<<endl;
 
