@@ -31,7 +31,7 @@ using namespace std;
 
 #define NUM_KEYS   10
 #define NUM_TXNS   10
-#define CHUNK_SIZE 2
+#define CHUNK_SIZE 5
 #define NUM_THDS   2
 
 #define VALUE_SIZE 2
@@ -51,6 +51,9 @@ long num_wr   = 20 ;
 #define DIR_LOC    0x01c00000
 #define DIR0_LOC   0x01d00000
 #define DIR1_LOC   0x01e00000
+
+#define DELIM ' '
+#define CHUNK_DELIM "-1 -1"
 
 std::chrono::time_point<std::chrono::system_clock> start, finish;
 std::chrono::duration<double> elapsed_seconds ;
@@ -196,7 +199,7 @@ class mmap_fd{
             char rec_str[TUPLE_SIZE];
             int len = 0;
 
-            sprintf(rec_str, "%ud %s ", rec.key, rec.value.c_str());
+            sprintf(rec_str, "%u %s ", rec.key, rec.value.c_str());
             len = strlen(rec_str);
 
             char* cur_offset = (data + offset);
@@ -210,7 +213,7 @@ class mmap_fd{
             char rec_str[TUPLE_SIZE];
             int len = 0;
 
-            sprintf(rec_str, "%ud %p ", rec.key, rec.location);
+            sprintf(rec_str, "%u %p ", rec.key, rec.location);
             len = strlen(rec_str);
 
             char* cur_offset = (data + offset);
@@ -223,6 +226,7 @@ class mmap_fd{
             stringstream rec_stream;
             string rec_str;
             inner_map::const_iterator itr;
+            size_t chunk_size = 0;
 
             if(rec == NULL){
                 cout<<"Empty chunk"<<endl;
@@ -230,14 +234,18 @@ class mmap_fd{
             }
 
             for (itr = rec->begin(); itr != rec->end(); itr++) {
-                rec_stream << (*itr).first << static_cast<void *>((*itr).second);
+                rec_stream << (*itr).first <<DELIM<< static_cast<void *>((*itr).second)<<DELIM;
             }
 
+            rec_stream << CHUNK_DELIM << endl;
             rec_str = rec_stream.str();
-            char* cur_offset = (data + offset);
-            memcpy(cur_offset, rec_str.c_str(), rec_str.size());
+            chunk_size = rec_str.size();
 
-            offset += rec_str.size();
+            char* cur_offset = (data + offset);
+            memcpy(cur_offset, rec_str.c_str(), chunk_size);
+
+            //cout<<"chunk size: "<< chunk_size<<endl;
+            offset += chunk_size;
 
             return cur_offset;
         }
@@ -387,7 +395,6 @@ class master{
                 return;
             }
 
-
             // Log the dirty dir
             outer_map& outer = get_dir();
             chunk_status& status = get_status();
@@ -400,7 +407,7 @@ class master{
                 chunk_id = (*itr).first;
 
                 if(status[chunk_id] == true){
-                    //cout<<"Push back chunk :"<<chunk_id<<endl;
+                    cout<<"Push back chunk :"<<chunk_id<<endl;
                     location = chunk.push_back_chunk(outer[chunk_id]);
                     get_chunk_map()[chunk_id] = location;
                 }
@@ -714,12 +721,12 @@ void recovery(){
 
 int main(){
 
-    assert(CHUNK_SIZE < NUM_KEYS);
+    assert(CHUNK_SIZE <= NUM_KEYS);
 
     // Loader
     load();
     std::cout<<"Loading finished "<<endl;
-    check();
+    //check();
 
     start = std::chrono::system_clock::now();
 
@@ -747,9 +754,10 @@ int main(){
     elapsed_seconds = finish - start;
     std::cout<<"Execution duration: "<< elapsed_seconds.count()<<endl;
 
-    check();
+    //check();
 
     // Recover
+    /*
     start = std::chrono::system_clock::now();
 
     recovery();
@@ -757,6 +765,7 @@ int main(){
     finish = std::chrono::system_clock::now();
     elapsed_seconds = finish - start;
     std::cout<<"Recovery duration: "<< elapsed_seconds.count()<<endl;
+    */
 
     //check();
 
