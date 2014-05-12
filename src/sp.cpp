@@ -62,8 +62,8 @@ std::mutex gc_mutex;
 std::condition_variable cv;
 bool ready = false;
 
-std::string prefix = "/mnt/pmfs/n-store/";
-//std::string prefix = "./";
+//std::string prefix = "/mnt/pmfs/n-store/";
+std::string prefix = "./";
 
 // UTILS
 std::string random_string( size_t length ){
@@ -503,7 +503,7 @@ class logger {
         vector<entry> log_queue;
 };
 
-logger _undo_buffer;
+logger undo_buffer;
 
 // GROUP COMMIT
 
@@ -515,7 +515,7 @@ void group_commit(){
         table.sync();
         mstr.sync();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
 }
@@ -587,7 +587,7 @@ int update(txn t){
 
     // Add log entry
     entry e(t, before_image, after_image);
-    _undo_buffer.push(e);
+    undo_buffer.push(e);
 
     return 0;
 }
@@ -691,7 +691,7 @@ void load(){
         txn t(0, "Insert", key, value);
 
         entry e(t, NULL, after_image);
-        _undo_buffer.push(e);
+        undo_buffer.push(e);
     }
 
     table.sync();
