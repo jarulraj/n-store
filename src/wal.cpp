@@ -22,8 +22,8 @@
 
 using namespace std;
 
-#define NUM_KEYS   1024*128
-#define NUM_TXNS   200000
+#define NUM_KEYS   100000
+#define NUM_TXNS   100000
 #define NUM_THDS   2
 
 #define VALUE_SIZE 2
@@ -230,7 +230,7 @@ void group_commit(){
         // sync
         undo_buffer.write();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
 }
@@ -560,6 +560,7 @@ int main(){
 
     //check();
 
+    /*
     // Recover
     start = std::chrono::system_clock::now();
 
@@ -570,6 +571,7 @@ int main(){
     std::cout<<"Recovery duration: "<< elapsed_seconds.count()<<endl;
 
     //check();
+     */
 
     return 0;
 }

@@ -29,19 +29,19 @@
 
 using namespace std;
 
-#define NUM_KEYS   10
-#define NUM_TXNS   10
-#define CHUNK_SIZE 5
+#define NUM_KEYS   1000
+#define NUM_TXNS   100
+#define CHUNK_SIZE 50
 #define NUM_THDS   2
 
 #define VALUE_SIZE 2
-#define SIZE       NUM_KEYS*VALUE_SIZE*100 + NUM_THDS*NUM_TXNS*VALUE_SIZE*2
+#define SIZE       NUM_KEYS*VALUE_SIZE*10000 + NUM_THDS*NUM_TXNS*VALUE_SIZE
 
 unsigned long int num_threads = NUM_THDS;
 
 long num_keys = NUM_KEYS ;
 long num_txn  = NUM_TXNS ;
-long num_wr   = 20 ;
+long num_wr   = 10 ;
 
 #define TUPLE_SIZE 4 + 4 + VALUE_SIZE + 10
 
@@ -403,11 +403,12 @@ class master{
             unsigned int chunk_id = 0;
             char* location;
 
+            /*
             for(itr = outer.begin() ; itr != outer.end() ; itr++){
                 chunk_id = (*itr).first;
 
                 if(status[chunk_id] == true){
-                    cout<<"Push back chunk :"<<chunk_id<<endl;
+                    //cout<<"Push back chunk :"<<chunk_id<<endl;
                     location = chunk.push_back_chunk(outer[chunk_id]);
                     get_chunk_map()[chunk_id] = location;
                 }
@@ -423,6 +424,7 @@ class master{
             // Sync master
             master_fd.set(dir_ptr);
             master_fd.sync();
+            */
 
             // Toggle
             toggle();
@@ -453,26 +455,26 @@ class master{
             dir_ptr = !dir_ptr;
         }
 
-        //private:
-        std::string name;
+private:
+		std::string name;
 
-        // file dirs
-        mmap_fd dir_fds[2];
-        mmap_fd master_fd;
-        mmap_fd chunk;
+		// in-file dirs
+		mmap_fd dir_fds[2];
+		mmap_fd master_fd;
+		mmap_fd chunk;
 
-        // in-memory dirs
-        outer_map dirs[2];
+		// in-memory dirs
+		outer_map dirs[2];
 
-        // dirty dir chunk status
-        chunk_status status;
+		// in-memory dirty dir chunk status
+		chunk_status status;
 
-        // chunk maps
-        chunk_map cmaps[2];
+		// in-memory chunk maps
+		chunk_map cmaps[2];
 
-        // master
-        bool dir_fd_ptr;
-        bool dir_ptr;
+		// master
+		bool dir_fd_ptr;
+		bool dir_ptr;
 };
 
 master mstr("usertable");
@@ -524,7 +526,7 @@ void group_commit(){
         table.sync();
         mstr.sync();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
 }
@@ -709,9 +711,11 @@ void load(){
 
 void recovery(){
 
-	// XXX Clear chunks
+	// Clear in-memory structures
+	mstr.get_chunk_map().clear();
+	mstr.get_clean_chunk_map().clear();
+	mstr.get_status().clear();
 
-	// Clear dirs
 	mstr.get_dir().clear();
 	mstr.get_clean_dir().clear();
 
