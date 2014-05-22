@@ -41,7 +41,12 @@ build/*
 *log
 *log.txt
 *tmp
+perf.*
 
 # Editor
 .settings/*
 
+# WAL & SP
+*master
+*snapshot
+usertable*
