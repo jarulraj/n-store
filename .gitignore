@@ -2,8 +2,6 @@
 Makefile
 Makefile.am
 configure
-m4
-m4/*
 *.o
 *~
 src/serve
