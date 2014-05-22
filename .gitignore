@@ -48,3 +48,4 @@ perf.*
 *master
 *snapshot
 usertable*
+*nstore
