@@ -84,7 +84,7 @@ class logger {
 				// Set end time
 				/*
 				 for (std::vector<entry>::iterator it = log_queue.begin() ; it != log_queue.end(); ++it){
-				 	 (*it).transaction.end = std::chrono::system_clock::now();
+				 	 (*it).transaction.end = std::chrono::high_resolution_clock::now();
 				 	 std::chrono::duration<double> elapsed_seconds = (*it).transaction.end - (*it).transaction.start;
 				 	 cout<<"Duration: "<< elapsed_seconds.count()<<endl;
 				 }

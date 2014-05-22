@@ -23,7 +23,7 @@ using namespace std;
 
 #define SIZE       VALUE_SIZE*ITR
 
-std::chrono::time_point<std::chrono::system_clock> start, finish;
+std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
 std::chrono::duration<double> elapsed_seconds ;
 
 std::string random_string( size_t length ){
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]){
 
 	cout<<"len :"<<len<<endl;
 
-    start = std::chrono::system_clock::now();
+    start = std::chrono::high_resolution_clock::now();
 
 	for (itr = 0; itr < ITR; itr++) {
 		char* cur_offset = (data + offset);
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]){
 
 	}
 
-    finish = std::chrono::system_clock::now();
+    finish = std::chrono::high_resolution_clock::now();
     elapsed_seconds = finish - start;
     std::cout<<"Execution duration: "<< elapsed_seconds.count()<<endl;
 

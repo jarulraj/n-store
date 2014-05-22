@@ -164,7 +164,7 @@ int wal_engine::test(){
 
 	undo_log.set_path(conf.fs_path+"./log", "w");
 
-	std::chrono::time_point<std::chrono::system_clock> start, finish;
+	std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
 	std::chrono::duration<double> elapsed_seconds;
 
 	// Loader
@@ -175,7 +175,7 @@ int wal_engine::test(){
     // Take snapshot
     //snapshot();
 
-    start = std::chrono::system_clock::now();
+    start = std::chrono::high_resolution_clock::now();
 
     // Logger start
     std::thread gc(&wal_engine::group_commit, this);
@@ -199,7 +199,7 @@ int wal_engine::test(){
 
     undo_log.write();
 
-    finish = std::chrono::system_clock::now();
+    finish = std::chrono::high_resolution_clock::now();
     elapsed_seconds = finish - start;
     std::cout<<"Execution duration: "<< elapsed_seconds.count()<<endl;
 
@@ -208,11 +208,11 @@ int wal_engine::test(){
     /*
 	check();
 
-	start = std::chrono::system_clock::now();
+	start = std::chrono::high_resolution_clock::now();
 
 	recovery();
 
-	finish = std::chrono::system_clock::now();
+	finish = std::chrono::high_resolution_clock::now();
 	elapsed_seconds = finish - start;
 	std::cout << "Recovery duration: " << elapsed_seconds.count() << endl;
 
@@ -225,10 +225,10 @@ int wal_engine::test(){
 void wal_engine::snapshot(){
 	int rc = -1;
 
-	std::chrono::time_point<std::chrono::system_clock> start, finish;
+	std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
 	std::chrono::duration<double> elapsed_seconds;
 
-    start = std::chrono::system_clock::now();
+    start = std::chrono::high_resolution_clock::now();
 
     rc = pthread_rwlock_wrlock(&table_access);
     if(rc != 0){
@@ -267,7 +267,7 @@ void wal_engine::snapshot(){
     	return;
     }
 
-    finish = std::chrono::system_clock::now();
+    finish = std::chrono::high_resolution_clock::now();
     elapsed_seconds = finish - start;
     std::cout<<"Snapshot  duration: "<< elapsed_seconds.count()<<endl;
 }

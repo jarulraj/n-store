@@ -212,7 +212,7 @@ int sp_engine::test() {
 	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
 	mstr = master("usertable", conf);
 
-	std::chrono::time_point<std::chrono::system_clock> start, finish;
+	std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
 	std::chrono::duration<double> elapsed_seconds;
 
 	// Loader
@@ -220,7 +220,7 @@ int sp_engine::test() {
 	std::cout << "Loading finished " << endl;
 	//check();
 
-	start = std::chrono::system_clock::now();
+	start = std::chrono::high_resolution_clock::now();
 
 	// Logger start
 	std::thread gc(&sp_engine::group_commit, this);
@@ -242,7 +242,7 @@ int sp_engine::test() {
 	ready = false;
 	gc.join();
 
-	finish = std::chrono::system_clock::now();
+	finish = std::chrono::high_resolution_clock::now();
 	elapsed_seconds = finish - start;
 	std::cout << "Execution duration: " << elapsed_seconds.count() << endl;
 
@@ -250,9 +250,9 @@ int sp_engine::test() {
 	/*
 	check();
 
-	start = std::chrono::system_clock::now();
+	start = std::chrono::high_resolution_clock::now();
 	recovery();
-	finish = std::chrono::system_clock::now();
+	finish = std::chrono::high_resolution_clock::now();
 	elapsed_seconds = finish - start;
 	std::cout << "Recovery duration: " << elapsed_seconds.count() << endl;
 

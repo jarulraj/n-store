@@ -16,7 +16,7 @@ public:
 			key(_key),
 			value(_value)
 	{
-		//start = std::chrono::system_clock::now();
+		//start = std::chrono::high_resolution_clock::now();
 	}
 
 	//private:
@@ -26,7 +26,7 @@ public:
 	unsigned int key;
 	string value;
 
-	chrono::time_point<std::chrono::system_clock> start, end;
+	chrono::time_point<std::chrono::high_resolution_clock> start, end;
 };
 
 
