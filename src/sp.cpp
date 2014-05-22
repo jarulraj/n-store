@@ -248,20 +248,19 @@ int sp_engine::test() {
 	elapsed_seconds = finish - start;
 	std::cout << "Execution duration: " << elapsed_seconds.count() << endl;
 
-	//check();
-
-	// Recover
+	// Recovery
 	/*
-	 start = std::chrono::system_clock::now();
+	check();
 
-	 recovery();
+	start = std::chrono::system_clock::now();
+	recovery();
+	finish = std::chrono::system_clock::now();
+	elapsed_seconds = finish - start;
+	std::cout << "Recovery duration: " << elapsed_seconds.count() << endl;
 
-	 finish = std::chrono::system_clock::now();
-	 elapsed_seconds = finish - start;
-	 std::cout<<"Recovery duration: "<< elapsed_seconds.count()<<endl;
-	 */
+	check();
+	*/
 
-	//check();
 	return 0;
 }
 

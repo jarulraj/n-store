@@ -18,17 +18,17 @@ static void usage_exit(FILE *out){
 
 static struct option opts[] =
 {
-    { "fs-path",		    no_argument,			0,  'f' },
-    { "num-txns",			no_argument,			0,  'x' },
-    { "num-keys",		    no_argument,			0,  'k' },
-    { "num-thds",			no_argument,			0,  't' },
-    { "partition-size",	    no_argument,			0,  'p' },
-    { "verbose", 			no_argument,      		0,  'v' },
-    { 0,					0,					    0,   0	}
+    { "fs-path",		    optional_argument,		NULL,  'f' },
+    { "num-txns",		 	optional_argument,		NULL,  'x' },
+    { "num-keys",		    optional_argument,		NULL,  'k' },
+    { "num-thds",			optional_argument,		NULL,  't' },
+    { "partition-size",	    optional_argument,		NULL,  'p' },
+    { "verbose", 			no_argument,      		NULL,  'v' },
+    { NULL,					0,					    NULL,   0	}
 };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
-    
+
 	// Default Values
 
 	state.fs_path =  std::string("./");
@@ -36,7 +36,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.num_keys      =  10000;
     state.num_txns      =  20000;
     state.num_thds      =  2;
-    
+
     state.sz_value      =  2;
     state.sz_partition  =  10;
     state.verbose       =  false;
@@ -50,32 +50,37 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "fxktp", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:t:p:v", opts, &idx);
 
-        if (c == -1) 
+        if (c == -1)
             break;
 
         switch (c) {
             case 'f':
                 state.fs_path = std::string(optarg);
+                cout<<"fs_path: "<<state.fs_path<<endl;
                 break;
-            case 'x': 
+            case 'x':
                 state.num_txns = atoi(optarg);
-                break; 
-            case 'k': 
+                cout<<"num_txns: "<<state.num_txns<<endl;
+                break;
+            case 'k':
                 state.num_keys = atoi(optarg);
+                cout<<"num_keys: "<<state.num_keys<<endl;
                 break;
             case 't':
                 state.num_thds = atoi(optarg);
+                cout<<"num_thds: "<<state.num_thds<<endl;
                 break;
-            case 'p': 
+            case 'p':
                 state.sz_partition = atoi(optarg);
+                cout<<"sz_partition: "<<state.sz_partition<<endl;
                 break;
             case 'v':
-                 state.verbose = (bool)(atoi(optarg));
+                 state.verbose = true;
                  break;
             default:
-                fprintf(stderr, "\nERROR: Unknown option: -%c-\n", c);
+                fprintf(stderr, "\nUnknown option: -%c-\n", c);
                 usage_exit(stderr);
         }
     }

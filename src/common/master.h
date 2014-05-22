@@ -96,7 +96,7 @@ public:
 	}
 
 	void sync() {
-		std::cout << "Syncing master !\n" << endl;
+		std::cout << "Syncing master !" << endl;
 
 		int rc = -1;
 

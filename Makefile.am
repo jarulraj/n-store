@@ -7,3 +7,7 @@ SUBDIRS = src
 # add autogen on distribution
 EXTRA_DIST = bootstrap
 
+clean-local:
+	rm -f usertable*
+	rm -f master snapshot log
+	rm -f perf.*

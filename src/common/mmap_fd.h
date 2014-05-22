@@ -45,8 +45,6 @@ public:
 			exit(EXIT_FAILURE);
 		}
 
-		//cout<<"size :"<< sbuf.st_size << endl;
-
 		// new file check
 		if (sbuf.st_size == 0) {
 
@@ -78,7 +76,6 @@ public:
 			exit(EXIT_FAILURE);
 		}
 
-		//cout<<"data :"<< data << endl;
 	}
 
 	char* push_back_record(const record& rec) {

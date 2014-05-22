@@ -15,7 +15,7 @@ void wal_engine::group_commit(){
     cv.wait(lk, [&]{return ready;});
 
     while(ready){
-        std::cout << "Syncing log !\n"<<endl;
+        std::cout << "Syncing log !"<<endl;
 
         // sync
         undo_log.write();
@@ -334,7 +334,7 @@ int wal_engine::test(){
     //check();
 
     // Take snapshot
-    snapshot();
+    //snapshot();
 
     start = std::chrono::system_clock::now();
     
@@ -364,18 +364,17 @@ int wal_engine::test(){
     elapsed_seconds = finish - start;
     std::cout<<"Execution duration: "<< elapsed_seconds.count()<<endl;
 
-    //check();
+    /*
+	// Recovery
+	check();
 
-    // Recover
-    start = std::chrono::system_clock::now();
-
-    recovery();
-
-    finish = std::chrono::system_clock::now();
-    elapsed_seconds = finish - start;
-    std::cout<<"Recovery duration: "<< elapsed_seconds.count()<<endl;
-
-    //check();
+	start = std::chrono::system_clock::now();
+	recovery();
+	finish = std::chrono::system_clock::now();
+	elapsed_seconds = finish - start;
+	std::cout << "Recovery duration: " << elapsed_seconds.count() << endl;
+	check();
+    */
 
     return 0;
 }
