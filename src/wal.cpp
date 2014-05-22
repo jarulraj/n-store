@@ -15,7 +15,8 @@ void wal_engine::group_commit(){
     cv.wait(lk, [&]{return ready;});
 
     while(ready){
-        std::cout << "Syncing log !"<<endl;
+    	if(conf.verbose)
+    		std::cout << "Syncing log !"<<endl;
 
         // sync
         undo_log.write();
@@ -323,10 +324,6 @@ int wal_engine::test(){
 	std::chrono::duration<double> elapsed_seconds;
 
 	unsigned long int num_threads = conf.num_thds;
-
-	long num_keys = conf.num_keys ;
-	long num_txn  = conf.num_txns ;
-	long num_wr   = conf.per_writes ;
 
 	// Loader
     loader();

@@ -96,7 +96,8 @@ public:
 	}
 
 	void sync() {
-		std::cout << "Syncing master !" << endl;
+		//if(conf.verbose)
+		//	std::cout << "Syncing master !" << endl;
 
 		int rc = -1;
 
@@ -169,6 +170,8 @@ public:
 
 private:
 	std::string name;
+
+	config conf;
 
 	// in-file dirs
 	mmap_fd dir_fds[2];

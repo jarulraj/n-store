@@ -54,7 +54,7 @@ class sp_engine : public engine {
 
 		std::mutex gc_mutex;
 		std::condition_variable cv;
-		bool ready ;
+		bool ready = false;
 
 		mmap_fd table;
 		master mstr;

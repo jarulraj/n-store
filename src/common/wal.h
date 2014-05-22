@@ -22,8 +22,7 @@ class wal_engine : public engine {
 	public:
 		wal_engine(config _conf) :
 			conf(_conf),
-			ready(false),
-			log_enable(0){}
+			ready(false){}
 
 		void loader() ;
 		void runner() ;
@@ -47,9 +46,7 @@ class wal_engine : public engine {
 
 		std::mutex gc_mutex;
 		std::condition_variable cv;
-		bool ready ;
-
-		int log_enable ;
+		bool ready = false;
 
 		pthread_rwlock_t  table_access = PTHREAD_RWLOCK_INITIALIZER;
 		vector<record> table;
