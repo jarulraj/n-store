@@ -39,7 +39,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
     state.sz_tuple      = 4 + 4 + state.sz_value + 10;
 
-    state.gc_interval   =  5; // ms
+    state.gc_interval   =  10; // ms
     state.per_writes    =  50;
 
     // Parse args
@@ -85,8 +85,8 @@ int main(int argc, char **argv){
     wal_engine wal(state);
     wal.test();
 
-    //sp_engine sp(state);
-    //sp.test();
+    sp_engine sp(state);
+    sp.test();
 
     return 0;
 }
