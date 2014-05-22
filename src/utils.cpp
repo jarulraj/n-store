@@ -20,3 +20,36 @@ std::string random_string( size_t length ){
 
     return str;
 }
+
+// PTHREAD WRAPPERS
+
+void wrlock(pthread_rwlock_t* access){
+	int rc = -1;
+	rc = pthread_rwlock_wrlock(access);
+
+	if(rc != 0){
+		printf("wrlock failed \n");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void rdlock(pthread_rwlock_t* access){
+	int rc = -1;
+	rc = pthread_rwlock_rdlock(access);
+
+	if(rc != 0){
+		printf("rdlock failed \n");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void unlock(pthread_rwlock_t* access){
+	int rc = -1;
+	rc = pthread_rwlock_unlock(access);
+
+	if(rc != 0){
+		printf("unlock failed \n");
+		exit(EXIT_FAILURE);
+	}
+}
+

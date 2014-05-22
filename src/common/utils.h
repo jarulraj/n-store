@@ -9,5 +9,10 @@
 // Generate random string
 std::string random_string( size_t length );
 
+void wrlock(pthread_rwlock_t* access);
+
+void unlock(pthread_rwlock_t* access);
+
+void rdlock(pthread_rwlock_t* access);
 
 #endif /* UTILS_H_ */

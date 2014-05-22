@@ -35,7 +35,7 @@ class sp_engine : public engine {
 			log_enable(0){}
 
 		void loader() ;
-		void runner() ;
+		void runner(int pid) ;
 
 		std::string read(txn t);
 		int update(txn t);

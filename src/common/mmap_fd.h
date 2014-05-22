@@ -49,7 +49,7 @@ public:
 		if (sbuf.st_size == 0) {
 
 			// XXX Simplify
-			off_t len = conf.num_keys*conf.sz_value*10000 + conf.num_thds*conf.num_txns*conf.sz_value ;
+			off_t len = conf.num_keys*conf.sz_value*10000 + conf.num_parts*conf.num_txns*conf.sz_value ;
 
 			if (ftruncate(fd, len) == -1) {
 				cout << "fallocate failed " << name << " \n";

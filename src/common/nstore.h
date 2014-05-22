@@ -13,10 +13,9 @@ class config {
 
         int num_keys;
         int num_txns;
-        int num_thds;
+        int num_parts;
 
         int sz_value;
-        int sz_partition;
         int sz_tuple;
 
         int per_writes;

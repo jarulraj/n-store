@@ -10,8 +10,7 @@ static void usage_exit(FILE *out){
             "   -f --fs-path         :  The path for PMFS \n"
             "   -x --num-txns        :  Number of transactions to execute \n"
             "   -k --num-keys        :  Number of keys \n"
-            "   -t --num-thds        :  Number of threads \n"
-            "   -p --partition-size  :  Partition size \n"
+            "   -p --num-parts       :  Number of partitions \n"
     		);
     exit(-1);
 }
@@ -21,8 +20,7 @@ static struct option opts[] =
     { "fs-path",		    optional_argument,		NULL,  'f' },
     { "num-txns",		 	optional_argument,		NULL,  'x' },
     { "num-keys",		    optional_argument,		NULL,  'k' },
-    { "num-thds",			optional_argument,		NULL,  't' },
-    { "partition-size",	    optional_argument,		NULL,  'p' },
+    { "num-parts",			optional_argument,		NULL,  'p' },
     { "verbose", 			no_argument,      		NULL,  'v' },
     { NULL,					0,					    NULL,   0	}
 };
@@ -30,15 +28,13 @@ static struct option opts[] =
 static void parse_arguments(int argc, char* argv[], config& state) {
 
 	// Default Values
-
 	state.fs_path =  std::string("./");
 
     state.num_keys      =  10000;
     state.num_txns      =  20000;
-    state.num_thds      =  2;
+    state.num_parts     =  2;
 
-    state.sz_value      =  2;
-    state.sz_partition  =  10;
+    state.sz_value      =  16;
     state.verbose       =  false;
 
     state.sz_tuple      = 4 + 4 + state.sz_value + 10;
@@ -49,7 +45,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:t:p:v", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:v", opts, &idx);
 
         if (c == -1)
             break;
@@ -67,13 +63,9 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 state.num_keys = atoi(optarg);
                 cout<<"num_keys: "<<state.num_keys<<endl;
                 break;
-            case 't':
-                state.num_thds = atoi(optarg);
-                cout<<"num_thds: "<<state.num_thds<<endl;
-                break;
             case 'p':
-                state.sz_partition = atoi(optarg);
-                cout<<"sz_partition: "<<state.sz_partition<<endl;
+                state.num_parts = atoi(optarg);
+                cout<<"num_parts: "<<state.num_parts<<endl;
                 break;
             case 'v':
                  state.verbose = true;
@@ -93,8 +85,8 @@ int main(int argc, char **argv){
     wal_engine wal(state);
     wal.test();
 
-    sp_engine sp(state);
-    sp.test();
+    //sp_engine sp(state);
+    //sp.test();
 
     return 0;
 }

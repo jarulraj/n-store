@@ -27,7 +27,7 @@ int sp_engine::update(txn t) {
 	int rc = -1;
 	unsigned int chunk_id = 0;
 
-	chunk_id = key / conf.sz_partition;
+	chunk_id = key / conf.num_parts;
 
 	outer_map& outer = mstr.get_clean_dir();
 
@@ -93,7 +93,7 @@ std::string sp_engine::read(txn t) {
 	int key = t.key;
 	unsigned int chunk_id = 0;
 
-	chunk_id = key / conf.sz_partition;
+	chunk_id = key / conf.num_parts;
 
 	outer_map& outer = mstr.get_clean_dir();
 	if (outer.count(chunk_id) == 0) {
@@ -113,7 +113,7 @@ std::string sp_engine::read(txn t) {
 
 // RUNNER + LOADER
 
-void sp_engine::runner() {
+void sp_engine::runner(int pid) {
 	std::string val;
 
 	for (int i = 0; i < conf.num_txns; i++) {
@@ -160,7 +160,7 @@ void sp_engine::loader() {
 		after_image = table.push_back_record(*rec);
 		rec->location = after_image;
 
-		chunk_id = key / conf.sz_partition;
+		chunk_id = key / conf.num_parts;
 
 		// New chunk
 		if (mstr.get_dir().count(chunk_id) == 0
@@ -209,8 +209,6 @@ void sp_engine::recovery() {
 
 int sp_engine::test() {
 
-	assert(conf.sz_partition <= conf.num_keys);
-
 	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
 	mstr = master("usertable", conf);
 
@@ -234,10 +232,10 @@ int sp_engine::test() {
 
 	// Runner
 	std::vector<std::thread> th_group;
-	for (int i = 0; i < conf.num_thds; i++)
-		th_group.push_back(std::thread(&sp_engine::runner, this));
+	for (int i = 0; i < conf.num_parts; i++)
+		th_group.push_back(std::thread(&sp_engine::runner, this, i));
 
-	for (int i = 0; i < conf.num_thds; i++)
+	for (int i = 0; i < conf.num_parts; i++)
 		th_group.at(i).join();
 
 	// Logger end

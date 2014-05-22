@@ -25,7 +25,7 @@ class wal_engine : public engine {
 			ready(false){}
 
 		void loader() ;
-		void runner() ;
+		void runner(int pid) ;
 
 		std::string read(txn t);
 		int update(txn t);
@@ -49,7 +49,6 @@ class wal_engine : public engine {
 		bool ready = false;
 
 		pthread_rwlock_t  table_access = PTHREAD_RWLOCK_INITIALIZER;
-		vector<record> table;
 		unordered_map<unsigned int, record*> table_index;
 
 		logger undo_log;
