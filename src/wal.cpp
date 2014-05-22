@@ -103,14 +103,15 @@ void wal_engine::runner(int pid){
     long range_offset = pid*range_size;
     long range_txns   = conf.num_txns/conf.num_parts;
 
-    std::string val(conf.sz_value, 'x');
+    std::string updated_val(conf.sz_value, 'x');
+    std::string val;
 
     for (int i = 0; i < range_txns; i++) {
 		long r = rand();
 		long key = range_offset + r % range_size;
 
 		if (r % 100 < conf.per_writes) {
-			txn t(i, "Update", key, val);
+			txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
 			txn t(i, "Read", key, val);
@@ -202,17 +203,21 @@ int wal_engine::test(){
     elapsed_seconds = finish - start;
     std::cout<<"Execution duration: "<< elapsed_seconds.count()<<endl;
 
-    /*
+
 	// Recovery
+    /*
 	check();
 
 	start = std::chrono::system_clock::now();
+
 	recovery();
+
 	finish = std::chrono::system_clock::now();
 	elapsed_seconds = finish - start;
 	std::cout << "Recovery duration: " << elapsed_seconds.count() << endl;
+
 	check();
-    */
+	*/
 
     return 0;
 }

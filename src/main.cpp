@@ -34,13 +34,13 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.num_txns      =  20000;
     state.num_parts     =  2;
 
-    state.sz_value      =  16;
+    state.sz_value      =  3;
     state.verbose       =  false;
 
     state.sz_tuple      = 4 + 4 + state.sz_value + 10;
 
     state.gc_interval   =  5; // ms
-    state.per_writes    =  10;
+    state.per_writes    =  50;
 
     // Parse args
     while (1) {
