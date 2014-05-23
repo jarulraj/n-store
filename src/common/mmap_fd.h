@@ -44,7 +44,7 @@ public:
 		if (sbuf.st_size == 0) {
 
 			// XXX Simplify
-			off_t len = conf.num_keys*conf.sz_value*100 + conf.num_parts*conf.num_txns*conf.sz_value ;
+			off_t len = conf.num_keys*conf.sz_value*5 + (conf.per_writes/100)*conf.num_txns*conf.sz_value ;
 
 			if (ftruncate(fd, len) == -1) {
 				cout << "fallocate failed " << name << " \n";
@@ -129,16 +129,18 @@ public:
 
 		//cout<<"msync offset: "<<offset<<endl;
 
-		ret = msync(data, offset, MS_SYNC);
+		ret = msync(data + prev_offset, offset - prev_offset, MS_SYNC);
 		if (ret == -1) {
 			perror("msync failed");
 			exit(EXIT_FAILURE);
 		}
 
+		prev_offset = offset;
 	}
 
 	void reset_fd() {
 		offset = 0;
+		prev_offset = 0;
 	}
 
 private:
@@ -149,6 +151,7 @@ private:
 	char* data;
 
 	off_t offset;
+	off_t prev_offset;
 	config conf;
 };
 
