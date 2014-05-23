@@ -23,6 +23,8 @@ class config {
         int gc_interval;
 
         bool verbose;
+        bool sp_only;
+        bool log_only;
 };
 
 

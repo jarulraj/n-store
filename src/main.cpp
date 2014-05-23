@@ -13,6 +13,8 @@ static void usage_exit(FILE *out){
             "   -p --num-parts       :  Number of partitions \n"
             "   -w --per-writes      :  Percent of writes \n"
             "   -g --gc-interval     :  Group commit interval \n"
+            "   -s --sp-only         :  Shadow paging only \n"
+            "   -l --log-only        :  Logging only \n"
     		);
     exit(-1);
 }
@@ -25,6 +27,8 @@ static struct option opts[] =
     { "num-parts",			optional_argument,		NULL,  'p' },
     { "per-writes", 		optional_argument,      NULL,  'w' },
     { "gc-interval", 		optional_argument,      NULL,  'g' },
+    { "sp-only", 		    no_argument,            NULL,  's' },
+    { "log-only", 		    no_argument,            NULL,  'l' },
     { "verbose", 			no_argument,      		NULL,  'v' },
     { NULL,					0,					    NULL,   0	}
 };
@@ -46,10 +50,13 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.gc_interval   =   5;
     state.per_writes    =  10;
 
+    state.sp_only       = false;
+    state.log_only      = false;
+
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:p:w:g:v", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:w:g:vsl", opts, &idx);
 
         if (c == -1)
             break;
@@ -82,6 +89,14 @@ static void parse_arguments(int argc, char* argv[], config& state) {
             	state.gc_interval = atoi(optarg);
             	cout<<"gc_interval: "<<state.gc_interval<<endl;
             	break;
+            case 's':
+                state.sp_only = true;
+                cout<<"sp_only: "<<state.sp_only<<endl;
+                break;
+            case 'l':
+                state.log_only = true;
+                cout<<"log_only: "<<state.log_only<<endl;
+            	break;
             default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);
                 usage_exit(stderr);
@@ -94,11 +109,15 @@ int main(int argc, char **argv){
     class config state;
     parse_arguments(argc, argv, state);
 
-    wal_engine wal(state);
-    wal.test();
+    if(state.sp_only == false){
+    	wal_engine wal(state);
+    	wal.test();
+    }
 
-    sp_engine sp(state);
-    sp.test();
+    if(state.log_only == false){
+    	sp_engine sp(state);
+    	sp.test();
+    }
 
     return 0;
 }
