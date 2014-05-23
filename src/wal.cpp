@@ -27,10 +27,10 @@ int wal_engine::update(txn t){
     int key = t.key;
     int rc = -1;
 
-    //wrlock(&table_access);
+    wrlock(&table_access);
 
     if(table_index.count(t.key) == 0){
-        //unlock(&table_access);
+        unlock(&table_access);
         return -1;
     }
 
@@ -40,7 +40,7 @@ int wal_engine::update(txn t){
 	before_image = table_index.at(t.key);
 	table_index[key] = after_image;
 
-    //unlock(&table_access);
+    unlock(&table_access);
 
     // Add log entry
     entry e(t, before_image, after_image);
@@ -54,10 +54,10 @@ std::string wal_engine::read(txn t){
     int rc = -1;
     std::string val = "" ;
 
-    //rdlock(&table_access);
+    rdlock(&table_access);
 
 	if (table_index.count(t.key) == 0){
-        //unlock(&table_access);
+        unlock(&table_access);
 		return "";
 	}
 
@@ -66,7 +66,7 @@ std::string wal_engine::read(txn t){
 		val = r->value;
 	}
 
-    //unlock(&table_access);
+    unlock(&table_access);
 
     return val;
 }
@@ -75,11 +75,11 @@ int wal_engine::insert(txn t){
     int key = t.key;
     int rc = -1;
 
-    //wrlock(&table_access);
+    wrlock(&table_access);
 
     // check if key already exists
     if(table_index.count(t.key) != 0){
-        //unlock(&table_access);
+        unlock(&table_access);
         return -1;
     }
 
@@ -87,7 +87,7 @@ int wal_engine::insert(txn t){
 
 	table_index[key] = after_image;
 
-    //unlock(&table_access);
+    unlock(&table_access);
 
     // Add log entry
     entry e(t, NULL, after_image);
@@ -142,11 +142,11 @@ void wal_engine::loader(){
         record* after_image = new record(key, value);
 
         {
-            //wrlock(&table_access);
+            wrlock(&table_access);
 
             table_index[key] = after_image;
 
-            //unlock(&table_access);
+            unlock(&table_access);
         }
 
         // Add log entry
