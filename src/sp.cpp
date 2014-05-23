@@ -114,15 +114,15 @@ std::string sp_engine::read(txn t) {
 // RUNNER + LOADER
 
 void sp_engine::runner(int pid) {
-	std::string val;
+	std::string updated_val(conf.sz_value, 'x');
+    std::string val;
 
 	for (int i = 0; i < conf.num_txns; i++) {
 		long r = rand();
-		std::string val = random_string(conf.sz_value);
 		long key = r % conf.num_keys;
 
 		if (r % 100 < conf.per_writes) {
-			txn t(i, "Update", key, val);
+			txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
 			txn t(i, "Read", key, val);

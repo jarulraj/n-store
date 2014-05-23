@@ -11,6 +11,8 @@ static void usage_exit(FILE *out){
             "   -x --num-txns        :  Number of transactions to execute \n"
             "   -k --num-keys        :  Number of keys \n"
             "   -p --num-parts       :  Number of partitions \n"
+            "   -w --per-writes      :  Percent of writes \n"
+            "   -g --gc-interval     :  Group commit interval \n"
     		);
     exit(-1);
 }
@@ -21,6 +23,8 @@ static struct option opts[] =
     { "num-txns",		 	optional_argument,		NULL,  'x' },
     { "num-keys",		    optional_argument,		NULL,  'k' },
     { "num-parts",			optional_argument,		NULL,  'p' },
+    { "per-writes", 		optional_argument,      NULL,  'w' },
+    { "gc-interval", 		optional_argument,      NULL,  'g' },
     { "verbose", 			no_argument,      		NULL,  'v' },
     { NULL,					0,					    NULL,   0	}
 };
@@ -32,20 +36,20 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
     state.num_keys      =  10000;
     state.num_txns      =  20000;
-    state.num_parts     =  2;
+    state.num_parts     =  1;
 
-    state.sz_value      =  3;
+    state.sz_value      =  64;
     state.verbose       =  false;
 
-    state.sz_tuple      = 4 + 4 + state.sz_value + 10;
+    state.sz_tuple      =  4 + 4 + state.sz_value + 10;
 
-    state.gc_interval   =  100; // ms
-    state.per_writes    =  50;
+    state.gc_interval   =  50;
+    state.per_writes    =  10;
 
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:p:v", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:w:g:v", opts, &idx);
 
         if (c == -1)
             break;
@@ -70,6 +74,14 @@ static void parse_arguments(int argc, char* argv[], config& state) {
             case 'v':
                  state.verbose = true;
                  break;
+            case 'w':
+            	state.per_writes = atoi(optarg);
+            	cout<<"per_writes: "<<state.per_writes<<endl;
+            	break;
+            case 'g':
+            	state.gc_interval = atoi(optarg);
+            	cout<<"gc_interval: "<<state.gc_interval<<endl;
+            	break;
             default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);
                 usage_exit(stderr);
