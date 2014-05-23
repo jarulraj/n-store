@@ -14,10 +14,7 @@ using namespace std;
 #define DELIM ' '
 #define CHUNK_DELIM "-1 -1"
 
-typedef std::unordered_map<unsigned int, char*> inner_map;
-typedef std::unordered_map<unsigned int, inner_map*> outer_map;
-typedef std::unordered_map<unsigned int, char*> chunk_map;
-typedef std::unordered_map<unsigned int, bool> chunk_status;
+typedef std::unordered_map<unsigned int, sp_record*> dir_map;
 
 // MMAP
 class mmap_fd {
@@ -105,32 +102,17 @@ public:
 		offset += len;
 	}
 
-	char* push_back_chunk(const inner_map* rec) {
-		stringstream rec_stream;
-		string rec_str;
-		inner_map::const_iterator itr;
-		size_t chunk_size = 0;
+	void push_back_batch_id(int batch_id) {
+		char rec_str[conf.sz_tuple];
+		int len = 0;
 
-		if (rec == NULL) {
-			cout << "Empty chunk" << endl;
-			return NULL;
-		}
-
-		for (itr = rec->begin(); itr != rec->end(); itr++) {
-			rec_stream << (*itr).first << DELIM << static_cast<void *>((*itr).second) << DELIM;
-		}
-
-		rec_stream << CHUNK_DELIM << endl;
-		rec_str = rec_stream.str();
-		chunk_size = rec_str.size();
+		sprintf(rec_str, "%d ", batch_id);
+		len = strlen(rec_str);
 
 		char* cur_offset = (data + offset);
-		memcpy(cur_offset, rec_str.c_str(), chunk_size);
+		memcpy(cur_offset, rec_str, len);
 
-		//cout<<"chunk size: "<< chunk_size<<endl;
-		offset += chunk_size;
-
-		return cur_offset;
+		offset += len;
 	}
 
 	std::string get_value(char* location) {
@@ -139,7 +121,7 @@ public:
 		char tuple[conf.sz_tuple];
 
 		memcpy(tuple, location, sizeof(tuple));
-		sscanf(tuple, "%ud %s ", &key, val);
+		sscanf(tuple, " %u %s ", &key, val);
 
 		return std::string(val);
 	}
@@ -155,25 +137,6 @@ public:
 			exit(EXIT_FAILURE);
 		}
 
-	}
-
-	void copy(chunk_map dir) {
-		chunk_map::iterator itr;
-
-		for (itr = dir.begin(); itr != dir.end(); itr++) {
-			sp_record r((*itr).first, "", (*itr).second);
-			this->push_back_dir_entry(r);
-		}
-
-	}
-
-	void set(bool dir) {
-		char* cur_offset = (data);
-
-		if (dir == false)
-			*cur_offset = '0';
-		else
-			*cur_offset = '1';
 	}
 
 	void reset_fd() {

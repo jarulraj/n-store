@@ -35,18 +35,20 @@ class record{
         std::string value;
 };
 
-class sp_record : public record  {
+class sp_record {
 public:
 	sp_record() :
-			record(0, ""), location(NULL) {
+			key(0), location { NULL, NULL } {
 	}
 
-	sp_record(unsigned int _key, std::string _value, char* _location) :
-			record(_key, _value), location(_location) {
+	sp_record(unsigned int _key, unsigned int _batch_id, char* _location) :
+			key(_key), batch_id { _batch_id, 0 }, location { _location, NULL } {
 	}
 
 	//private:
-	char* location;
+	unsigned int key;
+	unsigned int batch_id[2];
+	char* location[2];
 };
 
 

@@ -24,63 +24,28 @@ int sp_engine::update(txn t) {
 
 	char* before_image;
 	char* after_image;
-	int rc = -1;
-	unsigned int chunk_id = 0;
 
-	chunk_id = key / conf.num_parts;
+	dir_map& dir = mstr.get_dir();
 
-	outer_map& outer = mstr.get_clean_dir();
-
-	// chunk does not exist
-	if (outer.count(chunk_id) == 0) {
-		std::cout << "Update: chunk does not exist : " << key << endl;
-		return -1;
-	}
-
-	// key does not exist
-	inner_map* clean_chunk = outer[chunk_id];
-	if (clean_chunk->count(key) == 0) {
+	if (dir.count(key) == 0) {
 		std::cout << "Update: key does not exist : " << key << endl;
 		return -1;
 	}
 
-	sp_record* rec = new sp_record(key, t.value, NULL);
+	record* rec = new record(key, t.value);
 	after_image = table.push_back_record(*rec);
-	rec->location = after_image;
-	before_image = (*clean_chunk)[key];
 
-	rc = pthread_rwlock_wrlock(&mstr.table_access);
-	if (rc != 0) {
-		cout << "update:: wrlock failed \n";
-		return -1;
-	}
+	sp_record* sp_rec = dir[key];
 
-	chunk_status& status = mstr.get_status();
+	// older batch
+	int index = (sp_rec->batch_id[0] < sp_rec->batch_id[1]) ? 0 : 1;
 
-	// New chunk
-	if (status[chunk_id] == false) {
-		inner_map* chunk = new inner_map;
+	sp_rec->location[index] = after_image;
+	sp_rec->batch_id[index] = mstr.batch_id;
 
-		// Copy map from clean dir
-		(*chunk).insert((*clean_chunk).begin(), (*clean_chunk).end());
-		(*chunk)[key] = after_image;
+	//wrlock(&mstr.table_access);
 
-		mstr.get_dir()[chunk_id] = chunk;
-		status[chunk_id] = true;
-	}
-	// Add to existing chunk
-	else {
-		inner_map* chunk = mstr.get_dir()[chunk_id];
-
-		before_image = (*chunk)[key];
-		(*chunk)[key] = after_image;
-	}
-
-	rc = pthread_rwlock_unlock(&mstr.table_access);
-	if (rc != 0) {
-		cout << "update:: unlock failed \n";
-		return -1;
-	}
+	//unlock(&mstr.table_access);
 
 	// Add log entry
 	mem_entry e(t, before_image, after_image);
@@ -91,35 +56,35 @@ int sp_engine::update(txn t) {
 
 std::string sp_engine::read(txn t) {
 	int key = t.key;
-	unsigned int chunk_id = 0;
 
-	chunk_id = key / conf.num_parts;
+	dir_map& dir = mstr.get_dir();
 
-	outer_map& outer = mstr.get_clean_dir();
-	if (outer.count(chunk_id) == 0) {
-		std::cout << "Read: chunk does not exist : " << key << endl;
-		return "not exists";
-	}
-
-	inner_map* clean_chunk = outer[chunk_id];
-	if (clean_chunk->count(key) == 0) {
+	if (dir.count(key) == 0) {
 		std::cout << "Read: key does not exist : " << key << endl;
 		return "not exists";
 	}
 
-	char* location = (*clean_chunk)[key];
-	return table.get_value(location);
+	sp_record* sp_rec =  dir[key];
+	// newer batch
+	int index = (sp_rec->batch_id[0] >= sp_rec->batch_id[1]) ? 0 : 1;
+	void* location = sp_rec->location[index];
+
+	return table.get_value((char*)location);
 }
 
 // RUNNER + LOADER
 
 void sp_engine::runner(int pid) {
-	std::string updated_val(conf.sz_value, 'x');
+    long range_size   = conf.num_keys/conf.num_parts;
+    long range_offset = pid*range_size;
+    long range_txns   = conf.num_txns/conf.num_parts;
+
+    std::string updated_val(conf.sz_value, 'x');
     std::string val;
 
-	for (int i = 0; i < conf.num_txns; i++) {
+    for (int i = 0; i < range_txns; i++) {
 		long r = rand();
-		long key = r % conf.num_keys;
+		long key = range_offset + r % range_size;
 
 		if (r % 100 < conf.per_writes) {
 			txn t(i, "Update", key, updated_val);
@@ -150,41 +115,21 @@ void sp_engine::loader() {
 	size_t ret;
 	char* after_image;
 
+	int batch_id = mstr.batch_id;
+
 	for (int i = 0; i < conf.num_keys; i++) {
 		int key = i;
 		unsigned int chunk_id = 0;
 		string value = random_string(conf.sz_value);
 
-		sp_record* rec = new sp_record(key, value, NULL);
-
+		record* rec = new record(key, value);
 		after_image = table.push_back_record(*rec);
-		rec->location = after_image;
 
-		chunk_id = key / conf.num_parts;
-
-		// New chunk
-		if (mstr.get_dir().count(chunk_id) == 0
-				|| mstr.get_status()[chunk_id] == false) {
-			inner_map* chunk = new inner_map;
-			(*chunk)[key] = after_image;
-
-			//cout<<"New chunk :"<<chunk_id<<endl;
-			mstr.get_dir()[chunk_id] = chunk;
-
-			mstr.get_status()[chunk_id] = true;
-		}
-		// Add to existing chunk
-		else {
-			inner_map* chunk = mstr.get_dir()[chunk_id];
-			//cout<<"Add to chunk :"<<chunk_id<<endl;
-
-			if (chunk != NULL)
-				(*chunk)[key] = after_image;
-		}
+		sp_record* sp_rec = new sp_record(key, batch_id, after_image);
+		mstr.get_dir()[key] = sp_rec;
 
 		// Add log entry
 		txn t(0, "Insert", key, value);
-
 		mem_entry e(t, NULL, after_image);
 		undo_buffer.push(e);
 	}
@@ -196,13 +141,6 @@ void sp_engine::loader() {
 void sp_engine::recovery() {
 
 	// Clear in-memory structures
-	mstr.get_chunk_map().clear();
-	mstr.get_clean_chunk_map().clear();
-	mstr.get_status().clear();
-
-	mstr.get_dir().clear();
-	mstr.get_clean_dir().clear();
-
 	cout << "Rebuild clean dir" << endl;
 
 }
@@ -246,10 +184,10 @@ int sp_engine::test() {
 	elapsed_seconds = finish - start;
 	std::cout << "Execution duration: " << elapsed_seconds.count() << endl;
 
+	//check();
+
 	// Recovery
 	/*
-	check();
-
 	start = std::chrono::high_resolution_clock::now();
 	recovery();
 	finish = std::chrono::high_resolution_clock::now();
