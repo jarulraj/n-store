@@ -15,7 +15,7 @@ static void usage_exit(FILE *out){
             "   -g --gc-interval     :  Group commit interval \n"
             "   -s --sp-only         :  Shadow paging only \n"
             "   -l --log-only        :  Logging only \n"
-    		);
+           );
     exit(-1);
 }
 
@@ -35,14 +35,14 @@ static struct option opts[] =
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 
-	// Default Values
-	state.fs_path =  std::string("./");
+    // Default Values
+    state.fs_path =  std::string("./");
 
     state.num_keys      =  10000;
     state.num_txns      =  20000;
     state.num_parts     =  1;
 
-    state.sz_value      =  2;
+    state.sz_value      =  128;
     state.verbose       =  false;
 
     state.sz_tuple      =  4 + 4 + state.sz_value + 10;
@@ -79,16 +79,16 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 cout<<"num_parts: "<<state.num_parts<<endl;
                 break;
             case 'v':
-                 state.verbose = true;
-                 break;
+                state.verbose = true;
+                break;
             case 'w':
-            	state.per_writes = atoi(optarg);
-            	cout<<"per_writes: "<<state.per_writes<<endl;
-            	break;
+                state.per_writes = atoi(optarg);
+                cout<<"per_writes: "<<state.per_writes<<endl;
+                break;
             case 'g':
-            	state.gc_interval = atoi(optarg);
-            	cout<<"gc_interval: "<<state.gc_interval<<endl;
-            	break;
+                state.gc_interval = atoi(optarg);
+                cout<<"gc_interval: "<<state.gc_interval<<endl;
+                break;
             case 's':
                 state.sp_only = true;
                 cout<<"sp_only: "<<state.sp_only<<endl;
@@ -96,7 +96,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
             case 'l':
                 state.log_only = true;
                 cout<<"log_only: "<<state.log_only<<endl;
-            	break;
+                break;
             default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);
                 usage_exit(stderr);
@@ -110,13 +110,13 @@ int main(int argc, char **argv){
     parse_arguments(argc, argv, state);
 
     if(state.sp_only == false){
-    	wal_engine wal(state);
-    	wal.test();
+        wal_engine wal(state);
+        wal.test();
     }
 
     if(state.log_only == false){
-    	sp_engine sp(state);
-    	sp.test();
+        sp_engine sp(state);
+        sp.test();
     }
 
     return 0;
