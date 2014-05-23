@@ -184,8 +184,7 @@ int sp_engine::test() {
 	gc.join();
 
 	finish = std::chrono::high_resolution_clock::now();
-	elapsed_seconds = finish - start;
-	std::cout << "Execution duration: " << elapsed_seconds.count() << endl;
+	std::cout << "Execution duration (ms): " << chrono::duration_cast<chrono::milliseconds>(finish-start).count() << endl;
 
 	//check();
 
