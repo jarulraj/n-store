@@ -37,13 +37,13 @@ int sp_engine::update(txn t) {
 
 	sp_record* sp_rec = dir[key];
 
+	//wrlock(&mstr.table_access);
+
 	// older batch
 	int index = (sp_rec->batch_id[0] < sp_rec->batch_id[1]) ? 0 : 1;
 
 	sp_rec->location[index] = after_image;
 	sp_rec->batch_id[index] = mstr.batch_id;
-
-	//wrlock(&mstr.table_access);
 
 	//unlock(&mstr.table_access);
 

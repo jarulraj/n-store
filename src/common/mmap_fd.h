@@ -14,8 +14,6 @@ using namespace std;
 #define DELIM ' '
 #define CHUNK_DELIM "-1 -1"
 
-typedef std::unordered_map<unsigned int, sp_record*> dir_map;
-
 // MMAP
 class mmap_fd {
 public:
