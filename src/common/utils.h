@@ -3,11 +3,7 @@
 
 // UTILS
 
-// Log message verbose
-// void debug(const char *fmt UNUSED, ...);
-
-// Generate random string
-std::string random_string( size_t length );
+void random_string(char* str, size_t len );
 
 void wrlock(pthread_rwlock_t* access);
 

@@ -34,7 +34,6 @@ public:
 		}
 
 		fd = fileno(fp);
-		page_size = getpagesize();
 
 		struct stat sbuf;
 
@@ -47,7 +46,7 @@ public:
 		if (sbuf.st_size == 0) {
 
 			// XXX Simplify
-			off_t len = conf.num_keys*conf.sz_value*5 + (conf.per_writes/100)*conf.num_txns*conf.sz_value ;
+			off_t len = conf.num_keys*conf.sz_value*100 + (conf.per_writes/100)*conf.num_txns*conf.sz_value ;
 
 			if (ftruncate(fd, len) == -1) {
 				cout << "fallocate failed " << name << " \n";
@@ -60,17 +59,13 @@ public:
 			}
 
 			//cout<<"after fallocate: size :"<< sbuf.st_size << endl;
-
 			offset = 0;
-			prev_offset = 0;
 		}
 
 		// XXX Fix -- scan max pointer from clean dir
 		offset = 0;
-		prev_offset = 0;
 
-		if ((data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED,
-				fd, 0)) == (caddr_t) (-1)) {
+		if ((data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, fd, 0)) == (caddr_t) (-1)) {
 			perror(" mmap_error ");
 			cout << "mmap failed " << name << endl;
 			exit(EXIT_FAILURE);
@@ -82,7 +77,7 @@ public:
 		char rec_str[conf.sz_tuple];
 		int len = 0;
 
-		sprintf(rec_str, "%u %s ", rec.key, rec.value.c_str());
+		sprintf(rec_str, "%u %s \n", rec.key, rec.value);
 		len = strlen(rec_str);
 
 		char* cur_offset = (data + offset);
@@ -131,20 +126,13 @@ public:
 
 	void sync() {
 		int ret = 0;
-		int len = 0;
-		off_t roundup;
 
-		len = offset - prev_offset;
-		if(len > 0){
-			roundup = roundup2(prev_offset, page_size);
-			ret = msync(data + roundup, len, MS_SYNC);
-			if (ret == -1) {
-				perror("msync failed");
-				exit(EXIT_FAILURE);
-			}
+		ret = msync(data, offset, MS_SYNC);
+		if (ret == -1) {
+			perror("msync failed");
+			exit(EXIT_FAILURE);
 		}
 
-		prev_offset = offset;
 	}
 
 
@@ -156,10 +144,7 @@ private:
 	char* data;
 
 	off_t offset;
-	off_t prev_offset;
 	config conf;
-
-	int page_size;
 };
 
 

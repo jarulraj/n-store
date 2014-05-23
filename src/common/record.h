@@ -9,7 +9,7 @@ using namespace std;
 
 class record{
     public:
-        record(unsigned int _key, std::string _value) :
+        record(unsigned int _key, char* _value) :
             key(_key),
             value(_value){}
 
@@ -32,7 +32,7 @@ class record{
 
         //private:
         unsigned int key;
-        std::string value;
+        char* value;
 };
 
 class sp_record {

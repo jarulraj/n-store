@@ -42,10 +42,12 @@ class logger {
 
             log_file = fopen(log_file_name .c_str(), mode.c_str());
             if (log_file != NULL) {
-                //cout << "Log file: " <<log_file_name<< endl;
+                log_file_fd = fileno(log_file);
             }
-
-            log_file_fd = fileno(log_file);
+            else{
+                cout << "Log file not found : " <<log_file_name<< endl;
+            	exit(EXIT_FAILURE);
+            }
         }
 
         void push(entry e){

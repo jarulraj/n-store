@@ -27,7 +27,7 @@ class wal_engine : public engine {
 		void loader() ;
 		void runner(int pid) ;
 
-		std::string read(txn t);
+		char* read(txn t);
 		int update(txn t);
 
 		int test();

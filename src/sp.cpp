@@ -54,22 +54,23 @@ int sp_engine::update(txn t) {
 	return 0;
 }
 
-std::string sp_engine::read(txn t) {
+char* sp_engine::read(txn t) {
 	int key = t.key;
 
 	dir_map& dir = mstr.get_dir();
 
 	if (dir.count(key) == 0) {
 		std::cout << "Read: key does not exist : " << key << endl;
-		return "not exists";
+		return NULL;
 	}
 
 	sp_record* sp_rec =  dir[key];
-	// newer batch
 	int index = (sp_rec->batch_id[0] >= sp_rec->batch_id[1]) ? 0 : 1;
-	void* location = sp_rec->location[index];
+	char* location = sp_rec->location[index];
 
-	return table.get_value((char*)location);
+	//char* val = strtok(location, "\n");
+
+	return location;
 }
 
 // RUNNER + LOADER
@@ -79,8 +80,9 @@ void sp_engine::runner(int pid) {
     long range_offset = pid*range_size;
     long range_txns   = conf.num_txns/conf.num_parts;
 
-    std::string updated_val(conf.sz_value, 'x');
-    std::string val;
+    char* updated_val = new char[conf.sz_value];
+    memset(updated_val, 'x', conf.sz_value);
+    char* val;
 
     for (int i = 0; i < range_txns; i++) {
 		long r = rand();
@@ -101,7 +103,7 @@ void sp_engine::check() {
 
 	std::cout << "Check :" << std::endl;
 	for (int i = 0; i < conf.num_keys; i++) {
-		std::string val;
+		char* val;
 
 		txn t(i, "Read", i, val);
 		val = read(t);
@@ -119,8 +121,9 @@ void sp_engine::loader() {
 
 	for (int i = 0; i < conf.num_keys; i++) {
 		int key = i;
-		unsigned int chunk_id = 0;
-		string value = random_string(conf.sz_value);
+
+		char* value = new char[conf.sz_value];
+        random_string(value, conf.sz_value);
 
 		record* rec = new record(key, value);
 		after_image = table.push_back_record(*rec);
@@ -189,7 +192,9 @@ int sp_engine::test() {
 	// Recovery
 	/*
 	start = std::chrono::high_resolution_clock::now();
+
 	recovery();
+
 	finish = std::chrono::high_resolution_clock::now();
 	elapsed_seconds = finish - start;
 	std::cout << "Recovery duration: " << elapsed_seconds.count() << endl;

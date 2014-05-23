@@ -49,16 +49,15 @@ int wal_engine::update(txn t){
     return 0;
 }
 
-std::string wal_engine::read(txn t){
+char* wal_engine::read(txn t){
     int key = t.key;
-    int rc = -1;
-    std::string val = "" ;
+    char* val = NULL ;
 
     //rdlock(&table_access);
 
 	if (table_index.count(t.key) == 0){
         //unlock(&table_access);
-		return "";
+		return NULL;
 	}
 
 	record* r = table_index[key];
@@ -103,8 +102,10 @@ void wal_engine::runner(int pid){
     long range_offset = pid*range_size;
     long range_txns   = conf.num_txns/conf.num_parts;
 
-    std::string updated_val(conf.sz_value, 'x');
-    std::string val;
+    char* updated_val = new char[conf.sz_value];
+    memset(updated_val, 'x', conf.sz_value);
+
+    char* val;
 
     for (int i = 0; i < range_txns; i++) {
 		long r = rand();
@@ -138,7 +139,9 @@ void wal_engine::loader(){
 
     for(int i=0 ; i<conf.num_keys ; i++){
         int key = i;
-        string value = random_string(conf.sz_value);
+
+        char* value = new char[conf.sz_value];
+        random_string(value, conf.sz_value);
         record* after_image = new record(key, value);
 
         {
@@ -203,11 +206,10 @@ int wal_engine::test(){
     elapsed_seconds = finish - start;
     std::cout<<"Execution duration: "<< elapsed_seconds.count()<<endl;
 
-
 	// Recovery
-    /*
-	check();
+	//check();
 
+	/*
 	start = std::chrono::high_resolution_clock::now();
 
 	recovery();
@@ -242,7 +244,7 @@ void wal_engine::snapshot(){
 	unordered_map<unsigned int, record*>::const_iterator t_itr;
 
     for (t_itr = table_index.begin() ; t_itr != table_index.end(); ++t_itr){
-        txn t(0, "", -1, "");
+        txn t(0, "", -1, NULL);
         record* tuple = (*t_itr).second;
 
         entry e(t, tuple, NULL);
@@ -254,7 +256,7 @@ void wal_engine::snapshot(){
     snapshotter.close();
 
     // Add log entry
-    txn t(0, "Snapshot", -1, "");
+    txn t(0, "Snapshot", -1, NULL);
     entry e(t, NULL, NULL);
     undo_log.push(e);
 
@@ -285,12 +287,17 @@ void wal_engine::recovery(){
 	reader.set_path(conf.fs_path+"./snapshot", "r");
 
 	unsigned int key = -1;
-	char value[conf.sz_value];
 	char txn_type[10];
 
-	while(fscanf(reader.log_file, "%d %s \n", &key, value) != EOF){
-        txn t(0, "Insert", key, std::string(value));
-        insert(t);
+	while(1){
+		char* value =  new char[conf.sz_value];
+		if(fscanf(reader.log_file, "%u %s ", &key, value) != EOF){
+			txn t(0, "Insert", key, value);
+			insert(t);
+		}
+		else{
+			break;
+		}
 	}
 
 	reader.close();
@@ -300,7 +307,7 @@ void wal_engine::recovery(){
 	ifstream scanner(conf.fs_path+"./log");
 	string line;
 	bool apply = false;
-	char before_val[conf.sz_value], after_val[conf.sz_value];
+	char before_val[conf.sz_value];
 	unsigned int before_key, after_key;
 
 	if (scanner.is_open()) {
@@ -317,8 +324,10 @@ void wal_engine::recovery(){
 
 				// Update
 				if(strcmp(txn_type, "Update") ==0){
-					sscanf(line.c_str(), "%s %d %s %d %s", txn_type, &before_key, before_val, &after_key, after_val);
-			        txn t(0, "Update", after_key, std::string(after_val));
+					char* after_val=  new char[conf.sz_value];
+					sscanf(line.c_str(), "%s %u %s %u %s ", txn_type, &before_key, before_val, &after_key, after_val);
+
+			        txn t(0, "Update", after_key, after_val);
 			        update(t);
 				}
 

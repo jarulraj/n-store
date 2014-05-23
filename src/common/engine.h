@@ -8,7 +8,7 @@ class engine{
 		virtual void loader() = 0;
 		virtual void runner(int pid) = 0;
 
-		virtual std::string read(txn t) = 0;
+		virtual char* read(txn t) = 0;
 		virtual int update(txn t) = 0;
 
 		virtual int test() = 0;

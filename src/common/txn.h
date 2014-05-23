@@ -10,7 +10,7 @@ using namespace std;
 
 class txn {
 public:
-	txn(unsigned long _txn_id, std::string _txn_type, unsigned int _key, std::string _value) :
+	txn(unsigned long _txn_id, std::string _txn_type, unsigned int _key, char* _value) :
 			txn_id(_txn_id),
 			txn_type(_txn_type),
 			key(_key),
@@ -24,7 +24,7 @@ public:
 	string txn_type;
 
 	unsigned int key;
-	string value;
+	char* value;
 
 	chrono::time_point<std::chrono::high_resolution_clock> start, end;
 };
