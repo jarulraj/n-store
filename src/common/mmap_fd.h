@@ -14,6 +14,8 @@ using namespace std;
 #define DELIM ' '
 #define CHUNK_DELIM "-1 -1"
 
+#define roundup2(x, y)  (((x)+((y)-1))&(~((y)-1)))
+
 // MMAP
 class mmap_fd {
 public:
@@ -32,6 +34,7 @@ public:
 		}
 
 		fd = fileno(fp);
+		page_size = getpagesize();
 
 		struct stat sbuf;
 
@@ -59,10 +62,12 @@ public:
 			//cout<<"after fallocate: size :"<< sbuf.st_size << endl;
 
 			offset = 0;
+			prev_offset = 0;
 		}
 
 		// XXX Fix -- scan max pointer from clean dir
 		offset = 0;
+		prev_offset = 0;
 
 		if ((data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED,
 				fd, 0)) == (caddr_t) (-1)) {
@@ -126,22 +131,22 @@ public:
 
 	void sync() {
 		int ret = 0;
+		int len = 0;
+		off_t roundup;
 
-		//cout<<"msync offset: "<<offset<<endl;
-
-		ret = msync(data + prev_offset, offset - prev_offset, MS_SYNC);
-		if (ret == -1) {
-			perror("msync failed");
-			exit(EXIT_FAILURE);
+		len = offset - prev_offset;
+		if(len > 0){
+			roundup = roundup2(prev_offset, page_size);
+			ret = msync(data + roundup, len, MS_SYNC);
+			if (ret == -1) {
+				perror("msync failed");
+				exit(EXIT_FAILURE);
+			}
 		}
 
 		prev_offset = offset;
 	}
 
-	void reset_fd() {
-		offset = 0;
-		prev_offset = 0;
-	}
 
 private:
 	FILE* fp = NULL;
@@ -153,6 +158,8 @@ private:
 	off_t offset;
 	off_t prev_offset;
 	config conf;
+
+	int page_size;
 };
 
 
