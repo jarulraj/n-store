@@ -4,7 +4,7 @@
 
 using namespace std;
 
-#define TABLE_LOC  0x01b00000
+#define TABLE_LOC  0x02c00000
 
 void sp_engine::group_commit() {
 	std::unique_lock<std::mutex> lk(gc_mutex);

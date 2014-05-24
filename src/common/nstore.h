@@ -21,10 +21,12 @@ class config {
         int per_writes;
 
         int gc_interval;
+        int lsm_interval;
 
         bool verbose;
-        bool sp_only;
         bool log_only;
+        bool sp_only;
+        bool lsm_only;
 };
 
 

@@ -3,6 +3,8 @@
 #include "nstore.h"
 #include "wal.h"
 #include "sp.h"
+#include "lsm.h"
+
 
 static void usage_exit(FILE *out){
     fprintf(out,
@@ -13,8 +15,9 @@ static void usage_exit(FILE *out){
             "   -p --num-parts       :  Number of partitions \n"
             "   -w --per-writes      :  Percent of writes \n"
             "   -g --gc-interval     :  Group commit interval \n"
-            "   -s --sp-only         :  Shadow paging only \n"
-            "   -l --log-only        :  Logging only \n"
+            "   -l --log-only        :  WAL only \n"
+            "   -s --sp-only         :  SP only \n"
+    		"   -m --lsm-only        :  LSM only \n"
            );
     exit(-1);
 }
@@ -27,8 +30,9 @@ static struct option opts[] =
     { "num-parts",			optional_argument,		NULL,  'p' },
     { "per-writes", 		optional_argument,      NULL,  'w' },
     { "gc-interval", 		optional_argument,      NULL,  'g' },
-    { "sp-only", 		    no_argument,            NULL,  's' },
     { "log-only", 		    no_argument,            NULL,  'l' },
+    { "sp-only", 		    no_argument,            NULL,  's' },
+    { "lsm-only", 		    no_argument,            NULL,  'm' },
     { "verbose", 			no_argument,      		NULL,  'v' },
     { NULL,					0,					    NULL,   0	}
 };
@@ -38,25 +42,27 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     // Default Values
     state.fs_path =  std::string("./");
 
-    state.num_keys      =  10000;
-    state.num_txns      =  20000;
+    state.num_keys      =  1000;
+    state.num_txns      =  200000;
     state.num_parts     =  1;
 
-    state.sz_value      =  128;
+    state.sz_value      =  2;
     state.verbose       =  false;
 
     state.sz_tuple      =  4 + 4 + state.sz_value + 10;
 
     state.gc_interval   =   5;
+    state.lsm_interval  =   5;
     state.per_writes    =  10;
 
     state.sp_only       = false;
     state.log_only      = false;
+    state.lsm_only      = false;
 
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:p:w:g:vsl", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:w:g:vlsm", opts, &idx);
 
         if (c == -1)
             break;
@@ -89,13 +95,17 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 state.gc_interval = atoi(optarg);
                 cout<<"gc_interval: "<<state.gc_interval<<endl;
                 break;
+            case 'l':
+                state.log_only = true;
+                cout<<"log_only: "<<state.log_only<<endl;
+                break;
             case 's':
                 state.sp_only = true;
                 cout<<"sp_only: "<<state.sp_only<<endl;
                 break;
-            case 'l':
-                state.log_only = true;
-                cout<<"log_only: "<<state.log_only<<endl;
+            case 'm':
+                state.lsm_only = true;
+                cout<<"lsm_only: "<<state.lsm_only<<endl;
                 break;
             default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);
@@ -109,14 +119,22 @@ int main(int argc, char **argv){
     class config state;
     parse_arguments(argc, argv, state);
 
-    if(state.sp_only == false){
+    if(state.sp_only == false && state.lsm_only == false){
+    	cout<<"Executing WAL"<<endl;
         wal_engine wal(state);
         wal.test();
     }
 
-    if(state.log_only == false){
+    if(state.log_only == false && state.lsm_only == false){
+    	cout<<"Executing SP"<<endl;
         sp_engine sp(state);
         sp.test();
+    }
+
+    if(state.log_only == false && state.sp_only == false){
+    	cout<<"Executing LSM"<<endl;
+        lsm_engine lsm(state);
+        lsm.test();
     }
 
     return 0;

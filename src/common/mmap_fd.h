@@ -6,6 +6,13 @@
 #include <sstream>
 #include <cstring>
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
+
 #include "record.h"
 #include "config.h"
 
@@ -46,7 +53,7 @@ public:
 		if (sbuf.st_size == 0) {
 
 			// XXX Simplify
-			off_t len = conf.num_keys*conf.sz_value*100 + (conf.per_writes/100)*conf.num_txns*conf.sz_value ;
+			off_t len = conf.num_keys*conf.sz_value*100 + 2*conf.num_txns*conf.sz_value ;
 
 			if (ftruncate(fd, len) == -1) {
 				cout << "fallocate failed " << name << " \n";

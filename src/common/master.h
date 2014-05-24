@@ -7,8 +7,8 @@
 
 using namespace std;
 
-#define MASTER_LOC 0x01a00000
-#define DIR_LOC    0x01c00000
+#define MASTER_LOC 0x02a00000
+#define DIR_LOC    0x02b00000
 
 typedef std::unordered_map<unsigned int, sp_record*> dir_map;
 

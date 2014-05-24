@@ -13,5 +13,6 @@ LIBS =
 nstore_SOURCES  =  	main.cpp \
 			wal.cpp  \
 			sp.cpp   \
+			lsm.cpp  \
 			utils.cpp
 

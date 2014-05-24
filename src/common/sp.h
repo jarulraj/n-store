@@ -10,12 +10,6 @@
 #include <unordered_map>
 #include <cassert>
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <errno.h>
 
 #include "engine.h"
 #include "nstore.h"
