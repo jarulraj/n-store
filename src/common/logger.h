@@ -93,7 +93,7 @@ public:
 				exit(EXIT_FAILURE);
 			}
 
-			cout << "fsync :: "<<log_file_name<<" :: " << count << endl;
+			//cout << "fsync :: "<<log_file_name<<" :: " << count << endl;
 
 			// Set end time
 			/*

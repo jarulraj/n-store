@@ -47,7 +47,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.num_txns      =  20;
     state.num_parts     =  1;
 
-    state.sz_value      =  2;
+    state.sz_value      =  128;
     state.verbose       =  false;
 
     state.sz_tuple      =  4 + 4 + state.sz_value + 10;
