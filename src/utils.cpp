@@ -53,7 +53,7 @@ void random_string(char* str, size_t len ){
 		str[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
 	}
 
-	str[len] = 0;
+	str[len-1] = '\0';
 }
 
 // Get a value in [0, N-1] that follows zipf distribution

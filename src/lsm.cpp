@@ -142,7 +142,11 @@ int lsm_engine::insert(txn t){
 
     record* after_image = new record(t.key, t.value);
 
+	wrlock(&table_access);
+
     mem_index[mem_index_ptr][key] = after_image;
+
+    unlock(&table_access);
 
     // Add log entry
     entry e(t, NULL, after_image);
