@@ -21,14 +21,19 @@ using namespace std;
 #define DELIM ' '
 #define CHUNK_DELIM "-1 -1"
 
-#define roundup2(x, y)  (((x)+((y)-1))&(~((y)-1)))
+#define rounddown2(x, y) ((x)&(~((y)-1)))          /* if y is power of two */
+#define roundup2(x, y)  (((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 
 // MMAP
 class mmap_fd {
 public:
 	mmap_fd() :
-			file_name(""), fd(-1), offset(0), data(NULL) {
-	}
+			file_name(""),
+			fd(-1),
+			offset(0),
+			prev_offset(0),
+			data(NULL),
+			page_size(0){}
 
 	mmap_fd(std::string _name, caddr_t location, config& _conf){
 
@@ -41,6 +46,7 @@ public:
 		}
 
 		fd = fileno(fp);
+		page_size = getpagesize();
 
 		struct stat sbuf;
 
@@ -66,11 +72,11 @@ public:
 			}
 
 			//cout<<"after fallocate: size :"<< sbuf.st_size << endl;
-			offset = 0;
 		}
 
 		// XXX Fix -- scan max pointer from clean dir
 		offset = 0;
+		prev_offset = 0;
 
 		if ((data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, fd, 0)) == (caddr_t) (-1)) {
 			perror(" mmap_error ");
@@ -134,14 +140,34 @@ public:
 	void sync() {
 		int ret = 0;
 
-		cout << "msync :: "<<file_name<<" :: " << offset << endl;
 
+		// Partial file
+		int len = 0;
+		off_t round;
+
+		len = offset - prev_offset;
+		cout << "msync :: "<<file_name<<" :: " << len << endl;
+
+		if (len > 0) {
+			round = rounddown2(prev_offset, page_size);
+
+			ret = msync(data + round, len, MS_SYNC);
+			if (ret == -1) {
+				perror("msync failed");
+				exit (EXIT_FAILURE);
+			}
+		}
+
+		prev_offset = offset;
+
+		// Full file
+		/*
 		ret = msync(data, offset, MS_SYNC);
 		if (ret == -1) {
 			perror("msync failed");
 			exit(EXIT_FAILURE);
 		}
-
+		*/
 	}
 
 
@@ -153,7 +179,10 @@ private:
 	char* data;
 
 	off_t offset;
+	off_t prev_offset;
 	config conf;
+
+	int page_size;
 };
 
 
