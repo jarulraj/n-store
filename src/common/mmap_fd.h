@@ -27,16 +27,16 @@ using namespace std;
 class mmap_fd {
 public:
 	mmap_fd() :
-			name(""), fd(-1), offset(0), data(NULL) {
+			file_name(""), fd(-1), offset(0), data(NULL) {
 	}
 
 	mmap_fd(std::string _name, caddr_t location, config& _conf){
 
-		name = _name;
+		file_name = _name;
 		conf = _conf;
 
-		if ((fp = fopen(name.c_str(), "w+")) == NULL) {
-			cout << "fopen failed " << name << " \n";
+		if ((fp = fopen(file_name.c_str(), "w+")) == NULL) {
+			cout << "fopen failed " << file_name << " \n";
 			exit(EXIT_FAILURE);
 		}
 
@@ -44,8 +44,8 @@ public:
 
 		struct stat sbuf;
 
-		if (stat(name.c_str(), &sbuf) == -1) {
-			cout << "stat failed " << name << " \n";
+		if (stat(file_name.c_str(), &sbuf) == -1) {
+			cout << "stat failed " << file_name << " \n";
 			exit(EXIT_FAILURE);
 		}
 
@@ -56,12 +56,12 @@ public:
 			off_t len = conf.num_keys*conf.sz_value*100 + 2*conf.num_txns*conf.sz_value ;
 
 			if (ftruncate(fd, len) == -1) {
-				cout << "fallocate failed " << name << " \n";
+				cout << "fallocate failed " << file_name << " \n";
 				exit(EXIT_FAILURE);
 			}
 
-			if (stat(name.c_str(), &sbuf) == -1) {
-				cout << "stat failed " << name << " \n";
+			if (stat(file_name.c_str(), &sbuf) == -1) {
+				cout << "stat failed " << file_name << " \n";
 				exit(EXIT_FAILURE);
 			}
 
@@ -74,7 +74,7 @@ public:
 
 		if ((data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, fd, 0)) == (caddr_t) (-1)) {
 			perror(" mmap_error ");
-			cout << "mmap failed " << name << endl;
+			cout << "mmap failed " << file_name << endl;
 			exit(EXIT_FAILURE);
 		}
 
@@ -134,7 +134,8 @@ public:
 	void sync() {
 		int ret = 0;
 
-                cout<<"Syncing "<<offset<<endl;
+		cout << "msync :: "<<file_name<<" :: " << offset << endl;
+
 		ret = msync(data, offset, MS_SYNC);
 		if (ret == -1) {
 			perror("msync failed");
@@ -148,7 +149,7 @@ private:
 	FILE* fp = NULL;
 	int fd;
 
-	std::string name;
+	std::string file_name;
 	char* data;
 
 	off_t offset;
