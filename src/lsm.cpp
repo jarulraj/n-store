@@ -164,7 +164,7 @@ void lsm_engine::runner(int pid){
     char* val;
 
     for (int i = 0; i < range_txns; i++) {
-		long r = rand();
+		long r = zipf_dist[i];
 		long key = range_offset + r % range_size;
 
 		if (r % 100 < conf.per_writes) {
@@ -222,6 +222,12 @@ void lsm_engine::loader(){
 int lsm_engine::test(){
 
 	undo_log.set_path(conf.fs_path+"./log", "w");
+
+	// Generate Zipf dist
+    long range_size   = conf.num_keys/conf.num_parts;
+    long range_txns   = conf.num_txns/conf.num_parts;
+    zipf_dist = zipf(conf.skew, range_size, range_txns);
+
 
 	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
 

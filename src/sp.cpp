@@ -85,7 +85,7 @@ void sp_engine::runner(int pid) {
     char* val;
 
     for (int i = 0; i < range_txns; i++) {
-		long r = rand();
+		long r = zipf_dist[i];
 		long key = range_offset + r % range_size;
 
 		if (r % 100 < conf.per_writes) {
@@ -152,6 +152,11 @@ int sp_engine::test() {
 
 	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
 	mstr = master("usertable", conf);
+
+	// Generate Zipf dist
+    long range_size   = conf.num_keys/conf.num_parts;
+    long range_txns   = conf.num_txns/conf.num_parts;
+    zipf_dist = zipf(conf.skew, range_size, range_txns);
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
 	std::chrono::duration<double> elapsed_seconds;

@@ -34,6 +34,7 @@ static struct option opts[] =
     { "sp-only", 		    no_argument,            NULL,  's' },
     { "lsm-only", 		    no_argument,            NULL,  'm' },
     { "verbose", 			no_argument,      		NULL,  'v' },
+    { "skew", 			    optional_argument,      NULL,  'q' },
     { NULL,					0,					    NULL,   0	}
 };
 
@@ -42,8 +43,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     // Default Values
     state.fs_path =  std::string("./");
 
-    state.num_keys      =  1000;
-    state.num_txns      =  200000;
+    state.num_keys      =  10;
+    state.num_txns      =  20;
     state.num_parts     =  1;
 
     state.sz_value      =  2;
@@ -59,10 +60,12 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.log_only      = false;
     state.lsm_only      = false;
 
+    state.skew         = 1.0;
+
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:p:w:g:vlsm", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:vlsm", opts, &idx);
 
         if (c == -1)
             break;
@@ -106,6 +109,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
             case 'm':
                 state.lsm_only = true;
                 cout<<"lsm_only: "<<state.lsm_only<<endl;
+                break;
+            case 'q':
+                state.skew = atof(optarg);
+                cout<<"skew: "<<state.skew<<endl;
                 break;
             default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);

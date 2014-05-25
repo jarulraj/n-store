@@ -23,6 +23,8 @@ class config {
         int gc_interval;
         int lsm_interval;
 
+        double skew;
+
         bool verbose;
         bool log_only;
         bool sp_only;

@@ -53,6 +53,7 @@ class wal_engine : public engine {
 
 		logger undo_log;
 
+		vector<int> zipf_dist;
 };
 
 

@@ -68,6 +68,8 @@ class lsm_engine : public engine {
 		mmap_fd table;
 
 		logger undo_log;
+
+		vector<int> zipf_dist;
 };
 
 
