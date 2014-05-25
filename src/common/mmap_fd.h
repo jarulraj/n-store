@@ -146,7 +146,7 @@ public:
 		off_t round;
 
 		len = offset - prev_offset;
-		cout << "msync :: "<<file_name<<" :: " << len << endl;
+		//cout << "msync :: "<<file_name<<" :: " << len << endl;
 
 		if (len > 0) {
 			round = rounddown2(prev_offset, page_size);
