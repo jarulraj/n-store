@@ -11,7 +11,7 @@ void sp_engine::group_commit() {
 	cv.wait(lk, [&] {return ready;});
 
 	while (ready) {
-		table.sync();
+		//table.sync();
 		mstr.sync();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));

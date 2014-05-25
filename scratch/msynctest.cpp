@@ -18,8 +18,8 @@
 
 using namespace std;
 
-#define VALUE_SIZE 4096
-#define ITR        1024*32
+#define VALUE_SIZE 4096*4
+#define ITR        1024
 
 #define SIZE       VALUE_SIZE*ITR
 
@@ -42,21 +42,22 @@ std::string random_string( size_t length ){
 }
 
 int main(int argc, char *argv[]){
-	int fd, offset;
-	char *data;
-	struct stat sbuf;
+    int fd, offset;
+    char *data;
+    struct stat sbuf;
 
-	std::string name = "./log";
+    //std::string name = "./log";
+    std::string name = "/mnt/pmfs/n-store/log";
 
-	if (argc != 1) {
-		fprintf(stderr, "usage: msynctest \n");
-		exit(EXIT_FAILURE);
-	}
+    if (argc != 1) {
+        fprintf(stderr, "usage: msynctest \n");
+        exit(EXIT_FAILURE);
+    }
 
-	if ((fd = open(name.c_str(), O_RDWR )) == -1) {
-		perror("open");
-		exit(EXIT_FAILURE);
-	}
+    if ((fd = open(name.c_str(), O_RDWR )) == -1) {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
 
     std::string val = random_string(VALUE_SIZE);
 
@@ -64,8 +65,8 @@ int main(int argc, char *argv[]){
     off_t file_len = SIZE;
 
     if(ftruncate(fd, file_len) == -1){
-    	perror("fallocate");
-    	exit(EXIT_FAILURE);
+        perror("fallocate");
+        exit(EXIT_FAILURE);
     }
 
     if (stat(name.c_str(), &sbuf) == -1) {
@@ -81,33 +82,33 @@ int main(int argc, char *argv[]){
     }
 
     off_t len = val.size();
-	offset = 0;
-	int itr;
+    offset = 0;
+    int itr;
 
-	cout<<"len :"<<len<<endl;
+    cout<<"len :"<<len<<endl;
 
     start = std::chrono::high_resolution_clock::now();
 
-	for (itr = 0; itr < ITR; itr++) {
-		char* cur_offset = (data + offset);
-		memcpy(cur_offset, val.c_str(), len);
-		offset += len;
-    
-		// Part of file
-		if(msync(cur_offset, len, MS_SYNC) == -1){
-			perror("msync");
-			exit(EXIT_FAILURE);
-		}
+    for (itr = 0; itr < ITR; itr++) {
+        char* cur_offset = (data + offset);
+        memcpy(cur_offset, val.c_str(), len);
+        offset += len;
 
-		// Full file
-		/*
-		if(msync(data, offset, MS_SYNC) == -1){
-			perror("msync");
-			exit(EXIT_FAILURE);
-		}
-		*/
+        // Part of file
+        if(msync(cur_offset, len, MS_SYNC) == -1){
+            perror("msync");
+            exit(EXIT_FAILURE);
+        }
 
-	}
+        // Full file
+        /*
+           if(msync(data, offset, MS_SYNC) == -1){
+           perror("msync");
+           exit(EXIT_FAILURE);
+           }
+           */
+
+    }
 
     finish = std::chrono::high_resolution_clock::now();
     elapsed_seconds = finish - start;
