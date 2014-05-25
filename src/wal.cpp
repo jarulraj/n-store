@@ -172,7 +172,7 @@ int wal_engine::test(){
     long range_txns   = conf.num_txns/conf.num_parts;
     zipf_dist = zipf(conf.skew, range_size, range_txns);
 
-	std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
+	timespec start, finish;
 
 	// Loader
     loader();
@@ -182,7 +182,7 @@ int wal_engine::test(){
     // Take snapshot
     //snapshot();
 
-    start = std::chrono::high_resolution_clock::now();
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
     // Logger start
     std::thread gc(&wal_engine::group_commit, this);
@@ -206,7 +206,7 @@ int wal_engine::test(){
 
     undo_log.write();
 
-    finish = std::chrono::high_resolution_clock::now();
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
 	display_stats(start, finish, conf.num_txns);
 
 	// Recovery

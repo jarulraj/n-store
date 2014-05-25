@@ -5,6 +5,7 @@
 #include <vector>
 #include <chrono>
 #include <iomanip>
+#include <ctime>
 
 #include "utils.h"
 
@@ -12,18 +13,31 @@ using namespace std;
 
 // TIMER
 
-void display_stats(tpoint start, tpoint finish, int num_txns){
-    double elapsed_ms;
+timespec diff(timespec start, timespec finish){
+	timespec temp;
+	if ((finish.tv_nsec-start.tv_nsec)<0) {
+		temp.tv_sec = finish.tv_sec-start.tv_sec-1;
+		temp.tv_nsec = 1000000000+finish.tv_nsec-start.tv_nsec;
+	} else {
+		temp.tv_sec = finish.tv_sec-start.tv_sec;
+		temp.tv_nsec = finish.tv_nsec-start.tv_nsec;
+	}
+
+	return temp;
+}
+
+void display_stats(timespec start, timespec finish, int num_txns){
+    timespec elapsed_seconds;
+    double duration;
     double throughput;
 
-    elapsed_ms = std::chrono::duration_cast<chrono::milliseconds>(finish-start).count();
-	//std::cout << "Execution duration (ms): " << elapsed_ms << endl;
+    elapsed_seconds = diff(start, finish);
+    duration = elapsed_seconds.tv_sec + (double)(elapsed_seconds.tv_nsec)/(double)100000000;
+    cout<< elapsed_seconds.tv_sec <<":"<< elapsed_seconds.tv_nsec <<endl;
+	cout << "Duration (s): " << duration << endl;
 
-	throughput = (num_txns * 1000)/(elapsed_ms);
-	std::cout << std::fixed;
-	std::cout << std::setprecision(2);
-	std::cout << "Throughput : ";
-	std::cout << setw(20) << throughput << endl;
+	throughput = (double)num_txns/(double)duration;
+	cout<<std::fixed << "Throughput : " << throughput << endl;
 }
 
 

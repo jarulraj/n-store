@@ -231,7 +231,7 @@ int lsm_engine::test(){
 
 	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
 
-	std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
+	timespec start, finish;
 
 	// Loader
     loader();
@@ -239,7 +239,7 @@ int lsm_engine::test(){
 
     //check();
 
-    start = std::chrono::high_resolution_clock::now();
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
     // Logger and merger start
     std::thread gc(&lsm_engine::group_commit, this);
@@ -272,7 +272,7 @@ int lsm_engine::test(){
 
     undo_log.write();
 
-    finish = std::chrono::high_resolution_clock::now();
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
     display_stats(start, finish, conf.num_txns);
 
 	//check();
