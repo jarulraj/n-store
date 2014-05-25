@@ -3,10 +3,29 @@
 #include <random>
 #include <iostream>
 #include <vector>
+#include <chrono>
+#include <iomanip>
 
 #include "utils.h"
 
 using namespace std;
+
+// TIMER
+
+void display_stats(tpoint start, tpoint finish, int num_txns){
+    double elapsed_ms;
+    double throughput;
+
+    elapsed_ms = std::chrono::duration_cast<chrono::milliseconds>(finish-start).count();
+	//std::cout << "Execution duration (ms): " << elapsed_ms << endl;
+
+	throughput = (num_txns * 1000)/(elapsed_ms);
+	std::cout << std::fixed;
+	std::cout << std::setprecision(2);
+	std::cout << "Throughput : ";
+	std::cout << setw(20) << throughput << endl;
+}
+
 
 // RANDOM DIST
 
