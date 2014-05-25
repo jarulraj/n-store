@@ -134,6 +134,7 @@ public:
 	void sync() {
 		int ret = 0;
 
+                cout<<"Syncing "<<offset<<endl;
 		ret = msync(data, offset, MS_SYNC);
 		if (ret == -1) {
 			perror("msync failed");

@@ -58,6 +58,7 @@ class logger {
 
         int write(){
             int ret ;
+            int count;
             stringstream buffer_stream;
             string buffer;
 
@@ -80,8 +81,21 @@ class logger {
 				buffer = buffer_stream.str();
 				size_t buffer_size = buffer.size();
 
-				ret = fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
+				count = fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
+
+                                if(count != buffer_size){
+                                    perror("fwrite failed");
+                                    exit(EXIT_FAILURE);
+                                }
+
 				ret = fsync(log_file_fd);
+
+                                if(ret == -1){
+                                    perror("fsync failed");
+                                    exit(EXIT_FAILURE);
+                                }
+                                
+                                cout<<"fsync success : "<<count<<endl; 
 
 				// Set end time
 				/*
