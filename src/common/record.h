@@ -29,21 +29,6 @@ class record{
             return in;
         }
 
-        char* to_string(){
-			char *bp;
-			size_t buffer_size;
-			FILE* buffer_stream;
-
-			buffer_stream = open_memstream(&bp, &buffer_size);
-
-			fprintf(buffer_stream, "%c%d%c%s%c", DELIM, key, DELIM, value, DELIM);
-			fclose (buffer_stream);
-
-			//printf("record:: %s %lu \n", bp, buffer_size);
-
-			return bp;
-        }
-
 
         //private:
         unsigned int key;

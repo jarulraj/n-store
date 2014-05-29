@@ -47,7 +47,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.num_txns      =  20;
     state.num_parts     =  1;
 
-    state.sz_value      =  3;
+    state.sz_value      =  1024;
     state.verbose       =  false;
 
     state.sz_tuple      =  4 + 4 + state.sz_value + 10;
@@ -132,6 +132,7 @@ int main(int argc, char **argv){
         wal.test();
     }
 
+    /*
     if(state.log_only == false && state.lsm_only == false){
     	cout<<"SP  :: ";
         sp_engine sp(state);
@@ -143,6 +144,7 @@ int main(int argc, char **argv){
         lsm_engine lsm(state);
         lsm.test();
     }
+    */
 
 
     return 0;
