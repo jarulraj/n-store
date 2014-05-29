@@ -66,10 +66,7 @@ public:
 			if(log_queue.empty())
 				return 0;
 
-			//cout << "log write :: "<< log_queue.size() << endl;
-
 			for (std::vector<entry>::iterator it = log_queue.begin(); it != log_queue.end(); ++it) {
-				buffer_stream.str("");
 
 				if ((*it).transaction.txn_type != "")
 					buffer_stream << (*it).transaction.txn_type;
@@ -81,12 +78,12 @@ public:
 					buffer_stream << *((*it).after_image);
 
 				buffer_stream << endl;
-
-				buffer = buffer_stream.str();
-				buffer_size = buffer.size();
-
-				fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
 			}
+
+			buffer = buffer_stream.str();
+			buffer_size = buffer.size();
+
+			fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
 
 			ret = fsync(log_file_fd);
 
