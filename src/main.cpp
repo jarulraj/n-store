@@ -127,19 +127,19 @@ int main(int argc, char **argv){
     parse_arguments(argc, argv, state);
 
     if(state.sp_only == false && state.lsm_only == false){
-    	cout<<"Executing WAL"<<endl;
+    	cout<<"WAL :: ";
         wal_engine wal(state);
         wal.test();
     }
 
     if(state.log_only == false && state.lsm_only == false){
-    	cout<<"Executing SP"<<endl;
+    	cout<<"SP  :: ";
         sp_engine sp(state);
         sp.test();
     }
 
     if(state.log_only == false && state.sp_only == false){
-    	cout<<"Executing LSM"<<endl;
+    	cout<<"LSM :: ";
         lsm_engine lsm(state);
         lsm.test();
     }

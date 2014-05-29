@@ -107,7 +107,7 @@ void wal_engine::runner(int pid){
     char* val;
 
     for (int i = 0; i < range_txns; i++) {
-    	//cout<<i<<" "<<zipf_dist[i]<<endl;
+    	//cout<<zipf_dist[i]<<" ";
 		long r = zipf_dist[i];
 		long key = range_offset + r % range_size;
 
@@ -176,7 +176,7 @@ int wal_engine::test(){
 
 	// Loader
     loader();
-    std::cout<<"Loading finished "<<endl;
+    //std::cout<<"Loading finished "<<endl;
     //check();
 
     // Take snapshot

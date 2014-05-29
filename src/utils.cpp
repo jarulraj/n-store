@@ -33,11 +33,12 @@ void display_stats(timespec start, timespec finish, int num_txns){
 
     elapsed_seconds = diff(start, finish);
     duration = elapsed_seconds.tv_sec + (double)(elapsed_seconds.tv_nsec)/(double)100000000;
+    cout <<std::fixed << std::setprecision(2) ;
+
     //cout<< elapsed_seconds.tv_sec <<":"<< elapsed_seconds.tv_nsec <<endl;
-	cout << "Duration(s) : " << duration << endl;
+	cout << "Duration(s) : " << duration << " ";
 
 	throughput = (double)num_txns/(double)duration;
-	cout <<std::fixed << std::setprecision(2) ;
 	cout << "Throughput  : " << throughput << endl;
 }
 

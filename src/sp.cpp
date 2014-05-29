@@ -162,7 +162,7 @@ int sp_engine::test() {
 
 	// Loader
 	loader();
-	std::cout << "Loading finished " << endl;
+	//std::cout << "Loading finished " << endl;
 	//check();
 
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);

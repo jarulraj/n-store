@@ -239,7 +239,7 @@ int lsm_engine::test(){
 
 	// Loader
     loader();
-    std::cout<<"Loading finished "<<endl;
+    //std::cout<<"Loading finished "<<endl;
 
     //check();
 
