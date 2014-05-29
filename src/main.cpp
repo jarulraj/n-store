@@ -54,7 +54,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
     state.gc_interval   =   5;
     state.lsm_interval  =   5;
-    state.per_writes    =  10;
+    state.per_writes    =  0.2;
 
     state.sp_only       = false;
     state.log_only      = false;
@@ -91,7 +91,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 state.verbose = true;
                 break;
             case 'w':
-                state.per_writes = atoi(optarg);
+                state.per_writes = atof(optarg);
                 cout<<"per_writes: "<<state.per_writes<<endl;
                 break;
             case 'g':
@@ -119,6 +119,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 usage_exit(stderr);
         }
     }
+
+    assert(state.per_writes >= 0 && state.per_writes <=1);
 }
 
 
@@ -132,7 +134,6 @@ int main(int argc, char **argv){
         wal.test();
     }
 
-    /*
     if(state.log_only == false && state.lsm_only == false){
     	cout<<"SP  :: ";
         sp_engine sp(state);
@@ -144,7 +145,6 @@ int main(int argc, char **argv){
         lsm_engine lsm(state);
         lsm.test();
     }
-    */
 
 
     return 0;

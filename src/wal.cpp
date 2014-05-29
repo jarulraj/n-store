@@ -97,7 +97,7 @@ int wal_engine::insert(txn t){
 
 // RUNNER + LOADER
 
-void wal_engine::runner(int pid){
+void wal_engine::runner(int pid) {
     long range_size   = conf.num_keys/conf.num_parts;
     long range_offset = pid*range_size;
     long range_txns   = conf.num_txns/conf.num_parts;
@@ -107,11 +107,11 @@ void wal_engine::runner(int pid){
     char* val;
 
     for (int i = 0; i < range_txns; i++) {
-    	//cout<<zipf_dist[i]<<" ";
-		long r = zipf_dist[i];
-		long key = range_offset + r % range_size;
+		long z = zipf_dist[i];
+		double u = uniform_dist[i];
+		long key = range_offset + z % range_size;
 
-		if (r % 100 < conf.per_writes) {
+		if (u < conf.per_writes) {
 			txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
@@ -170,7 +170,8 @@ int wal_engine::test(){
 	// Generate Zipf dist
     long range_size   = conf.num_keys/conf.num_parts;
     long range_txns   = conf.num_txns/conf.num_parts;
-    zipf_dist = zipf(conf.skew, range_size, range_txns);
+    zipf(zipf_dist, conf.skew, range_size, range_txns);
+    uniform(uniform_dist, range_txns);
 
 	timespec start, finish;
 

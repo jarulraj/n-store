@@ -18,7 +18,7 @@ class config {
         int sz_value;
         int sz_tuple;
 
-        int per_writes;
+        double per_writes;
 
         int gc_interval;
         int lsm_interval;

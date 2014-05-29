@@ -59,14 +59,13 @@ void random_string(char* str, size_t len ){
 
 // Get a value in [0, N-1] that follows zipf distribution
 // P(i) = C/I^Alpha for i = 1 to N
-vector<int> zipf(double alpha, int n, int num_values) {
+void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 	static double c = 0;          // Normalization constant
 	double z;                     // Uniform random number (0 < z < 1)
 	double sum_prob;              // Sum of probabilities
 	double zipf_value;            // Computed exponential value to be returned
 	int i, j;
 
-	vector<int> zipf_dist;
 	double* powers = new double[n+1];
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -98,8 +97,16 @@ vector<int> zipf(double alpha, int n, int num_values) {
 	}
 
 	delete powers;
+}
 
-	return zipf_dist;
+void uniform(vector<double>& uniform_dist, int num_values) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0, 1);
+    double i, z;
+
+	for (i = 0; i < num_values; i++)
+		uniform_dist.push_back(dis(gen));
 }
 
 // PTHREAD WRAPPERS
