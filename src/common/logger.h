@@ -56,35 +56,43 @@ public:
 	int write() {
 		int ret;
 		int count;
-		stringstream buffer_stream;
-		string buffer;
 
 		{
 			std::lock_guard<std::mutex> lock(log_access);
 
+			cout << "log write :: "<< log_queue.size() << endl;
+
+			char *bp;
+			size_t buffer_size;
+			FILE* buffer_stream;
+
+			buffer_stream = open_memstream(&bp, &buffer_size);
+
 			for (std::vector<entry>::iterator it = log_queue.begin();
 					it != log_queue.end(); ++it) {
+
 				if ((*it).transaction.txn_type != "")
-					buffer_stream << (*it).transaction.txn_type;
+					fprintf(buffer_stream, "%s ", (*it).transaction.txn_type.c_str());
 
 				if ((*it).before_image != NULL)
-					buffer_stream << *((*it).before_image);
+					fprintf(buffer_stream, "%s ", (*it).before_image->to_string());
 
 				if ((*it).after_image != NULL)
-					buffer_stream << *((*it).after_image);
+					fprintf(buffer_stream, "%s ", (*it).after_image->to_string());
 
-				buffer_stream << endl;
+				fprintf(buffer_stream, "\n");
 			}
 
-			buffer = buffer_stream.str();
-			size_t buffer_size = buffer.size();
-
-			count = fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
+			fclose (buffer_stream);
+			/*
+			count = fwrite(bp, sizeof(char), buffer_size, log_file);
 
 			if (count != buffer_size) {
 				perror("fwrite failed");
 				exit(EXIT_FAILURE);
 			}
+			*/
+
 
 			ret = fsync(log_file_fd);
 
