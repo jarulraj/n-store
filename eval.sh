@@ -41,37 +41,36 @@ fi
 
 echo "FS PATH:" $FS_PATH
 
-#rw_mix=(0 0.1 0.5)
-#skew=(0.5 0.75 1.0 1.25 1.5)
-
-rw_mix=(0 0.5)
 latency_factors=(2 8)
-skew=(0.1 5.0)
+rw_mix=(0 0.1 0.5)
+skew=(0.5 0.75 1.0 1.25 1.5)
 
-for rw_mix_itr  in "${rw_mix[@]}"
+#rw_mix=(0 0.5)
+#skew=(0.1 5.0)
+
+for latency_factor in "${latency_factors[@]}"
 do
-    for latency_factor in "${latency_factors[@]}"
+    l=$(($latency_factor*$DEFAULT_LATENCY))
+
+    echo "LATENCY" $l
+
+    if [ "$LOCAL_ENABLE" = false ] && [ "$SDV_DISABLE" = false ]; 
+    then
+        cd $SDV_DIR
+        $SDV_SCRIPT --enable --pm-latency=$l
+        cd -
+    fi
+
+    for rw_mix_itr  in "${rw_mix[@]}"
     do
-        l=$(($latency_factor*$DEFAULT_LATENCY))
-
-        echo "LATENCY" $l
-
-        if [ "$LOCAL_ENABLE" = false ] && [ "$SDV_DISABLE" = false ]; 
-        then
-            cd $SDV_DIR
-            $SDV_SCRIPT --enable --pm-latency=$l
-            cd -
-        fi
-
-        pwd
         for skew_itr  in "${skew[@]}"
         do
             echo "---------------------------------------------------"
-            echo "LATENCY ::" $l " RW MIX ::" $rw_mix_itr  " SKEW ::" $skew_itr
+            echo "RW MIX ::" $rw_mix_itr  " SKEW ::" $skew_itr
 
             if [ "$LOCAL_ENABLE" = true ]; 
             then
-                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH  
+                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -l 
             else
                 $NUMACTL $NUMACTL_FLAGS $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH
             fi
