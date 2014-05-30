@@ -27,10 +27,10 @@ NUMACTL=/usr/bin/numactl
 NUMACTL_FLAGS="--membind=2"
 
 # NSTORE FLAGS
-#KEYS=100000 
-#TXNS=100000 
-KEYS=100 
-TXNS=100 
+KEYS=100000 
+TXNS=100000 
+#KEYS=100 
+#TXNS=100 
 
 if [ "$LOCAL_ENABLE" = true ]; 
 then
@@ -41,12 +41,12 @@ fi
 
 echo "FS PATH:" $FS_PATH
 
-latency_factors=(2 8)
-rw_mix=(0 0.1 0.5)
-skew=(0.5 0.75 1.0 1.25 1.5)
+latency_factors=(2)
+#rw_mix=(0 0.1 0.5)
+#skew=(0.5 0.75 1.0 1.25 1.5)
 
-#rw_mix=(0 0.5)
-#skew=(0.1 5.0)
+rw_mix=(0 0.5)
+skew=(0.5 1.0 1.5)
 
 for latency_factor in "${latency_factors[@]}"
 do
@@ -70,7 +70,7 @@ do
 
             if [ "$LOCAL_ENABLE" = true ]; 
             then
-                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -l 
+                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -m 
             else
                 $NUMACTL $NUMACTL_FLAGS $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH
             fi

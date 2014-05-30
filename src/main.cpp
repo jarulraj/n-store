@@ -47,13 +47,13 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.num_txns      =  20;
     state.num_parts     =  1;
 
-    state.sz_value      =  1024;
+    state.sz_value      =  3;
     state.verbose       =  false;
 
     state.sz_tuple      =  4 + 4 + state.sz_value + 10;
 
     state.gc_interval   =   5;
-    state.lsm_interval  =   10;
+    state.lsm_size      =  1000;
     state.per_writes    =  0.2;
 
     state.sp_only       = false;

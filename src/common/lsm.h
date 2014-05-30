@@ -46,8 +46,6 @@ class lsm_engine : public engine {
 		void check();
 		void merge();
 
-		bool mem_index_ptr = 0;
-
 		mem_map& get_mem_index();
 
 		pthread_rwlock_t  table_access = PTHREAD_RWLOCK_INITIALIZER;
@@ -56,13 +54,10 @@ class lsm_engine : public engine {
 		config conf;
 
 		std::mutex gc_mutex;
-		std::mutex lsm_mutex;
 		std::condition_variable gc_cv;
-		std::condition_variable lsm_cv;
 		bool gc_ready = false;
-		bool lsm_ready = false;
 
-		mem_map mem_index[2];
+		mem_map mem_index;
 		nvm_map nvm_index;
 
 		mmap_fd table;
