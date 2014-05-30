@@ -58,19 +58,19 @@ void lsm_engine::merge(){
 
 
 int lsm_engine::update(txn t){
-    int key = t.key;
+	int ret = -1;
 
-    remove(t);
-
+	remove(t);
     insert(t);
 
-    return 0;
+    return ret;
 }
 
 
 int lsm_engine::remove(txn t){
     int key = t.key;
     record* before_image ;
+    bool done = false;
 
     t.txn_type = "Delete";
 
@@ -81,8 +81,11 @@ int lsm_engine::remove(txn t){
 
         entry e(t, before_image, NULL);
         undo_log.push(e);
-    	return 0;
+        return 0;
     }
+
+	// Access merged map
+	wrlock(&table_access);
 
     // check passive mem_index
     if(mem_index[!mem_index_ptr].count(key) != 0){
@@ -90,16 +93,18 @@ int lsm_engine::remove(txn t){
 
         entry e(t, before_image, NULL);
         undo_log.push(e);
-    	return 0;
+        done = true;
     }
 
     // check nvm_index
-    if(nvm_index.count(key) != 0){
+    if(!done && nvm_index.count(key) != 0){
     	nvm_index.erase(key);
-    	return 0;
+    	done = true;
     }
 
-    return -1;
+	unlock(&table_access);
+
+    return done;
 }
 
 char* lsm_engine::read(txn t){
@@ -107,25 +112,29 @@ char* lsm_engine::read(txn t){
     record* rec ;
     char* val = NULL ;
 
+	// Access merged map
+	rdlock(&table_access);
+
 	if (mem_index[mem_index_ptr].count(key) != 0) {
 		rec = mem_index[mem_index_ptr][key];
+		unlock(&table_access);
 		return rec->value;
 	}
-
-	rdlock(&table_access);
 
 	if (mem_index[!mem_index_ptr].count(key) != 0) {
     	// Access merged map
     	rec = mem_index[!mem_index_ptr][key];
+    	unlock(&table_access);
 		return rec->value;
 	}
 
-	unlock(&table_access);
-
 	if (nvm_index.count(key) != 0) {
 		val = nvm_index[key];
+		unlock(&table_access);
 		return val;
 	}
+
+	unlock(&table_access);
 
     return val;
 }
@@ -269,10 +278,10 @@ int lsm_engine::test(){
     	th_group.at(i).join();
 
     // Logger and merger end
-    gc_ready = false;
     lsm_ready = false;
-    gc.join();
     merger.join();
+    gc_ready = false;
+    gc.join();
 
     undo_log.write();
 

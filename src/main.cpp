@@ -53,7 +53,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.sz_tuple      =  4 + 4 + state.sz_value + 10;
 
     state.gc_interval   =   5;
-    state.lsm_interval  =   5;
+    state.lsm_interval  =   10;
     state.per_writes    =  0.2;
 
     state.sp_only       = false;
