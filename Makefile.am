@@ -11,3 +11,4 @@ clean-local:
 	rm -f usertable*
 	rm -f master snapshot log
 	rm -f perf.*
+	rm -f gmon.*
