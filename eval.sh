@@ -41,12 +41,12 @@ fi
 
 echo "FS PATH:" $FS_PATH
 
-latency_factors=(2)
-#rw_mix=(0 0.1 0.5)
-#skew=(0.5 0.75 1.0 1.25 1.5)
+latency_factors=(2 8)
+rw_mix=(0 0.1 0.5)
+skew=(0.5 0.75 1.0 1.25 1.5)
 
-rw_mix=(0 0.5)
-skew=(0.5 1.0 1.5)
+#rw_mix=(0 0.5)
+#skew=(0.5 1.0 1.5)
 
 for latency_factor in "${latency_factors[@]}"
 do
