@@ -128,23 +128,28 @@ int main(int argc, char **argv){
     class config state;
     parse_arguments(argc, argv, state);
 
-    if(state.sp_only == false && state.lsm_only == false){
-    	cout<<"WAL :: ";
-        wal_engine wal(state);
-        wal.test();
-    }
+    int trial;
+	for (trial = 0; trial < 3; trial++) {
 
-    if(state.log_only == false && state.lsm_only == false){
-    	cout<<"SP  :: ";
-        sp_engine sp(state);
-        sp.test();
-    }
+		if (state.sp_only == false && state.lsm_only == false) {
+			cout << "WAL : TRIAL "<<trial<<" :: ";
+			wal_engine wal(state);
+			wal.test();
+		}
 
-    if(state.log_only == false && state.sp_only == false){
-    	cout<<"LSM :: ";
-        lsm_engine lsm(state);
-        lsm.test();
-    }
+		if (state.log_only == false && state.lsm_only == false) {
+			cout << "SP  : TRIAL "<<trial<<" :: ";
+			sp_engine sp(state);
+			sp.test();
+		}
+
+		if (state.log_only == false && state.sp_only == false) {
+			cout << "LSM : TRIAL "<<trial<<" :: ";
+			lsm_engine lsm(state);
+			lsm.test();
+		}
+
+	}
 
 
     return 0;
