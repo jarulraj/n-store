@@ -59,10 +59,12 @@ public:
 		if (sbuf.st_size == 0) {
 
 			// XXX Simplify
-			off_t len = conf.num_keys*conf.sz_value*100 + 2*conf.num_txns*conf.sz_value ;
+			off_t len2 = 2*conf.num_txns*conf.sz_value ;
+			off_t len = len2 ;
+                        cout<<"len 2: "<<len2<<endl;
 
 			if (ftruncate(fd, len) == -1) {
-				cout << "fallocate failed " << file_name << " \n";
+                                perror("ftruncate failed\n");
 				exit(EXIT_FAILURE);
 			}
 
