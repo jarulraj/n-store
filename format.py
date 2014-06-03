@@ -11,9 +11,11 @@ def chunks(l, n):
         yield l[i:i+n]
 
 tput = {}
+mean = {}
 latency = 0
 rw_mix = 0.0
 skew = 0.0
+trials = 3
 
 for line in file:
     if "LATENCY" in line:
@@ -29,12 +31,25 @@ for line in file:
     if "Throughput" in line:
         entry = line.strip().split(':');
         arch = entry[0].split(' ');
+        val = float(entry[5]);
+        trial = entry[1].split(' ')
         
-        tput[(rw_mix, skew, latency, arch[0])] = entry[4] 
+        key = (rw_mix, skew, latency, arch[0]);
+        if key in tput:
+            tput[key] += val         
+        else:
+            tput[key] = val
+
+for key in sorted(tput.keys()):
+    tput[key] /= trials            
+    tput[key] = round(tput[key], 2)
+    tput[key] = str(tput[key]).rjust(10)
+
 
 read_only = []
 read_heavy = []
 write_heavy = []
+
 for key in sorted(tput.keys()):
     if key[0] == '0':
         read_only.append(tput[key])
