@@ -29,14 +29,14 @@ static struct option opts[] =
     { "num-txns", 		optional_argument,		NULL,  'x' },
     { "num-keys", 		optional_argument,		NULL,  'k' },
     { "num-parts", 		optional_argument,		NULL,  'p' },
-    { "per-writes", 	        optional_argument,              NULL,  'w' },
-    { "gc-interval", 	        optional_argument,              NULL,  'g' },
-    { "log-only", 		no_argument,                    NULL,  'l' },
-    { "sp-only", 		no_argument,                    NULL,  's' },
-    { "lsm-only", 		no_argument,                    NULL,  'm' },
+    { "per-writes", 	optional_argument,      NULL,  'w' },
+    { "gc-interval", 	optional_argument,      NULL,  'g' },
+    { "log-only", 		no_argument,            NULL,  'l' },
+    { "sp-only", 		no_argument,            NULL,  's' },
+    { "lsm-only", 		no_argument,            NULL,  'm' },
     { "verbose", 		no_argument,      		NULL,  'v' },
-    { "skew", 			optional_argument,              NULL,  'q' },
-    { "num-trials",		optional_argument,              NULL,  't' },
+    { "skew", 			optional_argument,      NULL,  'q' },
+    { "num-trials",		optional_argument,      NULL,  't' },
     { NULL,		        0,				NULL,   0  }
 };
 
