@@ -27,10 +27,10 @@ NUMACTL=/usr/bin/numactl
 NUMACTL_FLAGS="--membind=2"
 
 # NSTORE FLAGS
-#KEYS=100000 
-#TXNS=100000 
-KEYS=100 
-TXNS=100 
+KEYS=100000 
+TXNS=100000 
+#KEYS=100 
+#TXNS=100 
 
 if [ "$LOCAL_ENABLE" = true ]; 
 then
