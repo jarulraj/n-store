@@ -17,8 +17,8 @@ static void usage_exit(FILE *out){
             "   -g --gc-interval     :  Group commit interval \n"
             "   -l --log-only        :  WAL only \n"
             "   -s --sp-only         :  SP only \n"
-    		"   -m --lsm-only        :  LSM only \n"
-    		"   -t --num-trials      :  Number of trials \n"
+            "   -m --lsm-only        :  LSM only \n"
+            "   -t --num-trials      :  Number of trials \n"
            );
     exit(-1);
 }
@@ -29,15 +29,15 @@ static struct option opts[] =
     { "num-txns", 		optional_argument,		NULL,  'x' },
     { "num-keys", 		optional_argument,		NULL,  'k' },
     { "num-parts", 		optional_argument,		NULL,  'p' },
-    { "per-writes", 	optional_argument,      NULL,  'w' },
-    { "gc-interval", 	optional_argument,      NULL,  'g' },
-    { "log-only", 		no_argument,            NULL,  'l' },
-    { "sp-only", 		no_argument,            NULL,  's' },
-    { "lsm-only", 		no_argument,            NULL,  'm' },
+    { "per-writes", 	        optional_argument,              NULL,  'w' },
+    { "gc-interval", 	        optional_argument,              NULL,  'g' },
+    { "log-only", 		no_argument,                    NULL,  'l' },
+    { "sp-only", 		no_argument,                    NULL,  's' },
+    { "lsm-only", 		no_argument,                    NULL,  'm' },
     { "verbose", 		no_argument,      		NULL,  'v' },
-    { "skew", 			optional_argument,      NULL,  'q' },
-    { "num-trials",		optional_argument,      NULL,  't' },
-    { NULL,				0,						NULL,   0  }
+    { "skew", 			optional_argument,              NULL,  'q' },
+    { "num-trials",		optional_argument,              NULL,  't' },
+    { NULL,		        0,				NULL,   0  }
 };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
@@ -68,7 +68,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:vlsm", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:t:vlsm", opts, &idx);
 
         if (c == -1)
             break;
@@ -117,11 +117,11 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 state.skew = atof(optarg);
                 cout<<"skew: "<<state.skew<<endl;
                 break;
-			case 't':
-				state.num_trials = atoi(optarg);
-				cout << "num_trials: " << state.num_trials << endl;
-				break;
-			default:
+            case 't':
+                state.num_trials = atoi(optarg);
+                cout << "num_trials: " << state.num_trials << endl;
+                break;
+            default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);
                 usage_exit(stderr);
         }
@@ -136,25 +136,25 @@ int main(int argc, char **argv){
     parse_arguments(argc, argv, state);
 
     int trial;
-	for (trial = 0; trial < state.num_trials; trial++) {
-		if (state.sp_only == false && state.lsm_only == false) {
-			cout << "WAL : TRIAL "<<trial<<" :: ";
-			wal_engine wal(state);
-			wal.test();
-		}
+    for (trial = 0; trial < state.num_trials; trial++) {
+        if (state.sp_only == false && state.lsm_only == false) {
+            cout << "WAL : TRIAL "<<trial<<" :: ";
+            wal_engine wal(state);
+            wal.test();
+        }
 
-		if (state.log_only == false && state.lsm_only == false) {
-			cout << "SP  : TRIAL "<<trial<<" :: ";
-			sp_engine sp(state);
-			sp.test();
-		}
+        if (state.log_only == false && state.lsm_only == false) {
+            cout << "SP  : TRIAL "<<trial<<" :: ";
+            sp_engine sp(state);
+            sp.test();
+        }
 
-		if (state.log_only == false && state.sp_only == false) {
-			cout << "LSM : TRIAL "<<trial<<" :: ";
-			lsm_engine lsm(state);
-			lsm.test();
-		}
-	}
+        if (state.log_only == false && state.sp_only == false) {
+            cout << "LSM : TRIAL "<<trial<<" :: ";
+            lsm_engine lsm(state);
+            lsm.test();
+        }
+    }
 
 
     return 0;
