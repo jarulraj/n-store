@@ -18,24 +18,26 @@ static void usage_exit(FILE *out){
             "   -l --log-only        :  WAL only \n"
             "   -s --sp-only         :  SP only \n"
     		"   -m --lsm-only        :  LSM only \n"
+    		"   -t --num-trials      :  Number of trials \n"
            );
     exit(-1);
 }
 
 static struct option opts[] =
 {
-    { "fs-path",		    optional_argument,		NULL,  'f' },
-    { "num-txns",		 	optional_argument,		NULL,  'x' },
-    { "num-keys",		    optional_argument,		NULL,  'k' },
-    { "num-parts",			optional_argument,		NULL,  'p' },
-    { "per-writes", 		optional_argument,      NULL,  'w' },
-    { "gc-interval", 		optional_argument,      NULL,  'g' },
-    { "log-only", 		    no_argument,            NULL,  'l' },
-    { "sp-only", 		    no_argument,            NULL,  's' },
-    { "lsm-only", 		    no_argument,            NULL,  'm' },
-    { "verbose", 			no_argument,      		NULL,  'v' },
-    { "skew", 			    optional_argument,      NULL,  'q' },
-    { NULL,					0,					    NULL,   0	}
+    { "fs-path", 		optional_argument,		NULL,  'f' },
+    { "num-txns", 		optional_argument,		NULL,  'x' },
+    { "num-keys", 		optional_argument,		NULL,  'k' },
+    { "num-parts", 		optional_argument,		NULL,  'p' },
+    { "per-writes", 	optional_argument,      NULL,  'w' },
+    { "gc-interval", 	optional_argument,      NULL,  'g' },
+    { "log-only", 		no_argument,            NULL,  'l' },
+    { "sp-only", 		no_argument,            NULL,  's' },
+    { "lsm-only", 		no_argument,            NULL,  'm' },
+    { "verbose", 		no_argument,      		NULL,  'v' },
+    { "skew", 			optional_argument,      NULL,  'q' },
+    { "num-trials",		optional_argument,      NULL,  't' },
+    { NULL,				0,						NULL,   0  }
 };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
@@ -61,6 +63,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.lsm_only      = false;
 
     state.skew         = 1.0;
+    state.num_trials   = 1;
 
     // Parse args
     while (1) {
@@ -114,7 +117,11 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 state.skew = atof(optarg);
                 cout<<"skew: "<<state.skew<<endl;
                 break;
-            default:
+			case 't':
+				state.num_trials = atoi(optarg);
+				cout << "num_trials: " << state.num_trials << endl;
+				break;
+			default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);
                 usage_exit(stderr);
         }
@@ -129,8 +136,7 @@ int main(int argc, char **argv){
     parse_arguments(argc, argv, state);
 
     int trial;
-	for (trial = 0; trial < 3; trial++) {
-
+	for (trial = 0; trial < state.num_trials; trial++) {
 		if (state.sp_only == false && state.lsm_only == false) {
 			cout << "WAL : TRIAL "<<trial<<" :: ";
 			wal_engine wal(state);
@@ -148,7 +154,6 @@ int main(int argc, char **argv){
 			lsm_engine lsm(state);
 			lsm.test();
 		}
-
 	}
 
 
