@@ -29,6 +29,8 @@ class config {
         bool log_only;
         bool sp_only;
         bool lsm_only;
+
+        int num_trials;
 };
 
 
