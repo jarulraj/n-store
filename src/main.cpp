@@ -143,7 +143,7 @@ int main(int argc, char **argv){
     // Generate Zipf dist
     long range_size   = state.num_keys/state.num_parts;
     long range_txns   = state.num_txns/state.num_parts;
-    zipf(state.zipf_dist, state.skew, range_size, range_txns);
+    //zipf(state.zipf_dist, state.skew, range_size, range_txns);
     uniform(state.uniform_dist, range_txns);
 
     int trial;

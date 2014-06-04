@@ -87,7 +87,9 @@ void sp_engine::runner(int pid) {
     for (int i = 0; i < range_txns; i++) {
 		long z = conf.zipf_dist[i];
 		double u = conf.uniform_dist[i];
-		long key = range_offset + z % range_size;
+		long ur = u * range_size;
+		long key = range_offset + ur;
+		//long key = range_offset + z % range_size;
 
 		if (u < conf.per_writes) {
 			txn t(i, "Update", key, updated_val);
