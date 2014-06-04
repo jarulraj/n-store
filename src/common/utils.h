@@ -10,6 +10,8 @@ using namespace std;
 
 void random_string(char* str, size_t len );
 
+void simple_skew(vector<int>& zipf_dist, int n, int num_values);
+
 void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values);
 
 void uniform(vector<double>& uniform_dist, int num_values);

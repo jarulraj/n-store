@@ -6,6 +6,7 @@
 #include <chrono>
 #include <iomanip>
 #include <ctime>
+#include <cassert>
 
 #include "utils.h"
 
@@ -100,6 +101,29 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 	}
 
 	delete powers;
+}
+
+// Simple skew generator
+void simple_skew(vector<int>& zipf_dist, int n, int num_values) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0, 1);
+    double i, z;
+    long bound = n/10; // 90% from 10% of values
+    long val, diff;
+
+    diff = n - bound;
+
+	for (i = 0; i < num_values; i++){
+		z = dis(gen);
+
+		if(z < 0.9)
+			val = z * bound;
+		else
+			val = bound + z * diff;
+
+		zipf_dist.push_back(val);
+	}
 }
 
 void uniform(vector<double>& uniform_dist, int num_values) {
