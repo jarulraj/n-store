@@ -4,7 +4,7 @@
 #include "wal.h"
 #include "sp.h"
 #include "lsm.h"
-
+#include "utils.h"
 
 static void usage_exit(FILE *out){
     fprintf(out,
@@ -29,14 +29,14 @@ static struct option opts[] =
     { "num-txns", 		optional_argument,		NULL,  'x' },
     { "num-keys", 		optional_argument,		NULL,  'k' },
     { "num-parts", 		optional_argument,		NULL,  'p' },
-    { "per-writes", 	        optional_argument,              NULL,  'w' },
-    { "gc-interval", 	        optional_argument,              NULL,  'g' },
-    { "log-only", 		no_argument,                    NULL,  'l' },
-    { "sp-only", 		no_argument,                    NULL,  's' },
-    { "lsm-only", 		no_argument,                    NULL,  'm' },
+    { "per-writes", 	optional_argument,      NULL,  'w' },
+    { "gc-interval", 	optional_argument,      NULL,  'g' },
+    { "log-only", 		no_argument,            NULL,  'l' },
+    { "sp-only", 		no_argument,            NULL,  's' },
+    { "lsm-only", 		no_argument,            NULL,  'm' },
     { "verbose", 		no_argument,      		NULL,  'v' },
-    { "skew", 			optional_argument,              NULL,  'q' },
-    { "num-trials",		optional_argument,              NULL,  't' },
+    { "skew", 			optional_argument,      NULL,  'q' },
+    { "num-trials",		optional_argument,      NULL,  't' },
     { NULL,		        0,				NULL,   0  }
 };
 
@@ -134,6 +134,12 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 int main(int argc, char **argv){
     class config state;
     parse_arguments(argc, argv, state);
+
+    // Generate Zipf dist
+    long range_size   = state.num_keys/state.num_parts;
+    long range_txns   = state.num_txns/state.num_parts;
+    zipf(state.zipf_dist, state.skew, range_size, range_txns);
+    uniform(state.uniform_dist, range_txns);
 
     int trial;
     for (trial = 0; trial < state.num_trials; trial++) {

@@ -56,8 +56,6 @@ class sp_engine : public engine {
 
 		int log_enable ;
 
-		vector<int> zipf_dist;
-		vector<double> uniform_dist;
 };
 
 

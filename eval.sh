@@ -32,8 +32,8 @@ PERF="perf"
 PERF_FLAGS="stat -e LLC-store-misses:u,LLC-load-misses:u"
 
 # NSTORE FLAGS
-KEYS=100000 
-TXNS=100000 
+KEYS=1000000 
+TXNS=1000000 
 #KEYS=100 
 #TXNS=100 
 
