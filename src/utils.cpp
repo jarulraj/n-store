@@ -50,10 +50,9 @@ void random_string(char* str, size_t len ){
 			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 			"abcdefghijklmnopqrstuvwxyz";
 
-	for (int i = 0; i < len; ++i) {
-		str[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
-	}
-
+	char rep = alphanum[rand() % (sizeof(alphanum) - 1)];
+	for (int i = 0; i < len; ++i)
+		str[i] = rep;
 	str[len-1] = '\0';
 }
 
@@ -69,7 +68,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 	double* powers = new double[n+1];
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0, 1);
+    std::uniform_real_distribution<> dis(0.001, 1);
 
 	for (i = 1; i <= n; i++)
 		powers[i] = 1.0 / pow((double) i, alpha);
@@ -79,14 +78,18 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 		c = c + powers[i];
 	c = 1.0 / c;
 
+	for (i = 1; i <= n; i++)
+			powers[i] = c * powers[i];
+
 	for (j = 1; j <= num_values; j++) {
+
 		// Pull a uniform random number in (0,1)
-		do { z = dis(gen); } while ((z == 0) || (z == 1));
+		z = dis(gen);
 
 		// Map z to the value
 		sum_prob = 0;
 		for (i = 1; i <= n; i++) {
-			sum_prob = sum_prob + c * powers[i];
+			sum_prob = sum_prob + powers[i];
 			if (sum_prob >= z) {
 				zipf_value = i;
 				break;

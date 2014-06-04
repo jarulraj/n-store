@@ -3,6 +3,7 @@
 
 #include <string>
 #include <getopt.h>
+#include <vector>
 
 using namespace std;
 
@@ -31,6 +32,10 @@ class config {
         bool lsm_only;
 
         int num_trials;
+
+		vector<int> zipf_dist;
+		int zipf_scale;
+		vector<double> uniform_dist;
 };
 
 

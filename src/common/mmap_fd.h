@@ -61,7 +61,7 @@ public:
 			// XXX Simplify
 			//off_t len = conf.num_keys*conf.sz_value + 2*conf.num_txns*conf.sz_value ;
 			long long int len = 16 * 1024L * 1024L * 1024L;
-			cout<< "len: "<<len <<endl;
+			//cout<< "len: "<<len <<endl;
 
 			if (ftruncate(fd, len) == -1) {
 				perror("ftruncate failed");
