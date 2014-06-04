@@ -1,38 +1,27 @@
-# HTM Based Multi-key Transactions 
+# N-Store 
 
-## Concurrency Control
+## Storage architectures
 
-Evaluation of HTM support for concurrency control for `multi-key transactions` in key-value stores.
+Evaluation of different storage architectures in database systems designed for non-volatile memory (NVM).
+
 
 ## Dependencies
 
-- **g++ 4.8+** (for transactional memory support)
+- **g++ 4.7+** 
 - **autoconf** (`apt-get install autoconf libtool`) 
 
 ## Setup
         
-1. Fork it.        
-2. Bootstrap, configure and build.
-                                  
 ```
     ./bootstrap
-    ./configure CXX=/usr/bin/g++-4.8 CXXFLAGS="-march=native -fgnu-tm -mrtm -mhle"
+    ./configure
     make
 ```
 
 ## Test
 
-**Example**    
+```
+./src/n-store -h 
+```
 
-```
-./tester/main 
-```
-- get usage message
-
-```
-./tester/main -s1 -t16 -o16 -kzipf rtm
-```
-- runs 16 client threads that access the key-value store managed by a RTM-based concurrency controller
-- a zipf distribution is followed by the keys accessed by the requests
-- each transaction has 16 read/write operations (the ratio is configurable : default is 1:1)
 

@@ -8,17 +8,18 @@
 
 static void usage_exit(FILE *out){
     fprintf(out,
-            "Command Line: \n"
-            "   -f --fs-path         :  The path for PMFS \n"
+            "Command line options : nstore <options> \n"
             "   -x --num-txns        :  Number of transactions to execute \n"
             "   -k --num-keys        :  Number of keys \n"
             "   -p --num-parts       :  Number of partitions \n"
             "   -w --per-writes      :  Percent of writes \n"
+            "   -f --fs-path         :  Path for FS \n"
             "   -g --gc-interval     :  Group commit interval \n"
             "   -l --log-only        :  WAL only \n"
             "   -s --sp-only         :  SP only \n"
             "   -m --lsm-only        :  LSM only \n"
             "   -t --num-trials      :  Number of trials \n"
+            "   -h --help            :  Print help message \n"
            );
     exit(-1);
 }
@@ -37,6 +38,7 @@ static struct option opts[] =
     { "verbose", 		no_argument,      		NULL,  'v' },
     { "skew", 			optional_argument,      NULL,  'q' },
     { "num-trials",		optional_argument,      NULL,  't' },
+    { "help",			no_argument,      		NULL,  'h' },
     { NULL,		        0,				NULL,   0  }
 };
 
@@ -65,12 +67,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.skew         = 1.0;
     state.num_trials   = 1;
 
-    state.zipf_dist_size = 1024*16;
-
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:t:vlsm", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:t:vlsmh", opts, &idx);
 
         if (c == -1)
             break;
@@ -123,6 +123,9 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 state.num_trials = atoi(optarg);
                 cout << "num_trials: " << state.num_trials << endl;
                 break;
+            case 'h':
+                usage_exit(stderr);
+                break;
             default:
                 fprintf(stderr, "\nUnknown option: -%c-\n", c);
                 usage_exit(stderr);
@@ -140,8 +143,8 @@ int main(int argc, char **argv){
     // Generate Zipf dist
     long range_size   = state.num_keys/state.num_parts;
     long range_txns   = state.num_txns/state.num_parts;
-    zipf(state.zipf_dist, state.skew, range_size, state.zipf_dist_size);
-    uniform(state.uniform_dist, state.zipf_dist_size);
+    zipf(state.zipf_dist, state.skew, range_size, range_txns);
+    uniform(state.uniform_dist, range_txns);
 
     int trial;
     for (trial = 0; trial < state.num_trials; trial++) {
