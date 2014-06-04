@@ -65,6 +65,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.skew         = 1.0;
     state.num_trials   = 1;
 
+    state.zipf_dist_size = 1024*16;
+
     // Parse args
     while (1) {
         int idx = 0;
@@ -138,8 +140,8 @@ int main(int argc, char **argv){
     // Generate Zipf dist
     long range_size   = state.num_keys/state.num_parts;
     long range_txns   = state.num_txns/state.num_parts;
-    zipf(state.zipf_dist, state.skew, range_size, range_txns);
-    uniform(state.uniform_dist, range_txns);
+    zipf(state.zipf_dist, state.skew, range_size, state.zipf_dist_size);
+    uniform(state.uniform_dist, state.zipf_dist_size);
 
     int trial;
     for (trial = 0; trial < state.num_trials; trial++) {

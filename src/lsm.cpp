@@ -127,11 +127,15 @@ void lsm_engine::runner(int pid) {
     char* updated_val = new char[conf.sz_value];
     memset(updated_val, 'x', conf.sz_value);
     char* val;
+    int k;
+    long z, key;
+    double u;
 
     for (int i = 0; i < range_txns; i++) {
-		long z = conf.zipf_dist[i];
-		double u = conf.uniform_dist[i];
-		long key = range_offset + z % range_size;
+    	k = i % conf.zipf_dist_size;
+		z = conf.zipf_dist[k];
+		u = conf.uniform_dist[k];
+		key = range_offset + z % range_size;
 
 		if (u < conf.per_writes) {
 			txn t(i, "Update", key, updated_val);

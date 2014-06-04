@@ -34,7 +34,7 @@ class config {
         int num_trials;
 
 		vector<int> zipf_dist;
-		int zipf_scale;
+		int zipf_dist_size;
 		vector<double> uniform_dist;
 };
 
