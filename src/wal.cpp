@@ -44,7 +44,8 @@ int wal_engine::update(txn t){
 
     // Add log entry
     entry e(t, before_image, after_image);
-    undo_log.push(e);
+    // XXX Disable logging
+    //undo_log.push(e);
 
     return 0;
 }
