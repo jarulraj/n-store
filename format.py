@@ -1,6 +1,7 @@
 # FORMATTER
 
 import pprint
+import numpy 
 
 file = open("data.log", "r")          
 
@@ -12,6 +13,7 @@ def chunks(l, n):
 
 tput = {}
 mean = {}
+sdev = {}
 latency = 0
 rw_mix = 0.0
 skew = 0.0
@@ -35,43 +37,47 @@ for line in file:
         val = float(entry[4]);
         
         if(arch[0] == "LSM"):
-            arch[0] = "CLSM"
+            arch[0] = "3__LSM"
         elif(arch[0] == "SP"):
-            arch[0] = "BSP"
+            arch[0] = "2__SP"
         elif(arch[0] == "WAL"):
-            arch[0] = "AWAL"
+            arch[0] = "1__WAL"
         
         key = (rw_mix, skew, latency, arch[0]);
         if key in tput:
-            tput[key] += val
+            tput[key].append(val)
         else:
-            tput[key] = val
-            
+            tput[key] = [ val ]
+                        
 for key in sorted(tput.keys()):
-    tput[key] /= trials            
-    tput[key] = round(tput[key], 2)
-    tput[key] = str(tput[key]).rjust(10)
-  
+    mean[key] = round(numpy.mean(tput[key]), 2)
+    mean[key] = str(mean[key]).rjust(10)
+        
+    sdev[key] = numpy.std(tput[key])
+    sdev[key] /= float(mean[key])
+    sdev[key] = round(sdev[key], 3)
+    sdev[key] = str(sdev[key]).rjust(10)
+                
 read_only = []
 read_heavy = []
 write_heavy = []
-  
-for key in sorted(tput.keys()):
+    
+for key in sorted(mean.keys()):
     if key[0] == '0':
-        read_only.append(tput[key])
+        read_only.append(str(mean[key]+" "+sdev[key]))
     elif key[0] == '0.1':
-        read_heavy.append(tput[key])
+        read_heavy.append(str(mean[key]+" "+sdev[key]))
     elif key[0] == '0.5':
-        write_heavy.append(tput[key])
-  
+        write_heavy.append(str(mean[key]+" "+sdev[key]))
+    
 ro_chunks = list(chunks(read_only, 6))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*ro_chunks)))
 print '\n'
-  
+    
 rh_chunks = list(chunks(read_heavy, 6))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*rh_chunks)))
 print '\n'
-  
+    
 wh_chunks = list(chunks(write_heavy, 6))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*wh_chunks)))
 print '\n'
