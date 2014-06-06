@@ -46,16 +46,6 @@ void display_stats(timespec start, timespec finish, int num_txns){
 
 // RANDOM DIST
 
-void random_string(char* str, size_t len ){
-	static const char alphanum[] = "0123456789"
-			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-			"abcdefghijklmnopqrstuvwxyz";
-
-	char rep = alphanum[rand() % (sizeof(alphanum) - 1)];
-	for (int i = 0; i < len; ++i)
-		str[i] = rep;
-	str[len-1] = '\0';
-}
 
 // Get a value in [0, N-1] that follows zipf distribution
 // P(i) = C/I^Alpha for i = 1 to N

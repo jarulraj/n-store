@@ -18,7 +18,6 @@ static void usage_exit(FILE *out){
             "   -l --log-only        :  WAL only \n"
             "   -s --sp-only         :  SP only \n"
             "   -m --lsm-only        :  LSM only \n"
-            "   -t --num-trials      :  Number of trials \n"
             "   -h --help            :  Print help message \n"
            );
     exit(-1);
@@ -37,7 +36,6 @@ static struct option opts[] =
     { "lsm-only", 		no_argument,            NULL,  'm' },
     { "verbose", 		no_argument,      		NULL,  'v' },
     { "skew", 			optional_argument,      NULL,  'q' },
-    { "num-trials",		optional_argument,      NULL,  't' },
     { "help",			no_argument,      		NULL,  'h' },
     { NULL,		        0,				NULL,   0  }
 };
@@ -65,12 +63,11 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     state.lsm_only      = false;
 
     state.skew         = 1.0;
-    state.num_trials   = 1;
 
     // Parse args
     while (1) {
         int idx = 0;
-        int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:t:vlsmh", opts, &idx);
+        int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:vlsmh", opts, &idx);
 
         if (c == -1)
             break;
@@ -119,10 +116,6 @@ static void parse_arguments(int argc, char* argv[], config& state) {
                 state.skew = atof(optarg);
                 cout<<"skew: "<<state.skew<<endl;
                 break;
-            case 't':
-                state.num_trials = atoi(optarg);
-                cout << "num_trials: " << state.num_trials << endl;
-                break;
             case 'h':
                 usage_exit(stderr);
                 break;
@@ -146,26 +139,23 @@ int main(int argc, char **argv){
     simple_skew(state.zipf_dist, range_size, range_txns);
     uniform(state.uniform_dist, range_txns);
 
-    int trial;
-    for (trial = 0; trial < state.num_trials; trial++) {
-        if (state.sp_only == false && state.lsm_only == false) {
-            cout << "WAL : TRIAL "<<trial<<" :: ";
-            wal_engine wal(state);
-            wal.test();
-        }
+	if (state.sp_only == false && state.lsm_only == false) {
+		cout << "WAL :: ";
+		wal_engine wal(state);
+		wal.test();
+	}
 
-        if (state.log_only == false && state.lsm_only == false) {
-            cout << "SP  : TRIAL "<<trial<<" :: ";
-            sp_engine sp(state);
-            sp.test();
-        }
+	if (state.log_only == false && state.lsm_only == false) {
+		cout << "SP  :: ";
+		sp_engine sp(state);
+		sp.test();
+	}
 
-        if (state.log_only == false && state.sp_only == false) {
-            cout << "LSM : TRIAL "<<trial<<" :: ";
-            lsm_engine lsm(state);
-            lsm.test();
-        }
-    }
+	if (state.log_only == false && state.sp_only == false) {
+		cout << "LSM :: ";
+		lsm_engine lsm(state);
+		lsm.test();
+	}
 
 
     return 0;

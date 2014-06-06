@@ -31,8 +31,6 @@ class config {
         bool sp_only;
         bool lsm_only;
 
-        int num_trials;
-
 		vector<int> zipf_dist;
 		vector<double> uniform_dist;
 };

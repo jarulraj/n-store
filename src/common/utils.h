@@ -8,7 +8,16 @@ using namespace std;
 
 // UTILS
 
-void random_string(char* str, size_t len );
+inline void random_string(char* str, size_t len ){
+	static const char alphanum[] = "0123456789"
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			"abcdefghijklmnopqrstuvwxyz";
+
+	char rep = alphanum[rand() % (sizeof(alphanum) - 1)];
+	for (int i = 0; i < len; ++i)
+		str[i] = rep;
+	str[len-1] = '\0';
+}
 
 void simple_skew(vector<int>& zipf_dist, int n, int num_values);
 
