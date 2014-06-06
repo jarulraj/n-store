@@ -34,6 +34,13 @@ for line in file:
         val = float(entry[5]);
         trial = entry[1].split(' ')
         
+        if(arch[0] == "LSM"):
+            arch[0] = "CLSM"
+        elif(arch[0] == "SP"):
+            arch[0] = "BSP"
+        elif(arch[0] == "WAL"):
+            arch[0] = "AWAL"
+        
         key = (rw_mix, skew, latency, arch[0]);
         if key in tput:
             tput[key] += val         
@@ -44,12 +51,11 @@ for key in sorted(tput.keys()):
     tput[key] /= trials            
     tput[key] = round(tput[key], 2)
     tput[key] = str(tput[key]).rjust(10)
-
-
+ 
 read_only = []
 read_heavy = []
 write_heavy = []
-
+ 
 for key in sorted(tput.keys()):
     if key[0] == '0':
         read_only.append(tput[key])
@@ -57,15 +63,15 @@ for key in sorted(tput.keys()):
         read_heavy.append(tput[key])
     elif key[0] == '0.5':
         write_heavy.append(tput[key])
-
+ 
 ro_chunks = list(chunks(read_only, 6))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*ro_chunks)))
 print '\n'
-
+ 
 rh_chunks = list(chunks(read_heavy, 6))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*rh_chunks)))
 print '\n'
-
+ 
 wh_chunks = list(chunks(write_heavy, 6))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*wh_chunks)))
 print '\n'
