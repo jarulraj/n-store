@@ -13,6 +13,10 @@ class record{
             key(_key),
             value(_value){}
 
+        ~record() {
+        	delete[] value;
+        }
+
         friend ostream& operator<<(ostream& out, const record& rec){
             out << DELIM << rec.key << DELIM << rec.value << DELIM;
             return out;

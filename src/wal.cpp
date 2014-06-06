@@ -102,8 +102,6 @@ void wal_engine::runner(int pid) {
     long range_offset = pid*range_size;
     long range_txns   = conf.num_txns/conf.num_parts;
 
-    char* updated_val = new char[conf.sz_value];
-    memset(updated_val, 'x', conf.sz_value);
     char* val;
 
     for (int i = 0; i < range_txns; i++) {
@@ -112,7 +110,9 @@ void wal_engine::runner(int pid) {
 		long key = range_offset + z % range_size;
 
 		if (u < conf.per_writes) {
-			txn t(i, "Update", key, updated_val);
+		    char* updated_val = new char[conf.sz_value];
+		    memset(updated_val, 'x', conf.sz_value);
+		    txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
 			txn t(i, "Read", key, val);
@@ -127,6 +127,15 @@ void wal_engine::check(){
 
     for (t_itr = table_index.begin() ; t_itr != table_index.end(); ++t_itr){
         cout << (*t_itr).first <<" "<< (*t_itr).second->value << endl;
+    }
+
+}
+
+void wal_engine::cleanup(){
+	unordered_map<unsigned int, record*>::const_iterator t_itr;
+
+    for (t_itr = table_index.begin() ; t_itr != table_index.end(); ++t_itr){
+    	delete (*t_itr).second;
     }
 
 }
@@ -218,6 +227,8 @@ int wal_engine::test(){
 
 	check();
 	*/
+
+	cleanup();
 
     return 0;
 }

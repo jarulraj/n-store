@@ -124,8 +124,6 @@ void lsm_engine::runner(int pid) {
     long range_offset = pid*range_size;
     long range_txns   = conf.num_txns/conf.num_parts;
 
-    char* updated_val = new char[conf.sz_value];
-    memset(updated_val, 'x', conf.sz_value);
     char* val;
 
     for (int i = 0; i < range_txns; i++) {
@@ -134,6 +132,8 @@ void lsm_engine::runner(int pid) {
 		long key = range_offset + z % range_size;
 
 		if (u < conf.per_writes) {
+		    char* updated_val = new char[conf.sz_value];
+		    memset(updated_val, 'x', conf.sz_value);
 			txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
@@ -141,6 +141,15 @@ void lsm_engine::runner(int pid) {
 			val = read(t);
 		}
 	}
+
+}
+
+void lsm_engine::cleanup(){
+	mem_map::const_iterator t_itr;
+
+    for (t_itr = mem_index.begin() ; t_itr != mem_index.end(); ++t_itr){
+    	delete (*t_itr).second;
+    }
 
 }
 
@@ -224,6 +233,8 @@ int lsm_engine::test(){
 
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
     display_stats(start, finish, conf.num_txns);
+
+    cleanup();
 
 	//check();
 

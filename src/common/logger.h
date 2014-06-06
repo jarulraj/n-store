@@ -71,13 +71,16 @@ public:
 				if ((*it).transaction.txn_type != "")
 					buffer_stream << (*it).transaction.txn_type;
 
-				if ((*it).before_image != NULL)
+				if ((*it).before_image != NULL){
 					buffer_stream << *((*it).before_image);
+					delete (*it).before_image;
+				}
 
 				if ((*it).after_image != NULL)
 					buffer_stream << *((*it).after_image);
 
 				buffer_stream << endl;
+
 			}
 
 			buffer = buffer_stream.str();

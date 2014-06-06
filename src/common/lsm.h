@@ -44,6 +44,8 @@ class lsm_engine : public engine {
 		int remove(txn t);
 
 		void check();
+		void cleanup();
+
 		void merge();
 
 		mem_map& get_mem_index();

@@ -37,6 +37,7 @@ class wal_engine : public engine {
 		int insert(txn t);
 
 		void check();
+		void cleanup();
 
 		void snapshot();
 		void recovery();
@@ -52,7 +53,6 @@ class wal_engine : public engine {
 		unordered_map<unsigned int, record*> table_index;
 
 		logger undo_log;
-
 };
 
 
