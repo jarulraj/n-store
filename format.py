@@ -64,11 +64,11 @@ write_heavy = []
     
 for key in sorted(mean.keys()):
     if key[0] == '0':
-        read_only.append(str(mean[key]+" "+sdev[key]))
+        read_only.append(str(mean[key]+"\t"+sdev[key]+"\t"+" \t ".join(map(str, tput[key]))))
     elif key[0] == '0.1':
-        read_heavy.append(str(mean[key]+" "+sdev[key]))
+        read_heavy.append(str(mean[key]+"\t"+sdev[key]+"\t"+" \t ".join(map(str, tput[key]))))
     elif key[0] == '0.5':
-        write_heavy.append(str(mean[key]+" "+sdev[key]))
+        write_heavy.append(str(mean[key]+"\t"+sdev[key]+"\t"+" \t ".join(map(str, tput[key]))))
     
 ro_chunks = list(chunks(read_only, 6))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*ro_chunks)))
