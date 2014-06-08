@@ -104,57 +104,5 @@ int main (){
     int val;
     int key;
 
-	//  READS
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-    for(i = 0; i<TXNS ; i++){
-    	key = zipf_dist[i];
-    	val = data[key];
-    }
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
-	display_stats(start, finish, TXNS);
-
-	//  WRITES
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-    for(i = 0; i<TXNS ; i++){
-    	key = zipf_dist[i];
-    	data[key] = key*18+100;
-    }
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
-	display_stats(start, finish, TXNS);
-
-	// HIGH SKEW
-    zipf_dist = zipf(5.0, KEYS, TXNS);
-
-	//  READS
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-    for(i = 0; i<TXNS ; i++){
-    	key = zipf_dist[i];
-    	val = data[key];
-    }
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
-	display_stats(start, finish, TXNS);
-
-	//  WRITES
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-    for(i = 0; i<TXNS ; i++){
-    	key = zipf_dist[i];
-    	data[key] = key*18+100;
-    }
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
-	display_stats(start, finish, TXNS);
-
-
     return 0;
 }

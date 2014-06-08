@@ -161,7 +161,7 @@ int sp_engine::test() {
 	//std::cout << "Loading finished " << endl;
 	//check();
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+    clock_gettime(CLOCK_REALTIME, &start);
 
 	// Logger start
 	std::thread gc(&sp_engine::group_commit, this);
@@ -183,7 +183,7 @@ int sp_engine::test() {
 	ready = false;
 	gc.join();
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
+    clock_gettime(CLOCK_REALTIME, &finish);
 	display_stats(start, finish, conf.num_txns);
 
 	//check();

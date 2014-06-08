@@ -186,7 +186,7 @@ int wal_engine::test(){
     // Take snapshot
     //snapshot();
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+    clock_gettime(CLOCK_REALTIME, &start);
 
     // Logger start
     std::thread gc(&wal_engine::group_commit, this);
@@ -210,7 +210,7 @@ int wal_engine::test(){
 
     undo_log.write();
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
+    clock_gettime(CLOCK_REALTIME, &finish);
 	display_stats(start, finish, conf.num_txns);
 
 	// Recovery

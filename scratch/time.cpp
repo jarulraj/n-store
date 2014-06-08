@@ -45,9 +45,9 @@ int main(){
     timespec time1, time2;
 	int temp;
 
-	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+	clock_gettime(CLOCK_REALTIME, &time1);
     std::cout << "f(42) = " << fibonacci(42) << '\n';
-	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
+	clock_gettime(CLOCK_REALTIME, &time2);
 
 	std::cout << diff(time1, time2).tv_sec << ":" << diff(time1, time2).tv_nsec << endl;
 	return 0;
