@@ -117,8 +117,8 @@ void simple_skew(vector<int>& zipf_dist, int n, int num_values) {
 }
 
 void uniform(vector<double>& uniform_dist, int num_values) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    int seed = 0;
+    std::mt19937 gen(seed);
     std::uniform_real_distribution<> dis(0, 1);
     double i, z;
 
