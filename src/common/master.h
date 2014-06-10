@@ -22,10 +22,8 @@ public:
 
 	master(std::string table_name, config conf) {
 
-		//dir_fd = mmap_fd(conf.fs_path + table_name + "_dir", (caddr_t) DIR_LOC, conf);
-
-		long long int len = 1024L * 1024L;
-		master_fd = mmap_fd(conf.fs_path + table_name + "_master", len,  (caddr_t) MASTER_LOC, conf);
+		dir_fd = mmap_fd(conf.fs_path + table_name + "_dir", (caddr_t) DIR_LOC, conf);
+		master_fd = mmap_fd(conf.fs_path + table_name + "_master",  (caddr_t) MASTER_LOC, conf);
 
 	}
 

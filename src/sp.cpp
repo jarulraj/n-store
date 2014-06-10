@@ -166,8 +166,7 @@ void sp_engine::cleanup(){
 
 int sp_engine::test() {
 
-	long long int len = 4 * 1024L * 1024L * 1024L;
-	table = mmap_fd(conf.fs_path + "usertable", len, (caddr_t) TABLE_LOC, conf);
+	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
 	mstr = master("usertable", conf);
 
 	timespec start, finish;

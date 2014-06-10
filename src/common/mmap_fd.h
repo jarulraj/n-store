@@ -37,7 +37,7 @@ public:
 			page_size(0),
 			max_len(0){}
 
-	mmap_fd(std::string _name, long long len, caddr_t location, config& _conf){
+	mmap_fd(std::string _name, caddr_t location, config& _conf){
 
 		file_name = _name;
 		conf = _conf;
@@ -49,7 +49,6 @@ public:
 
 		fd = fileno(fp);
 		page_size = getpagesize();
-		max_len = len;
 
 		struct stat sbuf;
 
@@ -57,6 +56,9 @@ public:
 			cout << "stat failed " << file_name << " \n";
 			exit(EXIT_FAILURE);
 		}
+
+		long long int len = 16 * 1024L * 1024L * 1024L;
+		max_len = len;
 
 		// new file check
 		if (sbuf.st_size == 0) {
