@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <cstring>
+#include <cassert>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -33,7 +34,8 @@ public:
 			offset(0),
 			prev_offset(0),
 			data(NULL),
-			page_size(0){}
+			page_size(0),
+			max_len(0){}
 
 	mmap_fd(std::string _name, long long len, caddr_t location, config& _conf){
 
@@ -47,6 +49,7 @@ public:
 
 		fd = fileno(fp);
 		page_size = getpagesize();
+		max_len = len;
 
 		struct stat sbuf;
 
@@ -91,24 +94,13 @@ public:
 		sprintf(rec_str, "%u %s \n", rec.key, rec.value);
 		len = strlen(rec_str);
 
+		assert(offset + len < max_len);
+
 		char* cur_offset = (data + offset);
 		memcpy(cur_offset, rec_str, len);
 		offset += len;
 
 		return cur_offset;
-	}
-
-	void push_back_dir_entry(const sp_record& rec) {
-		char rec_str[conf.sz_tuple];
-		int len = 0;
-
-		sprintf(rec_str, "%u %p ", rec.key, rec.location);
-		len = strlen(rec_str);
-
-		char* cur_offset = (data + offset);
-		memcpy(cur_offset, rec_str, len);
-
-		offset += len;
 	}
 
 	void push_back_batch_id(int batch_id) {
@@ -180,6 +172,7 @@ public:
 	off_t prev_offset;
 	config conf;
 
+	long long int max_len;
 	int page_size;
 };
 
