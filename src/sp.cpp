@@ -139,6 +139,8 @@ void sp_engine::loader() {
 		undo_buffer.push(e);
 	}
 
+	cout<<table.offset<<endl;
+
 	table.sync();
 	mstr.sync();
 	undo_buffer.clear();
@@ -153,7 +155,8 @@ void sp_engine::recovery() {
 
 int sp_engine::test() {
 
-	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
+	long long int len = 16 * 1024L * 1024L * 1024L;
+	table = mmap_fd(conf.fs_path + "usertable", len, (caddr_t) TABLE_LOC, conf);
 	mstr = master("usertable", conf);
 
 	timespec start, finish;
@@ -187,6 +190,8 @@ int sp_engine::test() {
 
     clock_gettime(CLOCK_REALTIME, &finish);
 	display_stats(start, finish, conf.num_txns);
+
+	cout<<table.offset<<endl;
 
 	//check();
 

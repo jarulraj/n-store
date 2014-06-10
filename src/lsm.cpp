@@ -197,7 +197,8 @@ int lsm_engine::test(){
 
 	undo_log.set_path(conf.fs_path+"./log", "w");
 
-	table = mmap_fd(conf.fs_path + "usertable", (caddr_t) TABLE_LOC, conf);
+	long long int len = 16 * 1024L * 1024L * 1024L;
+	table = mmap_fd(conf.fs_path + "usertable", len, (caddr_t) TABLE_LOC, conf);
 
 	timespec start, finish;
 

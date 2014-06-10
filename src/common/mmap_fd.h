@@ -35,7 +35,7 @@ public:
 			data(NULL),
 			page_size(0){}
 
-	mmap_fd(std::string _name, caddr_t location, config& _conf){
+	mmap_fd(std::string _name, long long len, caddr_t location, config& _conf){
 
 		file_name = _name;
 		conf = _conf;
@@ -57,11 +57,6 @@ public:
 
 		// new file check
 		if (sbuf.st_size == 0) {
-
-			// XXX Simplify
-           		//off_t len = conf.num_keys*conf.sz_value + 2*conf.num_txns*conf.sz_value ;
-			long long int len = 16 * 1024L * 1024L * 1024L;
-			//cout<< "len: "<<len <<endl;
 
 			if (ftruncate(fd, len) == -1) {
 				perror("ftruncate failed");
@@ -174,7 +169,7 @@ public:
 	}
 
 
-private:
+//private:
 	FILE* fp = NULL;
 	int fd;
 
