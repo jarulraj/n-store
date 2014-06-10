@@ -13,6 +13,7 @@ void sp_engine::group_commit() {
 	while (ready) {
 		table.sync();
 		mstr.sync();
+		undo_buffer.clear();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
 	}
@@ -140,6 +141,7 @@ void sp_engine::loader() {
 
 	table.sync();
 	mstr.sync();
+	undo_buffer.clear();
 }
 
 void sp_engine::recovery() {
