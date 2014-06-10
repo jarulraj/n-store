@@ -91,6 +91,8 @@ void sp_engine::runner(int pid) {
 		if (u < conf.per_writes) {
 		    char* updated_val = new char[conf.sz_value];
 		    memset(updated_val, 'x', conf.sz_value);
+		    updated_val[conf.sz_value-1] = '\0';
+
 			txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
@@ -139,8 +141,6 @@ void sp_engine::loader() {
 		undo_buffer.push(e);
 	}
 
-	cout<<table.offset<<endl;
-
 	table.sync();
 	mstr.sync();
 	undo_buffer.clear();
@@ -153,9 +153,20 @@ void sp_engine::recovery() {
 
 }
 
+void sp_engine::cleanup(){
+	dir_map::const_iterator t_itr;
+
+	dir_map& dir = mstr.get_dir();
+
+    for (t_itr = dir.begin() ; t_itr != dir.end(); ++t_itr){
+    	delete (*t_itr).second;
+    }
+
+}
+
 int sp_engine::test() {
 
-	long long int len = 16 * 1024L * 1024L * 1024L;
+	long long int len = 4 * 1024L * 1024L * 1024L;
 	table = mmap_fd(conf.fs_path + "usertable", len, (caddr_t) TABLE_LOC, conf);
 	mstr = master("usertable", conf);
 
@@ -191,8 +202,6 @@ int sp_engine::test() {
     clock_gettime(CLOCK_REALTIME, &finish);
 	display_stats(start, finish, conf.num_txns);
 
-	cout<<table.offset<<endl;
-
 	//check();
 
 	// Recovery
@@ -207,6 +216,8 @@ int sp_engine::test() {
 
 	check();
 	*/
+
+	cleanup();
 
 	return 0;
 }

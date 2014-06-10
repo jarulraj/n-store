@@ -35,6 +35,8 @@ void lsm_engine::merge(){
 			after_image = table.push_back_record(*rec);
 			nvm_index[key] = after_image;
 		}
+
+		delete rec;
 	}
 
 	mem_index.clear();
@@ -99,6 +101,7 @@ int lsm_engine::insert(txn t){
 
     // check if key already exists
     if(mem_index.count(key) != 0){
+    	delete t.value;
         return -1;
     }
 
@@ -134,6 +137,8 @@ void lsm_engine::runner(int pid) {
 		if (u < conf.per_writes) {
 		    char* updated_val = new char[conf.sz_value];
 		    memset(updated_val, 'x', conf.sz_value);
+		    updated_val[conf.sz_value-1] = '\0';
+
 			txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
@@ -197,7 +202,7 @@ int lsm_engine::test(){
 
 	undo_log.set_path(conf.fs_path+"./log", "w");
 
-	long long int len = 16 * 1024L * 1024L * 1024L;
+	long long int len = 4 * 1024L * 1024L * 1024L;
 	table = mmap_fd(conf.fs_path + "usertable", len, (caddr_t) TABLE_LOC, conf);
 
 	timespec start, finish;
@@ -235,7 +240,7 @@ int lsm_engine::test(){
     clock_gettime(CLOCK_REALTIME, &finish);
     display_stats(start, finish, conf.num_txns);
 
-    //cleanup();
+    cleanup();
 
 	//check();
 

@@ -40,6 +40,7 @@ class sp_engine : public engine {
 		void group_commit();
 
 		void check();
+		void cleanup();
 
 		void recovery();
 

@@ -112,6 +112,8 @@ void wal_engine::runner(int pid) {
 		if (u < conf.per_writes) {
 		    char* updated_val = new char[conf.sz_value];
 		    memset(updated_val, 'x', conf.sz_value);
+		    updated_val[conf.sz_value-1] = '\0';
+
 		    txn t(i, "Update", key, updated_val);
 			update(t);
 		} else {
