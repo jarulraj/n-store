@@ -94,8 +94,6 @@ public:
 		sprintf(rec_str, "%u %s \n", rec.key, rec.value);
 		len = strlen(rec_str);
 
-		assert(offset + len < max_len);
-
 		char* cur_offset = (data + offset);
 		memcpy(cur_offset, rec_str, len);
 		offset += len;

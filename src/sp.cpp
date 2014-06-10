@@ -33,8 +33,8 @@ int sp_engine::update(txn t) {
 		return -1;
 	}
 
-	record* rec = new record(key, t.value);
-	after_image = table.push_back_record(*rec);
+	record rec(key, t.value);
+	after_image = table.push_back_record(rec);
 
 	sp_record* sp_rec = dir[key];
 
@@ -127,8 +127,8 @@ void sp_engine::loader() {
 		char* value = new char[conf.sz_value];
         random_string(value, conf.sz_value);
 
-		record* rec = new record(key, value);
-		after_image = table.push_back_record(*rec);
+        record rec(key, value);
+		after_image = table.push_back_record(rec);
 
 		sp_record* sp_rec = new sp_record(key, batch_id, after_image);
 		mstr.get_dir()[key] = sp_rec;
