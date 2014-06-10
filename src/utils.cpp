@@ -57,8 +57,8 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 	int i, j;
 
 	double* powers = new double[n+1];
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    int seed = 0;
+    std::mt19937 gen(seed);
     std::uniform_real_distribution<> dis(0.001, 0.099);
 
 	for (i = 1; i <= n; i++)
@@ -95,8 +95,8 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 
 // Simple skew generator
 void simple_skew(vector<int>& zipf_dist, int n, int num_values) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    int seed = 0;
+    std::mt19937 gen(seed);
     std::uniform_real_distribution<> dis(0, 1);
     double i, z;
     long bound = n/10; // 90% from 10% of values
