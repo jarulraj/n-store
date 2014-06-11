@@ -93,10 +93,10 @@ void sp_engine::runner(int pid) {
 		    memset(updated_val, 'x', conf.sz_value);
 		    updated_val[conf.sz_value-1] = '\0';
 
-			txn t(i, "Update", key, updated_val);
+			txn t(i, txn_type::Update, key, updated_val);
 			update(t);
 		} else {
-			txn t(i, "Read", key, val);
+			txn t(i, txn_type::Select, key, val);
 			val = read(t);
 		}
 	}
@@ -109,7 +109,7 @@ void sp_engine::check() {
 	for (int i = 0; i < conf.num_keys; i++) {
 		char* val;
 
-		txn t(i, "Read", i, val);
+		txn t(i, txn_type::Select, i, val);
 		val = read(t);
 
 		std::cout << i << " " << val << endl;
@@ -136,7 +136,7 @@ void sp_engine::loader() {
 		mstr.get_dir()[key] = sp_rec;
 
 		// Add log entry
-		txn t(0, "Insert", key, value);
+		txn t(0, txn_type::Insert, key, value);
 		mem_entry e(t, NULL, after_image);
 		undo_buffer.push(e);
 	}

@@ -57,7 +57,7 @@ int lsm_engine::remove(txn t){
     int key = t.key;
     record* before_image ;
 
-    t.txn_type = "Delete";
+    t.type = txn_type::Delete;
 
     // check active mem_index
     if(mem_index.count(key) != 0){
@@ -97,7 +97,7 @@ char* lsm_engine::read(txn t){
 int lsm_engine::insert(txn t){
     int key = t.key;
 
-    t.txn_type = "Insert";
+    t.type = txn_type::Select;
 
     // check if key already exists
     if(mem_index.count(key) != 0){
@@ -139,10 +139,10 @@ void lsm_engine::runner(int pid) {
 		    memset(updated_val, 'x', conf.sz_value);
 		    updated_val[conf.sz_value-1] = '\0';
 
-			txn t(i, "Update", key, updated_val);
+			txn t(i, txn_type::Update, key, updated_val);
 			update(t);
 		} else {
-			txn t(i, "Read", key, val);
+			txn t(i, txn_type::Select, key, val);
 			val = read(t);
 		}
 	}
@@ -164,7 +164,7 @@ void lsm_engine::check(){
 	for (int i = 0; i < conf.num_keys; i++) {
 		char* val;
 
-		txn t(i, "Read", i, NULL);
+		txn t(i, txn_type::Select, i, NULL);
 		val = read(t);
 
 		std::cout << i << " " << val << endl;
@@ -188,7 +188,7 @@ void lsm_engine::loader(){
         mem_index[key] = after_image;
 
         // Add log entry
-        txn t(0, "Insert", key, value);
+        txn t(0, txn_type::Insert, key, value);
         entry e(t, NULL, after_image);
         undo_log.push(e);
     }

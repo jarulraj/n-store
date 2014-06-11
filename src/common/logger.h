@@ -48,8 +48,7 @@ public:
 	void push(const entry& e) {
 		buffer_stream.str("");
 
-		if (e.transaction.txn_type != "")
-			buffer_stream << e.transaction.txn_type;
+		buffer_stream << e.transaction.type;
 
 		if (e.before_image != NULL){
 			buffer_stream << e.before_image;

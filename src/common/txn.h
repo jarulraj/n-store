@@ -8,11 +8,19 @@ using namespace std;
 
 // TRANSACTION
 
+enum txn_type{
+    Insert,
+    Delete,
+    Update,
+    Select,
+    Snapshot
+};
+
 class txn {
 public:
-	txn(unsigned long _txn_id, std::string _txn_type, unsigned int _key, char* _value) :
+	txn(unsigned long _txn_id, txn_type _type, unsigned int _key, char* _value) :
 			txn_id(_txn_id),
-			txn_type(_txn_type),
+			type(_type),
 			key(_key),
 			value(_value)
 	{
@@ -21,7 +29,7 @@ public:
 
 	//private:
 	unsigned long txn_id;
-	string txn_type;
+	txn_type type;
 
 	unsigned int key;
 	char* value;

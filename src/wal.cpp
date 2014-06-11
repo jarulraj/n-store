@@ -114,10 +114,10 @@ void wal_engine::runner(int pid) {
 		    memset(updated_val, 'x', conf.sz_value);
 		    updated_val[conf.sz_value-1] = '\0';
 
-		    txn t(i, "Update", key, updated_val);
+		    txn t(i, txn_type::Update, key, updated_val);
 			update(t);
 		} else {
-			txn t(i, "Read", key, val);
+			txn t(i, txn_type::Select, key, val);
 			val = read(t);
 		}
 	}
@@ -164,7 +164,7 @@ void wal_engine::loader(){
         }
 
         // Add log entry
-        txn t(0, "Insert", key, value);
+        txn t(0, txn_type::Insert, key, value);
 
         entry e(t, NULL, after_image);
         undo_log.push(e);
@@ -255,7 +255,7 @@ void wal_engine::snapshot(){
 	unordered_map<unsigned int, record*>::const_iterator t_itr;
 
     for (t_itr = table_index.begin() ; t_itr != table_index.end(); ++t_itr){
-        txn t(0, "", -1, NULL);
+        txn t(0, txn_type::Insert, -1, NULL);
         record* tuple = (*t_itr).second;
 
         entry e(t, tuple, NULL);
@@ -267,7 +267,7 @@ void wal_engine::snapshot(){
     snapshotter.close();
 
     // Add log entry
-    txn t(0, "Snapshot", -1, NULL);
+    txn t(0, txn_type::Snapshot, -1, NULL);
     entry e(t, NULL, NULL);
     undo_log.push(e);
 
@@ -298,12 +298,12 @@ void wal_engine::recovery(){
 	reader.set_path(conf.fs_path+"./snapshot", "r");
 
 	unsigned int key = -1;
-	char txn_type[10];
+	char type[10];
 
 	while(1){
 		char* value =  new char[conf.sz_value];
 		if(fscanf(reader.log_file, "%u %s ", &key, value) != EOF){
-			txn t(0, "Insert", key, value);
+			txn t(0, txn_type::Insert, key, value);
 			insert(t);
 		}
 		else{
@@ -325,20 +325,20 @@ void wal_engine::recovery(){
 
 		while (getline(scanner, line)) {
 			if(apply == false){
-				sscanf(line.c_str(), "%s", txn_type);
-				if(strcmp(txn_type, "Snapshot") ==0)
+				sscanf(line.c_str(), "%s", type);
+				if(strcmp(type, "Snapshot") ==0)
 					apply = true;
 			}
 			// Apply log
 			else{
-				sscanf(line.c_str(), "%s", txn_type);
+				sscanf(line.c_str(), "%s", type);
 
 				// Update
-				if(strcmp(txn_type, "Update") ==0){
+				if(strcmp(type, "Update") ==0){
 					char* after_val=  new char[conf.sz_value];
-					sscanf(line.c_str(), "%s %u %s %u %s ", txn_type, &before_key, before_val, &after_key, after_val);
+					sscanf(line.c_str(), "%s %u %s %u %s ", type, &before_key, before_val, &after_key, after_val);
 
-			        txn t(0, "Update", after_key, after_val);
+			        txn t(0, txn_type::Update, after_key, after_val);
 			        update(t);
 				}
 
