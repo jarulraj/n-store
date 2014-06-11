@@ -230,7 +230,7 @@ int wal_engine::test(){
 	check();
 	*/
 
-	cleanup();
+	//cleanup();
 
     return 0;
 }

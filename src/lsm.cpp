@@ -239,7 +239,7 @@ int lsm_engine::test(){
     clock_gettime(CLOCK_REALTIME, &finish);
     display_stats(start, finish, conf.num_txns);
 
-    cleanup();
+    //cleanup();
 
 	//check();
 
