@@ -27,7 +27,7 @@ class mem_entry{
 class mem_logger {
 public:
 
-	void push(mem_entry e) {
+	void push(const mem_entry& e) {
 		std::lock_guard<std::mutex> lock(log_access);
 
 		log_queue.push_back(e);
