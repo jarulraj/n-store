@@ -48,15 +48,15 @@ public:
 	void push(const entry& e) {
 		buffer_stream.str("");
 
-		buffer_stream << e.transaction.type;
+		buffer_stream << e.transaction.type<<" ";
 
 		if (e.before_image != NULL){
-			buffer_stream << e.before_image;
+			buffer_stream << *(e.before_image);
 			delete e.before_image;
 		}
 
 		if (e.after_image != NULL)
-			buffer_stream << e.after_image;
+			buffer_stream << *(e.after_image);
 
 		buffer_stream << endl;
 
