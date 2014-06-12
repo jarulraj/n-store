@@ -11,36 +11,37 @@
 
 using namespace std;
 
-class mem_entry{
-    public:
-        mem_entry(txn _txn, char* _before_image, char* _after_image) :
-            transaction(_txn),
-            before_image(_before_image),
-            after_image(_after_image){}
+class mem_entry {
+ public:
+  mem_entry(txn _txn, char* _before_image, char* _after_image)
+      : transaction(_txn),
+        before_image(_before_image),
+        after_image(_after_image) {
+  }
 
-        //private:
-        txn transaction;
-        char* before_image;
-        char* after_image;
+  //private:
+  txn transaction;
+  char* before_image;
+  char* after_image;
 };
 
 class mem_logger {
-public:
+ public:
 
-	void push(const mem_entry& e) {
-		std::lock_guard<std::mutex> lock(log_access);
+  void push(const mem_entry& e) {
+    std::lock_guard<std::mutex> lock(log_access);
 
-		log_queue.push_back(e);
-	}
+    log_queue.push_back(e);
+  }
 
-	void clear() {
-		log_queue.clear();
-	}
+  void clear() {
+    log_queue.clear();
+  }
 
-private:
+ private:
 
-	std::mutex log_access;
-	vector<mem_entry> log_queue;
+  std::mutex log_access;
+  vector<mem_entry> log_queue;
 };
 
 #endif /* MEM_LOGGER_H_ */

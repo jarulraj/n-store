@@ -9,31 +9,30 @@ using namespace std;
 
 class config {
 
-    public:
-        std::string fs_path;
+ public:
+  std::string fs_path;
 
-        int num_keys;
-        int num_txns;
-        int num_parts;
+  int num_keys;
+  int num_txns;
+  int num_parts;
 
-        int sz_value;
-        int sz_tuple;
+  int sz_value;
+  int sz_tuple;
 
-        double per_writes;
+  double per_writes;
 
-        int gc_interval;
-        int lsm_size;
+  int gc_interval;
+  int lsm_size;
 
-        double skew;
+  double skew;
 
-        bool verbose;
-        bool log_only;
-        bool sp_only;
-        bool lsm_only;
+  bool verbose;
+  bool log_only;
+  bool sp_only;
+  bool lsm_only;
 
-		vector<int> zipf_dist;
-		vector<double> uniform_dist;
+  vector<int> zipf_dist;
+  vector<double> uniform_dist;
 };
-
 
 #endif /* NSTORE_H_ */

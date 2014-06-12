@@ -26,48 +26,47 @@ typedef unordered_map<unsigned int, record*> mem_map;
 typedef unordered_map<unsigned int, char*> nvm_map;
 
 class lsm_engine : public engine {
-	public:
-		lsm_engine(config _conf) :
-			conf(_conf){}
+ public:
+  lsm_engine(config _conf)
+      : conf(_conf) {
+  }
 
-		void loader() ;
-		void runner(int pid) ;
+  void loader();
+  void runner(int pid);
 
-		char* read(txn t);
-		int update(txn t);
+  char* read(txn t);
+  int update(txn t);
 
-		int test();
+  int test();
 
-		// Custom functions
-		void group_commit();
-		int insert(txn t);
-		int remove(txn t);
+  // Custom functions
+  void group_commit();
+  int insert(txn t);
+  int remove(txn t);
 
-		void check();
-		void cleanup();
+  void check();
+  void cleanup();
 
-		void merge();
+  void merge();
 
-		mem_map& get_mem_index();
+  mem_map& get_mem_index();
 
-		pthread_rwlock_t  table_access = PTHREAD_RWLOCK_INITIALIZER;
+  pthread_rwlock_t table_access = PTHREAD_RWLOCK_INITIALIZER;
 
-	private:
-		config conf;
+ private:
+  config conf;
 
-		std::mutex gc_mutex;
-		std::condition_variable gc_cv;
-		bool gc_ready = false;
+  std::mutex gc_mutex;
+  std::condition_variable gc_cv;
+  bool gc_ready = false;
 
-		mem_map mem_index;
-		nvm_map nvm_index;
+  mem_map mem_index;
+  nvm_map nvm_index;
 
-		mmap_fd table;
+  mmap_fd table;
 
-		logger undo_log;
+  logger undo_log;
 
 };
-
-
 
 #endif /* LSM_H_ */

@@ -16,88 +16,92 @@ using namespace std;
 // LOGGING
 
 class entry {
-public:
-	entry(txn _txn, record* _before_image, record* _after_image) :
-			transaction(_txn), before_image(_before_image), after_image(
-					_after_image) {
-	}
+ public:
+  entry(txn _txn, record* _before_image, record* _after_image)
+      : transaction(_txn),
+        before_image(_before_image),
+        after_image(_after_image) {
+  }
 
-	//private:
-	txn transaction;
-	record* before_image;
-	record* after_image;
+  //private:
+  txn transaction;
+  record* before_image;
+  record* after_image;
 };
 
 class logger {
-public:
-	logger() :
-			log_file(NULL), log_file_fd(-1), buffer_size(0) {}
+ public:
+  logger()
+      : log_file(NULL),
+        log_file_fd(-1),
+        buffer_size(0) {
+  }
 
-	void set_path(std::string name, std::string mode) {
-		log_file_name = name;
+  void set_path(std::string name, std::string mode) {
+    log_file_name = name;
 
-		log_file = fopen(log_file_name.c_str(), mode.c_str());
-		if (log_file != NULL) {
-			log_file_fd = fileno(log_file);
-		} else {
-			cout << "Log file not found : " << log_file_name << endl;
-			exit(EXIT_FAILURE);
-		}
-	}
+    log_file = fopen(log_file_name.c_str(), mode.c_str());
+    if (log_file != NULL) {
+      log_file_fd = fileno(log_file);
+    } else {
+      cout << "Log file not found : " << log_file_name << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
 
-	void push(const entry& e) {
-		buffer_stream.str("");
+  void push(const entry& e) {
+    buffer_stream.str("");
 
-		buffer_stream << e.transaction.type<<" ";
+    buffer_stream << e.transaction.type << " ";
 
-		if (e.before_image != NULL){
-			buffer_stream << *(e.before_image);
-			delete e.before_image;
-		}
+    if (e.before_image != NULL) {
+      buffer_stream << *(e.before_image);
+      delete e.before_image;
+    }
 
-		if (e.after_image != NULL)
-			buffer_stream << *(e.after_image);
+    if (e.after_image != NULL)
+      buffer_stream << *(e.after_image);
 
-		buffer_stream << endl;
+    buffer_stream << endl;
 
-		buffer = buffer_stream.str();
-		buffer_size = buffer.size();
+    buffer = buffer_stream.str();
+    buffer_size = buffer.size();
 
-		fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
-	}
+    fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
+  }
 
-	int write() {
-		int ret;
+  int write() {
+    int ret;
 
-		ret = fsync(log_file_fd);
+    ret = fsync(log_file_fd);
 
-		if (ret == -1) {
-			perror("fsync failed");
-			exit(EXIT_FAILURE);
-		}
+    if (ret == -1) {
+      perror("fsync failed");
+      exit(EXIT_FAILURE);
+    }
 
-		//cout << "fsync :: "<<log_file_name<<" :: " << count << endl;
+    //cout << "fsync :: "<<log_file_name<<" :: " << count << endl;
 
-		return ret;
-	}
+    return ret;
+  }
 
-	void close() {
-		std::lock_guard<std::mutex> lock(log_access);
+  void close() {
+    std::lock_guard<std::mutex> lock(log_access);
 
-		fclose(log_file);
-	}
+    fclose(log_file);
+  }
 
-	FILE* log_file;
+  FILE* log_file;
 
-private:
-	stringstream buffer_stream;
-	string buffer;
-	size_t buffer_size ;
+ private:
+  stringstream buffer_stream;
+  string buffer;
+  size_t buffer_size;
 
-	std::string log_file_name;
-	int log_file_fd;
+  std::string log_file_name;
+  int log_file_fd;
 
-	std::mutex log_access;
+  std::mutex log_access;
 };
 
 #endif
