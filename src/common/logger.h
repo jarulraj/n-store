@@ -17,14 +17,14 @@ using namespace std;
 
 class entry {
  public:
-  entry(txn _txn, record* _before_image, record* _after_image)
-      : transaction(_txn),
+  entry(statement* _stmt, record* _before_image, record* _after_image)
+      : stmt_ptr(_stmt),
         before_image(_before_image),
         after_image(_after_image) {
   }
 
   //private:
-  txn transaction;
+  statement* stmt_ptr;
   record* before_image;
   record* after_image;
 };
@@ -52,15 +52,15 @@ class logger {
   void push(const entry& e) {
     buffer_stream.str("");
 
-    buffer_stream << e.transaction.type << " ";
+    buffer_stream << e.stmt_ptr->type << " ";
 
     if (e.before_image != NULL) {
-      buffer_stream << *(e.before_image);
+      buffer_stream << e.before_image->get_string();
       delete e.before_image;
     }
 
     if (e.after_image != NULL)
-      buffer_stream << *(e.after_image);
+      buffer_stream << e.after_image->get_string();
 
     buffer_stream << endl;
 
@@ -86,8 +86,6 @@ class logger {
   }
 
   void close() {
-    std::lock_guard<std::mutex> lock(log_access);
-
     fclose(log_file);
   }
 
@@ -101,7 +99,6 @@ class logger {
   std::string log_file_name;
   int log_file_fd;
 
-  std::mutex log_access;
 };
 
 #endif

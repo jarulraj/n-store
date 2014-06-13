@@ -1,20 +1,25 @@
 #ifndef ENGINE_H_
 #define ENGINE_H_
 
-#include "txn.h"
+#include "transaction.h"
+#include "statement.h"
+
+#include <boost/lockfree/queue.hpp>
+#include <thread>
+#include <atomic>
+#include <string>
+
+using namespace std;
 
 class engine {
  public:
-  virtual void loader() = 0;
-  virtual void runner(int pid) = 0;
-
-  virtual char* read(txn t) = 0;
-  virtual int update(txn t) = 0;
+  virtual std::string read(statement* t) = 0;
+  virtual int update(statement* t) = 0;
 
   virtual int test() = 0;
 
-  virtual ~engine() {
-  }
+  virtual ~engine() {}
+
 };
 
-#endif	/* ENGINE_H_ */
+#endif  /* ENGINE_H_ */

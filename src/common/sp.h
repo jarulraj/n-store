@@ -13,7 +13,7 @@
 #include "engine.h"
 #include "nstore.h"
 #include "utils.h"
-#include "txn.h"
+#include "transaction.h"
 #include "mem_logger.h"
 #include "mmap_fd.h"
 #include "master.h"
@@ -31,8 +31,8 @@ class sp_engine : public engine {
   void loader();
   void runner(int pid);
 
-  char* read(txn t);
-  int update(txn t);
+  char* read(transaction t);
+  int update(transaction t);
 
   int test();
 

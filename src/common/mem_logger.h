@@ -13,14 +13,14 @@ using namespace std;
 
 class mem_entry {
  public:
-  mem_entry(txn _txn, char* _before_image, char* _after_image)
+  mem_entry(transaction _txn, char* _before_image, char* _after_image)
       : transaction(_txn),
         before_image(_before_image),
         after_image(_after_image) {
   }
 
   //private:
-  txn transaction;
+  transaction transaction;
   char* before_image;
   char* after_image;
 };

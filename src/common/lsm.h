@@ -15,7 +15,7 @@
 #include "engine.h"
 #include "logger.h"
 #include "nstore.h"
-#include "txn.h"
+#include "transaction.h"
 #include "record.h"
 #include "utils.h"
 #include "mmap_fd.h"
@@ -34,15 +34,15 @@ class lsm_engine : public engine {
   void loader();
   void runner(int pid);
 
-  char* read(txn t);
-  int update(txn t);
+  char* read(transaction t);
+  int update(transaction t);
 
   int test();
 
   // Custom functions
   void group_commit();
-  int insert(txn t);
-  int remove(txn t);
+  int insert(transaction t);
+  int remove(transaction t);
 
   void check();
   void cleanup();

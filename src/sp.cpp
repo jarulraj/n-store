@@ -20,7 +20,7 @@ void sp_engine::group_commit() {
 
 }
 
-int sp_engine::update(txn t) {
+int sp_engine::update(transaction t) {
   int key = t.key;
 
   char* before_image;
@@ -55,7 +55,7 @@ int sp_engine::update(txn t) {
   return 0;
 }
 
-char* sp_engine::read(txn t) {
+char* sp_engine::read(transaction t) {
   int key = t.key;
 
   dir_map& dir = mstr.get_dir();
@@ -93,10 +93,10 @@ void sp_engine::runner(int pid) {
       memset(updated_val, 'x', conf.sz_value);
       updated_val[conf.sz_value - 1] = '\0';
 
-      txn t(i, txn_type::Update, key, updated_val);
+      transaction t(i, txn_type::Update, key, updated_val);
       update(t);
     } else {
-      txn t(i, txn_type::Select, key, val);
+      transaction t(i, txn_type::Select, key, val);
       val = read(t);
     }
   }
@@ -109,7 +109,7 @@ void sp_engine::check() {
   for (int i = 0; i < conf.num_keys; i++) {
     char* val;
 
-    txn t(i, txn_type::Select, i, val);
+    transaction t(i, txn_type::Select, i, val);
     val = read(t);
 
     std::cout << i << " " << val << endl;
@@ -136,7 +136,7 @@ void sp_engine::loader() {
     mstr.get_dir()[key] = sp_rec;
 
     // Add log entry
-    txn t(0, txn_type::Insert, key, value);
+    transaction t(0, txn_type::Insert, key, value);
     mem_entry e(t, NULL, after_image);
     undo_buffer.push(e);
   }

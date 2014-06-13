@@ -42,7 +42,7 @@ void lsm_engine::merge() {
   mem_index.clear();
 }
 
-int lsm_engine::update(txn t) {
+int lsm_engine::update(transaction t) {
   int ret = -1;
 
   remove(t);
@@ -51,7 +51,7 @@ int lsm_engine::update(txn t) {
   return ret;
 }
 
-int lsm_engine::remove(txn t) {
+int lsm_engine::remove(transaction t) {
   int key = t.key;
   record* before_image;
 
@@ -74,7 +74,7 @@ int lsm_engine::remove(txn t) {
   return 0;
 }
 
-char* lsm_engine::read(txn t) {
+char* lsm_engine::read(transaction t) {
   int key = t.key;
   record* rec;
   char* val = NULL;
@@ -92,7 +92,7 @@ char* lsm_engine::read(txn t) {
   return val;
 }
 
-int lsm_engine::insert(txn t) {
+int lsm_engine::insert(transaction t) {
   int key = t.key;
 
   t.type = txn_type::Select;
@@ -137,10 +137,10 @@ void lsm_engine::runner(int pid) {
       memset(updated_val, 'x', conf.sz_value);
       updated_val[conf.sz_value - 1] = '\0';
 
-      txn t(i, txn_type::Update, key, updated_val);
+      transaction t(i, txn_type::Update, key, updated_val);
       update(t);
     } else {
-      txn t(i, txn_type::Select, key, val);
+      transaction t(i, txn_type::Select, key, val);
       val = read(t);
     }
   }
@@ -162,7 +162,7 @@ void lsm_engine::check() {
   for (int i = 0; i < conf.num_keys; i++) {
     char* val;
 
-    txn t(i, txn_type::Select, i, NULL);
+    transaction t(i, txn_type::Select, i, NULL);
     val = read(t);
 
     std::cout << i << " " << val << endl;
@@ -186,7 +186,7 @@ void lsm_engine::loader() {
     mem_index[key] = after_image;
 
     // Add log entry
-    txn t(0, txn_type::Insert, key, value);
+    transaction t(0, txn_type::Insert, key, value);
     entry e(t, NULL, after_image);
     undo_log.push(e);
   }

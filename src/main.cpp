@@ -1,10 +1,16 @@
 // TESTER
 
 #include "nstore.h"
-#include "wal.h"
-#include "sp.h"
-#include "lsm.h"
+#include "wal_coordinator.h"
+#include "ycsb_benchmark.h"
+
+//#include "sp.h"
+//#include "lsm.h"
 #include "utils.h"
+
+#include <cassert>
+
+using namespace std;
 
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
@@ -126,7 +132,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 }
 
 int main(int argc, char **argv) {
-  class config state;
+  config state;
   parse_arguments(argc, argv, state);
 
   // Generate Zipf dist
@@ -137,10 +143,15 @@ int main(int argc, char **argv) {
 
   if (state.sp_only == false && state.lsm_only == false) {
     cout << "WAL :: ";
-    wal_engine wal(state);
-    wal.test();
+
+    wal_coordinator wal(state);
+    ycsb_benchmark ycsb(state);
+
+    wal.runner(ycsb.get_dataset());
+
   }
 
+  /*
   if (state.log_only == false && state.lsm_only == false) {
     cout << "SP  :: ";
     sp_engine sp(state);
@@ -152,6 +163,7 @@ int main(int argc, char **argv) {
     lsm_engine lsm(state);
     lsm.test();
   }
+  */
 
   return 0;
 }

@@ -2,8 +2,7 @@
 #define WAL_H_
 
 #include <vector>
-#include <map>
-#include <unordered_map>
+#include <string>
 #include <thread>
 #include <memory>
 #include <mutex>
@@ -12,33 +11,35 @@
 #include "engine.h"
 #include "logger.h"
 #include "nstore.h"
-#include "txn.h"
+#include "transaction.h"
 #include "record.h"
 #include "utils.h"
 
 using namespace std;
+
+#define CAPACITY 1024
 
 class wal_engine : public engine {
  public:
   wal_engine(config _conf)
       : conf(_conf),
         ready(false) {
+
+
   }
 
-  void loader();
-  void runner(int pid);
+  void runner();
 
-  char* read(txn t);
-  int update(txn t);
+  std::string read(statement* t);
+  int update(statement* t);
 
   int test();
 
   // Custom functions
   void group_commit();
-  int insert(txn t);
+  int insert(statement* t);
 
   void check();
-  void cleanup();
 
   void snapshot();
   void recovery();
@@ -47,13 +48,13 @@ class wal_engine : public engine {
   config conf;
 
   std::mutex gc_mutex;
-  std::condition_variable cv;
-  bool ready = false;
-
-  pthread_rwlock_t table_access = PTHREAD_RWLOCK_INITIALIZER;
-  unordered_map<unsigned int, record*> table_index;
+  std::condition_variable cv;bool ready;
 
   logger undo_log;
+
+  boost::lockfree::queue<statement*, boost::lockfree::capacity<CAPACITY> > queue;
+  std::atomic<bool> done;
+
 };
 
 #endif /* WAL_H_ */

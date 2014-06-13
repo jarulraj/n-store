@@ -11,8 +11,8 @@ LIBS = -lrt
 #LIBS = $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) 
 
 nstore_SOURCES  =  	main.cpp \
-			wal.cpp  \
-			sp.cpp   \
-			lsm.cpp  \
-			utils.cpp
+					wal_engine.cpp  \
+					wal_coordinator.cpp \
+					ycsb_benchmark.cpp \
+					utils.cpp
 
