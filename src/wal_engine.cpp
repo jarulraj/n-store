@@ -23,43 +23,47 @@ void wal_engine::group_commit() {
   }
 }
 
-int wal_engine::update(statement* t) {
-  key key = *(t->rec_key);
-  int rc = -1;
+int wal_engine::update(statement* st) {
+  key* key_ptr = st->rec_key;
+  std::string key = key_ptr->get_string();
 
-  if (t->table_ptr->table_index.count(key) == 0) {
+  if (st->table_ptr->table_index.count(key) == 0) {
     return -1;
   }
 
   record* before_image;
-  record* after_image = t->rec_ptr;
+  record* after_image = st->rec_ptr;
 
-  before_image = t->table_ptr->table_index.at(key);
-  t->table_ptr->table_index[key] = after_image;
+  before_image = st->table_ptr->table_index.at(key);
+  st->table_ptr->table_index[key] = after_image;
 
   // Add log entry
-  entry e(t, before_image, after_image);
+  entry e(st, before_image, after_image);
   undo_log.push(e);
 
   return 0;
 }
 
-std::string wal_engine::select(statement* t) {
-  key key = *(t->rec_key);
+std::string wal_engine::select(statement* st) {
+  key* key_ptr = st->rec_key;
+  std::string key = key_ptr->get_string();
   std::string val;
 
-  if (t->table_ptr->table_index.count(key) == 0) {
+  if (st->table_ptr->table_index.count(key) == 0) {
     return NULL;
   }
 
-  record* r = t->table_ptr->table_index[key];
+  record* r = st->table_ptr->table_index[key];
   val = r->get_string();
+
+  cout<<"val :"<<val<<endl;
 
   return val;
 }
 
 int wal_engine::insert(statement* st) {
-  key key = *(st->rec_key);
+  key* key_ptr = st->rec_key;
+  std::string key = key_ptr->get_string();
 
   // check if key already exists
   if (st->table_ptr->table_index.count(key) != 0) {
@@ -69,9 +73,6 @@ int wal_engine::insert(statement* st) {
   record* after_image = st->rec_ptr;
 
   st->table_ptr->table_index[key] = after_image;
-
-  cout<<"wal: "<<endl;
-  cout<<st->rec_ptr<<endl;
 
   // Add log entry
   entry e(st, NULL, after_image);
@@ -91,11 +92,11 @@ void wal_engine::handle_message(const message& msg) {
   if (s_ptr->op_type == operation_type::Insert) {
     cout << "Insert stmt " << s_id << " on engine " << partition_id << endl;
 
-    //insert(s_ptr);
+    insert(s_ptr);
   } else if (s_ptr->op_type == operation_type::Select) {
     cout << "Select stmt " << s_id << " on engine " << partition_id << endl;
 
-    //select(s_ptr);
+    select(s_ptr);
   }
 
 }
@@ -104,7 +105,17 @@ void wal_engine::runner() {
   int consumer_count;
   message msg;
 
-  cout << "Runner" << endl;
+  cout << "Engine" << endl;
+
+  undo_log.set_path(conf.fs_path + "./log", "w");
+
+  // Logger start
+  std::thread gc(&wal_engine::group_commit, this);
+  {
+    std::lock_guard<std::mutex> lk(gc_mutex);
+    ready = true;
+  }
+  cv.notify_one();
 
   while (!done) {
     if (!msg_queue.empty()) {
@@ -115,13 +126,18 @@ void wal_engine::runner() {
     }
   }
 
-  while(!msg_queue.empty()){
+  while (!msg_queue.empty()) {
     msg = msg_queue.front();
     msg_queue.pop();
 
     handle_message(msg);
   }
 
+  // Logger end
+  ready = false;
+  gc.join();
+
+  undo_log.write();
 }
 
 /*
@@ -170,43 +186,6 @@ void wal_engine::runner() {
  */
 
 int wal_engine::test() {
-
-  undo_log.set_path(conf.fs_path + "./log", "w");
-
-  timespec start, finish;
-
-  //std::cout<<"Loading finished "<<endl;
-  //check();
-
-  // Take snapshot
-  //snapshot();
-
-  clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-  // Logger start
-  std::thread gc(&wal_engine::group_commit, this);
-  {
-    std::lock_guard<std::mutex> lk(gc_mutex);
-    ready = true;
-  }
-  cv.notify_one();
-
-  // Runner
-  std::vector<std::thread> th_group;
-  for (int i = 0; i < conf.num_parts; i++)
-    th_group.push_back(std::thread(&wal_engine::runner, this));
-
-  for (int i = 0; i < conf.num_parts; i++)
-    th_group.at(i).join();
-
-  // Logger end
-  ready = false;
-  gc.join();
-
-  undo_log.write();
-
-  clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &finish);
-  display_stats(start, finish, conf.num_txns);
 
   // Recovery
   //check();

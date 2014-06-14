@@ -48,11 +48,11 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Default Values
   state.fs_path = std::string("./");
 
-  state.num_keys = 10;
-  state.num_txns = 20;
+  state.num_keys = 20;
+  state.num_txns = 10;
   state.num_parts = 1;
 
-  state.sz_value = 1024;
+  state.sz_value = 4;
   state.verbose = false;
 
   state.sz_tuple = 4 + 4 + state.sz_value + 10;
@@ -149,8 +149,7 @@ int main(int argc, char **argv) {
 
     wal.runner(ycsb.get_dataset());
 
-    //wal.runner(ycsb.get_workload());
-
+    wal.runner(ycsb.get_workload());
   }
 
   /*

@@ -46,7 +46,7 @@ class wal_engine : public engine {
   void snapshot();
   void recovery();
 
- //private:
+  //private:
   unsigned int partition_id;
   config conf;
 

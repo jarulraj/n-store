@@ -9,15 +9,15 @@ using namespace std;
 
 class table {
  public:
-  table(unsigned long _table_id)
-      : table_id(_table_id) {
+  table(std::string _name)
+      : table_name(_name) {
   }
 
   //private:
-  unsigned long table_id;
+  std::string table_name;
 
   // WAL
-  unordered_map<key, record*, key_hasher> table_index;
+  unordered_map<std::string, record*> table_index;
   pthread_rwlock_t table_access = PTHREAD_RWLOCK_INITIALIZER;
 
 };

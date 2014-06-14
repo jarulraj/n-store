@@ -16,25 +16,7 @@ class usertable_key : public key {
     return to_string(id);
   }
 
-  bool operator==(const key &other) const {
-    cout<<"usertable key used"<<endl;
-
-    return (id == other.id);
-  }
-
   unsigned int id;
-};
-
-class usertable_key_hasher{
- public:
-  std::size_t operator()(const usertable_key& k) const
-  {
-    using std::size_t;
-    using std::hash;
-    using std::string;
-
-    return (std::hash<unsigned int>()(k.id));
-  }
 };
 
 
@@ -46,7 +28,8 @@ class usertable_record : public record {
   }
 
   std::string get_string() {
-    return key_ptr->get_string();
+    std::string data(key_ptr->get_string() + " " + value);
+    return data;
   }
 
  private:
@@ -59,8 +42,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
       s_id(0) {
 
   // Usertable
-  table usertable(0);
-  load.tables.push_back(usertable);
+  table* usertable = new table("usertable");
+  load.tables["usertable"] = usertable;
 
   // Generate Zipf dist
   long part_range = conf.num_keys / conf.num_parts;
@@ -73,13 +56,11 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
 
 workload* ycsb_benchmark::get_dataset() {
 
-  table* usertable_ptr = &load.tables[0];
+  table* usertable_ptr = load.tables["usertable"];
 
   int part_range = conf.num_keys / conf.num_parts;
   int part_txns = conf.num_txns / conf.num_parts;
   int part_itr, txn_itr;
-
-  cout << "Generate dataset" << endl;
 
   for (int txn_itr = 0; txn_itr < part_txns; txn_itr++) {
 
@@ -111,10 +92,10 @@ workload* ycsb_benchmark::get_dataset() {
 
 workload* ycsb_benchmark::get_workload() {
 
-  table* usertable_ptr = &load.tables[0];
+  table* usertable_ptr = load.tables["usertable"];
 
   int part_range = conf.num_keys / conf.num_parts;
-  int part_txns = conf.num_keys / conf.num_txns;
+  int part_txns = conf.num_txns / conf.num_parts;
   int part_itr, txn_itr;
 
   for (int txn_itr = 0; txn_itr < part_txns; txn_itr++) {
