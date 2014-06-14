@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <queue>
 
 #include "engine.h"
 #include "logger.h"
@@ -14,23 +15,23 @@
 #include "transaction.h"
 #include "record.h"
 #include "utils.h"
+#include "message.h"
 
 using namespace std;
 
-#define CAPACITY 1024
+#define CAPACITY 32
 
 class wal_engine : public engine {
  public:
-  wal_engine(config _conf)
-      : conf(_conf),
+  wal_engine(unsigned int _part_id, config _conf)
+      : partition_id(_part_id),
+        conf(_conf),
         ready(false) {
-
-
   }
 
   void runner();
 
-  std::string read(statement* t);
+  std::string select(statement* t);
   int update(statement* t);
 
   int test();
@@ -39,12 +40,14 @@ class wal_engine : public engine {
   void group_commit();
   int insert(statement* t);
 
+  void handle_message(const message& msg);
   void check();
 
   void snapshot();
   void recovery();
 
- private:
+ //private:
+  unsigned int partition_id;
   config conf;
 
   std::mutex gc_mutex;
@@ -52,7 +55,7 @@ class wal_engine : public engine {
 
   logger undo_log;
 
-  boost::lockfree::queue<statement*, boost::lockfree::capacity<CAPACITY> > queue;
+  std::queue<message> msg_queue;
   std::atomic<bool> done;
 
 };

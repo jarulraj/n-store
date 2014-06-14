@@ -44,7 +44,7 @@ int wal_engine::update(statement* t) {
   return 0;
 }
 
-std::string wal_engine::read(statement* t) {
+std::string wal_engine::select(statement* t) {
   key key = *(t->rec_key);
   std::string val;
 
@@ -58,21 +58,23 @@ std::string wal_engine::read(statement* t) {
   return val;
 }
 
-int wal_engine::insert(statement* t) {
-  key key = *(t->rec_key);
-  int rc = -1;
+int wal_engine::insert(statement* st) {
+  key key = *(st->rec_key);
 
   // check if key already exists
-  if (t->table_ptr->table_index.count(key) != 0) {
+  if (st->table_ptr->table_index.count(key) != 0) {
     return -1;
   }
 
-  record* after_image = t->table_ptr->table_index[key];
+  record* after_image = st->rec_ptr;
 
-  t->table_ptr->table_index[key] = after_image;
+  st->table_ptr->table_index[key] = after_image;
+
+  cout<<"wal: "<<endl;
+  cout<<st->rec_ptr<<endl;
 
   // Add log entry
-  entry e(t, NULL, after_image);
+  entry e(st, NULL, after_image);
   undo_log.push(e);
 
   return 0;
@@ -80,30 +82,48 @@ int wal_engine::insert(statement* t) {
 
 // RUNNER + LOADER
 
+void wal_engine::handle_message(const message& msg) {
+  statement* s_ptr;
+
+  unsigned int s_id = msg.statement_id;
+  s_ptr = msg.st_ptr;
+
+  if (s_ptr->op_type == operation_type::Insert) {
+    cout << "Insert stmt " << s_id << " on engine " << partition_id << endl;
+
+    //insert(s_ptr);
+  } else if (s_ptr->op_type == operation_type::Select) {
+    cout << "Select stmt " << s_id << " on engine " << partition_id << endl;
+
+    //select(s_ptr);
+  }
+
+}
+
 void wal_engine::runner() {
   int consumer_count;
-  statement* st;
+  message msg;
 
-  cout<<"Runner"<<endl;
+  cout << "Runner" << endl;
 
-  /*
   while (!done) {
-    while (queue.pop(st)) {
-      if (st->type == stmt_type::Update) {
-        update(st);
-      } else if (st->type == stmt_type::Select) {
-        read (st);
-      }
+    if (!msg_queue.empty()) {
+      msg = msg_queue.front();
+      msg_queue.pop();
 
-      ++consumer_count;
+      handle_message(msg);
     }
   }
 
-  while (queue.pop(st))
-    ++consumer_count;
-  */
+  while(!msg_queue.empty()){
+    msg = msg_queue.front();
+    msg_queue.pop();
+
+    handle_message(msg);
+  }
 
 }
+
 /*
  void wal_engine::check(){
  unordered_map<unsigned int, record*>::const_iterator t_itr;

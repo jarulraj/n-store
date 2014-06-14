@@ -13,7 +13,7 @@ using namespace std;
 
 class engine {
  public:
-  virtual std::string read(statement* t) = 0;
+  virtual std::string select(statement* t) = 0;
   virtual int update(statement* t) = 0;
 
   virtual int test() = 0;

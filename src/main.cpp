@@ -149,6 +149,8 @@ int main(int argc, char **argv) {
 
     wal.runner(ycsb.get_dataset());
 
+    //wal.runner(ycsb.get_workload());
+
   }
 
   /*

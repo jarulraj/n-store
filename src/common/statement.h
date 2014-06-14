@@ -10,7 +10,12 @@
 
 using namespace std;
 
-enum stmt_type {
+enum partition_type {
+  Single,
+  Multiple
+};
+
+enum operation_type {
   Insert,
   Delete,
   Update,
@@ -19,18 +24,22 @@ enum stmt_type {
 
 class statement {
  public:
-  statement(unsigned int _partition, stmt_type _type, table* _tptr,
+  statement(unsigned int _stmt_id, partition_type _ptype, unsigned int _partition_id, operation_type _otype, table* _tptr,
             record* _rptr, key* _kptr)
-      : partition_id(_partition),
-        type(_type),
+      : statement_id(_stmt_id),
+        part_type(_ptype),
+        partition_id(_partition_id),
+        op_type(_otype),
         table_ptr(_tptr),
         rec_ptr(_rptr),
         rec_key(_kptr) {
   }
 
 //private:
+  unsigned int statement_id;
+  partition_type part_type;
   unsigned int partition_id;
-  stmt_type type;
+  operation_type op_type;
   record* rec_ptr;
   table* table_ptr;
   key* rec_key;

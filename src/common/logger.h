@@ -52,7 +52,7 @@ class logger {
   void push(const entry& e) {
     buffer_stream.str("");
 
-    buffer_stream << e.stmt_ptr->type << " ";
+    buffer_stream << e.stmt_ptr->op_type << " ";
 
     if (e.before_image != NULL) {
       buffer_stream << e.before_image->get_string();
