@@ -17,16 +17,16 @@ using namespace std;
 
 class entry {
  public:
-  entry(statement* _stmt, int _field_id, vector<field*> _before_image,
+  entry(const statement* _stmt_ptr, int _field_id, vector<field*> _before_image,
         vector<field*> _after_image)
-      : stmt_ptr(_stmt),
+      : stmt_ptr(_stmt_ptr),
         field_id(_field_id),
         before_image(_before_image),
         after_image(_after_image) {
   }
 
   //private:
-  statement* stmt_ptr;
+  const statement* stmt_ptr;
   int field_id;
   vector<field*> before_image;
   vector<field*> after_image;

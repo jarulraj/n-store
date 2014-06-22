@@ -14,7 +14,7 @@ class table {
 
   //private:
   std::string table_name;
-  vector<table_index*> indices;
+  vector<table_index> indices;
 };
 
 #endif /* TABLE_H_ */

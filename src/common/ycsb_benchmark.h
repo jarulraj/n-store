@@ -15,10 +15,9 @@ class ycsb_benchmark : public benchmark {
   ycsb_benchmark();
   ycsb_benchmark(config& _conf);
 
-  workload* get_dataset();
-  workload* get_workload();
+  workload& get_dataset();
+  workload& get_workload();
 
- private:
   vector<int> zipf_dist;
   vector<double> uniform_dist;
 

@@ -9,9 +9,9 @@ using namespace std;
 class benchmark {
  public:
 
-  virtual workload* get_dataset() = 0;
+  virtual workload& get_dataset() = 0;
 
-  virtual workload* get_workload() = 0;
+  virtual workload& get_workload() = 0;
 
   virtual ~benchmark() {
   }

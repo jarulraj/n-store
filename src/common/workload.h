@@ -12,7 +12,7 @@ class workload {
 
 public:
 	vector<transaction> txns;
-	vector<table*> tables;
+	vector<table> tables;
 
 };
 

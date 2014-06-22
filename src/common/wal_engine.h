@@ -16,27 +16,29 @@
 #include "record.h"
 #include "utils.h"
 #include "message.h"
+#include "workload.h"
 
 using namespace std;
 
 class wal_engine : public engine {
  public:
-  wal_engine(unsigned int _part_id, config _conf)
+  wal_engine(unsigned int _part_id, const config& _conf, workload& _load)
       : partition_id(_part_id),
         conf(_conf),
+        load(_load),
         ready(false) {
   }
 
   void runner();
 
-  std::string select(statement* t);
-  int update(statement* t);
+  std::string select(const statement* st);
+  int update(const statement* st);
+  int insert(const statement* t);
 
   int test();
 
   // Custom functions
   void group_commit();
-  int insert(statement* t);
 
   void handle_message(const message& msg);
   void check();
@@ -46,7 +48,8 @@ class wal_engine : public engine {
 
   //private:
   unsigned int partition_id;
-  config conf;
+  const config& conf;
+  workload& load;
 
   std::mutex gc_mutex;
   std::condition_variable cv;bool ready;

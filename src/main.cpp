@@ -144,8 +144,8 @@ int main(int argc, char **argv) {
   if (state.sp_only == false && state.lsm_only == false) {
     cout << "WAL :: "<<endl;
 
-    wal_coordinator wal(state);
     ycsb_benchmark ycsb(state);
+    wal_coordinator wal(state, ycsb.load);
 
     wal.runner(ycsb.get_dataset());
 
