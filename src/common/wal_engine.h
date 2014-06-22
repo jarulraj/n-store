@@ -19,8 +19,6 @@
 
 using namespace std;
 
-#define CAPACITY 32
-
 class wal_engine : public engine {
  public:
   wal_engine(unsigned int _part_id, config _conf)

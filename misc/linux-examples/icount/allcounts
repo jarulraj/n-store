@@ -1,0 +1,272 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2013, Intel Corporation
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+# 
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in
+#       the documentation and/or other materials provided with the
+#       distribution.
+# 
+#     * Neither the name of Intel Corporation nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#
+# allcounts -- script to run through all possible crash scenarios
+#
+# Usage: allcounts [-j nproc] [-n] [-v] cmd
+#
+#	-j nprocs	Run up to nprocs processes concurrently.  This
+#			greatly improves the run-time of this script,
+#			especially on machines with lots of CPUs.  Try
+#			setting nprocs to be twice the number of CPUs
+#			in the system for starters.
+#	-n		Dry run -- only does full run and prints what it
+#			would do next instead of actually doing it.
+#	-v		Verbose -- lots of extra info printed.
+#
+# Given a program that contains a (hopefully small) snippet of test
+# code surrounded by icount_start() and icount_stop() calls, this
+# script runs the program once to find the total instruction count
+# (expected to be printed as "Total instruction count: N") and then
+# it re-runs the same test over and over, passing it the number of
+# instructions to run before simulating a crash as a command line
+# argument.  See icount_test.c for a full example of a program written
+# to be tested by this script.
+#
+# This script captures all the output from all the runs and collates
+# the result, dumping a list of run numbers followed by the output
+# produced by those runs.  Since stopping a program between each possible
+# instruction often produces the same output again and again, the collated
+# output is much shorter and much easier to read that looking at the
+# full raw output from every single run.
+#
+
+use strict;
+use warnings;
+use Getopt::Std;
+
+my $Me = $0;
+$Me =~ s,.*/,,;
+
+# options we accept
+our ($opt_j, $opt_n, $opt_v);
+
+$ENV{PATH} = "/bin:/usr/bin";
+umask 077;
+
+my $tmpdir = "/tmp/allcounts$$";
+
+$SIG{HUP} = $SIG{INT} = $SIG{TERM} = $SIG{__DIE__} = sub {
+	die @_ if $^S;
+
+	my $errstr = shift;
+
+	cleanup();
+
+	die "========== ERROR: $errstr";
+};
+
+#
+# out -- like "print" but with equals before it so allcounts output sticks out
+#
+sub out (@) {
+	print "========== ", @_, "\n";
+}
+
+#
+# verbose -- like "print" but only in verbose mode
+#
+sub verbose (@) {
+	return unless $opt_v;
+
+	out @_;
+}
+
+#
+# usage -- print usage message and exit
+#
+sub usage {
+	my $msg = shift;
+
+	warn "$Me: $msg\n" if $msg;
+	warn "Usage: $Me [-j nproc] [-n] [-v] pre-cmd cmd post-cmd\n";
+	exit 1;
+}
+
+#
+# argument processing...
+#
+getopts('j:nv') or usage;
+
+usage unless @ARGV;
+
+my $cmd = join(' ', @ARGV);
+
+#
+# main program starts here...
+#
+verbose("Dry run.") if $opt_n;
+verbose("Running up to $opt_j jobs concurrently.") if $opt_j;
+$opt_j = 1 unless $opt_j;
+out "Command: \"$cmd\"";
+
+my $fullcmd = subC($cmd, 0);
+my $total = `($cmd) 2>\&1`;
+
+out "Full output:";
+print $total;
+
+$total =~ s/.*Total instruction count: (\d+).*/$1/s or
+	die "Instruction count not found\n";
+
+mkdir $tmpdir or die "mkdir: $tmpdir: $!\n";
+
+runjobs($cmd, $total, $tmpdir);
+collate($tmpdir);
+cleanup();
+
+exit 0;
+
+#
+# runjobs -- perform all the runs, in parallel if possible
+#
+sub runjobs {
+	my ($cmd, $total, $tmpdir) = @_;
+	my $outstanding = 0;
+	my $completed = 0;
+
+	# don't need to try zero, and don't need to try all
+	# just each number in-between
+	for (my $i = 1; $i < $total; $i++) {
+		if ($outstanding >= $opt_j) {
+			verbose "Waiting for a job to finish";
+			wait or die "wait: $!\n";
+			$outstanding--;
+			$completed++;
+			if ($completed % 100 == 0) {
+				out "Iterations completed: $completed";
+			}
+		}
+		verbose "Running iteration $i";
+		if ($opt_n) {
+			my $fullcmd = subC($cmd, $i);
+			out $fullcmd;
+			next;
+		}
+		defined (my $pid = fork) or die "fork: $!\n";
+		if ($pid == 0) {
+			#
+			# child
+			#
+			my $fullcmd = subC($cmd, $i);
+			open STDOUT, ">$tmpdir/$i" or die "$tmpdir/$i: $!\n";
+			open STDERR, '>&STDOUT';
+			system($fullcmd);
+			exit 0;
+		}
+		$outstanding++;
+	}
+	verbose "No more iterations to run";
+	while ($outstanding > 0) {
+		wait or die "wait: $!\n";
+		$outstanding--;
+		$completed++;
+		if ($completed % 100 == 0) {
+			out "Iterations completed: $completed";
+		}
+	}
+	out "All iterations completed.";
+}
+
+#
+# collate -- summarize outputs from all runs
+#
+sub collate {
+	my ($dir) = @_;
+	my %output;
+
+	opendir(my $dh, $dir) || die "$dir: $!\n";
+	my @files = grep { /^\d+$/ } readdir($dh);
+	closedir($dh);
+
+	foreach my $file (sort {$a <=> $b} @files) {
+		open(my $fh, "$dir/$file") or die "$dir/$file: $!\n";
+		local $/;
+		my $contents = <$fh>;
+		$contents =~ s/Program terminated after \d+ instructions\n//;
+		push(@{$output{$contents}}, $file);
+		close($fh);
+		unlink "$dir/$file" or die "unlink: $dir/$file: $!\n";
+	}
+
+	#
+	# show results in line number order
+	#
+	foreach (sort {$output{$a}[0] <=> $output{$b}[0]} keys %output) {
+
+		# compress "number,number,number,..." to "low-high"
+		my $iters = shift @{$output{$_}};
+		my $rhs = $iters;
+		my $foundrange = 0;
+		while (@{$output{$_}}) {
+			my $val = shift @{$output{$_}};
+			if ($val == $rhs + 1) {
+				$rhs++;
+				$foundrange = 1;
+			} else {
+				$iters .= "-$rhs" if $foundrange;
+				$iters .= ",$val";
+				$rhs = $val;
+				$foundrange = 0;
+			}
+		}
+		$iters .= "-$rhs" if $foundrange;
+
+		out "Output for iterations: $iters";
+		print $_, "\n";
+	}
+}
+
+#
+# subC -- replace the string %C with a given value
+#
+sub subC {
+	my ($cmd, $c) = @_;
+	my $retval = $cmd;
+
+	$retval =~ s/%C/$c/g;
+	return $retval;
+}
+
+#
+# cleanup -- delete temporary files
+#
+sub cleanup {
+	if (-d $tmpdir && opendir(my $dh, $tmpdir)) {
+		foreach (readdir($dh)) {
+			unlink "$tmpdir/$_" if /^\d+$/;
+		}
+		closedir($dh);
+		rmdir $tmpdir;
+	}
+}

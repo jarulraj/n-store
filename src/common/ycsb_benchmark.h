@@ -5,12 +5,8 @@
 #include <cstring>
 #include <vector>
 
-#include "benchmark.h"
-#include "key.h"
-#include "record.h"
-#include "statement.h"
-#include "utils.h"
 #include "nstore.h"
+#include "benchmark.h"
 
 using namespace std;
 

@@ -4,6 +4,8 @@
 #include <vector>
 #include <ctime>
 
+#include "record.h"
+
 using namespace std;
 
 // UTILS
@@ -17,6 +19,21 @@ inline void random_string(char* str, size_t len) {
   for (int i = 0; i < len; ++i)
     str[i] = rep;
   str[len - 1] = '\0';
+}
+
+inline std::string get_data(record* rec_ptr, vector<bool> key){
+
+  vector<field*> fields = rec_ptr->data;
+  vector<field*>::iterator field_itr;
+
+  std::string data;
+  int field_id = 0;
+
+  for(field_itr = fields.begin() ; field_itr != fields.end() ; field_itr++)
+    if(key[field_id++] == true)
+     data += (*field_itr)->get_string() + " ";
+
+  return data;
 }
 
 void simple_skew(vector<int>& zipf_dist, int n, int num_values);

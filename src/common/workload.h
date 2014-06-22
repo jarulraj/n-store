@@ -12,7 +12,7 @@ class workload {
 
 public:
 	vector<transaction> txns;
-	unordered_map<std::string, table*> tables;
+	vector<table*> tables;
 
 };
 

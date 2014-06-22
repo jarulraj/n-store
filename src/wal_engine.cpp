@@ -24,59 +24,85 @@ void wal_engine::group_commit() {
 }
 
 int wal_engine::update(statement* st) {
-  key* key_ptr = st->rec_key;
-  std::string key = key_ptr->get_string();
 
-  if (st->table_ptr->table_index.count(key) == 0) {
-    return -1;
+  record* rec_ptr = st->rec_ptr;
+  table* table_ptr = st->table_ptr;
+  vector<table_index*> indices = table_ptr->indices;
+  vector<table_index*>::iterator index_itr;
+  int field_id = st->field_id;
+
+  for (index_itr = indices.begin(); index_itr != indices.end(); index_itr++) {
+
+    std::string key = get_data(rec_ptr, (*index_itr)->key);
+
+    if ((*index_itr)->index.count(key) == 0) {
+      return -1;
+    }
+
+    record* before_rec = (*index_itr)->index.at(key);
+
+    field* before_field = before_rec->data.at(field_id);
+    field* after_field = st->field_ptr;
+
+    before_rec->data.at(field_id) = after_field;
+
+    // Add log entry
+    vector<field*> before_image = { before_field };
+    vector<field*> after_image = { after_field };
+
+    entry e(st, field_id, before_image, after_image);
+    undo_log.push(e);
   }
-
-  record* before_image;
-  record* after_image = st->rec_ptr;
-
-  before_image = st->table_ptr->table_index.at(key);
-  st->table_ptr->table_index[key] = after_image;
-
-  // Add log entry
-  entry e(st, before_image, after_image);
-  undo_log.push(e);
 
   return 0;
 }
 
 std::string wal_engine::select(statement* st) {
-  key* key_ptr = st->rec_key;
-  std::string key = key_ptr->get_string();
+  record* rec_ptr = st->rec_ptr;
+  table_index* table_index_ptr = st->table_index_ptr;
+  vector<bool> projection = st->projection;
+
+  std::string key = get_data(rec_ptr, table_index_ptr->key);
   std::string val;
 
-  if (st->table_ptr->table_index.count(key) == 0) {
+  if (table_index_ptr->index.count(key) == 0) {
     return NULL;
   }
 
-  record* r = st->table_ptr->table_index[key];
-  val = r->get_string();
+  record* r = table_index_ptr->index[key];
+  val = get_data(r, projection);
 
-  cout<<"val :"<<val<<endl;
+  cout << "val :" << val << endl;
 
   return val;
 }
 
 int wal_engine::insert(statement* st) {
-  key* key_ptr = st->rec_key;
-  std::string key = key_ptr->get_string();
+  record* rec_ptr = st->rec_ptr;
+  table* table_ptr = st->table_ptr;
+  vector<table_index*> indices = table_ptr->indices;
+  vector<table_index*>::iterator index_itr;
+  int field_id = st->field_id;
 
-  // check if key already exists
-  if (st->table_ptr->table_index.count(key) != 0) {
-    return -1;
+  for (index_itr = indices.begin(); index_itr != indices.end(); index_itr++) {
+
+    std::string key = get_data(rec_ptr, (*index_itr)->key);
+
+    // check if key already exists
+    if ((*index_itr)->index.count(key) != 0) {
+      return -1;
+    }
+
+    record* after_rec = st->rec_ptr;
+
+    (*index_itr)->index[key] = after_rec;
+
+    vector<field*> before_image;
+
+    // Add log entry
+    entry e(st, field_id, before_image, after_rec->data);
+    undo_log.push(e);
   }
-
-  record* after_image = st->rec_ptr;
-
-  st->table_ptr->table_index[key] = after_image;
-
-  // Add log entry
-  entry e(st, NULL, after_image);
-  undo_log.push(e);
 
   return 0;
 }
@@ -90,13 +116,11 @@ void wal_engine::handle_message(const message& msg) {
   s_ptr = msg.st_ptr;
 
   if (s_ptr->op_type == operation_type::Insert) {
-    cout << "Insert stmt " << s_id << " on engine " << partition_id << endl;
-
     insert(s_ptr);
   } else if (s_ptr->op_type == operation_type::Select) {
-    cout << "Select stmt " << s_id << " on engine " << partition_id << endl;
-
     select(s_ptr);
+  } else if (s_ptr->op_type == operation_type::Update) {
+    update(s_ptr);
   }
 
 }
@@ -105,9 +129,7 @@ void wal_engine::runner() {
   int consumer_count;
   message msg;
 
-  cout << "Engine" << endl;
-
-  undo_log.set_path(conf.fs_path + "./log", "w");
+  undo_log.set_path(conf.fs_path + "./log_"+std::to_string(partition_id), "w");
 
   // Logger start
   std::thread gc(&wal_engine::group_commit, this);

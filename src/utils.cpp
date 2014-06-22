@@ -94,7 +94,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 }
 
 // Simple skew generator
-void simple_skew(vector<int>& zipf_dist, int n, int num_values) {
+void simple_skew(vector<int>& simple_dist, int n, int num_values) {
     int seed = 0;
     std::mt19937 gen(seed);
     std::uniform_real_distribution<> dis(0, 1);
@@ -112,7 +112,7 @@ void simple_skew(vector<int>& zipf_dist, int n, int num_values) {
 		else
 			val = bound + z * diff;
 
-		zipf_dist.push_back(val);
+		simple_dist.push_back(val);
 	}
 }
 

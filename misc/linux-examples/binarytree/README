@@ -1,0 +1,37 @@
+This is binarytree/README.
+
+This is a simple binary tree for Persistent Memory, implemented
+on top of the libpmemalloc example.  All the example code is in:
+
+	tree.c
+
+The interfaces provided by this example are very simple -- you can
+see the list of the in:
+
+	tree.h
+
+The other source files here are nothing but CLIs that gather arguments
+and call functions in tree.c for testing.  Some examples of tests you
+can run to play with the tree implementation:
+
+	tree_insert testfile string_one string_two string_one string_three
+	tree_walk testfile
+	tree_free testfile
+
+Like most examples, use -M to turn on the msync mode in libpmem, -F to turn
+on the fault injection test mode in libpmem, and -d to enable debug output.
+
+The command:
+
+	make test
+
+will pull a bunch of text files from gutenberg.com and run them through
+the word frequency counting program "tree_wordfreq".  The Makefile does
+this using the freqtest script and then checks the output against expected
+output in "freqtest.pass".  The make succeeds if the test passes.
+
+The command:
+
+	make allcounts
+
+will perform a fault injection test run (takes a while to run).

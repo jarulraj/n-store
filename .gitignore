@@ -36,8 +36,8 @@ build/*
 *.out
 
 # Log/Tmp files
-*log
-*log.txt
+log*
+*.log
 *tmp
 perf.*
 

@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
   uniform(state.uniform_dist, range_txns);
 
   if (state.sp_only == false && state.lsm_only == false) {
-    cout << "WAL :: ";
+    cout << "WAL :: "<<endl;
 
     wal_coordinator wal(state);
     ycsb_benchmark ycsb(state);

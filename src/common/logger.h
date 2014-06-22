@@ -17,16 +17,19 @@ using namespace std;
 
 class entry {
  public:
-  entry(statement* _stmt, record* _before_image, record* _after_image)
+  entry(statement* _stmt, int _field_id, vector<field*> _before_image,
+        vector<field*> _after_image)
       : stmt_ptr(_stmt),
+        field_id(_field_id),
         before_image(_before_image),
         after_image(_after_image) {
   }
 
   //private:
   statement* stmt_ptr;
-  record* before_image;
-  record* after_image;
+  int field_id;
+  vector<field*> before_image;
+  vector<field*> after_image;
 };
 
 class logger {
@@ -54,13 +57,27 @@ class logger {
 
     buffer_stream << e.stmt_ptr->op_type << " ";
 
-    if (e.before_image != NULL) {
-      buffer_stream << e.before_image->get_string();
-      delete e.before_image;
+    vector<field*>::const_iterator field_itr;
+
+    if (e.field_id != -1)
+      buffer_stream << std::to_string(e.field_id) << " ";
+
+    for (field_itr = e.before_image.begin(); field_itr != e.before_image.end();
+        field_itr++) {
+
+      if ((*field_itr) != NULL) {
+        buffer_stream << (*field_itr)->get_string() << " ";
+        delete (*field_itr);
+      }
     }
 
-    if (e.after_image != NULL)
-      buffer_stream << e.after_image->get_string();
+    for (field_itr = e.after_image.begin(); field_itr != e.after_image.end();
+        field_itr++) {
+
+      if ((*field_itr) != NULL) {
+        buffer_stream << (*field_itr)->get_string() << " ";
+      }
+    }
 
     buffer_stream << endl;
 
