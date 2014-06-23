@@ -162,16 +162,14 @@ class plist {
 };
 
 int main(int argc, char *argv[]) {
-  std::string path;
+  const char* path = "./testfile";
   void* pmp;
 
-  path = "./testfile";
-
-  // Global Persistent Memory Pool
   long pmp_size = 10 * 1024 * 1024;
+  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
+    cout << "pmemalloc_init on :" << path << endl;
 
-  if ((pmp = pmemalloc_init(path.c_str(), pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path.c_str() << endl;
+  // Test
 
   srand(time(NULL));
   int ins = rand() % 10;

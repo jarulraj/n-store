@@ -649,8 +649,12 @@ void pmemalloc_free(void *pmp, void *ptr_) {
   sz = clp->size & ~PMEM_STATE_MASK;
   state = clp->size & PMEM_STATE_MASK;
 
-  if (state != PMEM_STATE_RESERVED && state != PMEM_STATE_ACTIVE)
-    FATAL("freeing clumb in bad state: %d", state);
+  if (state != PMEM_STATE_RESERVED && state != PMEM_STATE_ACTIVE) {
+    if (state == PMEM_STATE_FREE)
+      return;
+    else
+      FATAL("freeing clumb in bad state: %d", state);
+  }
 
   if (state == PMEM_STATE_ACTIVE) {
     /*

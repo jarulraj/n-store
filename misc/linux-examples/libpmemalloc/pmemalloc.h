@@ -50,7 +50,8 @@
  * given a relative pointer, add in the base associated
  * with the given Persistent Memory Pool (pmp).
  */
-#define	PMEM(pmp, ptr_) ((typeof(ptr_))(pmp + (uintptr_t)ptr_))
+#define	PMEM(pmp, ptr_) ((decltype(ptr_))(pmp + (uintptr_t)ptr_))
+#define PSUB(pmp, ptr_) ((decltype(ptr_))((uintptr_t)ptr_ - (uintptr_t)pmp))
 
 void *pmemalloc_init(const char *path, size_t size);
 void *pmemalloc_static_area(void *pmp);
