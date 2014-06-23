@@ -158,8 +158,7 @@ int main(int argc, char *argv[]) {
       icount_start(icount); /* start instruction count */
 
     np_ = sp->rootnp_;
-    pmemalloc_onfree(pmp, np_, (void **) &sp->rootnp_,
-    PMEM(pmp, np_)->next_);
+    pmemalloc_onfree(pmp, np_, (void **) &sp->rootnp_, PMEM(pmp, np_)->next_);
     pmemalloc_free(pmp, np_);
 
     if (iflag) {
