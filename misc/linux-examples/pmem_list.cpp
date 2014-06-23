@@ -10,11 +10,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-extern "C" {
-#include "util/util.h"
-#include "libpmem/pmem.h"
-#include "libpmemalloc/pmemalloc.h"
-}
+#include "libpm.h"
 
 using namespace std;
 

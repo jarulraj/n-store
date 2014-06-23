@@ -7,11 +7,7 @@
 #include <thread>
 #include <mutex>
 
-extern "C" {
-#include "util/util.h"
-#include "libpmem/pmem.h"
-#include "libpmemalloc/pmemalloc.h"
-}
+#include "libpm.h"
 
 using namespace std;
 
