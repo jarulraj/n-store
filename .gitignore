@@ -4,9 +4,6 @@ Makefile.am
 configure
 *.o
 *~
-src/serve
-src/points2qt
-src/points2qtts
 Makefile.in
 config.*
 config-h.in
@@ -49,3 +46,6 @@ perf.*
 *snapshot
 usertable*
 *nstore
+
+# Pool
+testfile

@@ -9,11 +9,25 @@
 using namespace std;
 
 class record {
-
  public:
-  vector<field*> data;
-  unsigned int batch_id[2];
-  char* location[2];
+  record(unsigned int _num_fields)
+      : num_fields(_num_fields) {
+    data = new field*[num_fields];
+  }
+
+  ~record() {
+    unsigned int itr;
+
+    // clean up fields
+    for (itr = 0; itr < num_fields; itr++) {
+      delete data[itr];
+    }
+
+    delete[] data;
+  }
+
+  unsigned int num_fields;
+  field** data;
 
 };
 

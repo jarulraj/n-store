@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
-  pmemalloc_check(path);
+  //pmemalloc_check(path);
 
   // Start
 

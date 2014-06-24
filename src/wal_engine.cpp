@@ -42,16 +42,18 @@ int wal_engine::update(const statement& st) {
 
     record* before_rec = (*index_itr).index.at(key);
 
-    field* before_field = before_rec->data.at(field_id);
+    field* before_field = before_rec->data[field_id];
     field* after_field = st.field_ptr;
 
-    before_rec->data.at(field_id) = after_field;
+    before_rec->data[field_id] = after_field;
 
     // Add log entry
-    vector<field*> before_image = { before_field };
-    vector<field*> after_image = { after_field };
+    field* before_image[1];
+    before_image[0] = before_field;
+    field* after_image[1];
+    after_image[0] = after_field;
 
-    entry e(st, field_id, before_image, after_image);
+    entry e(st, 1, field_id, before_image, after_image);
     undo_log.push(e);
   }
 
@@ -102,10 +104,8 @@ int wal_engine::insert(const statement& st) {
 
     (*index_itr).index[key] = after_rec;
 
-    vector<field*> before_image;
-
     // Add log entry
-    entry e(st, field_id, before_image, after_rec->data);
+    entry e(st, after_rec->num_fields, field_id, NULL, after_rec->data);
     undo_log.push(e);
   }
 
@@ -120,11 +120,11 @@ void wal_engine::handle_message(const message& msg) {
   unsigned int s_id = msg.statement_id;
 
   if (st.op_type == operation_type::Insert) {
-    insert (st);
+    insert(st);
   } else if (st.op_type == operation_type::Select) {
-    select (st);
+    select(st);
   } else if (st.op_type == operation_type::Update) {
-    update (st);
+    update(st);
   }
 
 }
@@ -166,7 +166,6 @@ void wal_engine::runner() {
 
   undo_log.write();
 }
-
 
 int wal_engine::test() {
 

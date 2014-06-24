@@ -26,7 +26,7 @@ using namespace std;
 std::chrono::time_point<std::chrono::high_resolution_clock> start, finish;
 std::chrono::duration<double> elapsed_seconds;
 
-std::string random_string(size_t length) {
+std::string get_random_string(size_t length) {
   auto randchar = []() -> char
   {
     const char charset[] =
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  std::string val = random_string(VALUE_SIZE);
+  std::string val = get_random_string(VALUE_SIZE);
 
   caddr_t location = (caddr_t) 0x01c00000;
   off_t file_len = SIZE;

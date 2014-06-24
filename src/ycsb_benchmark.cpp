@@ -13,13 +13,15 @@ using namespace std;
 
 class usertable_record : public record {
  public:
-  usertable_record(unsigned int _key, char* _val) {
+  usertable_record(unsigned int _num_fields, unsigned int _key,
+                   const std::string& _val)
+      : record(_num_fields) {
 
     integer_field* key = new integer_field(_key);
     varchar_field* val = new varchar_field(_val);
 
-    data.push_back(key);
-    data.push_back(val);
+    data[0] = key;
+    data[1] = val;
   }
 
 };
@@ -63,10 +65,9 @@ workload& ycsb_benchmark::get_dataset() {
       txn_id = part_range * part_itr + txn_itr;
 
       int key = txn_id;
+      std::string value = random_string(conf.sz_value);
 
-      char value[conf.sz_value];
-      random_string(value, conf.sz_value);
-      record* rec_ptr = new usertable_record(key, value);
+      record* rec_ptr = new usertable_record(2, key, value);
 
       statement st(++s_id, partition_type::Single, part_itr,
                    operation_type::Insert, usertable_id, rec_ptr, -1, NULL,
@@ -91,6 +92,7 @@ workload& ycsb_benchmark::get_workload() {
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
   vector<bool> projection = { 1, 1 };
+  std::string empty;
 
   int part_range = conf.num_keys / conf.num_parts;
   int part_txns = conf.num_txns / conf.num_parts;
@@ -107,12 +109,11 @@ workload& ycsb_benchmark::get_workload() {
       // UPDATE
       if (u < conf.per_writes) {
 
-        char updated_val[conf.sz_value];
-        memset(updated_val, 'x', conf.sz_value);
-        updated_val[conf.sz_value - 1] = '\0';
+        std::string updated_val(conf.sz_value, 'x');
 
         varchar_field* val = new varchar_field(updated_val);
-        record* rec_ptr = new usertable_record(key, NULL);
+
+        record* rec_ptr = new usertable_record(2, key, empty);
 
         statement st(++s_id, partition_type::Single, part_itr,
                      operation_type::Update, usertable_id, rec_ptr, 1, val,
@@ -126,7 +127,7 @@ workload& ycsb_benchmark::get_workload() {
 
         // SELECT
 
-        record* rec_ptr = new usertable_record(key, NULL);
+        record* rec_ptr = new usertable_record(2, key, empty);
 
         statement st(++s_id, partition_type::Single, part_itr,
                      operation_type::Select, usertable_id, rec_ptr, -1, NULL,

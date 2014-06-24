@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include <mutex>
-#include <vector>
 #include <sstream>
 #include <string>
 
@@ -17,19 +16,21 @@ using namespace std;
 
 class entry {
  public:
-  entry(const statement& _stmt, int _field_id, vector<field*> _before_image,
-        vector<field*> _after_image)
+  entry(const statement& _stmt, unsigned int _num_fields, int _field_id,
+        field** _before_image, field** _after_image)
       : stmt(_stmt),
+        num_fields(_num_fields),
         field_id(_field_id),
         before_image(_before_image),
         after_image(_after_image) {
   }
 
   //private:
+  unsigned int num_fields;
   const statement& stmt;
   int field_id;
-  vector<field*> before_image;
-  vector<field*> after_image;
+  field** before_image;
+  field** after_image;
 };
 
 class logger {
@@ -57,25 +58,22 @@ class logger {
 
     buffer_stream << e.stmt.op_type << " ";
 
-    vector<field*>::const_iterator field_itr;
+    unsigned int field_itr;
 
     if (e.field_id != -1)
       buffer_stream << std::to_string(e.field_id) << " ";
 
-    for (field_itr = e.before_image.begin(); field_itr != e.before_image.end();
-        field_itr++) {
-
-      if ((*field_itr) != NULL) {
-        buffer_stream << (*field_itr)->get_string() << " ";
-        delete (*field_itr);
+    if (e.before_image != NULL) {
+      for (field_itr = 0; field_itr < e.num_fields; field_itr++) {
+        if (e.before_image[field_itr] != NULL)
+          buffer_stream << e.before_image[field_itr]->get_string() << " ";
       }
     }
 
-    for (field_itr = e.after_image.begin(); field_itr != e.after_image.end();
-        field_itr++) {
-
-      if ((*field_itr) != NULL) {
-        buffer_stream << (*field_itr)->get_string() << " ";
+    if (e.after_image != NULL) {
+      for (field_itr = 0; field_itr < e.num_fields; field_itr++) {
+        if (e.after_image[field_itr] != NULL)
+          buffer_stream << e.after_image[field_itr]->get_string() << " ";
       }
     }
 

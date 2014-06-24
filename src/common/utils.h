@@ -10,28 +10,27 @@ using namespace std;
 
 // UTILS
 
-inline void random_string(char* str, size_t len) {
+inline std::string random_string(size_t len) {
   static const char alphanum[] = "0123456789"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz";
 
   char rep = alphanum[rand() % (sizeof(alphanum) - 1)];
-  for (int i = 0; i < len; ++i)
-    str[i] = rep;
-  str[len - 1] = '\0';
+  std::string str(len, rep);
+  return str;
 }
 
-inline std::string get_data(record* rec_ptr, vector<bool> key){
+inline std::string get_data(record* rec_ptr, vector<bool> key) {
 
-  vector<field*> fields = rec_ptr->data;
-  vector<field*>::iterator field_itr;
+  field** fields = rec_ptr->data;
+  unsigned int num_fields = rec_ptr->num_fields;
+  unsigned int field_itr;
 
   std::string data;
-  int field_id = 0;
 
-  for(field_itr = fields.begin() ; field_itr != fields.end() ; field_itr++)
-    if(key[field_id++] == true)
-     data += (*field_itr)->get_string() + " ";
+  for (field_itr = 0; field_itr < num_fields; field_itr++)
+    if (key[field_itr] == true)
+      data += fields[field_itr]->get_string() + " ";
 
   return data;
 }
