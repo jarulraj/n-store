@@ -192,9 +192,9 @@ class plist {
 
 };
 
-class record {
+class rec_ {
  public:
-  record(int _data)
+  rec_(int _data)
       : data(_data) {
   }
 
@@ -215,18 +215,18 @@ int main(int argc, char *argv[]) {
 
   struct node *ptr = NULL;
 
-  plist<record*> l(pmp);
-  vector<record*> data;
-  vector<record*>::iterator data_itr;
+  plist<rec_*> l(pmp);
+  vector<rec_*> data;
+  vector<rec_*>::iterator data_itr;
 
   int ops = 1;
 
   for (i = 0; i < ops; i++) {
     val = rand() % 10;
-    record* rec = new record(val);
+    rec_* r = new rec_(val);
 
-    pmemalloc_activate(pmp, PSUB(pmp, rec));
-    l.push_back(PSUB(pmp, rec));
+    pmemalloc_activate(pmp, PSUB(pmp, r));
+    l.push_back(PSUB(pmp, r));
 
     data = l.get_data();
     for (data_itr = data.begin(); data_itr != data.end(); data_itr++) {
@@ -235,8 +235,8 @@ int main(int argc, char *argv[]) {
     }
     cout << endl;
 
-    l.erase(PSUB(pmp, rec));
-    delete rec;
+    l.erase(PSUB(pmp, r));
+    delete r;
   }
 
   return 0;
