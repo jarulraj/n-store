@@ -21,22 +21,6 @@ using namespace std;
 void* pmp;
 std::mutex pmp_mutex;
 
-void* operator new(size_t sz) throw (bad_alloc) {
-  std::cerr << "::new " << std::endl;
-  {
-    std::lock_guard<std::mutex> lock(mutex);
-    return PMEM(pmp, pmemalloc_reserve(pmp, sz));
-  }
-}
-
-void operator delete(void *p) throw () {
-  std::cerr << "::delete " << std::endl;
-  {
-    std::lock_guard<std::mutex> lock(mutex);
-    pmemalloc_free(pmp, PSUB(pmp, p));
-  }
-}
-
 template<typename T>
 class plist {
  private:
@@ -192,13 +176,67 @@ class plist {
 
 };
 
-class rec_ {
+void* alloc(size_t sz) throw (bad_alloc) {
+  std::cerr << "::new " << std::endl;
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    return PMEM(pmp, pmemalloc_reserve(pmp, sz));
+  }
+}
+
+void release(void *p) throw () {
+  std::cerr << "::delete " << std::endl;
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    pmemalloc_free(pmp, PSUB(pmp, p));
+  }
+}
+
+class fd_ {
  public:
-  rec_(int _data)
-      : data(_data) {
+  fd_(std::string str) {
+
+    data = (char*) alloc(str.size());
+    memcpy(data, str.c_str(), str.size());
+
+    cout << data << endl;
   }
 
-  int data;
+  void* operator new(size_t sz) throw (bad_alloc) {
+    return alloc(sz);
+  }
+
+  void operator delete(void *p) throw () {
+    release(p);
+  }
+
+  ~fd_() {
+    release(data);
+  }
+
+  char* data;
+};
+
+class rec_ {
+ public:
+  rec_(int _val) {
+    vec[0] = _val;
+    vec[1] = _val + 1;
+  }
+
+  std::string get_val() {
+    return std::to_string(vec[0]);
+  }
+
+  void* operator new(size_t sz) throw (bad_alloc) {
+    return alloc(sz);
+  }
+
+  void operator delete(void *p) throw () {
+    release(p);
+  }
+
+  int vec[2];
 };
 
 int main(int argc, char *argv[]) {
@@ -223,6 +261,8 @@ int main(int argc, char *argv[]) {
 
   for (i = 0; i < ops; i++) {
     val = rand() % 10;
+    std::string val_str = std::to_string(val);
+
     rec_* r = new rec_(val);
 
     pmemalloc_activate(pmp, PSUB(pmp, r));
@@ -230,10 +270,14 @@ int main(int argc, char *argv[]) {
 
     data = l.get_data();
     for (data_itr = data.begin(); data_itr != data.end(); data_itr++) {
-      record* tmp = (*data_itr);
-      cout << PMEM(pmp, tmp)->data << " -> ";
+      rec_* tmp = (*data_itr);
+      cout << "rec* : " << tmp << endl;
+
+      cout << PMEM(pmp, tmp)->vec[0] << " ";
+      cout << PMEM(pmp, tmp)->vec[1] << " ";
+
+      cout << endl;
     }
-    cout << endl;
 
     l.erase(PSUB(pmp, r));
     delete r;

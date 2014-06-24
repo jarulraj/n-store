@@ -2,7 +2,7 @@
 
 bin_PROGRAMS = nstore
 
-AM_CPPFLAGS = -I$(srcdir)/common 
+AM_CPPFLAGS = -I$(srcdir)/common -Wno-pointer-arith 
 AM_LDFLAGS  = $(PTHREAD_CFLAGS)
 LIBS = -lrt 
 
@@ -14,5 +14,6 @@ nstore_SOURCES  =  	main.cpp \
 					wal_engine.cpp  \
 					wal_coordinator.cpp \
 					ycsb_benchmark.cpp \
+					libpm.cpp \
 					utils.cpp
 

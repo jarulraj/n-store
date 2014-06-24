@@ -1,14 +1,15 @@
 // TESTER
 
+#include <cassert>
+
 #include "nstore.h"
 #include "wal_coordinator.h"
 #include "ycsb_benchmark.h"
-
 //#include "sp.h"
 //#include "lsm.h"
 #include "utils.h"
 
-#include <cassert>
+#include "libpm.h"
 
 using namespace std;
 
@@ -131,7 +132,19 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   assert(state.per_writes >= 0 && state.per_writes <= 1);
 }
 
+// Global memory pool
+void* pmp;
+std::mutex pmp_mutex;
+
 int main(int argc, char **argv) {
+  const char* path = "./testfile";
+
+  long pmp_size = 4 * 1024 * 1024 * 1024;
+  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
+      cout << "pmemalloc_init on :" << path << endl;
+
+  // Start
+
   config state;
   parse_arguments(argc, argv, state);
 
