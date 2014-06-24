@@ -23,14 +23,14 @@ void wal_engine::group_commit() {
   }
 }
 
-int wal_engine::update(const statement* st) {
+int wal_engine::update(const statement& st) {
 
-  record* rec_ptr = st->rec_ptr;
-  unsigned int table_id = st->table_id;
+  record* rec_ptr = st.rec_ptr;
+  unsigned int table_id = st.table_id;
 
   const vector<table_index>& indices = load.tables[table_id].indices;
   vector<table_index>::const_iterator index_itr;
-  int field_id = st->field_id;
+  int field_id = st.field_id;
 
   for (index_itr = indices.begin(); index_itr != indices.end(); index_itr++) {
 
@@ -43,7 +43,7 @@ int wal_engine::update(const statement* st) {
     record* before_rec = (*index_itr).index.at(key);
 
     field* before_field = before_rec->data.at(field_id);
-    field* after_field = st->field_ptr;
+    field* after_field = st.field_ptr;
 
     before_rec->data.at(field_id) = after_field;
 
@@ -58,13 +58,13 @@ int wal_engine::update(const statement* st) {
   return 0;
 }
 
-std::string wal_engine::select(const statement* st) {
-  record* rec_ptr = st->rec_ptr;
-  unsigned int table_id = st->table_id;
+std::string wal_engine::select(const statement& st) {
+  record* rec_ptr = st.rec_ptr;
+  unsigned int table_id = st.table_id;
 
-  unsigned int table_index_id = st->table_index_id;
+  unsigned int table_index_id = st.table_index_id;
   table_index& table_index = load.tables[table_id].indices[table_index_id];
-  vector<bool> projection = st->projection;
+  vector<bool> projection = st.projection;
 
   std::string key = get_data(rec_ptr, table_index.key);
   std::string val;
@@ -81,13 +81,13 @@ std::string wal_engine::select(const statement* st) {
   return val;
 }
 
-int wal_engine::insert(const statement* st) {
-  record* rec_ptr = st->rec_ptr;
-  unsigned int table_id = st->table_id;
+int wal_engine::insert(const statement& st) {
+  record* rec_ptr = st.rec_ptr;
+  unsigned int table_id = st.table_id;
 
   vector<table_index>& indices = load.tables[table_id].indices;
   vector<table_index>::iterator index_itr;
-  int field_id = st->field_id;
+  int field_id = st.field_id;
 
   for (index_itr = indices.begin(); index_itr != indices.end(); index_itr++) {
 
@@ -98,7 +98,7 @@ int wal_engine::insert(const statement* st) {
       return -1;
     }
 
-    record* after_rec = st->rec_ptr;
+    record* after_rec = st.rec_ptr;
 
     (*index_itr).index[key] = after_rec;
 
@@ -115,16 +115,16 @@ int wal_engine::insert(const statement* st) {
 // RUNNER + LOADER
 
 void wal_engine::handle_message(const message& msg) {
-  const statement* st_ptr = msg.st_ptr;
+  const statement& st = msg.st;
 
   unsigned int s_id = msg.statement_id;
 
-  if (st_ptr->op_type == operation_type::Insert) {
-    insert (st_ptr);
-  } else if (st_ptr->op_type == operation_type::Select) {
-    select (st_ptr);
-  } else if (st_ptr->op_type == operation_type::Update) {
-    update (st_ptr);
+  if (st.op_type == operation_type::Insert) {
+    insert (st);
+  } else if (st.op_type == operation_type::Select) {
+    select (st);
+  } else if (st.op_type == operation_type::Update) {
+    update (st);
   }
 
 }

@@ -26,14 +26,15 @@ class wal_engine : public engine {
       : partition_id(_part_id),
         conf(_conf),
         load(_load),
-        ready(false) {
+        ready(false),
+        done(false) {
   }
 
   void runner();
 
-  std::string select(const statement* st);
-  int update(const statement* st);
-  int insert(const statement* t);
+  std::string select(const statement& st);
+  int update(const statement& st);
+  int insert(const statement& t);
 
   int test();
 
@@ -52,7 +53,8 @@ class wal_engine : public engine {
   workload& load;
 
   std::mutex gc_mutex;
-  std::condition_variable cv;bool ready;
+  std::condition_variable cv;
+  bool ready;
 
   logger undo_log;
 

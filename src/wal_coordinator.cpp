@@ -37,25 +37,24 @@ wal_coordinator::~wal_coordinator() {
 void wal_coordinator::runner(workload& load) {
 
   vector<transaction>& txns = load.txns;
-  statement* st;
   unsigned int part_id;
 
   vector<transaction>::iterator txn_itr;
-  vector<statement*>::iterator stmt_itr;
-
+  vector<statement>::iterator stmt_itr;
 
   // Process workload
   for (txn_itr = txns.begin(); txn_itr != txns.end(); txn_itr++) {
 
-    for (stmt_itr = (*txn_itr).stmts.begin(); stmt_itr != (*txn_itr).stmts.end(); stmt_itr++) {
+    for (stmt_itr = (*txn_itr).stmts.begin();
+        stmt_itr != (*txn_itr).stmts.end(); stmt_itr++) {
 
       // Single Partition
-      if ((*stmt_itr)->part_type == partition_type::Single) {
+      if ((*stmt_itr).part_type == partition_type::Single) {
 
-        st = (*stmt_itr);
-        part_id = st->partition_id;
+        part_id = (*stmt_itr).partition_id;
 
-        message msg(message_type::Request, st->statement_id, false, st);
+        message msg(message_type::Request, (*stmt_itr).statement_id, false,
+                    (*stmt_itr));
         engines[part_id]->msg_queue.push(msg);
       }
 

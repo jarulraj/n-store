@@ -24,6 +24,18 @@ enum operation_type {
 class statement {
  public:
 
+  statement()
+      : statement_id(-1),
+        part_type(partition_type::Single),
+        partition_id(-1),
+        op_type(operation_type::Insert),
+        table_id(-1),
+        rec_ptr(NULL),
+        field_id(-1),
+        field_ptr(NULL),
+        table_index_id(-1) {
+  }
+
   statement(unsigned int _stmt_id, partition_type _ptype,
             unsigned int _partition_id, operation_type _otype,
             unsigned int _table_id, record* _rptr, int _fid, field* _fptr,
@@ -41,21 +53,21 @@ class statement {
   }
 
 //private:
-  unsigned int statement_id;
+  int statement_id;
   partition_type part_type;
-  unsigned int partition_id;
+  int partition_id;
   operation_type op_type;
 
   // Insert and Delete
   record* rec_ptr;
-  unsigned int table_id;
+  int table_id;
 
   // Update
   int field_id;
   field* field_ptr;
 
   // Select
-  unsigned int table_index_id;
+  int table_index_id;
   vector<bool> projection;
 
 };

@@ -17,16 +17,16 @@ using namespace std;
 
 class entry {
  public:
-  entry(const statement* _stmt_ptr, int _field_id, vector<field*> _before_image,
+  entry(const statement& _stmt, int _field_id, vector<field*> _before_image,
         vector<field*> _after_image)
-      : stmt_ptr(_stmt_ptr),
+      : stmt(_stmt),
         field_id(_field_id),
         before_image(_before_image),
         after_image(_after_image) {
   }
 
   //private:
-  const statement* stmt_ptr;
+  const statement& stmt;
   int field_id;
   vector<field*> before_image;
   vector<field*> after_image;
@@ -55,7 +55,7 @@ class logger {
   void push(const entry& e) {
     buffer_stream.str("");
 
-    buffer_stream << e.stmt_ptr->op_type << " ";
+    buffer_stream << e.stmt.op_type << " ";
 
     vector<field*>::const_iterator field_itr;
 

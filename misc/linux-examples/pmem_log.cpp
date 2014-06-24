@@ -179,7 +179,7 @@ class plist {
 void* alloc(size_t sz) throw (bad_alloc) {
   std::cerr << "::new " << std::endl;
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::lock_guard<std::mutex> lock(pmp_mutex);
     return PMEM(pmp, pmemalloc_reserve(pmp, sz));
   }
 }
@@ -187,7 +187,7 @@ void* alloc(size_t sz) throw (bad_alloc) {
 void release(void *p) throw () {
   std::cerr << "::delete " << std::endl;
   {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::lock_guard<std::mutex> lock(pmp_mutex);
     pmemalloc_free(pmp, PSUB(pmp, p));
   }
 }

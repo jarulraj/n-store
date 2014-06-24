@@ -68,11 +68,11 @@ workload& ycsb_benchmark::get_dataset() {
       random_string(value, conf.sz_value);
       record* rec_ptr = new usertable_record(key, value);
 
-      statement* st = new statement(++s_id, partition_type::Single, part_itr,
+      statement st(++s_id, partition_type::Single, part_itr,
                    operation_type::Insert, usertable_id, rec_ptr, -1, NULL,
                    usertable_index_id, projection);
 
-      vector<statement*> stmts = { st };
+      vector<statement> stmts = { st };
       transaction txn(stmts);
       load.txns.push_back(txn);
     }
@@ -114,11 +114,11 @@ workload& ycsb_benchmark::get_workload() {
         varchar_field* val = new varchar_field(updated_val);
         record* rec_ptr = new usertable_record(key, NULL);
 
-        statement* st = new statement(++s_id, partition_type::Single, part_itr,
+        statement st(++s_id, partition_type::Single, part_itr,
                      operation_type::Update, usertable_id, rec_ptr, 1, val,
                      usertable_index_id, projection);
 
-        vector<statement*> stmts = { st };
+        vector<statement> stmts = { st };
 
         transaction txn(stmts);
         load.txns.push_back(txn);
@@ -128,11 +128,11 @@ workload& ycsb_benchmark::get_workload() {
 
         record* rec_ptr = new usertable_record(key, NULL);
 
-        statement* st = new statement(++s_id, partition_type::Single, part_itr,
+        statement st(++s_id, partition_type::Single, part_itr,
                      operation_type::Select, usertable_id, rec_ptr, -1, NULL,
                      usertable_index_id, projection);
 
-        vector<statement*> stmts = { st };
+        vector<statement> stmts = { st };
 
         transaction txn(stmts);
         load.txns.push_back(txn);

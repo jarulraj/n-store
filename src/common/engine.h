@@ -13,8 +13,8 @@ using namespace std;
 
 class engine {
  public:
-  virtual std::string select(const statement* st) = 0;
-  virtual int update(const statement* st) = 0;
+  virtual std::string select(const statement& st) = 0;
+  virtual int update(const statement& st) = 0;
 
   virtual int test() = 0;
 
