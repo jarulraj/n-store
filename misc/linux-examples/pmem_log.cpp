@@ -21,11 +21,11 @@ using namespace std;
 void* pmp;
 std::mutex pmp_mutex;
 
+#define MAX_PTRS 512
+int ptr_cnt = 0;
+
 struct static_info {
-  void* head_1;
-  void* tail_1;
-  void* head_2;
-  void* tail_2;
+  void* ptrs[MAX_PTRS];
 };
 
 struct static_info *sp;
@@ -247,7 +247,10 @@ int main(int argc, char *argv[]) {
 
   // LIST 1
 
-  plist<rec_*> l(&(sp->head_1), &(sp->tail_1));
+  ptr_cnt = 0;
+  cout<<"count: "<<ptr_cnt<<endl;
+
+  plist<rec_*> l(&(sp->ptrs[ptr_cnt++]), &(sp->ptrs[ptr_cnt++]));
   vector<rec_*> data;
   vector<rec_*>::iterator data_itr;
 
@@ -271,7 +274,7 @@ int main(int argc, char *argv[]) {
 
   // LIST 2
 
-   plist<int> m(&(sp->head_2), &(sp->tail_2));
+   plist<int> m(&(sp->ptrs[ptr_cnt++]), &(sp->ptrs[ptr_cnt++]));
 
    val = rand() % 10;
    m.push_back(val);
