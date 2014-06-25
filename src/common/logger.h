@@ -17,9 +17,12 @@ using namespace std;
 
 class entry {
  public:
-  entry(const statement& _stmt, unsigned int _num_fields, field** _after_image,
-        int _field_id, field* _after_field)
-      : stmt(_stmt),
+  entry(int _transaction_id, operation_type _op_type, int _table_id,
+        unsigned int _num_fields, field** _after_image, int _field_id,
+        field* _after_field)
+      : transaction_id(_transaction_id),
+        op_type(_op_type),
+        table_id(_table_id),
         num_fields(_num_fields),
         field_id(_field_id),
         after_image(_after_image),
@@ -27,7 +30,9 @@ class entry {
   }
 
   //private:
-  const statement& stmt;
+  int transaction_id;
+  operation_type op_type;
+  int table_id;
 
   unsigned int num_fields;
   field** after_image;
@@ -64,8 +69,8 @@ class logger {
 
     buffer_stream.str("");
 
-    buffer_stream << e.stmt.transaction_id << " " << e.stmt.op_type << " "
-                  << e.stmt.table_id << " ";
+    buffer_stream << e.transaction_id << " " << e.op_type << " " << e.table_id
+                  << " ";
 
     unsigned int field_itr;
 
@@ -102,22 +107,28 @@ class logger {
       exit(EXIT_FAILURE);
     }
 
-    /*
     // PERSIST pointers
     for (e_itr = entries.begin(); e_itr != entries.end(); e_itr++) {
       unsigned int field_itr;
 
-      if ((*e_itr).after_image != NULL) {
-        //pmemalloc_activate(pmp, (*e_itr).after_image);
+      // Update
+      if ((*e_itr).op_type == operation_type::Update) {
+        cout << "Update" << endl;
+        //cout << "-" << PSUB(pmp, (*e_itr).after_field) << "-" << endl;
+        pmemalloc_activate(pmp, PSUB(pmp, (*e_itr).after_field));
       }
 
-      if ((*e_itr).field_id != -1) {
-        //pmemalloc_activate(pmp, (*e_itr).after_field);
+      // Insert
+      if ((*e_itr).op_type == operation_type::Insert) {
+        cout << "Insert" << endl;
+        for (field_itr = 0; field_itr < (*e_itr).num_fields; field_itr++) {
+          if ((*e_itr).after_image[field_itr] != NULL)
+            pmemalloc_activate(
+                pmp, PSUB(pmp, (void* ) (*e_itr).after_image[field_itr]));
+        }
       }
 
-      buffer_stream << endl;
     }
-    */
 
     // CLEAR log
     entries.clear();

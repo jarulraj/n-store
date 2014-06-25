@@ -69,7 +69,7 @@ int wal_engine::insert(const statement& st) {
     tab->indices[index_itr]->index[key] = after_rec;
 
     // Add log entry
-    entry e(st, after_rec->num_fields, after_rec->fields, -1, NULL);
+    entry e(st.transaction_id, st.op_type, st.table_id, after_rec->num_fields, after_rec->fields, -1, NULL);
     undo_log.push(e);
   }
 
@@ -102,7 +102,7 @@ int wal_engine::update(const statement& st) {
     before_rec->fields[field_id] = after_field;
 
     // Add log entry
-    entry e(st, rec_ptr->num_fields, rec_ptr->fields, field_id, after_field);
+    entry e(st.transaction_id, st.op_type, st.table_id, rec_ptr->num_fields, rec_ptr->fields, field_id, after_field);
     undo_log.push(e);
   }
 
