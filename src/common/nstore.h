@@ -12,6 +12,8 @@ class config {
  public:
   std::string fs_path;
 
+  void* pmp;
+
   int num_keys;
   int num_txns;
   int num_parts;

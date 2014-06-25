@@ -25,7 +25,7 @@ class statement {
  public:
 
   statement()
-      : statement_id(-1),
+      : transaction_id(-1),
         part_type(partition_type::Single),
         partition_id(-1),
         op_type(operation_type::Insert),
@@ -36,11 +36,11 @@ class statement {
         table_index_id(-1) {
   }
 
-  statement(unsigned int _stmt_id, partition_type _ptype,
+  statement(unsigned int _txn_id, partition_type _ptype,
             unsigned int _partition_id, operation_type _otype,
             unsigned int _table_id, record* _rptr, int _fid, field* _fptr,
             unsigned int _table_index_id, vector<bool> _projection)
-      : statement_id(_stmt_id),
+      : transaction_id(_txn_id),
         part_type(_ptype),
         partition_id(_partition_id),
         op_type(_otype),
@@ -53,7 +53,7 @@ class statement {
   }
 
 //private:
-  int statement_id;
+  int transaction_id;
   partition_type part_type;
   int partition_id;
   operation_type op_type;

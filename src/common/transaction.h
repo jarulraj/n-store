@@ -13,11 +13,13 @@ using namespace std;
 
 class transaction {
  public:
-  transaction(vector<statement> _stmts)
-      : stmts(_stmts) {
+  transaction(unsigned int _txn_id, vector<statement> _stmts)
+      : transaction_id(_txn_id),
+        stmts(_stmts) {
   }
 
 //private:
+  unsigned int transaction_id;
   vector<statement> stmts;
 
   //chrono::time_point<std::chrono::high_resolution_clock> start, end;

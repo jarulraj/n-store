@@ -55,7 +55,7 @@ void wal_coordinator::runner(workload& load) {
 
         part_id = (*stmt_itr).partition_id;
 
-        message msg(message_type::Request, (*stmt_itr).statement_id, false,
+        message msg(message_type::Request, (*stmt_itr).transaction_id, false,
                     (*stmt_itr));
         engines[part_id]->msg_queue.push(msg);
       }

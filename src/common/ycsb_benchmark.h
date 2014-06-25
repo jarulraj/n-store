@@ -26,7 +26,7 @@ class ycsb_benchmark : public benchmark {
   workload load;
   config& conf;
 
-  unsigned int s_id;
+  unsigned int txn_id;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */

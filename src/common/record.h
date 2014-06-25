@@ -12,7 +12,7 @@ class record {
  public:
   record(unsigned int _num_fields)
       : num_fields(_num_fields) {
-    data = new field*[num_fields];
+    fields = new field*[num_fields];
   }
 
   ~record() {
@@ -20,14 +20,14 @@ class record {
 
     // clean up fields
     for (itr = 0; itr < num_fields; itr++) {
-      delete data[itr];
+      delete fields[itr];
     }
 
-    delete[] data;
+    delete[] fields;
   }
 
   unsigned int num_fields;
-  field** data;
+  field** fields;
 
 };
 

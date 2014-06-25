@@ -18,17 +18,22 @@ class usertable_record : public record {
       : record(_num_fields) {
 
     integer_field* key = new integer_field(_key);
-    varchar_field* val = new varchar_field(_val);
 
-    data[0] = key;
-    data[1] = val;
+    varchar_field* val;
+    if (_val.empty())
+      val = NULL;
+    else
+      val = new varchar_field(_val);
+
+    fields[0] = key;
+    fields[1] = val;
   }
 
 };
 
 ycsb_benchmark::ycsb_benchmark(config& _conf)
     : conf(_conf),
-      s_id(0) {
+      txn_id(0) {
 
   db = new database(1);
 
@@ -56,26 +61,29 @@ workload& ycsb_benchmark::get_dataset() {
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
   vector<bool> projection = { 0, 0 };
+  unsigned int transaction_id;
 
   int part_range = conf.num_keys / conf.num_parts;
-  int part_itr, txn_itr, txn_id;
+  int part_itr, txn_itr, t_id;
 
   for (int txn_itr = 0; txn_itr < part_range; txn_itr++) {
 
     for (int part_itr = 0; part_itr < conf.num_parts; part_itr++) {
-      txn_id = part_range * part_itr + txn_itr;
+      t_id = part_range * part_itr + txn_itr;
 
-      int key = txn_id;
+      transaction_id = ++txn_id;
+
+      int key = t_id;
       std::string value = random_string(conf.sz_value);
 
       record* rec_ptr = new usertable_record(2, key, value);
 
-      statement st(++s_id, partition_type::Single, part_itr,
+      statement st(transaction_id, partition_type::Single, part_itr,
                    operation_type::Insert, usertable_id, rec_ptr, -1, NULL,
                    usertable_index_id, projection);
 
       vector<statement> stmts = { st };
-      transaction txn(stmts);
+      transaction txn(transaction_id, stmts);
       load.txns.push_back(txn);
     }
 
@@ -97,15 +105,16 @@ workload& ycsb_benchmark::get_workload() {
 
   int part_range = conf.num_keys / conf.num_parts;
   int part_txns = conf.num_txns / conf.num_parts;
-  int part_itr, txn_itr, txn_id;
+  int part_itr, txn_itr, t_id;
+  unsigned int transaction_id;
 
   for (txn_itr = 0; txn_itr < part_txns; txn_itr++) {
 
     for (part_itr = 0; part_itr < conf.num_parts; part_itr++) {
-      txn_id = part_range * part_itr + txn_itr;
+      t_id = part_range * part_itr + txn_itr;
 
-      int key = conf.zipf_dist[txn_id];
-      double u = conf.uniform_dist[txn_id];
+      int key = conf.zipf_dist[t_id];
+      double u = conf.uniform_dist[t_id];
 
       // UPDATE
       if (u < conf.per_writes) {
@@ -116,13 +125,15 @@ workload& ycsb_benchmark::get_workload() {
 
         record* rec_ptr = new usertable_record(2, key, empty);
 
-        statement st(++s_id, partition_type::Single, part_itr,
+        transaction_id = ++txn_id;
+
+        statement st(transaction_id, partition_type::Single, part_itr,
                      operation_type::Update, usertable_id, rec_ptr, 1, val,
                      usertable_index_id, projection);
 
         vector<statement> stmts = { st };
 
-        transaction txn(stmts);
+        transaction txn(transaction_id, stmts);
         load.txns.push_back(txn);
       } else {
 
@@ -130,13 +141,13 @@ workload& ycsb_benchmark::get_workload() {
 
         record* rec_ptr = new usertable_record(2, key, empty);
 
-        statement st(++s_id, partition_type::Single, part_itr,
+        statement st(transaction_id, partition_type::Single, part_itr,
                      operation_type::Select, usertable_id, rec_ptr, -1, NULL,
                      usertable_index_id, projection);
 
         vector<statement> stmts = { st };
 
-        transaction txn(stmts);
+        transaction txn(transaction_id, stmts);
         load.txns.push_back(txn);
       }
     }

@@ -22,7 +22,7 @@ inline std::string random_string(size_t len) {
 
 inline std::string get_data(record* rec_ptr, bool* key) {
 
-  field** fields = rec_ptr->data;
+  field** fields = rec_ptr->fields;
   unsigned int num_fields = rec_ptr->num_fields;
   unsigned int field_itr;
 

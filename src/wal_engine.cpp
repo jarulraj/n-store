@@ -23,44 +23,6 @@ void wal_engine::group_commit() {
   }
 }
 
-int wal_engine::update(const statement& st) {
-
-  record* rec_ptr = st.rec_ptr;
-  unsigned int table_id = st.table_id;
-
-  table* tab = db->tables[table_id];
-  unsigned int num_indices = tab->num_indices;
-  unsigned int index_itr;
-  int field_id = st.field_id;
-
-  for (index_itr = 0; index_itr < num_indices ; index_itr++) {
-
-    std::string key = get_data(rec_ptr, tab->indices[index_itr]->key);
-
-    if (tab->indices[index_itr]->index.count(key) == 0) {
-      return -1;
-    }
-
-    record* before_rec = tab->indices[index_itr]->index.at(key);
-
-    field* before_field = before_rec->data[field_id];
-    field* after_field = st.field_ptr;
-
-    before_rec->data[field_id] = after_field;
-
-    // Add log entry
-    field* before_image[1];
-    before_image[0] = before_field;
-    field* after_image[1];
-    after_image[0] = after_field;
-
-    entry e(st, 1, field_id, before_image, after_image);
-    undo_log.push(e);
-  }
-
-  return 0;
-}
-
 std::string wal_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   unsigned int table_id = st.table_id;
@@ -95,7 +57,7 @@ int wal_engine::insert(const statement& st) {
   unsigned int index_itr;
   int field_id = st.field_id;
 
-  for (index_itr = 0; index_itr < num_indices ; index_itr++) {
+  for (index_itr = 0; index_itr < num_indices; index_itr++) {
 
     std::string key = get_data(rec_ptr, tab->indices[index_itr]->key);
 
@@ -109,7 +71,40 @@ int wal_engine::insert(const statement& st) {
     tab->indices[index_itr]->index[key] = after_rec;
 
     // Add log entry
-    entry e(st, after_rec->num_fields, field_id, NULL, after_rec->data);
+    entry e(st, after_rec->num_fields, after_rec->fields, -1, NULL);
+    undo_log.push(e);
+  }
+
+  return 0;
+}
+
+int wal_engine::update(const statement& st) {
+
+  record* rec_ptr = st.rec_ptr;
+  unsigned int table_id = st.table_id;
+
+  table* tab = db->tables[table_id];
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
+  int field_id = st.field_id;
+
+  for (index_itr = 0; index_itr < num_indices; index_itr++) {
+
+    std::string key = get_data(rec_ptr, tab->indices[index_itr]->key);
+
+    if (tab->indices[index_itr]->index.count(key) == 0) {
+      return -1;
+    }
+
+    record* before_rec = tab->indices[index_itr]->index.at(key);
+
+    field* before_field = before_rec->fields[field_id];
+    field* after_field = st.field_ptr;
+
+    before_rec->fields[field_id] = after_field;
+
+    // Add log entry
+    entry e(st, rec_ptr->num_fields, rec_ptr->fields, field_id, after_field);
     undo_log.push(e);
   }
 
@@ -137,8 +132,7 @@ void wal_engine::runner() {
   int consumer_count;
   message msg;
 
-  undo_log.set_path(conf.fs_path + "./log_" + std::to_string(partition_id),
-                    "w");
+  undo_log.configure(conf.fs_path + "./log_" + std::to_string(partition_id), conf.pmp);
 
   // Logger start
   std::thread gc(&wal_engine::group_commit, this);

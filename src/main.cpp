@@ -162,6 +162,8 @@ int main(int argc, char **argv) {
   config state;
   parse_arguments(argc, argv, state);
 
+  state.pmp = pmp;
+
   // Generate Zipf dist
   long range_size = state.num_keys / state.num_parts;
   long range_txns = state.num_txns / state.num_parts;

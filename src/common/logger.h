@@ -9,6 +9,7 @@
 #include <string>
 
 #include "record.h"
+#include "libpm.h"
 
 using namespace std;
 
@@ -16,21 +17,24 @@ using namespace std;
 
 class entry {
  public:
-  entry(const statement& _stmt, unsigned int _num_fields, int _field_id,
-        field** _before_image, field** _after_image)
+  entry(const statement& _stmt, unsigned int _num_fields, field** _after_image,
+        int _field_id, field* _after_field)
       : stmt(_stmt),
         num_fields(_num_fields),
         field_id(_field_id),
-        before_image(_before_image),
-        after_image(_after_image) {
+        after_image(_after_image),
+        after_field(_after_field) {
   }
 
   //private:
-  unsigned int num_fields;
   const statement& stmt;
-  int field_id;
-  field** before_image;
+
+  unsigned int num_fields;
   field** after_image;
+
+  // Only Update
+  int field_id;
+  field* after_field;
 };
 
 class logger {
@@ -38,13 +42,15 @@ class logger {
   logger()
       : log_file(NULL),
         log_file_fd(-1),
-        buffer_size(0) {
+        buffer_size(0),
+        pmp(NULL) {
   }
 
-  void set_path(std::string name, std::string mode) {
-    log_file_name = name;
+  void configure(std::string _name, void* _pmp) {
+    log_file_name = _name;
+    pmp = _pmp;
 
-    log_file = fopen(log_file_name.c_str(), mode.c_str());
+    log_file = fopen(log_file_name.c_str(), "w");
     if (log_file != NULL) {
       log_file_fd = fileno(log_file);
     } else {
@@ -54,27 +60,27 @@ class logger {
   }
 
   void push(const entry& e) {
+    entries.push_back(e);
+
     buffer_stream.str("");
 
-    buffer_stream << e.stmt.op_type << " ";
+    buffer_stream << e.stmt.transaction_id << " " << e.stmt.op_type << " "
+                  << e.stmt.table_id << " ";
 
     unsigned int field_itr;
-
-    if (e.field_id != -1)
-      buffer_stream << std::to_string(e.field_id) << " ";
-
-    if (e.before_image != NULL) {
-      for (field_itr = 0; field_itr < e.num_fields; field_itr++) {
-        if (e.before_image[field_itr] != NULL)
-          buffer_stream << e.before_image[field_itr]->get_string() << " ";
-      }
-    }
 
     if (e.after_image != NULL) {
       for (field_itr = 0; field_itr < e.num_fields; field_itr++) {
         if (e.after_image[field_itr] != NULL)
-          buffer_stream << e.after_image[field_itr]->get_string() << " ";
+          buffer_stream << PSUB(pmp, (void* ) e.after_image[field_itr]) << " ";
+        else
+          buffer_stream << "0x0" << " ";
       }
+    }
+
+    if (e.field_id != -1) {
+      buffer_stream << std::to_string(e.field_id) << " "
+                    << PSUB(pmp, e.after_field);
     }
 
     buffer_stream << endl;
@@ -87,15 +93,32 @@ class logger {
 
   int write() {
     int ret;
+    vector<entry>::iterator e_itr;
 
+    // SYNC log
     ret = fsync(log_file_fd);
-
     if (ret == -1) {
       perror("fsync failed");
       exit(EXIT_FAILURE);
     }
 
-    //cout << "fsync :: "<<log_file_name<<" :: " << count << endl;
+    // PERSIST pointers
+    for (e_itr = entries.begin(); e_itr != entries.end(); e_itr++) {
+      unsigned int field_itr;
+
+      if ((*e_itr).after_image != NULL) {
+        //pmemalloc_activate(pmp, (*e_itr).after_image);
+      }
+
+      if ((*e_itr).field_id != -1) {
+        //pmemalloc_activate(pmp, (*e_itr).after_field);
+      }
+
+      buffer_stream << endl;
+    }
+
+    // CLEAR log
+    entries.clear();
 
     return ret;
   }
@@ -105,8 +128,11 @@ class logger {
   }
 
   FILE* log_file;
+  void* pmp;
 
  private:
+  vector<entry> entries;
+
   stringstream buffer_stream;
   string buffer;
   size_t buffer_size;
