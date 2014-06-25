@@ -30,12 +30,12 @@ static void usage_exit(FILE *out) {
 
 static struct option opts[] = { { "fs-path", optional_argument, NULL, 'f' }, {
     "num-txns", optional_argument, NULL, 'x' }, { "num-keys", optional_argument,
-    NULL, 'k' }, { "num-parts", optional_argument, NULL, 'p' }, { "per-writes",
-    optional_argument, NULL, 'w' }, { "gc-interval", optional_argument, NULL,
-    'g' }, { "log-only", no_argument, NULL, 'l' }, { "sp-only", no_argument,
+NULL, 'k' }, { "num-parts", optional_argument, NULL, 'p' }, { "per-writes",
+optional_argument, NULL, 'w' }, { "gc-interval", optional_argument, NULL, 'g' },
+    { "log-only", no_argument, NULL, 'l' }, { "sp-only", no_argument,
     NULL, 's' }, { "lsm-only", no_argument, NULL, 'm' }, { "verbose",
     no_argument, NULL, 'v' }, { "skew", optional_argument, NULL, 'q' }, {
-    "help", no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
+        "help", no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 
@@ -130,22 +130,21 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 /////////////////////////////////////////////////////////////////////
 
 void* pmp;
-std::mutex pmp_mutex;
+pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void* operator new(size_t sz) throw (bad_alloc) {
-  //std::cerr << "::new " << std::endl;
-  {
-    std::lock_guard<std::mutex> lock(pmp_mutex);
-    return PMEM(pmp, pmemalloc_reserve(pmp, sz));
-  }
+  pthread_mutex_lock(&pmp_mutex);
+  //void* ret = PMEM(pmp, pmemalloc_reserve(pmp, sz));
+  void* ret = malloc(sz);
+  pthread_mutex_unlock(&pmp_mutex);
+  return ret;
 }
 
 void operator delete(void *p) throw () {
-  //std::cerr << "::delete " << std::endl;
-  {
-    std::lock_guard<std::mutex> lock(pmp_mutex);
-    pmemalloc_free(pmp, PSUB(pmp, p));
-  }
+  pthread_mutex_lock(&pmp_mutex);
+  //pmemalloc_free(pmp, PSUB(pmp, p));
+  free(p);
+  pthread_mutex_unlock(&pmp_mutex);
 }
 
 int main(int argc, char **argv) {
@@ -174,7 +173,7 @@ int main(int argc, char **argv) {
     cout << "WAL :: " << endl;
 
     ycsb_benchmark ycsb(state);
-    wal_coordinator wal(state, ycsb.db, ycsb.load);
+    wal_coordinator wal(state, ycsb.db);
 
     wal.runner(ycsb.get_dataset());
 

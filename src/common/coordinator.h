@@ -11,7 +11,7 @@ using namespace std;
 
 class coordinator {
  public:
-  virtual void runner(workload& load) = 0;
+  virtual void runner(const workload& load) = 0;
 
   virtual ~coordinator() {}
 

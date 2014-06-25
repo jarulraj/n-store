@@ -29,13 +29,12 @@ std::string wal_engine::select(const statement& st) {
 
   unsigned int table_index_id = st.table_index_id;
   table_index* table_index = db->tables[table_id]->indices[table_index_id];
-  bool* projection = get_key(st.projection);
+  bool* projection = st.projection;
 
   std::string key = get_data(rec_ptr, table_index->key);
   std::string val;
 
   if (table_index->index.count(key) == 0) {
-    delete projection;
     return NULL;
   }
 
@@ -43,7 +42,6 @@ std::string wal_engine::select(const statement& st) {
   val = get_data(r, projection);
 
   cout << "val :" << val << endl;
-  delete projection;
 
   return val;
 }
@@ -132,7 +130,8 @@ void wal_engine::runner() {
   int consumer_count;
   message msg;
 
-  undo_log.configure(conf.fs_path + "./log_" + std::to_string(partition_id), conf.pmp);
+  undo_log.configure(conf.fs_path + "./log_" + std::to_string(partition_id),
+                     conf.pmp);
 
   // Logger start
   std::thread gc(&wal_engine::group_commit, this);
@@ -142,11 +141,18 @@ void wal_engine::runner() {
   }
   cv.notify_one();
 
+  bool empty = true;
   while (!done) {
-    if (!msg_queue.empty()) {
+
+    rdlock(&msg_queue_rwlock);
+    empty = msg_queue.empty();
+    unlock(&msg_queue_rwlock);
+
+    if (!empty) {
+      wrlock(&msg_queue_rwlock);
       msg = msg_queue.front();
       msg_queue.pop();
-
+      unlock(&msg_queue_rwlock);
       handle_message(msg);
     }
   }
@@ -154,7 +160,6 @@ void wal_engine::runner() {
   while (!msg_queue.empty()) {
     msg = msg_queue.front();
     msg_queue.pop();
-
     handle_message(msg);
   }
 

@@ -60,7 +60,6 @@ workload& ycsb_benchmark::get_dataset() {
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
-  vector<bool> projection = { 0, 0 };
   unsigned int transaction_id;
 
   int part_range = conf.num_keys / conf.num_parts;
@@ -80,7 +79,7 @@ workload& ycsb_benchmark::get_dataset() {
 
       statement st(transaction_id, partition_type::Single, part_itr,
                    operation_type::Insert, usertable_id, rec_ptr, -1, NULL,
-                   usertable_index_id, projection);
+                   usertable_index_id, NULL);
 
       vector<statement> stmts = { st };
       transaction txn(transaction_id, stmts);
@@ -100,7 +99,7 @@ workload& ycsb_benchmark::get_workload() {
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
-  vector<bool> projection = { 1, 1 };
+  bool projection[] = {1, 1};
   std::string empty;
 
   int part_range = conf.num_keys / conf.num_parts;
@@ -129,7 +128,7 @@ workload& ycsb_benchmark::get_workload() {
 
         statement st(transaction_id, partition_type::Single, part_itr,
                      operation_type::Update, usertable_id, rec_ptr, 1, val,
-                     usertable_index_id, projection);
+                     usertable_index_id, NULL);
 
         vector<statement> stmts = { st };
 

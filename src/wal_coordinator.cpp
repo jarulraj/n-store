@@ -7,15 +7,13 @@
 
 using namespace std;
 
-wal_coordinator::wal_coordinator(const config& _conf, database* _db,
-                                 workload& _load)
+wal_coordinator::wal_coordinator(const config& _conf, database* _db)
     : conf(_conf),
-      db(_db),
-      load(_load) {
+      db(_db) {
 
   // Executors
   for (int i = 0; i < conf.num_parts; i++) {
-    wal_engine* we = new wal_engine(i, conf, db, load);
+    wal_engine* we = new wal_engine(i, conf, db);
 
     engines.push_back(we);
     executors.push_back(std::thread(&wal_engine::runner, we));
@@ -36,16 +34,15 @@ wal_coordinator::~wal_coordinator() {
 
 }
 
-void wal_coordinator::runner(workload& load) {
+void wal_coordinator::runner(const workload& load) {
 
-  vector<transaction>& txns = load.txns;
   unsigned int part_id;
 
-  vector<transaction>::iterator txn_itr;
-  vector<statement>::iterator stmt_itr;
+  vector<transaction>::const_iterator txn_itr;
+  vector<statement>::const_iterator stmt_itr;
 
   // Process workload
-  for (txn_itr = txns.begin(); txn_itr != txns.end(); txn_itr++) {
+  for (txn_itr = load.txns.begin(); txn_itr != load.txns.end(); txn_itr++) {
 
     for (stmt_itr = (*txn_itr).stmts.begin();
         stmt_itr != (*txn_itr).stmts.end(); stmt_itr++) {
@@ -57,7 +54,11 @@ void wal_coordinator::runner(workload& load) {
 
         message msg(message_type::Request, (*stmt_itr).transaction_id, false,
                     (*stmt_itr));
+
+        wrlock(&engines[part_id]->msg_queue_rwlock);
         engines[part_id]->msg_queue.push(msg);
+        unlock(&engines[part_id]->msg_queue_rwlock);
+
       }
 
     }

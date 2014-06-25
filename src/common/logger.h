@@ -102,6 +102,7 @@ class logger {
       exit(EXIT_FAILURE);
     }
 
+    /*
     // PERSIST pointers
     for (e_itr = entries.begin(); e_itr != entries.end(); e_itr++) {
       unsigned int field_itr;
@@ -116,6 +117,7 @@ class logger {
 
       buffer_stream << endl;
     }
+    */
 
     // CLEAR log
     entries.clear();

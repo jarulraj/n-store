@@ -18,17 +18,16 @@
 #include "message.h"
 #include "workload.h"
 #include "database.h"
+#include "pthread.h"
 
 using namespace std;
 
 class wal_engine : public engine {
  public:
-  wal_engine(unsigned int _part_id, const config& _conf, database* _db,
-             workload& _load)
+  wal_engine(unsigned int _part_id, const config& _conf, database* _db)
       : partition_id(_part_id),
         conf(_conf),
         db(_db),
-        load(_load),
         ready(false),
         done(false) {
   }
@@ -54,13 +53,13 @@ class wal_engine : public engine {
   unsigned int partition_id;
   const config& conf;
   database* db;
-  workload& load;
 
   std::mutex gc_mutex;
   std::condition_variable cv;bool ready;
 
   logger undo_log;
 
+  pthread_rwlock_t msg_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::queue<message> msg_queue;
   std::atomic<bool> done;
 

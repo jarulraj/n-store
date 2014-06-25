@@ -33,13 +33,14 @@ class statement {
         rec_ptr(NULL),
         field_id(-1),
         field_ptr(NULL),
-        table_index_id(-1) {
+        table_index_id(-1),
+        projection(NULL){
   }
 
   statement(unsigned int _txn_id, partition_type _ptype,
             unsigned int _partition_id, operation_type _otype,
             unsigned int _table_id, record* _rptr, int _fid, field* _fptr,
-            unsigned int _table_index_id, vector<bool> _projection)
+            unsigned int _table_index_id, bool* _projection)
       : transaction_id(_txn_id),
         part_type(_ptype),
         partition_id(_partition_id),
@@ -68,7 +69,7 @@ class statement {
 
   // Select
   int table_index_id;
-  vector<bool> projection;
+  bool* projection;
 
 };
 
