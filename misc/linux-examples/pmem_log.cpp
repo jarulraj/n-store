@@ -43,6 +43,10 @@ class plist {
 
     sp = (struct static_info *) pmemalloc_static_area(pmp);
 
+    printf("sp: %p \n", PSUB(pmp, sp));
+    printf("sp->head : %p \n", sp->head);
+    printf("sp->tail : %p \n", sp->tail);
+
   }
 
   struct node* init(T val) {
@@ -176,7 +180,7 @@ class plist {
 
 };
 
-void* alloc(size_t sz) throw (bad_alloc) {
+void* operator new(size_t sz) throw (bad_alloc) {
   std::cerr << "::new " << std::endl;
   {
     std::lock_guard<std::mutex> lock(pmp_mutex);
@@ -184,7 +188,7 @@ void* alloc(size_t sz) throw (bad_alloc) {
   }
 }
 
-void release(void *p) throw () {
+void operator delete(void *p) throw () {
   std::cerr << "::delete " << std::endl;
   {
     std::lock_guard<std::mutex> lock(pmp_mutex);
@@ -196,22 +200,15 @@ class fd_ {
  public:
   fd_(std::string str) {
 
-    data = (char*) alloc(str.size());
-    memcpy(data, str.c_str(), str.size());
+    size_t len = str.size();
+    data = new char[len + 1];
+    memcpy(data, str.c_str(), len + 1);
 
     cout << data << endl;
   }
 
-  void* operator new(size_t sz) throw (bad_alloc) {
-    return alloc(sz);
-  }
-
-  void operator delete(void *p) throw () {
-    release(p);
-  }
-
   ~fd_() {
-    release(data);
+    delete data;
   }
 
   char* data;
@@ -226,14 +223,6 @@ class rec_ {
 
   std::string get_val() {
     return std::to_string(vec[0]);
-  }
-
-  void* operator new(size_t sz) throw (bad_alloc) {
-    return alloc(sz);
-  }
-
-  void operator delete(void *p) throw () {
-    release(p);
   }
 
   int vec[2];
@@ -279,8 +268,8 @@ int main(int argc, char *argv[]) {
       cout << endl;
     }
 
-    l.erase(PSUB(pmp, r));
-    delete r;
+    //l.erase(PSUB(pmp, r));
+    //delete r;
   }
 
   return 0;
