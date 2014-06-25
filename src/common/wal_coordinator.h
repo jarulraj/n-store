@@ -8,13 +8,14 @@ using namespace std;
 
 class wal_coordinator : public coordinator {
  public:
-  wal_coordinator(const config& _conf, workload& _load);
+  wal_coordinator(const config& _conf, database* db, workload& _load);
   ~wal_coordinator();
 
   void runner(workload& load);
 
  private:
   const config& conf;
+  database* db;
   workload& load;
 
   vector<wal_engine*> engines;

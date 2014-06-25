@@ -20,7 +20,7 @@ inline std::string random_string(size_t len) {
   return str;
 }
 
-inline std::string get_data(record* rec_ptr, vector<bool> key) {
+inline std::string get_data(record* rec_ptr, bool* key) {
 
   field** fields = rec_ptr->data;
   unsigned int num_fields = rec_ptr->num_fields;
@@ -33,6 +33,18 @@ inline std::string get_data(record* rec_ptr, vector<bool> key) {
       data += fields[field_itr]->get_string() + " ";
 
   return data;
+}
+
+inline bool* get_key(vector<bool> key_vec) {
+  size_t len = key_vec.size();
+
+  bool* key = new bool[len];
+  unsigned int itr = 0;
+
+  for (itr = 0; itr < len; itr++)
+    key[itr] = key_vec[itr];
+
+  return key;
 }
 
 void simple_skew(vector<int>& zipf_dist, int n, int num_values);

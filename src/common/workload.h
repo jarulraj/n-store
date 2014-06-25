@@ -12,8 +12,6 @@ class workload {
 
 public:
 	vector<transaction> txns;
-	vector<table> tables;
-
 };
 
 #endif /* WORKLOAD_H_ */

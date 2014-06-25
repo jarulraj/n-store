@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
     cout << "WAL :: " << endl;
 
     ycsb_benchmark ycsb(state);
-    wal_coordinator wal(state, ycsb.load);
+    wal_coordinator wal(state, ycsb.db, ycsb.load);
 
     wal.runner(ycsb.get_dataset());
 

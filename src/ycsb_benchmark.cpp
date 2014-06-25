@@ -30,14 +30,15 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     : conf(_conf),
       s_id(0) {
 
-  // Table 0 : usertable with index on key
-  table usertable("usertable");
+  db = new database(1);
 
-  vector<bool> key = { 1, 0 };
-  table_index key_index(key);
+  table* usertable = new table("usertable", 1);
 
-  usertable.indices.push_back(key_index);
-  load.tables.push_back(usertable);
+  bool key[] = { 1, 0 };
+  table_index* key_index = new table_index(2, key);
+  usertable->indices[0] = key_index;
+
+  db->tables[0] = usertable;
 
   // Generate Zipf dist
   long part_range = conf.num_keys / conf.num_parts;

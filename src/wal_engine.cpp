@@ -28,19 +28,20 @@ int wal_engine::update(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   unsigned int table_id = st.table_id;
 
-  const vector<table_index>& indices = load.tables[table_id].indices;
-  vector<table_index>::const_iterator index_itr;
+  table* tab = db->tables[table_id];
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
   int field_id = st.field_id;
 
-  for (index_itr = indices.begin(); index_itr != indices.end(); index_itr++) {
+  for (index_itr = 0; index_itr < num_indices ; index_itr++) {
 
-    std::string key = get_data(rec_ptr, (*index_itr).key);
+    std::string key = get_data(rec_ptr, tab->indices[index_itr]->key);
 
-    if ((*index_itr).index.count(key) == 0) {
+    if (tab->indices[index_itr]->index.count(key) == 0) {
       return -1;
     }
 
-    record* before_rec = (*index_itr).index.at(key);
+    record* before_rec = tab->indices[index_itr]->index.at(key);
 
     field* before_field = before_rec->data[field_id];
     field* after_field = st.field_ptr;
@@ -65,20 +66,22 @@ std::string wal_engine::select(const statement& st) {
   unsigned int table_id = st.table_id;
 
   unsigned int table_index_id = st.table_index_id;
-  table_index& table_index = load.tables[table_id].indices[table_index_id];
-  vector<bool> projection = st.projection;
+  table_index* table_index = db->tables[table_id]->indices[table_index_id];
+  bool* projection = get_key(st.projection);
 
-  std::string key = get_data(rec_ptr, table_index.key);
+  std::string key = get_data(rec_ptr, table_index->key);
   std::string val;
 
-  if (table_index.index.count(key) == 0) {
+  if (table_index->index.count(key) == 0) {
+    delete projection;
     return NULL;
   }
 
-  record* r = table_index.index[key];
+  record* r = table_index->index[key];
   val = get_data(r, projection);
 
   cout << "val :" << val << endl;
+  delete projection;
 
   return val;
 }
@@ -87,22 +90,23 @@ int wal_engine::insert(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   unsigned int table_id = st.table_id;
 
-  vector<table_index>& indices = load.tables[table_id].indices;
-  vector<table_index>::iterator index_itr;
+  table* tab = db->tables[table_id];
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
   int field_id = st.field_id;
 
-  for (index_itr = indices.begin(); index_itr != indices.end(); index_itr++) {
+  for (index_itr = 0; index_itr < num_indices ; index_itr++) {
 
-    std::string key = get_data(rec_ptr, (*index_itr).key);
+    std::string key = get_data(rec_ptr, tab->indices[index_itr]->key);
 
     // check if key already exists
-    if ((*index_itr).index.count(key) != 0) {
+    if (tab->indices[index_itr]->index.count(key) != 0) {
       return -1;
     }
 
     record* after_rec = st.rec_ptr;
 
-    (*index_itr).index[key] = after_rec;
+    tab->indices[index_itr]->index[key] = after_rec;
 
     // Add log entry
     entry e(st, after_rec->num_fields, field_id, NULL, after_rec->data);

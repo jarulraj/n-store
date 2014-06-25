@@ -7,13 +7,15 @@
 
 using namespace std;
 
-wal_coordinator::wal_coordinator(const config& _conf, workload& _load)
+wal_coordinator::wal_coordinator(const config& _conf, database* _db,
+                                 workload& _load)
     : conf(_conf),
+      db(_db),
       load(_load) {
 
   // Executors
   for (int i = 0; i < conf.num_parts; i++) {
-    wal_engine* we = new wal_engine(i, conf, load);
+    wal_engine* we = new wal_engine(i, conf, db, load);
 
     engines.push_back(we);
     executors.push_back(std::thread(&wal_engine::runner, we));

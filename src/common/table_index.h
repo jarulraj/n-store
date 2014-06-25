@@ -9,13 +9,20 @@ using namespace std;
 class table_index {
  public:
 
-  table_index(vector<bool> _key)
-      : key(_key) {
+  table_index(unsigned int _num_fields, bool* _key)
+      : num_fields(_num_fields),
+        key(_key) {
+    key = new bool[num_fields];
+    memcpy(key, _key, num_fields);
   }
 
-  //private:
+  ~table_index() {
+    delete key;
+  }
 
-  vector<bool> key;
+  unsigned int num_fields;
+  bool* key;
+
   unordered_map<std::string, record*> index;
 
 };

@@ -7,6 +7,7 @@
 
 #include "nstore.h"
 #include "benchmark.h"
+#include "database.h"
 
 using namespace std;
 
@@ -21,6 +22,7 @@ class ycsb_benchmark : public benchmark {
   vector<int> zipf_dist;
   vector<double> uniform_dist;
 
+  database* db;
   workload load;
   config& conf;
 
