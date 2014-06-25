@@ -21,6 +21,15 @@ using namespace std;
 void* pmp;
 std::mutex pmp_mutex;
 
+struct static_info {
+  void* head_1;
+  void* tail_1;
+  void* head_2;
+  void* tail_2;
+};
+
+struct static_info *sp;
+
 template<typename T>
 class plist {
  private:
@@ -29,24 +38,18 @@ class plist {
     T val;
   };
 
-  struct static_info {
-    struct node* head;
-    struct node* tail;
-  };
-
-  struct static_info *sp;
-  void* pmp;
+  struct node** head;
+  struct node** tail;
 
  public:
-  plist(void* _pmp)
-      : pmp(_pmp) {
+  plist(void** _head, void** _tail) {
 
-    sp = (struct static_info *) pmemalloc_static_area(pmp);
+    head = (struct node**) _head;
+    tail = (struct node**) _tail;
 
     printf("sp: %p \n", PSUB(pmp, sp));
-    printf("sp->head : %p \n", sp->head);
-    printf("sp->tail : %p \n", sp->tail);
-
+    printf("sp->head : %p \n", head);
+    printf("sp->tail : %p \n", tail);
   }
 
   struct node* init(T val) {
@@ -59,18 +62,18 @@ class plist {
     }
 
     // link it in at the beginning of the list
-    PMEM(pmp, np)->next = sp->head;
+    PMEM(pmp, np)->next = (*head);
     PMEM(pmp, np)->val = val;
 
-    pmemalloc_onactive(pmp, np, (void **) &sp->head, np);
-    pmemalloc_onactive(pmp, np, (void **) &sp->tail, np);
+    pmemalloc_onactive(pmp, np, (void **) head, np);
+    pmemalloc_onactive(pmp, np, (void **) tail, np);
     pmemalloc_activate(pmp, np);
 
     return np;
   }
 
   struct node* push_back(T val) {
-    if (sp->head == NULL) {
+    if ((*head) == NULL) {
       return (init(val));
     }
 
@@ -86,9 +89,9 @@ class plist {
     PMEM(pmp, np)->next = NULL;
     PMEM(pmp, np)->val = val;
 
-    tailp = sp->tail;
+    tailp = (*tail);
 
-    pmemalloc_onactive(pmp, np, (void **) &sp->tail, np);
+    pmemalloc_onactive(pmp, np, (void **) tail, np);
     pmemalloc_activate(pmp, np);
 
     // persist already active pointer
@@ -99,7 +102,7 @@ class plist {
   }
 
   struct node* find(T val, struct node** prev) {
-    struct node* np = sp->head;
+    struct node* np = (*head);
     struct node* tmp = NULL;
 
     bool found = false;
@@ -128,7 +131,7 @@ class plist {
     struct node* prev = NULL;
     struct node* np = NULL;
 
-    if (sp->head == NULL) {
+    if ((*head) == NULL) {
       return false;
     }
 
@@ -143,10 +146,10 @@ class plist {
       }
 
       // Update head and tail
-      if (np == sp->head) {
-        pmemalloc_onfree(pmp, np, (void **) &sp->head, PMEM(pmp, np)->next);
-      } else if (np == sp->tail) {
-        pmemalloc_onfree(pmp, np, (void **) &sp->tail, prev);
+      if (np == (*head)) {
+        pmemalloc_onfree(pmp, np, (void **) head, PMEM(pmp, np)->next);
+      } else if (np == (*tail)) {
+        pmemalloc_onfree(pmp, np, (void **) tail, prev);
       }
     }
 
@@ -156,7 +159,7 @@ class plist {
   }
 
   void display(void) {
-    struct node* np = sp->head;
+    struct node* np = (*head);
 
     while (np) {
       cout << PMEM(pmp, np)->val << " -> ";
@@ -167,7 +170,7 @@ class plist {
   }
 
   vector<T> get_data(void) {
-    struct node* np = sp->head;
+    struct node* np = (*head);
     vector<T> data;
 
     while (np) {
@@ -181,7 +184,7 @@ class plist {
 };
 
 void* operator new(size_t sz) throw (bad_alloc) {
-  std::cerr << "::new " << std::endl;
+  //std::cerr << "::new " << std::endl;
   {
     std::lock_guard<std::mutex> lock(pmp_mutex);
     return PMEM(pmp, pmemalloc_reserve(pmp, sz));
@@ -189,7 +192,7 @@ void* operator new(size_t sz) throw (bad_alloc) {
 }
 
 void operator delete(void *p) throw () {
-  std::cerr << "::delete " << std::endl;
+  //std::cerr << "::delete " << std::endl;
   {
     std::lock_guard<std::mutex> lock(pmp_mutex);
     pmemalloc_free(pmp, PSUB(pmp, p));
@@ -235,42 +238,45 @@ int main(int argc, char *argv[]) {
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
+  sp = (struct static_info *) pmemalloc_static_area(pmp);
+
   // Test
 
   srand(time(NULL));
   int val, i, j;
 
-  struct node *ptr = NULL;
+  // LIST 1
 
-  plist<rec_*> l(pmp);
+  plist<rec_*> l(&(sp->head_1), &(sp->tail_1));
   vector<rec_*> data;
   vector<rec_*>::iterator data_itr;
 
-  int ops = 1;
+  val = rand() % 10;
+  std::string val_str = std::to_string(val);
 
-  for (i = 0; i < ops; i++) {
-    val = rand() % 10;
-    std::string val_str = std::to_string(val);
+  rec_* r = new rec_(val);
+  pmemalloc_activate(pmp, PSUB(pmp, r));
 
-    rec_* r = new rec_(val);
+  l.push_back(PSUB(pmp, r));
 
-    pmemalloc_activate(pmp, PSUB(pmp, r));
-    l.push_back(PSUB(pmp, r));
-
-    data = l.get_data();
-    for (data_itr = data.begin(); data_itr != data.end(); data_itr++) {
-      rec_* tmp = (*data_itr);
-      cout << "rec* : " << tmp << endl;
-
-      cout << PMEM(pmp, tmp)->vec[0] << " ";
-      cout << PMEM(pmp, tmp)->vec[1] << " ";
-
-      cout << endl;
-    }
-
-    //l.erase(PSUB(pmp, r));
-    //delete r;
+  data = l.get_data();
+  for (data_itr = data.begin(); data_itr != data.end(); data_itr++) {
+    rec_* tmp = (*data_itr);
+    cout << "rec* : " << tmp << " " << PMEM(pmp, tmp)->vec[0] << "  "
+         << PMEM(pmp, tmp)->vec[1] << endl;
   }
+
+  //l.erase(PSUB(pmp, r));
+  //delete r;
+
+  // LIST 2
+
+   plist<int> m(&(sp->head_2), &(sp->tail_2));
+
+   val = rand() % 10;
+   m.push_back(val);
+
+   m.display();
 
   return 0;
 }

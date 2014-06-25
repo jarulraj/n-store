@@ -125,7 +125,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   assert(state.per_writes >= 0 && state.per_writes <= 1);
 }
 
+/////////////////////////////////////////////////////////////////////
 // Global memory pool
+/////////////////////////////////////////////////////////////////////
+
 void* pmp;
 std::mutex pmp_mutex;
 
