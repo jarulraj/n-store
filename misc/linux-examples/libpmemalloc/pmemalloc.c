@@ -731,6 +731,8 @@ void pmemalloc_check(const char *path) {
       "TOTAL", };
   int i;
 
+  //Debug = 1;
+
   DEBUG("path=%s", path);
 
   if ((fd = open(path, O_RDONLY)) < 0)
@@ -882,4 +884,6 @@ void pmemalloc_check(const char *path) {
     printf("%10s %10d %10d %10d %10d\n", names[i], stats[i].bytes,
            stats[i].count, stats[i].largest, stats[i].smallest);
   }
+
+  //Debug = 0;
 }
