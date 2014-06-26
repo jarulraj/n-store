@@ -150,7 +150,7 @@ void operator delete(void *p) throw () {
 int main(int argc, char **argv) {
   const char* path = "./testfile";
 
-  long pmp_size = 10 * 1024 * 1024;
+  long pmp_size = 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 

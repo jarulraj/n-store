@@ -8,7 +8,13 @@
 #include <errno.h>
 #include <stdio.h>
 
-#define DEBUG(...)\
+#define DEBUG(...)
+#define ASSERT(cnd)
+#define ASSERTinfo(cnd, info)
+#define ASSERTeq(lhs, rhs)
+#define ASSERTne(lhs, rhs)
+
+//#define DEBUG(...)\
   debug(__FILE__, __LINE__, __func__, __VA_ARGS__)
 #define FATALSYS(...)\
   fatal(errno, __FILE__, __LINE__, __func__, __VA_ARGS__)
@@ -18,48 +24,27 @@
   usage(Usage, __VA_ARGS__)
 
 /* assert a condition is true */
-#define ASSERT(cnd)\
+//#define ASSERT(cnd)\
   ((void)((cnd) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s", #cnd), 0)))
-
 /* assertion with extra info printed if assertion fails */
-#define ASSERTinfo(cnd, info) \
+//#define ASSERTinfo(cnd, info) \
   ((void)((cnd) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%s = %s)", #cnd, #info, info), 0)))
-
 /* assert two integer values are equal */
-#define ASSERTeq(lhs, rhs)\
+//#define ASSERTeq(lhs, rhs)\
   ((void)(((lhs) == (rhs)) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%d) == %s (%d)", #lhs,\
   (lhs), #rhs, (rhs)), 0)))
-
 /* assert two integer values are not equal */
-#define ASSERTne(lhs, rhs)\
+//#define ASSERTne(lhs, rhs)\
   ((void)(((lhs) != (rhs)) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%d) != %s (%d)", #lhs,\
   (lhs), #rhs, (rhs)), 0)))
-
-void debug(const char *file, int line, const char *func,
-    const char *fmt, ...);
+void debug(const char *file, int line, const char *func, const char *fmt, ...);
 void fatal(int err, const char *file, int line, const char *func,
-    const char *fmt, ...);
+           const char *fmt, ...);
 void usage(const char *argfmt, const char *fmt, ...);
-
-/////////////////////////////////////////////////////////////////////
-// pmem.h -- definitions of libpmem entry points
-/////////////////////////////////////////////////////////////////////
-
-void pmem_msync_mode(void); /* for testing on non-PM memory-mapped files */
-void pmem_fit_mode(void); /* for fault injection testing */
-
-/* commonly-used functions for Persistent Memory */
-void *pmem_map(int fd, size_t len);
-void pmem_persist(void *addr, size_t len, int flags);
-
-/* for advanced users -- functions that do portions of pmem_persist() */
-void pmem_flush_cache(void *addr, size_t len, int flags);
-void pmem_fence(void);
-void pmem_drain_pm_stores(void);
 
 /////////////////////////////////////////////////////////////////////
 // pmemalloc.h -- example malloc library for Persistent Memory
@@ -92,6 +77,5 @@ void pmemalloc_onfree(void *pmp, void *ptr_, void **parentp_, void *nptr_);
 void pmemalloc_activate(void *pmp, void *ptr_);
 void pmemalloc_free(void *pmp, void *ptr_);
 void pmemalloc_check(const char *path);
-
 
 #endif /* LIBPM_H_ */

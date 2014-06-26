@@ -100,13 +100,8 @@ void usage(const char *argfmt, const char *fmt, ...) {
 }
 
 /////////////////////////////////////////////////////////////////////
-// pmem_cl.c -- cache-line-based implementation of libpmem
+// pmem_inline.h -- inline versions of pmem for performance
 /////////////////////////////////////////////////////////////////////
-/*
- * WARNING: This is for use with Persistent Memory -- if you use this
- * with a traditional page-cache-based memory mapped file, your changes
- * will not be durable.
- */
 
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -115,16 +110,8 @@ void usage(const char *argfmt, const char *fmt, ...) {
 
 #define ALIGN 64  /* assumes 64B cache line size */
 
-/*
- * pmem_map -- map the Persistent Memory
- *
- * This is just a convenience function that calls mmap() with the
- * appropriate arguments.
- *
- * This is the cache-line-based version.
- */
-void *
-pmem_map_cl(int fd, size_t len) {
+static inline void *
+pmem_map(int fd, size_t len) {
   void *base;
 
   if ((base = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0))
@@ -134,12 +121,7 @@ pmem_map_cl(int fd, size_t len) {
   return base;
 }
 
-/*
- * pmem_drain_pm_stores -- wait for any PM stores to drain from HW buffers
- *
- * This is the cache-line-based version.
- */
-void pmem_drain_pm_stores_cl(void) {
+static inline void pmem_drain_pm_stores(void) {
   /*
    * Nothing to do here -- this implementation assumes the platform
    * has something like Intel's ADR feature, which flushes HW buffers
@@ -153,12 +135,7 @@ void pmem_drain_pm_stores_cl(void) {
    */
 }
 
-/*
- * pmem_flush_cache -- flush processor cache for the given range
- *
- * This is the cache-line-based version.
- */
-void pmem_flush_cache_cl(void *addr, size_t len, int flags) {
+static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
   uintptr_t uptr;
 
   /* loop through 64B-aligned chunks covering the given range */
@@ -167,267 +144,10 @@ void pmem_flush_cache_cl(void *addr, size_t len, int flags) {
     __builtin_ia32_clflush((void *) uptr);
 }
 
-/*
- * pmem_persist -- make any cached changes to a range of PM persistent
- *
- * This is the cache-line-based version.
- */
-void pmem_persist_cl(void *addr, size_t len, int flags) {
-  pmem_flush_cache_cl(addr, len, flags);
+static inline void pmem_persist(void *addr, size_t len, int flags) {
+  pmem_flush_cache(addr, len, flags);
   __builtin_ia32_sfence();
-  pmem_drain_pm_stores_cl();
-}
-
-/////////////////////////////////////////////////////////////////////
-// pmem_fit.h -- implementation of libpmem for fault injection testing
-/////////////////////////////////////////////////////////////////////
-/*
- * WARNING: This is a special implementation of libpmem designed for
- * fault injection testing.  Performance will be very slow with this
- * implementation and main memory usage will balloon as the copy-on-writes
- * happen.  Don't use this unless you read the README and know what you're
- * doing.
- */
-
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <stdint.h>
-
-//#define ALIGN 64  /* assumes 64B cache line size */
-
-static int PM_fd;
-static uintptr_t PM_base;
-
-/*
- * pmem_map -- map the Persistent Memory
- *
- * This is the fit version (fault injection test) that uses copy-on-write.
- */
-void *
-pmem_map_fit(int fd, size_t len) {
-  void *base;
-
-  if ((base = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0))
-      == MAP_FAILED)
-    return NULL;
-
-  PM_base = (uintptr_t) base;
-  PM_fd = dup(fd);
-
-  return base;
-}
-
-/*
- * pmem_drain_pm_stores -- wait for any PM stores to drain from HW buffers
- *
- * This is the fit version (fault injection test) that uses copy-on-write.
- */
-void pmem_drain_pm_stores_fit(void) {
-  /*
-   * Nothing to do here for the fit version.
-   */
-}
-
-/*
- * pmem_flush_cache -- flush processor cache for the given range
- *
- * This is the fit version (fault injection test) that uses copy-on-write.
- */
-void pmem_flush_cache_fit(void *addr, size_t len, int flags) {
-  uintptr_t uptr;
-
-  if (!PM_base)
-    FATAL("pmem_map hasn't been called");
-
-  /*
-   * even though pwrite() can take any random byte addresses and
-   * lengths, we simulate cache flushing by writing the full 64B
-   * chunks that cover the given range.
-   */
-  for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
-      uptr += ALIGN)
-    if (pwrite(PM_fd, (void *) uptr, ALIGN, uptr - PM_base) < 0)
-      FATALSYS("pwrite len %d offset %lu", len, addr - PM_base);
-}
-
-/*
- * pmem_persist_fit -- make any cached changes to a range of PM persistent
- *
- * This is the fit version (fault injection test) that uses copy-on-write.
- */
-void pmem_persist_fit(void *addr, size_t len, int flags) {
-  pmem_flush_cache_fit(addr, len, flags);
-  __builtin_ia32_sfence();
-  pmem_drain_pm_stores_fit();
-}
-
-/////////////////////////////////////////////////////////////////////
-// pmem_msync.c -- msync-based implementation of libpmem
-/////////////////////////////////////////////////////////////////////
-
-#include <sys/mman.h>
-#include <sys/param.h>
-#include <stdio.h>
-#include <errno.h>
-#include <stdint.h>
-
-//#define ALIGN 4096  /* assumes 4k page size for use with msync() */
-
-/*
- * pmem_map -- map the Persistent Memory
- *
- * This is just a convenience function that calls mmap() with the
- * appropriate arguments.
- *
- * This is the msync-based version.
- */
-void *
-pmem_map_msync(int fd, size_t len) {
-  void *base;
-
-  if ((base = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0))
-      == MAP_FAILED)
-    return NULL;
-
-  return base;
-}
-
-/*
- * pmem_drain_pm_stores -- wait for any PM stores to drain from HW buffers
- *
- * This is the msync-based version.
- */
-void pmem_drain_pm_stores_msync(void) {
-  /*
-   * Nothing to do here for the msync-based version.
-   */
-}
-
-/*
- * pmem_flush_cache -- flush processor cache for the given range
- *
- * This is the msync-based version.
- */
-void pmem_flush_cache_msync(void *addr, size_t len, int flags) {
-  uintptr_t uptr;
-
-  /*
-   * msync requires len to be a multiple of pagesize, so
-   * adjust addr and len to represent the full 4k chunks
-   * covering the given range.
-   */
-
-  /* increase len by the amount we gain when we round addr down */
-  len += (uintptr_t) addr & (ALIGN - 1);
-
-  /* round addr down to page boundary */
-  uptr = (uintptr_t) addr & ~(ALIGN - 1);
-
-  /* round len up to multiple of page size */
-  len = (len + (ALIGN - 1)) & ~(ALIGN - 1);
-
-  if (msync((void *) uptr, len, MS_SYNC) < 0)
-    FATALSYS("msync");
-}
-
-/*
- * pmem_persist_msync -- make any cached changes to a range of PM persistent
- *
- * This is the msync-based version.
- */
-void pmem_persist_msync(void *addr, size_t len, int flags) {
-  pmem_flush_cache_msync(addr, len, flags);
-  __builtin_ia32_sfence();
-  pmem_drain_pm_stores_msync();
-}
-
-/////////////////////////////////////////////////////////////////////
-// pmem.c -- entry points for libpmem
-/////////////////////////////////////////////////////////////////////
-
-#include <sys/types.h>
-
-/* dispatch tables for the various versions of libpmem */
-void *pmem_map_cl(int fd, size_t len);
-void pmem_persist_cl(void *addr, size_t len, int flags);
-void pmem_flush_cache_cl(void *addr, size_t len, int flags);
-void pmem_drain_pm_stores_cl(void);
-void *pmem_map_msync(int fd, size_t len);
-void pmem_persist_msync(void *addr, size_t len, int flags);
-void pmem_flush_cache_msync(void *addr, size_t len, int flags);
-void pmem_drain_pm_stores_msync(void);
-void *pmem_map_fit(int fd, size_t len);
-void pmem_persist_fit(void *addr, size_t len, int flags);
-void pmem_flush_cache_fit(void *addr, size_t len, int flags);
-void pmem_drain_pm_stores_fit(void);
-#define PMEM_CL_INDEX 0
-#define PMEM_MSYNC_INDEX 1
-#define PMEM_FIT_INDEX 2
-static void *(*Map[])(int fd, size_t len) =
-{ pmem_map_cl, pmem_map_msync, pmem_map_fit};
-static void (*Persist[])(void *addr, size_t len, int flags) =
-{ pmem_persist_cl, pmem_persist_msync, pmem_persist_fit};
-static void (*Flush[])(void *addr, size_t len, int flags) =
-{ pmem_flush_cache_cl, pmem_flush_cache_msync,
-  pmem_flush_cache_fit};
-static void (*Drain_pm_stores[])(void) =
-{ pmem_drain_pm_stores_cl, pmem_drain_pm_stores_msync,
-  pmem_drain_pm_stores_fit};
-static int Mode = PMEM_CL_INDEX; /* current libpmem mode */
-
-/*
- * pmem_msync_mode -- switch libpmem to msync mode
- *
- * Must be called before any other libpmem routines.
- */
-void pmem_msync_mode(void) {
-  Mode = PMEM_MSYNC_INDEX;
-}
-
-/*
- * pmem_fit_mode -- switch libpmem to fault injection test mode
- *
- * Must be called before any other libpmem routines.
- */
-void pmem_fit_mode(void) {
-  Mode = PMEM_FIT_INDEX;
-}
-
-/*
- * pmem_map -- map the Persistent Memory
- */
-void *
-pmem_map(int fd, size_t len) {
-  return (*Map[Mode])(fd, len);
-}
-
-/*
- * pmem_persist -- make any cached changes to a range of PM persistent
- */
-void pmem_persist(void *addr, size_t len, int flags) {
-  (*Persist[Mode])(addr, len, flags);
-}
-
-/*
- * pmem_flush_cache -- flush processor cache for the given range
- */
-void pmem_flush_cache(void *addr, size_t len, int flags) {
-  (*Flush[Mode])(addr, len, flags);
-}
-
-/*
- * pmem_fence -- fence/store barrier for Peristent Memory
- */
-void pmem_fence(void) {
-  __builtin_ia32_sfence();
-}
-
-/*
- * pmem_drain_pm_stores -- wait for any PM stores to drain from HW buffers
- */
-void pmem_drain_pm_stores(void) {
-  (*Drain_pm_stores[Mode])();
+  pmem_drain_pm_stores();
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -609,9 +329,8 @@ static void pmemalloc_coalesce_free(void *pmp) {
     DEBUG("next clp %lx, offset 0x%lx", clp, OFF(pmp, clp));
   }
   if (firstfree != NULL && lastfree != NULL) {
-    DEBUG("coalesced size 0x%lx", csize);
-    DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
-          (uintptr_t )firstfree + csize);
+    DEBUG("coalesced size 0x%lx", csize);DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
+        (uintptr_t )firstfree + csize);
     firstfree->size = csize | PMEM_STATE_FREE;
     pmem_persist(firstfree, sizeof(*firstfree), 0);
   }
@@ -664,13 +383,12 @@ pmemalloc_init(const char *path, size_t size) {
      */
     if (size < PMEM_MIN_POOL_SIZE) {
       DEBUG("size %lu too small (must be at least %lu)", size,
-            PMEM_MIN_POOL_SIZE);
+          PMEM_MIN_POOL_SIZE);
       errno = EINVAL;
       goto out;
     }
 
-    ASSERTeq(sizeof(cl), PMEM_CHUNK_SIZE);
-    ASSERTeq(sizeof(hdr), PMEM_PAGE_SIZE);
+    ASSERTeq(sizeof(cl), PMEM_CHUNK_SIZE);ASSERTeq(sizeof(hdr), PMEM_PAGE_SIZE);
 
     if ((fd = open(path, O_CREAT | O_RDWR, 0666)) < 0)
       goto out;
@@ -692,8 +410,7 @@ pmemalloc_init(const char *path, size_t size) {
      */
     cl.size = lastclumpoff - PMEM_CLUMP_OFFSET;
     if (pwrite(fd, &cl, sizeof(cl), PMEM_CLUMP_OFFSET) < 0)
-      goto out;
-    DEBUG("[0x%lx] created clump, size 0x%lx", PMEM_CLUMP_OFFSET, cl.size);
+      goto out; DEBUG("[0x%lx] created clump, size 0x%lx", PMEM_CLUMP_OFFSET, cl.size);
 
     /*
      * write the pool header
@@ -799,6 +516,10 @@ pmemalloc_static_area(void *pmp) {
  * happens before parent->next_ is set to point at the new memory will
  * result in the memory being returned back to the free list.
  */
+
+// ROTATING FIRST FIT
+struct clump* prev_clp = NULL;
+
 void *
 pmemalloc_reserve(void *pmp, size_t size) {
   size_t nsize = roundup(size + PMEM_CHUNK_SIZE, PMEM_CHUNK_SIZE);
@@ -806,7 +527,10 @@ pmemalloc_reserve(void *pmp, size_t size) {
 
   DEBUG("pmp=0x%lx, size=0x%lx -> 0x%lx", pmp, size, nsize);
 
-  clp = PMEM(pmp, (struct clump *)PMEM_CLUMP_OFFSET);
+  if(prev_clp != NULL)
+    clp = prev_clp;
+  else
+    clp = PMEM(pmp, (struct clump *)PMEM_CLUMP_OFFSET);
 
   if (clp->size == 0)
     FATAL("no clumps found");
@@ -866,6 +590,7 @@ pmemalloc_reserve(void *pmp, size_t size) {
         pmem_persist(clp, sizeof(*clp), 0);
       }
 
+      prev_clp = clp;
       return ptr;
     }
 
@@ -893,15 +618,15 @@ void pmemalloc_onactive(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
   int i;
 
   DEBUG("pmp=0x%lx, ptr_=0x%lx, parentp_=0x%lx, nptr_=0x%lx", pmp, ptr_,
-        parentp_, nptr_);
+      parentp_, nptr_);
 
   clp = PMEM(pmp, (struct clump *)((uintptr_t)ptr_ - PMEM_CHUNK_SIZE));
 
   ASSERTeq(clp->size & PMEM_STATE_MASK, PMEM_STATE_RESERVED);
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   for (i = 0; i < PMEM_NUM_ON; i++)
     if (clp->on[i].off == 0) {
@@ -938,15 +663,15 @@ void pmemalloc_onfree(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
   int i;
 
   DEBUG("pmp=0x%lx, ptr_=0x%lx, parentp_=0x%lx, nptr_=0x%lx", pmp, ptr_,
-        parentp_, nptr_);
+      parentp_, nptr_);
 
   clp = PMEM(pmp, (struct clump *)((uintptr_t)ptr_ - PMEM_CHUNK_SIZE));
 
   ASSERTeq(clp->size & PMEM_STATE_MASK, PMEM_STATE_ACTIVE);
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   for (i = 0; i < PMEM_NUM_ON; i++)
     if (clp->on[i].off == 0) {
@@ -988,8 +713,8 @@ void pmemalloc_activate(void *pmp, void *ptr_) {
   ASSERTeq(clp->size & PMEM_STATE_MASK, PMEM_STATE_RESERVED);
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   sz = clp->size & ~PMEM_STATE_MASK;
 
@@ -1039,8 +764,8 @@ void pmemalloc_free(void *pmp, void *ptr_) {
   clp = PMEM(pmp, (struct clump *)((uintptr_t)ptr_ - PMEM_CHUNK_SIZE));
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   sz = clp->size & ~PMEM_STATE_MASK;
   state = clp->size & PMEM_STATE_MASK;
@@ -1143,8 +868,7 @@ void pmemalloc_check(const char *path) {
 
   if ((pmp = mmap(NULL, stbuf.st_size, PROT_READ, MAP_SHARED, fd, 0))
       == MAP_FAILED)
-    FATALSYS("mmap");
-  DEBUG("pmp %lx", pmp);
+    FATALSYS("mmap");DEBUG("pmp %lx", pmp);
 
   close(fd);
 
@@ -1152,8 +876,7 @@ void pmemalloc_check(const char *path) {
   DEBUG("   hdrp 0x%lx (off 0x%lx)", hdrp, OFF(pmp, hdrp));
 
   if (strcmp(hdrp->signature, PMEM_SIGNATURE))
-    FATAL("failed signature check");
-  DEBUG("signature check passed");
+    FATAL("failed signature check");DEBUG("signature check passed");
 
   clp = PMEM(pmp, (struct clump *)PMEM_CLUMP_OFFSET);
   /*
@@ -1166,8 +889,7 @@ void pmemalloc_check(const char *path) {
       PMEM(
           pmp,
           (struct clump *) (stbuf.st_size & ~(PMEM_CHUNK_SIZE - 1)) - PMEM_CHUNK_SIZE);
-  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(pmp, clp));
-  DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(pmp, lastclp));
+  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(pmp, clp));DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(pmp, lastclp));
 
   clumptotal = (uintptr_t) lastclp - (uintptr_t) clp;
 
@@ -1204,10 +926,9 @@ void pmemalloc_check(const char *path) {
     size_t sz = clp->size & ~PMEM_STATE_MASK;
     int state = clp->size & PMEM_STATE_MASK;
 
-    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state);
-    DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
-          clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
-          clp->on[2].ptr_);
+    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state);DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
+        clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
+        clp->on[2].ptr_);
 
     if (sz > stats[PMEM_STATE_UNUSED].largest)
       stats[PMEM_STATE_UNUSED].largest = sz;

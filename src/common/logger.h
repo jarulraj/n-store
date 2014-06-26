@@ -107,6 +107,7 @@ class logger {
       exit(EXIT_FAILURE);
     }
 
+    /*
     // PERSIST pointers
     for (e_itr = entries.begin(); e_itr != entries.end(); e_itr++) {
       unsigned int field_itr;
@@ -127,8 +128,8 @@ class logger {
                 pmp, PSUB(pmp, (void* ) (*e_itr).after_image[field_itr]));
         }
       }
-
     }
+    */
 
     // CLEAR log
     entries.clear();
