@@ -363,6 +363,7 @@ static void pmemalloc_coalesce_free(void *pmp) {
  * This function must be called before any other pmem functions.
  */
 bool new_file = 0;
+size_t orig_size = 0;
 
 void *
 pmemalloc_init(const char *path, size_t size) {
@@ -370,6 +371,7 @@ pmemalloc_init(const char *path, size_t size) {
   int err;
   int fd = -1;
   struct stat stbuf;
+  orig_size = size;
 
   DEBUG("path=%s size=0x%lx", path, size);
 
@@ -430,6 +432,8 @@ pmemalloc_init(const char *path, size_t size) {
       goto out;
 
   } else {
+    new_file = 0;
+
     if ((fd = open(path, O_RDWR)) < 0)
       goto out;
     size = stbuf.st_size;
@@ -440,8 +444,11 @@ pmemalloc_init(const char *path, size_t size) {
   /*
    * map the file
    */
-  if ((pmp = pmem_map(fd, size)) == NULL)
+  if ((pmp = pmem_map(fd, size)) == NULL){
+    printf("fd : %d size : %lu \n", fd, size);
+    perror("mapping failed ");
     goto out;
+  }
 
   /*
    * scan pool for recovery work, five kinds:
@@ -453,6 +460,14 @@ pmemalloc_init(const char *path, size_t size) {
    */
   pmemalloc_recover(pmp);
   pmemalloc_coalesce_free(pmp);
+
+  if(new_file == 1){
+    if (fd != -1)
+      close(fd);
+
+    munmap(pmp, size);
+    return pmemalloc_init(path, orig_size);
+  }
 
   DEBUG("return pmp 0x%lx", pmp);
   return pmp;

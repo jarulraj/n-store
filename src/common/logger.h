@@ -117,19 +117,14 @@ class logger {
       unsigned int field_itr;
 
       // Update
-      /*
       if ((*e_itr).op_type == operation_type::Update) {
-        cout << "Update" << endl;
-        pmemalloc_activate(pmp, PSUB(pmp, (*e_itr).after_field));
+        //pmemalloc_activate(pmp, PSUB(pmp, (*e_itr).after_field));
       }
-      */
 
       // Insert
       if ((*e_itr).op_type == operation_type::Insert) {
-        cout << "Insert" << endl;
         for (field_itr = 0; field_itr < (*e_itr).num_fields; field_itr++) {
           if ((*e_itr).after_image[field_itr] != NULL) {
-            //cout<<"Activate :: "<< PSUB(pmp, (void* ) (*e_itr).after_image[field_itr]) <<endl;
             pmemalloc_activate(pmp, PSUB(pmp, (void* ) (*e_itr).after_image[field_itr]));
           }
         }
