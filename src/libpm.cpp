@@ -362,6 +362,8 @@ static void pmemalloc_coalesce_free(void *pmp) {
  *
  * This function must be called before any other pmem functions.
  */
+bool new_file = 0;
+
 void *
 pmemalloc_init(const char *path, size_t size) {
   void *pmp;
@@ -372,6 +374,7 @@ pmemalloc_init(const char *path, size_t size) {
   DEBUG("path=%s size=0x%lx", path, size);
 
   if (stat(path, &stbuf) < 0) {
+    new_file = 1;
     struct clump cl = { 0 };
     struct pool_header hdr = { 0 };
     size_t lastclumpoff;
@@ -530,13 +533,11 @@ pmemalloc_reserve(void *pmp, size_t size) {
 
   DEBUG("pmp=0x%lx, size=0x%lx -> 0x%lx", pmp, size, nsize);
 
-  if (prev_clp != NULL){
+  if (prev_clp != NULL && new_file == 0) {
     clp = prev_clp;
+  } else {
     clp = PMEM(pmp, (struct clump *)PMEM_CLUMP_OFFSET);
-    printf("clp: %lx prev_clp: %lx \n", OFF(pmp, clp), OFF(pmp, prev_clp));
   }
-  else
-    clp = PMEM(pmp, (struct clump *)PMEM_CLUMP_OFFSET);
 
   if (clp->size == 0)
     FATAL("no clumps found");
@@ -821,7 +822,11 @@ void pmemalloc_free(void *pmp, void *ptr_) {
    *     get back to the clump below us.  for now, we just invoke
    *     the recovery code for coalescing.
    */
-  pmemalloc_coalesce_free(pmp);
+
+  /*
+   * Disable this call for every free ; do it during init.
+   */
+  //pmemalloc_coalesce_free(pmp);
 }
 
 /*
