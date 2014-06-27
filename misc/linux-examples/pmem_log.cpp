@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
   // LIST 1
 
   ptr_cnt = 0;
-  cout<<"count: "<<ptr_cnt<<endl;
+  cout << "count: " << ptr_cnt << endl;
 
   plist<rec_*> l(&(sp->ptrs[ptr_cnt++]), &(sp->ptrs[ptr_cnt++]));
   vector<rec_*> data;
@@ -274,12 +274,12 @@ int main(int argc, char *argv[]) {
 
   // LIST 2
 
-   plist<int> m(&(sp->ptrs[ptr_cnt++]), &(sp->ptrs[ptr_cnt++]));
+  plist<int> m(&(sp->ptrs[ptr_cnt++]), &(sp->ptrs[ptr_cnt++]));
 
-   val = rand() % 10;
-   m.push_back(val);
+  val = rand() % 10;
+  m.push_back(val);
 
-   m.display();
+  m.display();
 
   return 0;
 }

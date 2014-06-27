@@ -145,6 +145,15 @@ void operator delete(void *p) throw () {
   pthread_mutex_unlock(&pmp_mutex);
 }
 
+#define MAX_PTRS 128
+#define MAX_TABS  16
+
+struct static_info {
+  void* ptrs[MAX_PTRS];
+};
+
+struct static_info *sp;
+
 int main(int argc, char **argv) {
   const char* path = "./testfile";
 
@@ -154,10 +163,14 @@ int main(int argc, char **argv) {
 
   //pmemalloc_check(path);
 
+  sp = (struct static_info *) pmemalloc_static_area(pmp);
+
   // Start
 
   config state;
   parse_arguments(argc, argv, state);
+
+  state.db = new database(MAX_TABS);
 
   state.pmp = pmp;
 
@@ -171,7 +184,7 @@ int main(int argc, char **argv) {
     cout << "WAL :: " << endl;
 
     ycsb_benchmark ycsb(state);
-    wal_coordinator wal(state, ycsb.db);
+    wal_coordinator wal(state, state.db);
 
     wal.runner(ycsb.get_dataset());
 

@@ -100,57 +100,6 @@ void usage(const char *argfmt, const char *fmt, ...) {
 }
 
 /////////////////////////////////////////////////////////////////////
-// pmem_inline.h -- inline versions of pmem for performance
-/////////////////////////////////////////////////////////////////////
-
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <stdio.h>
-#include <stdint.h>
-
-#define ALIGN 64  /* assumes 64B cache line size */
-
-static inline void *
-pmem_map(int fd, size_t len) {
-  void *base;
-
-  if ((base = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0))
-      == MAP_FAILED)
-    return NULL;
-
-  return base;
-}
-
-static inline void pmem_drain_pm_stores(void) {
-  /*
-   * Nothing to do here -- this implementation assumes the platform
-   * has something like Intel's ADR feature, which flushes HW buffers
-   * automatically on power loss.  This implementation further assumes
-   * the Persistent Memory hardware itself doesn't need to be alerted
-   * when something needs to be persistent.  Of course these assumptions
-   * may be wrong for different combinations of Persistent Memory
-   * products and platforms, but this is just example code.
-   *
-   * TODO: update this to work on other types of platforms.
-   */
-}
-
-static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
-  uintptr_t uptr;
-
-  /* loop through 64B-aligned chunks covering the given range */
-  for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
-      uptr += 64)
-    __builtin_ia32_clflush((void *) uptr);
-}
-
-static inline void pmem_persist(void *addr, size_t len, int flags) {
-  pmem_flush_cache(addr, len, flags);
-  __builtin_ia32_sfence();
-  pmem_drain_pm_stores();
-}
-
-/////////////////////////////////////////////////////////////////////
 // pmem_alloc.c -- example malloc library for Persistent Memory
 /////////////////////////////////////////////////////////////////////
 
@@ -329,9 +278,8 @@ static void pmemalloc_coalesce_free(void *pmp) {
     DEBUG("next clp %lx, offset 0x%lx", clp, OFF(pmp, clp));
   }
   if (firstfree != NULL && lastfree != NULL) {
-    DEBUG("coalesced size 0x%lx", csize);
-    DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
-          (uintptr_t )firstfree + csize);
+    DEBUG("coalesced size 0x%lx", csize); DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
+        (uintptr_t )firstfree + csize);
     firstfree->size = csize | PMEM_STATE_FREE;
     pmem_persist(firstfree, sizeof(*firstfree), 0);
   }
@@ -389,7 +337,7 @@ pmemalloc_init(const char *path, size_t size) {
      */
     if (size < PMEM_MIN_POOL_SIZE) {
       DEBUG("size %lu too small (must be at least %lu)", size,
-            PMEM_MIN_POOL_SIZE);
+          PMEM_MIN_POOL_SIZE);
       errno = EINVAL;
       goto out;
     }
@@ -417,8 +365,7 @@ pmemalloc_init(const char *path, size_t size) {
      */
     cl.size = lastclumpoff - PMEM_CLUMP_OFFSET;
     if (pwrite(fd, &cl, sizeof(cl), PMEM_CLUMP_OFFSET) < 0)
-      goto out;
-    DEBUG("[0x%lx] created clump, size 0x%lx", PMEM_CLUMP_OFFSET, cl.size);
+      goto out; DEBUG("[0x%lx] created clump, size 0x%lx", PMEM_CLUMP_OFFSET, cl.size);
 
     /*
      * write the pool header
@@ -444,7 +391,7 @@ pmemalloc_init(const char *path, size_t size) {
   /*
    * map the file
    */
-  if ((pmp = pmem_map(fd, size)) == NULL){
+  if ((pmp = pmem_map(fd, size)) == NULL) {
     printf("fd : %d size : %lu \n", fd, size);
     perror("mapping failed ");
     goto out;
@@ -461,7 +408,7 @@ pmemalloc_init(const char *path, size_t size) {
   pmemalloc_recover(pmp);
   pmemalloc_coalesce_free(pmp);
 
-  if(new_file == 1){
+  if (new_file == 1) {
     if (fd != -1)
       close(fd);
 
@@ -640,15 +587,15 @@ void pmemalloc_onactive(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
   int i;
 
   DEBUG("pmp=0x%lx, ptr_=0x%lx, parentp_=0x%lx, nptr_=0x%lx", pmp, ptr_,
-        parentp_, nptr_);
+      parentp_, nptr_);
 
   clp = PMEM(pmp, (struct clump *)((uintptr_t)ptr_ - PMEM_CHUNK_SIZE));
 
   ASSERTeq(clp->size & PMEM_STATE_MASK, PMEM_STATE_RESERVED);
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   for (i = 0; i < PMEM_NUM_ON; i++)
     if (clp->on[i].off == 0) {
@@ -685,15 +632,15 @@ void pmemalloc_onfree(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
   int i;
 
   DEBUG("pmp=0x%lx, ptr_=0x%lx, parentp_=0x%lx, nptr_=0x%lx", pmp, ptr_,
-        parentp_, nptr_);
+      parentp_, nptr_);
 
   clp = PMEM(pmp, (struct clump *)((uintptr_t)ptr_ - PMEM_CHUNK_SIZE));
 
   ASSERTeq(clp->size & PMEM_STATE_MASK, PMEM_STATE_ACTIVE);
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   for (i = 0; i < PMEM_NUM_ON; i++)
     if (clp->on[i].off == 0) {
@@ -738,8 +685,8 @@ void pmemalloc_activate(void *pmp, void *ptr_) {
   ASSERTeq(clp->size & PMEM_STATE_MASK, PMEM_STATE_RESERVED);
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   sz = clp->size & ~PMEM_STATE_MASK;
 
@@ -789,8 +736,8 @@ void pmemalloc_free(void *pmp, void *ptr_) {
   clp = PMEM(pmp, (struct clump *)((uintptr_t)ptr_ - PMEM_CHUNK_SIZE));
 
   DEBUG("[0x%lx] clump on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", OFF(pmp, clp),
-        clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
-        clp->on[2].off, clp->on[2].ptr_);
+      clp->on[0].off, clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_,
+      clp->on[2].off, clp->on[2].ptr_);
 
   sz = clp->size & ~PMEM_STATE_MASK;
   state = clp->size & PMEM_STATE_MASK;
@@ -842,6 +789,34 @@ void pmemalloc_free(void *pmp, void *ptr_) {
    * Disable this call for every free ; do it during init.
    */
   //pmemalloc_coalesce_free(pmp);
+}
+
+/*
+ * pmemalloc_activate_absolute -- wrapper handling absolute pointers
+ *
+ * Inputs:
+ *  pmp -- a pmp as returned by pmemalloc_init()
+ *
+ *  ptr_ -- absolute address (pmp + relative address)
+ */
+void pmemalloc_activate_absolute(void *pmp, void *ptr_) {
+
+  pmemalloc_activate(pmp, PSUB(pmp, ptr_));
+
+}
+
+/*
+ * pmemalloc_free_absolute -- free memory -- wrapper handling absolute pointers
+ *
+ * Inputs:
+ *  pmp -- a pmp as returned by pmemalloc_init()
+ *
+ *  ptr_ -- absolute address (pmp + relative address)
+ */
+void pmemalloc_free_absolute(void *pmp, void *ptr_) {
+
+  pmemalloc_free(pmp, PSUB(pmp, ptr_));
+
 }
 
 /*
@@ -897,8 +872,7 @@ void pmemalloc_check(const char *path) {
 
   if ((pmp = mmap(NULL, stbuf.st_size, PROT_READ, MAP_SHARED, fd, 0))
       == MAP_FAILED)
-    FATALSYS("mmap");
-  DEBUG("pmp %lx", pmp);
+    FATALSYS("mmap"); DEBUG("pmp %lx", pmp);
 
   close(fd);
 
@@ -906,8 +880,7 @@ void pmemalloc_check(const char *path) {
   DEBUG("   hdrp 0x%lx (off 0x%lx)", hdrp, OFF(pmp, hdrp));
 
   if (strcmp(hdrp->signature, PMEM_SIGNATURE))
-    FATAL("failed signature check");
-  DEBUG("signature check passed");
+    FATAL("failed signature check"); DEBUG("signature check passed");
 
   clp = PMEM(pmp, (struct clump *)PMEM_CLUMP_OFFSET);
   /*
@@ -920,8 +893,7 @@ void pmemalloc_check(const char *path) {
       PMEM(
           pmp,
           (struct clump *) (stbuf.st_size & ~(PMEM_CHUNK_SIZE - 1)) - PMEM_CHUNK_SIZE);
-  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(pmp, clp));
-  DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(pmp, lastclp));
+  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(pmp, clp)); DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(pmp, lastclp));
 
   clumptotal = (uintptr_t) lastclp - (uintptr_t) clp;
 
@@ -958,10 +930,9 @@ void pmemalloc_check(const char *path) {
     size_t sz = clp->size & ~PMEM_STATE_MASK;
     int state = clp->size & PMEM_STATE_MASK;
 
-    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state);
-    DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
-          clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
-          clp->on[2].ptr_);
+    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state); DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
+        clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
+        clp->on[2].ptr_);
 
     if (sz > stats[PMEM_STATE_UNUSED].largest)
       stats[PMEM_STATE_UNUSED].largest = sz;

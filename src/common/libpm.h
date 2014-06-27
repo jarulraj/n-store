@@ -54,6 +54,58 @@ void fatal(int err, const char *file, int line, const char *func,
 void usage(const char *argfmt, const char *fmt, ...);
 
 /////////////////////////////////////////////////////////////////////
+// pmem_inline.h -- inline versions of pmem for performance
+/////////////////////////////////////////////////////////////////////
+
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <stdio.h>
+#include <stdint.h>
+
+#define ALIGN 64  /* assumes 64B cache line size */
+
+static inline void *
+pmem_map(int fd, size_t len) {
+  void *base;
+
+  if ((base = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0))
+      == MAP_FAILED)
+    return NULL;
+
+  return base;
+}
+
+static inline void pmem_drain_pm_stores(void) {
+  /*
+   * Nothing to do here -- this implementation assumes the platform
+   * has something like Intel's ADR feature, which flushes HW buffers
+   * automatically on power loss.  This implementation further assumes
+   * the Persistent Memory hardware itself doesn't need to be alerted
+   * when something needs to be persistent.  Of course these assumptions
+   * may be wrong for different combinations of Persistent Memory
+   * products and platforms, but this is just example code.
+   *
+   * TODO: update this to work on other types of platforms.
+   */
+}
+
+static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
+  uintptr_t uptr;
+
+  /* loop through 64B-aligned chunks covering the given range */
+  for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
+      uptr += 64)
+    __builtin_ia32_clflush((void *) uptr);
+}
+
+static inline void pmem_persist(void *addr, size_t len, int flags) {
+  pmem_flush_cache(addr, len, flags);
+  __builtin_ia32_sfence();
+  pmem_drain_pm_stores();
+}
+
+
+/////////////////////////////////////////////////////////////////////
 // pmemalloc.h -- example malloc library for Persistent Memory
 /////////////////////////////////////////////////////////////////////
 

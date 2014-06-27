@@ -5,6 +5,8 @@
 #include <getopt.h>
 #include <vector>
 
+#include "database.h"
+
 using namespace std;
 
 class config {
@@ -13,6 +15,7 @@ class config {
   std::string fs_path;
 
   void* pmp;
+  database* db;
 
   int num_keys;
   int num_txns;

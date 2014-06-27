@@ -22,7 +22,6 @@ class ycsb_benchmark : public benchmark {
   vector<int> zipf_dist;
   vector<double> uniform_dist;
 
-  database* db;
   workload load;
   config& conf;
 

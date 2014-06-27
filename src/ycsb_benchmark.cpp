@@ -7,6 +7,8 @@
 #include "utils.h"
 #include "nstore.h"
 
+#include "libpm.h"
+
 using namespace std;
 
 #define DELIM ' '
@@ -35,7 +37,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     : conf(_conf),
       txn_id(0) {
 
-  db = new database(1);
+  database* db = conf.db;
 
   table* usertable = new table("usertable", 1);
 
@@ -99,7 +101,7 @@ workload& ycsb_benchmark::get_workload() {
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
-  bool projection[] = {1, 1};
+  bool projection[] = { 1, 1 };
   std::string empty;
 
   int part_range = conf.num_keys / conf.num_parts;
