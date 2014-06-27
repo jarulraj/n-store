@@ -19,7 +19,7 @@ int new_cnt = 0;
 void* operator new(size_t sz) throw (bad_alloc) {
   new_cnt++;
   pthread_mutex_lock(&pmp_mutex);
-  void* ret = PMEM(pmp, pmemalloc_reserve(pmp, sz));
+  void* ret = PMEM(pmemalloc_reserve(pmp, sz));
   //void* ret = malloc(sz);
   pthread_mutex_unlock(&pmp_mutex);
   return ret;
@@ -27,7 +27,7 @@ void* operator new(size_t sz) throw (bad_alloc) {
 
 void operator delete(void *p) throw () {
   pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(pmp, PSUB(pmp, p));
+  pmemalloc_free(pmp, OFF(p));
   //free(p);
   pthread_mutex_unlock(&pmp_mutex);
 }

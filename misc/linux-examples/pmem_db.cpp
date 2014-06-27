@@ -41,20 +41,21 @@ class plist {
 
   struct node** head;
   struct node** tail;
+  int store_pointers;
 
   plist()
       : head(NULL),
-        tail(NULL) {
+        tail(NULL),
+        store_pointers(0) {
   }
 
-  plist(void** _head, void** _tail) {
+  plist(void** _head, void** _tail, int _store_pointers) {
 
-    head = (struct node**) PSUB(pmp, _head);
-    tail = (struct node**) PSUB(pmp, _tail);
+    head = (struct node**) OFF(_head);
+    tail = (struct node**) OFF(_tail);
+    store_pointers = _store_pointers;
 
-    printf("sp: %p \n", PSUB(pmp, sp));
-    printf("sp->head : %p \n", PSUB(pmp, head));
-    printf("sp->tail : %p \n", PSUB(pmp, tail));
+    cout << "head : " << head << " tail : " << tail << "\n";
   }
 
   friend std::ostream& operator<<(std::ostream& os, const plist& list) {
@@ -63,27 +64,28 @@ class plist {
   }
 
   struct node* init(T val) {
-    //cout << "creating list with headnode : " << val << endl;
-
     struct node* np = NULL;
     if ((np = (struct node*) pmemalloc_reserve(pmp, sizeof(*np))) == NULL) {
       cout << "pmemalloc_reserve failed " << endl;
       return NULL;
     }
 
-    // link it in at the beginning of the list
-    PMEM(pmp, np)->next = (*PMEM(pmp, head));
-    PMEM(pmp, np)->val = val;
+    // Link it in at the beginning of the list
+    PMEM(np)->next = (*PMEM(head));
+    PMEM(np)->val = val;
 
-    pmemalloc_onactive(pmp, np, (void **) PMEM(pmp, head), np);
-    pmemalloc_onactive(pmp, np, (void **) PMEM(pmp, tail), np);
+    pmemalloc_onactive(pmp, np, (void **) PMEM(head), np);
+    pmemalloc_onactive(pmp, np, (void **) PMEM(tail), np);
     pmemalloc_activate(pmp, np);
 
     return np;
   }
 
+  /*
+   * If storing pointers, this will take care of persisting them as well
+   */
   struct node* push_back(T val) {
-    if ((*PMEM(pmp, head)) == NULL) {
+    if ((*PMEM(head)) == NULL) {
       return (init(val));
     }
 
@@ -95,51 +97,62 @@ class plist {
       return NULL;
     }
 
-    // link it in at the end of the list
-    PMEM(pmp, np)->next = NULL;
-    PMEM(pmp, np)->val = val;
+    // Link it in at the end of the list
+    PMEM(np)->next = NULL;
+    PMEM(np)->val = val;
 
-    tailp = (*PMEM(pmp, tail));
+    tailp = (*PMEM(tail));
 
-    pmemalloc_onactive(pmp, np, (void **) PMEM(pmp, tail), np);
+    pmemalloc_onactive(pmp, np, (void **) PMEM(tail), np);
     pmemalloc_activate(pmp, np);
 
-    // persist already active pointer
-    PMEM(pmp, tailp)->next = np;
-    pmem_persist(&PMEM(pmp, tailp)->next, sizeof(*np), 0);
+    PMEM(tailp)->next = np;
+    pmem_persist(&PMEM(tailp)->next, sizeof(*np), 0);
+
+    // Persists data (pointers) if needed
+    if (store_pointers)
+      pmemalloc_activate(pmp, val);
 
     return np;
   }
 
-  struct node* at(unsigned int id) {
-    struct node* np = (*PMEM(pmp, head));
+  T at(const int index) const {
+    struct node * np = (*PMEM(head));
     unsigned int itr = 0;
+    bool found = false;
 
     while (np != NULL) {
-      if (itr == id)
-        return np;
-      else{
+      if (itr == index) {
+        found = true;
+        break;
+      } else {
         itr++;
-        np = PMEM(pmp, np)->next;
+        np = PMEM(np)->next;
       }
+    }
+
+    if (found) {
+      if (store_pointers)
+        return PMEM(PMEM(np)->val);
+      else
+        return PMEM(np)->val;
     }
 
     return NULL;
   }
 
   struct node* find(T val, struct node** prev) {
-    struct node* np = (*PMEM(pmp, head));
+    struct node* np = (*PMEM(head));
     struct node* tmp = NULL;
-
     bool found = false;
 
     while (np != NULL) {
-      if (PMEM(pmp, np)->val == val) {
+      if (PMEM(np)->val == val) {
         found = true;
         break;
       } else {
         tmp = np;
-        np = PMEM(pmp, np)->next;
+        np = PMEM(np)->next;
       }
     }
 
@@ -157,7 +170,7 @@ class plist {
     struct node* prev = NULL;
     struct node* np = NULL;
 
-    if ((*PMEM(pmp, head)) == NULL) {
+    if ((*PMEM(head)) == NULL) {
       return false;
     }
 
@@ -167,16 +180,16 @@ class plist {
       return -1;
     } else {
       if (prev != NULL) {
-        PMEM(pmp, prev)->next = PMEM(pmp, np)->next;
-        pmem_persist(&PMEM(pmp, prev)->next, sizeof(*np), 0);
+        PMEM(prev)->next = PMEM(np)->next;
+        pmem_persist(&PMEM(prev)->next, sizeof(*np), 0);
       }
 
       // Update head and tail
-      if (np == (*PMEM(pmp, head))) {
-        pmemalloc_onfree(pmp, np, (void **) PMEM(pmp, head),
-        PMEM(pmp, np)->next);
+      if (np == (*PMEM(head))) {
+        pmemalloc_onfree(pmp, np, (void **) PMEM(head),
+        PMEM(np)->next);
       } else if (np == (*tail)) {
-        pmemalloc_onfree(pmp, np, (void **) PMEM(pmp, tail), prev);
+        pmemalloc_onfree(pmp, np, (void **) PMEM(tail), prev);
       }
     }
 
@@ -186,37 +199,37 @@ class plist {
   }
 
   void display(void) {
-    struct node* np = (*PMEM(pmp, head));
+    struct node* np = (*PMEM(head));
 
     while (np) {
-      cout << PMEM(pmp, np)->val << " -> ";
-      np = PMEM(pmp, np)->next;
+      cout << PMEM(np)->val << " -> ";
+      np = PMEM(np)->next;
     }
     cout << endl;
 
   }
 
   void clear(void) {
-    struct node* np = (*PMEM(pmp, head));
+    struct node* np = (*PMEM(head));
     struct node* prev = NULL;
 
     while (np) {
       prev = np;
-      np = PMEM(pmp, np)->next;
+      np = PMEM(np)->next;
       pmemalloc_free(pmp, prev);
     }
 
-    (*PMEM(pmp, head)) = NULL;
-    (*PMEM(pmp, tail)) = NULL;
+    (*PMEM(head)) = NULL;
+    (*PMEM(tail)) = NULL;
   }
 
   vector<T> get_data(void) {
-    struct node* np = (*PMEM(pmp, head));
+    struct node* np = (*PMEM(head));
     vector<T> data;
 
     while (np) {
-      data.push_back(PMEM(pmp, np)->val);
-      np = PMEM(pmp, np)->next;
+      data.push_back(PMEM(np)->val);
+      np = PMEM(np)->next;
     }
 
     return data;
@@ -228,7 +241,7 @@ void* operator new(size_t sz) throw (bad_alloc) {
   //std::cerr << "::new " << std::endl;
   {
     std::lock_guard<std::mutex> lock(pmp_mutex);
-    return PMEM(pmp, pmemalloc_reserve(pmp, sz));
+    return PMEM(pmemalloc_reserve(pmp, sz));
   }
 }
 
@@ -245,19 +258,19 @@ class tab_index_ {
   tab_index_(std::string str) {
 
     size_t len = str.size();
-    data = PSUB(pmp, new char[len + 1]);
+    data = OFF(new char[len + 1]);
 
-    memcpy(PMEM(pmp, data), str.c_str(), len + 1);
+    memcpy(PMEM(data), str.c_str(), len + 1);
     pmemalloc_activate(pmp, data);
 
   }
 
   std::string get_name() {
-    return std::string(PMEM(pmp, data));
+    return std::string(PMEM(data));
   }
 
   ~tab_index_() {
-    delete PMEM(pmp, data);
+    delete PMEM(data);
   }
 
   char* data;
@@ -288,9 +301,9 @@ class dbase_ {
       : tables(NULL) {
 
     size_t len = str.size();
-    data = PSUB(pmp, new char[len + 1]);
+    data = OFF(new char[len + 1]);
 
-    memcpy(PMEM(pmp, data), str.c_str(), len + 1);
+    memcpy(PMEM(data), str.c_str(), len + 1);
     pmemalloc_activate(pmp, data);
 
     val = 2;
@@ -299,7 +312,7 @@ class dbase_ {
   ~dbase_() {
     tables->clear();
 
-    delete PMEM(pmp, data);
+    delete PMEM(data);
   }
 
   int val;
@@ -325,62 +338,48 @@ int main(int argc, char *argv[]) {
     cout << "head : " << sp->ptrs[1] << " tail: " << sp->ptrs[2] << endl;
 
     db = new dbase_("ycsb");
-    sp->ptrs[0] = PSUB(pmp, db);
+    sp->ptrs[0] = OFF(db);
 
     // Persist database
     pmemalloc_activate_absolute(pmp, db);
 
     // TABLES
     db->val = 1023;
-    db->tables = PSUB(pmp, new plist<tab_*>(&(sp->ptrs[1]), &(sp->ptrs[2])));
-
+    db->tables = OFF(new plist<tab_*>(&sp->ptrs[1], &sp->ptrs[2], true));
     pmemalloc_activate(pmp, db->tables);
 
     tab_* usertable = new tab_(123);
-    // Persist table
-    pmemalloc_activate_absolute(pmp, usertable);
+    PMEM(db->tables)->push_back(OFF(usertable));
 
-    PMEM(pmp, db->tables)->push_back(PSUB(pmp, usertable));
-
-    printf("Table Init : %s \n",
-    PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->get_id().c_str());
+    printf("Table Init : %s \n", PMEM(db->tables)->at(0)->get_id().c_str());
 
     // INDICES
-    usertable->indices = PSUB(
-        pmp, new plist<tab_index_*>(&(sp->ptrs[3]), &(sp->ptrs[4])));
-
+    usertable->indices = OFF(
+        new plist<tab_index_*>(&sp->ptrs[3], &sp->ptrs[4], true));
     pmemalloc_activate(pmp, usertable->indices);
 
     tab_index_* usertable_index = new tab_index_("usertable_index");
-
-    // Persist table index
-    pmemalloc_activate_absolute(pmp, usertable_index);
-
-    PMEM(pmp, usertable->indices)->push_back(PSUB(pmp, usertable_index));
+    PMEM(usertable->indices)->push_back(OFF(usertable_index));
 
     tab_index_* usertable_index_2 = new tab_index_("usertable_index_2");
+    PMEM(usertable->indices)->push_back(OFF(usertable_index_2));
 
-    // Persist table index
-    pmemalloc_activate_absolute(pmp, usertable_index_2);
+    PMEM(db->tables)->display();
 
-    PMEM(pmp, usertable->indices)->push_back(PSUB(pmp, usertable_index_2));
-
-    PMEM(pmp, db->tables)->display();
-
-    cout << "Table index : " << PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->indices)->at(1))->val)->get_name() << endl;
+    cout << "Index 1: "
+         << PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->get_name() << endl;
 
     sp->init = 1;
   } else {
 
-    db = (dbase_*) PMEM(pmp, (void* ) sp->ptrs[0]);
-    cout << "Database :" << db << endl;
+    db = (dbase_*) PMEM((void* ) sp->ptrs[0]);
+    cout << "Database :" << OFF(db) << endl;
 
-    PMEM(pmp, db->tables)->display();
+    PMEM(db->tables)->display();
 
-    printf("Table : %s \n",
-    PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->get_id().c_str());
+    cout << "Index 2: "
+         << PMEM(PMEM(db->tables)->at(0)->indices)->at(1)->get_name() << endl;
 
-    cout << "Table index : " << PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->indices)->at(1))->val)->get_name() << endl;
   }
 
   return 0;

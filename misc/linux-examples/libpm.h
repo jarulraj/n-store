@@ -113,12 +113,14 @@ static inline void pmem_persist(void *addr, size_t len, int flags) {
  */
 #define PMEM_NUM_ON 3
 
+extern void* pmp;
+
 /*
  * given a relative pointer, add in the base associated
  * with the given Persistent Memory Pool (pmp).
  */
-#define PMEM(pmp, ptr_) ((decltype(ptr_))(pmp + (uintptr_t)ptr_))
-#define PSUB(pmp, ptr_) ((decltype(ptr_))((uintptr_t)ptr_ - (uintptr_t)pmp))
+#define PMEM(ptr_) ((decltype(ptr_))(pmp + (uintptr_t)ptr_))
+#define OFF(ptr_) ((decltype(ptr_))((uintptr_t)ptr_ - (uintptr_t)pmp))
 
 void *pmemalloc_init(const char *path, size_t size);
 void *pmemalloc_static_area(void *pmp);
