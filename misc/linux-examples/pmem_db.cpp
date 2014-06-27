@@ -118,8 +118,10 @@ class plist {
     while (np != NULL) {
       if (itr == id)
         return np;
-      else
+      else{
+        itr++;
         np = PMEM(pmp, np)->next;
+      }
     }
 
     return NULL;
@@ -172,7 +174,7 @@ class plist {
       // Update head and tail
       if (np == (*PMEM(pmp, head))) {
         pmemalloc_onfree(pmp, np, (void **) PMEM(pmp, head),
-                         PMEM(pmp, np)->next);
+        PMEM(pmp, np)->next);
       } else if (np == (*tail)) {
         pmemalloc_onfree(pmp, np, (void **) PMEM(pmp, tail), prev);
       }
@@ -344,24 +346,28 @@ int main(int argc, char *argv[]) {
     PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->get_id().c_str());
 
     // INDICES
-    usertable->indices = PSUB(pmp, new plist<tab_index_*>(&(sp->ptrs[3]), &(sp->ptrs[4])));
+    usertable->indices = PSUB(
+        pmp, new plist<tab_index_*>(&(sp->ptrs[3]), &(sp->ptrs[4])));
 
     pmemalloc_activate(pmp, usertable->indices);
 
     tab_index_* usertable_index = new tab_index_("usertable_index");
+
     // Persist table index
     pmemalloc_activate_absolute(pmp, usertable_index);
 
     PMEM(pmp, usertable->indices)->push_back(PSUB(pmp, usertable_index));
 
-    cout << "Tables :" << db->tables << endl;
+    tab_index_* usertable_index_2 = new tab_index_("usertable_index_2");
+
+    // Persist table index
+    pmemalloc_activate_absolute(pmp, usertable_index_2);
+
+    PMEM(pmp, usertable->indices)->push_back(PSUB(pmp, usertable_index_2));
 
     PMEM(pmp, db->tables)->display();
-    cout << "head : " << PMEM(pmp, db->tables)->head << " tail: "
-         << PMEM(pmp, db->tables)->tail << endl;
 
-    cout<< "index head: "<< PMEM(pmp, usertable->indices)->head << " "
-        << PMEM(pmp, usertable->indices)->tail << endl;
+    cout << "Table index : " << PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->indices)->at(1))->val)->get_name() << endl;
 
     sp->init = 1;
   } else {
@@ -369,17 +375,12 @@ int main(int argc, char *argv[]) {
     db = (dbase_*) PMEM(pmp, (void* ) sp->ptrs[0]);
     cout << "Database :" << db << endl;
 
-    cout << "Tables :" << db->tables << endl;
-    cout << "head : " << PMEM(pmp, db->tables)->head << " tail: "
-         << PMEM(pmp, db->tables)->tail << endl;
-
     PMEM(pmp, db->tables)->display();
 
     printf("Table : %s \n",
     PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->get_id().c_str());
 
-    cout<< "Table index : "<< PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->indices)->at(0))->val)->get_name() << endl;
-
+    cout << "Table index : " << PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, PMEM(pmp, db->tables)->at(0))->val)->indices)->at(1))->val)->get_name() << endl;
   }
 
   return 0;
