@@ -32,226 +32,62 @@ struct static_info *sp;
 /**
  * An AVL tree
  */
-class AvlTree {
+class ptree {
  public:
 
-  /**
-   * Node
-   */
-  struct AvlNode {
-    AvlNode(const int& key, const int& val)
-        : parent_node(0),
-          left_node(0),
-          right_node(0),
+  struct node {
+    node(const int& _key, const int& _val)
+        : parent(NULL),
+          left(NULL),
+          right(NULL),
           left_max_depth(0),
           right_max_depth(0),
-          key(key),
-          val(val) {
+          key(_key),
+          val(_val) {
     }
 
-    AvlNode* parent_node;
-    AvlNode* left_node;
-    AvlNode* right_node;
+    node* parent;
+    node* left;
+    node* right;
     int left_max_depth;
     int right_max_depth;
     int key;
     int val;
   };
 
-  AvlNode* root_node;
-
+  node* root_node;
   int size;
-
   bool doBalancing;
 
-  /**
-   * creates a new empty tree
-   */
-  AvlTree()
+  ptree()
       : root_node(0),
         size(0),
         doBalancing(true) {
   }
 
-  /**
-   * Destroys the tree
-   */
-  virtual ~AvlTree(void) {
-    reset();
+  virtual ~ptree(void) {
+    clear();
   }
 
-  /**
-   * reset (clear) the tree
-   */
-  void reset() {
-    removeNode_(root_node);
+  void clear() {
+    clear_node(root_node);
   }
 
-  /**
-   * balance a node, invoke rotations on demand.
-   */
-  bool balanceNode_(AvlNode* parent_node) {
-    bool didBalance = false;
-
-    if (doBalancing) {
-      int balancing = getBalance_(parent_node);
-
-      if (balancing < -1) {
-        int balanceRightHeavy = getBalance_(parent_node->left_node);
-        if (balanceRightHeavy >= 1) {
-          slr(parent_node->left_node);
-          srr(parent_node);
-        } else {
-          srr(parent_node);
-        }
-        didBalance = true;
-
-      } else if (balancing > 1) {
-        int balanceLeftHeavy = getBalance_(parent_node->right_node);
-        if (balanceLeftHeavy <= -1) {
-          srr(parent_node->right_node);
-          slr(parent_node);
-        } else {
-          slr(parent_node);
-        }
-        didBalance = true;
-
-      }
-    }
-
-    return didBalance;
-  }
-
-  /**
-   * remove an entry from the tree
-   */
-  bool remove(const int& key) {
-    AvlNode* node = getNode(key);
-    if (!node) {
-      return false;
-    }
-
-    this->size--;
-
-    AvlNode* parent_node = node->parent_node;
-    bool is_root_node = node->parent_node ? false : true;
-    bool parent_pos_right =
-        !is_root_node ? parent_node->right_node == node : false;
-    bool has_left = node->left_node ? true : false;
-    bool has_right = node->right_node ? true : false;
-
-    // deleted node has no leaves
-    if (!has_left && !has_right) {
-      if (!is_root_node) {
-        if (!parent_pos_right) {
-          parent_node->left_node = 0;
-          parent_node->left_max_depth--;
-        } else {
-          parent_node->right_node = 0;
-          parent_node->right_max_depth--;
-        }
-      }
-
-      delete node;
-
-      if (is_root_node) {
-        root_node = 0;
-        return true;
-      }
-    }
-
-    // deleted node has exactly one leaf
-    else if ((has_left && !has_right) || (has_right && !has_left)) {
-      bool detachRight = node->right_node ? true : false;
-
-      if ((!parent_pos_right) && (!is_root_node)) {
-        parent_node->left_node =
-            detachRight ? node->right_node : node->left_node;
-        parent_node->left_max_depth = (
-            detachRight ?
-                getMaxChildrenSize_(node->right_node) :
-                getMaxChildrenSize_(node->left_node)) + 1;
-      } else if (!is_root_node) {
-        parent_node->right_node =
-            detachRight ? node->right_node : node->left_node;
-        parent_node->right_max_depth = (
-            detachRight ?
-                getMaxChildrenSize_(node->right_node) :
-                getMaxChildrenSize_(node->left_node)) + 1;
-      }
-
-      if (detachRight) {
-        node->right_node->parent_node = parent_node;
-      } else {
-        node->left_node->parent_node = parent_node;
-      }
-
-      if (is_root_node) {
-        root_node = detachRight ? node->right_node : node->left_node;
-        parent_node = root_node;
-      }
-
-      delete node;
-    }
-
-    // deleted node has 2 leaves
-    else if (has_left && has_right) {
-      AvlNode* replace_node = getLeftMostNode(node->right_node);
-      AvlNode* propagation_root_node = replace_node->parent_node;
-      node->key = replace_node->key;
-      node->val = replace_node->val;
-
-      if (replace_node != node->right_node) {
-        replace_node->parent_node->left_node = 0;
-        replace_node->parent_node->left_max_depth = 0;
-        parent_node = propagation_root_node;
-      } else {
-        AvlNode* old_right_node = replace_node->right_node;
-        node->right_node = old_right_node;
-        node->right_max_depth =
-            old_right_node ? (old_right_node->right_max_depth + 1) : 0;
-        if (old_right_node) {
-          old_right_node->parent_node = node;
-        }
-        parent_node = node;
-      }
-
-      delete (replace_node);
-    }
-
-    bool didBalance = balanceNode_(parent_node);
-    if (didBalance) {
-      parent_node = parent_node->parent_node;
-    }
-
-    if (parent_node && parent_node->parent_node) {
-      propagate_max_children_size(parent_node->parent_node, parent_node,
-                                  getMaxChildrenSize_(parent_node), true);
-    }
-
-    return true;
-  }
-
-  /**
-   * retrieves the leftmost child
-   */
-  AvlNode* getLeftMostNode(AvlNode* node) const {
-    AvlNode* current_node = node;
-    if (!current_node->left_node) {
+  // retrieves the leftmost child
+  node* getLeftMostNode(node* np) const {
+    node* current_node = np;
+    if (!current_node->left) {
       return current_node;
     } else {
-      return getLeftMostNode(current_node->left_node);
+      return getLeftMostNode(current_node->left);
     }
   }
 
-  /**
-   * put
-   */
-  void put(const int& key, const int& val) {
-    AvlNode* current_node = this->root_node;
+  void insert(const int& key, const int& val) {
+    node* current_node = this->root_node;
 
     if (!current_node) {
-      this->root_node = new AvlNode(key, val);
+      this->root_node = new node(key, val);
       size++;
       return;
     }
@@ -263,24 +99,24 @@ class AvlTree {
       }
 
       if (current_node->key > key) {
-        if (!current_node->left_node) {
-          current_node->left_node = newNode_(current_node, key, val);
+        if (!current_node->left) {
+          current_node->left = new_node(current_node, key, val);
           size++;
-          propagate_max_children_size(current_node, current_node->left_node, 0,
+          propagate_max_children_size(current_node, current_node->left, 0,
                                       false);
           return;
         }
-        current_node = current_node->left_node;
+        current_node = current_node->left;
 
       } else {
-        if (!current_node->right_node) {
-          current_node->right_node = newNode_(current_node, key, val);
+        if (!current_node->right) {
+          current_node->right = new_node(current_node, key, val);
           size++;
-          propagate_max_children_size(current_node, current_node->right_node, 0,
+          propagate_max_children_size(current_node, current_node->right, 0,
                                       false);
           return;
         }
-        current_node = current_node->right_node;
+        current_node = current_node->right;
 
       }
 
@@ -288,36 +124,157 @@ class AvlTree {
 
   }
 
-  /**
-   * Gets an key out of the avl tree
-   */
-  int get(const int& key) const {
-    AvlNode* ret = getNode(key);
+  int at(const int& key) const {
+    node* ret = getNode(key);
     return ret ? ret->val : 0;
   }
 
-  /**
-   * Whether a key exists in the tree
-   */
   bool contains(const int& key) const {
     return getNode(key) ? true : false;
   }
 
-  /**
-   * Returns the size of the tree.
-   */
-  int getSize() const {
-    return this->size;
+  // balance a node, invoke rotations on demand
+  bool balance(node* parent) {
+    bool didBalance = false;
+
+    if (doBalancing) {
+      int balancing = getBalance_(parent);
+
+      if (balancing < -1) {
+        int balanceRightHeavy = getBalance_(parent->left);
+        if (balanceRightHeavy >= 1) {
+          slr(parent->left);
+          srr(parent);
+        } else {
+          srr(parent);
+        }
+        didBalance = true;
+
+      } else if (balancing > 1) {
+        int balanceLeftHeavy = getBalance_(parent->right);
+        if (balanceLeftHeavy <= -1) {
+          srr(parent->right);
+          slr(parent);
+        } else {
+          slr(parent);
+        }
+        didBalance = true;
+
+      }
+    }
+
+    return didBalance;
   }
 
-  /**
-   * Gets an key out of the avl tree
-   */
-  AvlNode* getNode(const int& key) const {
-    AvlNode* current_node = this->root_node;
+  // erase a key from the tree
+  bool erase(const int& key) {
+    node* np = getNode(key);
+    if (!np) {
+      return false;
+    }
+
+    this->size--;
+
+    node* parent = np->parent;
+    bool is_root_node = np->parent ? false : true;
+    bool parent_pos_right = !is_root_node ? parent->right == np : false;
+    bool has_left = np->left ? true : false;
+    bool has_right = np->right ? true : false;
+
+    // deleted node has no leaves
+    if (!has_left && !has_right) {
+      if (!is_root_node) {
+        if (!parent_pos_right) {
+          parent->left = 0;
+          parent->left_max_depth--;
+        } else {
+          parent->right = 0;
+          parent->right_max_depth--;
+        }
+      }
+
+      delete np;
+
+      if (is_root_node) {
+        root_node = 0;
+        return true;
+      }
+    }
+
+    // deleted node has exactly one leaf
+    else if ((has_left && !has_right) || (has_right && !has_left)) {
+      bool detachRight = np->right ? true : false;
+
+      if ((!parent_pos_right) && (!is_root_node)) {
+        parent->left = detachRight ? np->right : np->left;
+        parent->left_max_depth = (
+            detachRight ?
+                getMaxChildrenSize_(np->right) : getMaxChildrenSize_(np->left))
+            + 1;
+      } else if (!is_root_node) {
+        parent->right = detachRight ? np->right : np->left;
+        parent->right_max_depth = (
+            detachRight ?
+                getMaxChildrenSize_(np->right) : getMaxChildrenSize_(np->left))
+            + 1;
+      }
+
+      if (detachRight) {
+        np->right->parent = parent;
+      } else {
+        np->left->parent = parent;
+      }
+
+      if (is_root_node) {
+        root_node = detachRight ? np->right : np->left;
+        parent = root_node;
+      }
+
+      delete np;
+    }
+
+    // deleted node has 2 leaves
+    else if (has_left && has_right) {
+      node* replace_node = getLeftMostNode(np->right);
+      node* propagation_root_node = replace_node->parent;
+      np->key = replace_node->key;
+      np->val = replace_node->val;
+
+      if (replace_node != np->right) {
+        replace_node->parent->left = 0;
+        replace_node->parent->left_max_depth = 0;
+        parent = propagation_root_node;
+      } else {
+        node* old_right = replace_node->right;
+        np->right = old_right;
+        np->right_max_depth = old_right ? (old_right->right_max_depth + 1) : 0;
+        if (old_right) {
+          old_right->parent = np;
+        }
+        parent = np;
+      }
+
+      delete (replace_node);
+    }
+
+    bool didBalance = balance(parent);
+    if (didBalance) {
+      parent = parent->parent;
+    }
+
+    if (parent && parent->parent) {
+      propagate_max_children_size(parent->parent, parent,
+                                  getMaxChildrenSize_(parent), true);
+    }
+
+    return true;
+  }
+
+  node* getNode(const int& key) const {
+    node* current_node = this->root_node;
 
     if (!current_node) {
-      return 0;
+      return NULL;
     }
 
     for (;;) {
@@ -326,37 +283,35 @@ class AvlTree {
       }
 
       if (current_node->key > key) {
-        if (current_node->left_node) {
-          current_node = current_node->left_node;
+        if (current_node->left) {
+          current_node = current_node->left;
         } else {
-          return 0;
+          return NULL;
         }
 
       } else {
-        if (current_node->right_node) {
-          current_node = current_node->right_node;
+        if (current_node->right) {
+          current_node = current_node->right;
         } else {
-          return 0;
+          return NULL;
         }
       }
     }
+
+    return NULL;
   }
 
-  /**
-   * Generates a new node (helper).
-   */
-  AvlNode* newNode_(AvlNode* parent, const int& key, const int& val) {
-    AvlNode* newNode = new AvlNode(key, val);
-    newNode->parent_node = parent;
+  // create a new node
+  node* new_node(node* parent, const int& key, const int& val) {
+    node* newNode = new node(key, val);
+    newNode->parent = parent;
     return newNode;
   }
 
-  /**
-   * Propagates new max children size to parents, does balancing on demand.
-   */
-  void propagate_max_children_size(AvlNode* notified_node, AvlNode* sender_node,
+  // Propagates new max children size to parents, does balancing on demand.
+  void propagate_max_children_size(node* notified_node, node* sender_node,
                                    int child_maxsize, bool is_deletion) {
-    bool isRight = sender_node == notified_node->right_node;
+    bool isRight = sender_node == notified_node->right;
     int maxsize = child_maxsize + 1;
     int old_maxsize = getMaxChildrenSize_(notified_node);
     if (isRight) {
@@ -366,159 +321,135 @@ class AvlTree {
     }
     int new_maxsize = getMaxChildrenSize_(notified_node);
 
-    if (balanceNode_(notified_node)) {
+    if (balance(notified_node)) {
       if (is_deletion) {
-        notified_node = notified_node->parent_node;  // our notified_node moved, readjust
+        notified_node = notified_node->parent;  // our notified_node moved, readjust
       } else {
         return;
       }
     }
 
-    if (notified_node->parent_node) {
+    if (notified_node->parent) {
       if (is_deletion ?
           new_maxsize != old_maxsize : new_maxsize > old_maxsize) {
-        propagate_max_children_size(notified_node->parent_node, notified_node,
+        propagate_max_children_size(notified_node->parent, notified_node,
                                     new_maxsize, is_deletion);
       }
     }
   }
 
-  /**
-   * returns the balance for a given avl node
-   */
-  int getBalance_(AvlNode* node) const {
-    return node->right_max_depth - node->left_max_depth;
+  int getBalance_(node* np) const {
+    return np->right_max_depth - np->left_max_depth;
   }
 
-  /**
-   * returns the max children size
-   */
-  int getMaxChildrenSize_(AvlNode* node) const {
-    return std::max(node->left_max_depth, node->right_max_depth);
+  int getMaxChildrenSize_(node* np) const {
+    return std::max(np->left_max_depth, np->right_max_depth);
   }
 
-  /**
-   * remove Node and all of its children, deallocate memory,
-   * unlink the parents pointers (setting it to 0) and child count.
-   */
-  void removeNode_(AvlNode* node) {
-    if (!node) {
+  void clear_node(node* np) {
+    if (!np) {
       return;
     }
 
-    if (node->left_node) {
-      removeNode_(node->left_node);
+    if (np->left) {
+      clear_node(np->left);
     }
-    if (node->right_node) {
-      removeNode_(node->right_node);
+    if (np->right) {
+      clear_node(np->right);
     }
 
     this->size--;
 
-    if (node->parent_node) {
-      if (node->parent_node->left_node == node) {
-        node->parent_node->left_node = 0;
-        node->parent_node->left_max_depth--;
+    if (np->parent) {
+      if (np->parent->left == np) {
+        np->parent->left = 0;
+        np->parent->left_max_depth--;
       } else {
-        node->parent_node->right_node = 0;
-        node->parent_node->right_max_depth--;
+        np->parent->right = 0;
+        np->parent->right_max_depth--;
       }
     } else {
       root_node = 0;
     }
 
-    delete node;
+    delete np;
   }
 
-  /**
-   * set tree balancing mode (useful for debugging purposes)
-   */
+  // set tree balancing mode (useful for debugging purposes)
   void setBalancing(bool mode) {
     doBalancing = mode;
   }
 
-  /**
-   * single right rotate
-   */
-  void srr(AvlNode* node) {
-    bool newRoot = (node == root_node);
-    node->left_node->parent_node = node->parent_node;
-    AvlNode* old_right_node = node->left_node->right_node;
-    node->left_node->right_node = node;
-    node->parent_node = node->left_node;
-    node->parent_node->right_node = node;
-    node->left_node = old_right_node;
-    node->left_max_depth =
-        old_right_node ? getMaxChildrenSize_(old_right_node) : 0;
-    if (old_right_node) {
-      old_right_node->parent_node = node;
-      node->left_max_depth++;
+  // single right rotate
+  void srr(node* np) {
+    bool newRoot = (np == root_node);
+    np->left->parent = np->parent;
+    node* old_right = np->left->right;
+    np->left->right = np;
+    np->parent = np->left;
+    np->parent->right = np;
+    np->left = old_right;
+    np->left_max_depth = old_right ? getMaxChildrenSize_(old_right) : 0;
+    if (old_right) {
+      old_right->parent = np;
+      np->left_max_depth++;
     }
-    node->parent_node->right_max_depth++;
+    np->parent->right_max_depth++;
 
     if (newRoot) {
-      root_node = node->parent_node;
+      root_node = np->parent;
     } else {
-      if (node->parent_node->parent_node->left_node == node) {
-        node->parent_node->parent_node->left_node = node->parent_node;
+      if (np->parent->parent->left == np) {
+        np->parent->parent->left = np->parent;
       } else {
-        node->parent_node->parent_node->right_node = node->parent_node;
+        np->parent->parent->right = np->parent;
       }
     }
   }
 
-  /**
-   * single left rotate
-   */
-  void slr(AvlNode* node) {
-    bool newRoot = (node == root_node);
-    node->right_node->parent_node = node->parent_node;
-    AvlNode* old_left_node = node->right_node->left_node;
-    node->right_node->left_node = node;
-    node->parent_node = node->right_node;
-    node->parent_node->left_node = node;
-    node->right_node = old_left_node;
-    node->right_max_depth =
-        old_left_node ? getMaxChildrenSize_(old_left_node) : 0;
-    if (old_left_node) {
-      old_left_node->parent_node = node;
-      node->right_max_depth++;
+  // single left rotate
+  void slr(node* np) {
+    bool newRoot = (np == root_node);
+    np->right->parent = np->parent;
+    node* old_left = np->right->left;
+    np->right->left = np;
+    np->parent = np->right;
+    np->parent->left = np;
+    np->right = old_left;
+    np->right_max_depth = old_left ? getMaxChildrenSize_(old_left) : 0;
+    if (old_left) {
+      old_left->parent = np;
+      np->right_max_depth++;
     }
-    node->parent_node->left_max_depth++;
+    np->parent->left_max_depth++;
 
     if (newRoot) {
-      root_node = node->parent_node;
+      root_node = np->parent;
     } else {
-      if (node->parent_node->parent_node->left_node == node) {
-        node->parent_node->parent_node->left_node = node->parent_node;
+      if (np->parent->parent->left == np) {
+        np->parent->parent->left = np->parent;
       } else {
-        node->parent_node->parent_node->right_node = node->parent_node;
+        np->parent->parent->right = np->parent;
       }
     }
   }
 
-  /**
-   * dump the map into dotty format
-   */
   void display() {
     display_node(root_node);
   }
 
-  /**
-   * draw a single node for dotty output
-   */
-  void display_node(AvlNode* pCurr) {
+  void display_node(node* pCurr) {
     if (!pCurr) {
       return;
     }
 
     cout << "key: " << pCurr->key << " " << " val: " << pCurr->val << endl;
 
-    if (pCurr->left_node) {
-      display_node(pCurr->left_node);
+    if (pCurr->left) {
+      display_node(pCurr->left);
     }
-    if (pCurr->right_node) {
-      display_node(pCurr->right_node);
+    if (pCurr->right) {
+      display_node(pCurr->right);
     }
     return;
   }
@@ -528,14 +459,14 @@ class AvlTree {
 int main() {
   const char* path = "./testfile";
 
-  AvlTree* tree = new AvlTree();
+  ptree* tree = new ptree();
 
   int val;
   srand(time(NULL));
 
-  tree->put(10, 10);
-  tree->put(30, 30);
-  tree->put(5, 20);
+  tree->insert(10, 10);
+  tree->insert(30, 30);
+  tree->insert(5, 20);
 
   std::string str = "./test";
   tree->display();
