@@ -6,6 +6,14 @@
 #include <thread>
 #include <mutex>
 
+#include <vector>
+#include <map>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <exception>
+
 #include "libpm.h"
 
 using namespace std;
@@ -21,528 +29,518 @@ struct static_info {
 
 struct static_info *sp;
 
-class ptree {
- private:
-  struct node {
+/**
+ * An AVL tree
+ */
+class AvlTree {
+ public:
+
+  /**
+   * Node
+   */
+  struct AvlNode {
+    AvlNode(const int& key, const int& val)
+        : parent_node(0),
+          left_node(0),
+          right_node(0),
+          left_max_depth(0),
+          right_max_depth(0),
+          key(key),
+          val(val) {
+    }
+
+    AvlNode* parent_node;
+    AvlNode* left_node;
+    AvlNode* right_node;
+    int left_max_depth;
+    int right_max_depth;
     int key;
     int val;
-
-    node *left;
-    node *right;
-    node *parent;
-    char bal;
   };
 
-  struct node** root;
+  AvlNode* root_node;
 
- public:
-  ptree()
-      : root(NULL) {
+  int size;
+
+  bool doBalancing;
+
+  /**
+   * creates a new empty tree
+   */
+  AvlTree()
+      : root_node(0),
+        size(0),
+        doBalancing(true) {
   }
 
-  ptree(void** _root) {
-
-    root = (struct node**) OFF(_root);
-
-    cout << "root : " << root << "\n";
+  /**
+   * Destroys the tree
+   */
+  virtual ~AvlTree(void) {
+    reset();
   }
 
-  ~ptree() {
-    clear();
-
+  /**
+   * reset (clear) the tree
+   */
+  void reset() {
+    removeNode_(root_node);
   }
 
-  void clear() {
-    node* temp = (*PMEM(root));
-    if (temp == NULL) {
-      cout << "Empty tree \n";
-      return;
+  /**
+   * balance a node, invoke rotations on demand.
+   */
+  bool balanceNode_(AvlNode* parent_node) {
+    bool didBalance = false;
+
+    if (doBalancing) {
+      int balancing = getBalance_(parent_node);
+
+      if (balancing < -1) {
+        int balanceRightHeavy = getBalance_(parent_node->left_node);
+        if (balanceRightHeavy >= 1) {
+          slr(parent_node->left_node);
+          srr(parent_node);
+        } else {
+          srr(parent_node);
+        }
+        didBalance = true;
+
+      } else if (balancing > 1) {
+        int balanceLeftHeavy = getBalance_(parent_node->right_node);
+        if (balanceLeftHeavy <= -1) {
+          srr(parent_node->right_node);
+          slr(parent_node);
+        } else {
+          slr(parent_node);
+        }
+        didBalance = true;
+
+      }
     }
 
-    cout << "clearing ::" << PMEM(temp)->key << endl;
-    clear_node(temp);
-
-    (*PMEM(root)) = NULL;
+    return didBalance;
   }
 
-  void clear_node(node* n) {
-    if (n != NULL) {
-      cout << "clearing ::" << PMEM(n)->key << endl;
-      clear_node(PMEM(n)->left);
-      clear_node(PMEM(n)->right);
-      pmemalloc_free(pmp, n);
+  /**
+   * remove an entry from the tree
+   */
+  bool remove(const int& key) {
+    AvlNode* node = getNode(key);
+    if (!node) {
+      return false;
     }
+
+    this->size--;
+
+    AvlNode* parent_node = node->parent_node;
+    bool is_root_node = node->parent_node ? false : true;
+    bool parent_pos_right =
+        !is_root_node ? parent_node->right_node == node : false;
+    bool has_left = node->left_node ? true : false;
+    bool has_right = node->right_node ? true : false;
+
+    // deleted node has no leaves
+    if (!has_left && !has_right) {
+      if (!is_root_node) {
+        if (!parent_pos_right) {
+          parent_node->left_node = 0;
+          parent_node->left_max_depth--;
+        } else {
+          parent_node->right_node = 0;
+          parent_node->right_max_depth--;
+        }
+      }
+
+      delete node;
+
+      if (is_root_node) {
+        root_node = 0;
+        return true;
+      }
+    }
+
+    // deleted node has exactly one leaf
+    else if ((has_left && !has_right) || (has_right && !has_left)) {
+      bool detachRight = node->right_node ? true : false;
+
+      if ((!parent_pos_right) && (!is_root_node)) {
+        parent_node->left_node =
+            detachRight ? node->right_node : node->left_node;
+        parent_node->left_max_depth = (
+            detachRight ?
+                getMaxChildrenSize_(node->right_node) :
+                getMaxChildrenSize_(node->left_node)) + 1;
+      } else if (!is_root_node) {
+        parent_node->right_node =
+            detachRight ? node->right_node : node->left_node;
+        parent_node->right_max_depth = (
+            detachRight ?
+                getMaxChildrenSize_(node->right_node) :
+                getMaxChildrenSize_(node->left_node)) + 1;
+      }
+
+      if (detachRight) {
+        node->right_node->parent_node = parent_node;
+      } else {
+        node->left_node->parent_node = parent_node;
+      }
+
+      if (is_root_node) {
+        root_node = detachRight ? node->right_node : node->left_node;
+        parent_node = root_node;
+      }
+
+      delete node;
+    }
+
+    // deleted node has 2 leaves
+    else if (has_left && has_right) {
+      AvlNode* replace_node = getLeftMostNode(node->right_node);
+      AvlNode* propagation_root_node = replace_node->parent_node;
+      node->key = replace_node->key;
+      node->val = replace_node->val;
+
+      if (replace_node != node->right_node) {
+        replace_node->parent_node->left_node = 0;
+        replace_node->parent_node->left_max_depth = 0;
+        parent_node = propagation_root_node;
+      } else {
+        AvlNode* old_right_node = replace_node->right_node;
+        node->right_node = old_right_node;
+        node->right_max_depth =
+            old_right_node ? (old_right_node->right_max_depth + 1) : 0;
+        if (old_right_node) {
+          old_right_node->parent_node = node;
+        }
+        parent_node = node;
+      }
+
+      delete (replace_node);
+    }
+
+    bool didBalance = balanceNode_(parent_node);
+    if (didBalance) {
+      parent_node = parent_node->parent_node;
+    }
+
+    if (parent_node && parent_node->parent_node) {
+      propagate_max_children_size(parent_node->parent_node, parent_node,
+                                  getMaxChildrenSize_(parent_node), true);
+    }
+
+    return true;
   }
 
-  void insert(int key, int val) {
-    node *temp, *back, *ancestor;
-    node* np = NULL;
-
-    if ((np = (node*) pmemalloc_reserve(pmp, sizeof(*np))) == NULL) {
-      cout << "pmemalloc_reserve failed " << endl;
-      return;
-    }
-
-    PMEM(np)->key = key;
-    PMEM(np)->val = val;
-    PMEM(np)->left = NULL;
-    PMEM(np)->right = NULL;
-    PMEM(np)->parent = NULL;
-    PMEM(np)->bal = '=';
-
-    // Check for empty tree first
-    if ((*PMEM(root)) == NULL) {
-      pmemalloc_onactive(pmp, np, (void **) PMEM(root), np);
-      pmemalloc_activate(pmp, np);
-      return;
-    }
-
-    temp = (*PMEM(root));
-    back = NULL;
-    ancestor = NULL;
-
-    // Tree is not empty so search for place to insert
-    while (temp != NULL) {
-      back = temp;
-      // Mark ancestor that will be out of balance after this node is inserted
-      if (PMEM(temp)->bal != '=')
-        ancestor = temp;
-      if (PMEM(np)->key < PMEM(temp)->key)
-        temp = PMEM(temp)->left;
-      else if (PMEM(np)->key > PMEM(temp)->key) {
-        temp = PMEM(temp)->right;
-      } else
-        break;
-    }
-
-    // Update if key already exists
-    if (temp != NULL) {
-      PMEM(temp)->val = PMEM(np)->val;
-      pmem_persist(&PMEM(temp)->val, sizeof(int), 0);
-      return;
-    }
-
-    // Insert if key does not exist
-    // temp is now NULL
-    // back points to parent node to attach np to
-    // ancestor points to most recent out of balance ancestor
-    PMEM(np)->parent = back;   // Set parent
-    pmemalloc_activate(pmp, np);
-
-    if (PMEM(np)->key < PMEM(back)->key) {
-      PMEM(back)->left = np;
-      pmem_persist(&PMEM(back)->left, sizeof(node*), 0);
+  /**
+   * retrieves the leftmost child
+   */
+  AvlNode* getLeftMostNode(AvlNode* node) const {
+    AvlNode* current_node = node;
+    if (!current_node->left_node) {
+      return current_node;
     } else {
-      PMEM(back)->right = np;
-      pmem_persist(&PMEM(back)->right, sizeof(node*), 0);
-    }
-
-    // Now call function to restore the tree's AVL property
-    restoreAVL(ancestor, np);
-  }
-
-  void restoreAVL(node* ancestor, node* np) {
-    node* temp = (*PMEM(root));
-
-    //--------------------------------------------------------------------------------
-    // Case 1: ancestor is NULL, i.e. balanceFactor of all ancestors' is '='
-    //--------------------------------------------------------------------------------
-    if (ancestor == NULL) {
-      if (PMEM(np)->key < PMEM(temp)->key)  // np inserted to left of root
-        PMEM(temp)->bal = 'L';
-      else
-        PMEM(temp)->bal = 'R';  // np inserted to right of root
-      // Adjust the balanceFactor for all nodes from np back up to root
-      adjustBalanceFactors(temp, np);
-    }
-
-    //--------------------------------------------------------------------------------
-    // Case 2: Insertion in opposite subtree of ancestor's balance factor, i.e.
-    //  ancestor.balanceFactor = 'L' AND  Insertion made in ancestor's right subtree
-    //     OR
-    //  ancestor.balanceFactor = 'R' AND  Insertion made in ancestor's left subtree
-    //--------------------------------------------------------------------------------
-    else if (((PMEM(ancestor)->bal == 'L')
-        && (PMEM(np)->key > PMEM(ancestor)->key))
-        || ((PMEM(ancestor)->bal == 'R')
-            && (PMEM(np)->key < PMEM(ancestor)->key))) {
-      PMEM(ancestor)->bal = '=';
-      // Adjust the balanceFactor for all nodes from np back up to ancestor
-      adjustBalanceFactors(ancestor, np);
-    }
-    //--------------------------------------------------------------------------------
-    // Case 3: ancestor.balanceFactor = 'R' and the node inserted is
-    //      in the right subtree of ancestor's right child
-    //--------------------------------------------------------------------------------
-    else if ((PMEM(ancestor)->bal == 'R')
-        && (PMEM(np)->key > PMEM(PMEM(ancestor)->right)->key)) {
-      PMEM(ancestor)->bal = '=';  // Reset ancestor's balanceFactor
-      rotateLeft(ancestor);       // Do single left rotation about ancestor
-      // Adjust the balanceFactor for all nodes from np back up to ancestor's parent
-      adjustBalanceFactors(PMEM(ancestor)->parent, np);
-    }
-
-    //--------------------------------------------------------------------------------
-    // Case 4: ancestor.balanceFactor is 'L' and the node inserted is
-    //      in the left subtree of ancestor's left child
-    //--------------------------------------------------------------------------------
-    else if ((PMEM(ancestor)->bal == 'L')
-        && (PMEM(np)->key < PMEM(PMEM(ancestor)->left)->key)) {
-      PMEM(ancestor)->bal = '=';  // Reset ancestor's balanceFactor
-      rotateRight(ancestor);       // Do single right rotation about ancestor
-      // Adjust the balanceFactor for all nodes from np back up to ancestor's parent
-      adjustBalanceFactors(PMEM(ancestor)->parent, np);
-    }
-
-    //--------------------------------------------------------------------------------
-    // Case 5: ancestor.balanceFactor is 'L' and the node inserted is
-    //      in the right subtree of ancestor's left child
-    //--------------------------------------------------------------------------------
-    else if ((PMEM(ancestor)->bal == 'L')
-        && (PMEM(np)->key > PMEM(PMEM(ancestor)->left)->key)) {
-      // Perform double right rotation (actually a left followed by a right)
-      rotateLeft(PMEM(ancestor)->left);
-      rotateRight(ancestor);
-      // Adjust the balanceFactor for all nodes from np back up to ancestor
-      adjustLeftRight(ancestor, np);
-    }
-
-    //--------------------------------------------------------------------------------
-    // Case 6: ancestor.balanceFactor is 'R' and the node inserted is
-    //      in the left subtree of ancestor's right child
-    //--------------------------------------------------------------------------------
-    else {
-      // Perform double left rotation (actually a right followed by a left)
-      rotateRight(PMEM(ancestor)->right);
-      rotateLeft(ancestor);
-      adjustRightLeft(ancestor, np);
+      return getLeftMostNode(current_node->left_node);
     }
   }
 
-  //------------------------------------------------------------------
-  // Adjust the balance factor in all nodes from the inserted node's
-  //   parent back up to but NOT including a designated end node.
-  // @param end– last node back up the tree that needs adjusting
-  // @param start – node just inserted
-  //------------------------------------------------------------------
-  void adjustBalanceFactors(node* end, node* start) {
-    node* temp = PMEM(start)->parent;  // Set starting point at start's parent
+  /**
+   * put
+   */
+  void put(const int& key, const int& val) {
+    AvlNode* current_node = this->root_node;
 
-    while (temp != end) {
-      if (PMEM(start)->key < PMEM(temp)->key)
-        PMEM(temp)->bal = 'L';
-      else
-        PMEM(temp)->bal = 'R';
-      temp = PMEM(temp)->parent;
+    if (!current_node) {
+      this->root_node = new AvlNode(key, val);
+      size++;
+      return;
+    }
+
+    for (;;) {
+      if (current_node->key == key) {
+        current_node->val = val;
+        return;
+      }
+
+      if (current_node->key > key) {
+        if (!current_node->left_node) {
+          current_node->left_node = newNode_(current_node, key, val);
+          size++;
+          propagate_max_children_size(current_node, current_node->left_node, 0,
+                                      false);
+          return;
+        }
+        current_node = current_node->left_node;
+
+      } else {
+        if (!current_node->right_node) {
+          current_node->right_node = newNode_(current_node, key, val);
+          size++;
+          propagate_max_children_size(current_node, current_node->right_node, 0,
+                                      false);
+          return;
+        }
+        current_node = current_node->right_node;
+
+      }
+
+    }
+
+  }
+
+  /**
+   * Gets an key out of the avl tree
+   */
+  int get(const int& key) const {
+    AvlNode* ret = getNode(key);
+    return ret ? ret->val : 0;
+  }
+
+  /**
+   * Whether a key exists in the tree
+   */
+  bool contains(const int& key) const {
+    return getNode(key) ? true : false;
+  }
+
+  /**
+   * Returns the size of the tree.
+   */
+  int getSize() const {
+    return this->size;
+  }
+
+  /**
+   * Gets an key out of the avl tree
+   */
+  AvlNode* getNode(const int& key) const {
+    AvlNode* current_node = this->root_node;
+
+    if (!current_node) {
+      return 0;
+    }
+
+    for (;;) {
+      if (current_node->key == key) {
+        return current_node;
+      }
+
+      if (current_node->key > key) {
+        if (current_node->left_node) {
+          current_node = current_node->left_node;
+        } else {
+          return 0;
+        }
+
+      } else {
+        if (current_node->right_node) {
+          current_node = current_node->right_node;
+        } else {
+          return 0;
+        }
+      }
     }
   }
 
-  //------------------------------------------------------------------
-  // rotateLeft()
-  // Perform a single rotation left about n.  This will rotate n's
-  //   parent to become n's left child.  Then n's left child will
-  //   become the former parent's right child.
-  //------------------------------------------------------------------
-  void rotateLeft(node* n) {
-    node* temp = PMEM(n)->right;   //Hold pointer to n's right child
-    PMEM(n)->right = PMEM(temp)->left;  // Move temp 's left child to right child of n
-
-    if (PMEM(temp)->left != NULL)      // If the left child does exist
-      PMEM(PMEM(temp)->left)->parent = n;      // Reset the left child's parent
-
-    if (PMEM(n)->parent == NULL)       // If n was the root
-    {
-      (*PMEM(root)) = temp;      // Make temp the new root
-      PMEM(temp)->parent = NULL;   // Root has no parent
-    } else if (PMEM(PMEM(n)->parent)->left == n)  // If n was the left child of its' parent
-      PMEM(PMEM(n)->parent)->left = temp;   // Make temp the new left child
-    else
-      // If n was the right child of its' parent
-      PMEM(PMEM(n)->parent)->right = temp;      // Make temp the new right child
-
-    PMEM(temp)->left = n;         // Move n to left child of temp
-    PMEM(n)->parent = temp;         // Reset n's parent
+  /**
+   * Generates a new node (helper).
+   */
+  AvlNode* newNode_(AvlNode* parent, const int& key, const int& val) {
+    AvlNode* newNode = new AvlNode(key, val);
+    newNode->parent_node = parent;
+    return newNode;
   }
 
-  //------------------------------------------------------------------
-  // rotateRight()
-  // Perform a single rotation right about n.  This will rotate n's
-  //   parent to become n's right child.  Then n's right child will
-  //   become the former parent's left child.
-  //------------------------------------------------------------------
-  void rotateRight(node* n) {
-    node* temp = PMEM(n)->left;   //Hold pointer to temp
-    PMEM(n)->left = PMEM(temp)->right;  // Move temp's right child to left child of n
-
-    if (PMEM(temp)->right != NULL)      // If the right child does exist
-      PMEM(PMEM(temp)->right)->parent = n;      // Reset right child's parent
-
-    if (PMEM(n)->parent == NULL)       // If n was root
-    {
-      (*PMEM(root)) = temp;      // Make temp the root
-      PMEM(temp)->parent = NULL;   // Root has no parent
-    } else if (PMEM(PMEM(n)->parent)->left == n)  // If was the left child of its' parent
-      PMEM(PMEM(n)->parent)->left = temp;   // Make temp the new left child
-    else
-      // If n was the right child of its' parent
-      PMEM(PMEM(n)->parent)->right = temp;      // Make temp the new right child
-
-    PMEM(temp)->right = n;         // Move n to right child of temp
-    PMEM(n)->parent = temp;         // Reset n's parent
-  }
-
-  //------------------------------------------------------------------
-  // adjustLeftRight()
-  // @param end- last node back up the tree that needs adjusting
-  // @param start - node just inserted
-  //------------------------------------------------------------------
-  void adjustLeftRight(node* end, node* start) {
-    if (end == (*PMEM(root)))
-      PMEM(end)->bal = '=';
-    else if (PMEM(start)->key < PMEM(PMEM(end)->parent)->key) {
-      PMEM(end)->bal = 'R';
-      adjustBalanceFactors(PMEM(PMEM(end)->parent)->left, start);
+  /**
+   * Propagates new max children size to parents, does balancing on demand.
+   */
+  void propagate_max_children_size(AvlNode* notified_node, AvlNode* sender_node,
+                                   int child_maxsize, bool is_deletion) {
+    bool isRight = sender_node == notified_node->right_node;
+    int maxsize = child_maxsize + 1;
+    int old_maxsize = getMaxChildrenSize_(notified_node);
+    if (isRight) {
+      notified_node->right_max_depth = maxsize;
     } else {
-      PMEM(end)->bal = '=';
-      PMEM(PMEM(PMEM(end)->parent)->left)->bal = 'L';
-      adjustBalanceFactors(end, start);
+      notified_node->left_max_depth = maxsize;
+    }
+    int new_maxsize = getMaxChildrenSize_(notified_node);
+
+    if (balanceNode_(notified_node)) {
+      if (is_deletion) {
+        notified_node = notified_node->parent_node;  // our notified_node moved, readjust
+      } else {
+        return;
+      }
+    }
+
+    if (notified_node->parent_node) {
+      if (is_deletion ?
+          new_maxsize != old_maxsize : new_maxsize > old_maxsize) {
+        propagate_max_children_size(notified_node->parent_node, notified_node,
+                                    new_maxsize, is_deletion);
+      }
     }
   }
 
-  //------------------------------------------------------------------
-  // adjustRightLeft
-  // @param end- last node back up the tree that needs adjusting
-  // @param start - node just inserted
-  //------------------------------------------------------------------
-  void adjustRightLeft(node *end, node *start) {
-    if (end == (*PMEM(root)))
-      PMEM(end)->bal = '=';
-    else if (PMEM(start)->key > PMEM(PMEM(end)->parent)->key) {
-      PMEM(end)->bal = 'L';
-      adjustBalanceFactors(PMEM(PMEM(end)->parent)->right, start);
+  /**
+   * returns the balance for a given avl node
+   */
+  int getBalance_(AvlNode* node) const {
+    return node->right_max_depth - node->left_max_depth;
+  }
+
+  /**
+   * returns the max children size
+   */
+  int getMaxChildrenSize_(AvlNode* node) const {
+    return std::max(node->left_max_depth, node->right_max_depth);
+  }
+
+  /**
+   * remove Node and all of its children, deallocate memory,
+   * unlink the parents pointers (setting it to 0) and child count.
+   */
+  void removeNode_(AvlNode* node) {
+    if (!node) {
+      return;
+    }
+
+    if (node->left_node) {
+      removeNode_(node->left_node);
+    }
+    if (node->right_node) {
+      removeNode_(node->right_node);
+    }
+
+    this->size--;
+
+    if (node->parent_node) {
+      if (node->parent_node->left_node == node) {
+        node->parent_node->left_node = 0;
+        node->parent_node->left_max_depth--;
+      } else {
+        node->parent_node->right_node = 0;
+        node->parent_node->right_max_depth--;
+      }
     } else {
-      PMEM(end)->bal = '=';
-      PMEM(PMEM(PMEM(end)->parent)->right)->bal = 'R';
-      adjustBalanceFactors(end, start);
+      root_node = 0;
+    }
+
+    delete node;
+  }
+
+  /**
+   * set tree balancing mode (useful for debugging purposes)
+   */
+  void setBalancing(bool mode) {
+    doBalancing = mode;
+  }
+
+  /**
+   * single right rotate
+   */
+  void srr(AvlNode* node) {
+    bool newRoot = (node == root_node);
+    node->left_node->parent_node = node->parent_node;
+    AvlNode* old_right_node = node->left_node->right_node;
+    node->left_node->right_node = node;
+    node->parent_node = node->left_node;
+    node->parent_node->right_node = node;
+    node->left_node = old_right_node;
+    node->left_max_depth =
+        old_right_node ? getMaxChildrenSize_(old_right_node) : 0;
+    if (old_right_node) {
+      old_right_node->parent_node = node;
+      node->left_max_depth++;
+    }
+    node->parent_node->right_max_depth++;
+
+    if (newRoot) {
+      root_node = node->parent_node;
+    } else {
+      if (node->parent_node->parent_node->left_node == node) {
+        node->parent_node->parent_node->left_node = node->parent_node;
+      } else {
+        node->parent_node->parent_node->right_node = node->parent_node;
+      }
     }
   }
 
+  /**
+   * single left rotate
+   */
+  void slr(AvlNode* node) {
+    bool newRoot = (node == root_node);
+    node->right_node->parent_node = node->parent_node;
+    AvlNode* old_left_node = node->right_node->left_node;
+    node->right_node->left_node = node;
+    node->parent_node = node->right_node;
+    node->parent_node->left_node = node;
+    node->right_node = old_left_node;
+    node->right_max_depth =
+        old_left_node ? getMaxChildrenSize_(old_left_node) : 0;
+    if (old_left_node) {
+      old_left_node->parent_node = node;
+      node->right_max_depth++;
+    }
+    node->parent_node->left_max_depth++;
+
+    if (newRoot) {
+      root_node = node->parent_node;
+    } else {
+      if (node->parent_node->parent_node->left_node == node) {
+        node->parent_node->parent_node->left_node = node->parent_node;
+      } else {
+        node->parent_node->parent_node->right_node = node->parent_node;
+      }
+    }
+  }
+
+  /**
+   * dump the map into dotty format
+   */
   void display() {
-    node* temp = (*PMEM(root));
-    if (temp == NULL) {
-      cout << "Empty tree \n";
+    display_node(root_node);
+  }
+
+  /**
+   * draw a single node for dotty output
+   */
+  void display_node(AvlNode* pCurr) {
+    if (!pCurr) {
       return;
     }
 
-    cout << "Tree \n";
-    display_node(temp);
-    cout << "----------------------------- \n";
-  }
+    cout << "key: " << pCurr->key << " " << " val: " << pCurr->val << endl;
 
-  void display_node(node* n) {
-    if (n != NULL) {
-      cout << "key: " << PMEM(n)->key << " val : " << PMEM(n)->val << "\n";
-
-      if (PMEM(n)->left != NULL) {
-        cout << "left :" << "\n";
-        display_node(PMEM(n)->left);
-      }
-      if (PMEM(n)->right != NULL) {
-        cout << "right :" << "\n";
-        display_node(PMEM(n)->right);
-      }
+    if (pCurr->left_node) {
+      display_node(pCurr->left_node);
     }
+    if (pCurr->right_node) {
+      display_node(pCurr->right_node);
+    }
+    return;
   }
 
 };
 
-void* operator new(size_t sz) throw (bad_alloc) {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  return PMEM(pmemalloc_reserve(pmp, sz));
-}
-
-void operator delete(void *p) throw () {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  pmemalloc_free_absolute(pmp, p);
-}
-
 int main() {
   const char* path = "./testfile";
 
-  long pmp_size = 10 * 1024 * 1024;
-  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path << endl;
+  AvlTree* tree = new AvlTree();
 
-  sp = (struct static_info *) pmemalloc_static_area(pmp);
+  int val;
+  srand(time(NULL));
 
-  ptree* tree;
+  tree->put(10, 10);
+  tree->put(30, 30);
+  tree->put(5, 20);
 
-  // Create a tree and test case 1
-  tree = new ptree(&sp->ptrs[0]);
-  cout << "-----------------------------------------------\n";
-  cout << "TESTING CASE 1\n\n";
-  cout << "Adding Node 50\n";
-  tree->insert(50, 0);
-  cout << "Adding Node 20\n";
-  tree->insert(20, 0);
-  cout << "Adding Node 70\n";
-  tree->insert(70, 0);
-  cout << "Adding Node 30\n";
-  tree->insert(30, 0);
-  cout << "Adding Node 10\n";
-  tree->insert(10, 0);
-  cout << "Adding Node 90\n";
-  tree->insert(90, 0);
-  cout << "Adding Node 60\n";
-  tree->insert(60, 0);
-  cout << "***** Adding Node to trigger test of case 1\n";
-  cout << "Adding Node 55\n";
-  tree->insert(55, 0);
-  cout << "END TESTING CASE 1\n";
+  std::string str = "./test";
   tree->display();
+
   delete tree;
 
-  // Create a tree and test case 2
-  tree = new ptree(&sp->ptrs[0]);
-  cout << "-----------------------------------------------\n";
-  cout << "TESTING CASE 2\n\n";
-  cout << "Adding Node 50\n";
-  tree->insert(50, 0);
-  cout << "Adding Node 20\n";
-  tree->insert(20, 0);
-  cout << "Adding Node 70\n";
-  tree->insert(70, 0);
-  cout << "Adding Node 30\n";
-  tree->insert(30, 0);
-  cout << "Adding Node 10\n";
-  tree->insert(10, 0);
-  cout << "Adding Node 90\n";
-  tree->insert(90, 0);
-  cout << "Adding Node 60\n";
-  tree->insert(60, 0);
-  cout << "Adding Node 55\n";
-  tree->insert(55, 0);
-  cout << "***** Adding Node to trigger test of case 2\n";
-  cout << "Adding Node 28\n";
-  tree->insert(28, 0);
-  cout << "END TESTING CASE 2\n";
-  tree->display();
-  delete tree;
-
-  // Create a tree and test case 3
-  tree = new ptree(&sp->ptrs[0]);
-  cout << "-----------------------------------------------\n";
-  cout << "TESTING CASE 3\n\n";
-  cout << "Adding Node 50\n";
-  tree->insert(50, 0);
-  cout << "Adding Node 20\n";
-  tree->insert(20, 0);
-  cout << "Adding Node 70\n";
-  tree->insert(70, 0);
-  cout << "Adding Node 10\n";
-  tree->insert(10, 0);
-  cout << "Adding Node 90\n";
-  tree->insert(90, 0);
-  cout << "Adding Node 60\n";
-  tree->insert(60, 0);
-  cout << "Adding Node 80\n";
-  tree->insert(80, 0);
-  cout << "Adding Node 98\n";
-  tree->insert(98, 0);
-  cout << "***** Adding Node to trigger test of case 3\n";
-  cout << "Adding Node 93\n";
-  tree->insert(93, 0);
-  cout << "END TESTING CASE 3\n";
-  tree->display();
-  delete tree;
-
-  // Create a tree and test case 4
-  tree = new ptree(&sp->ptrs[0]);
-  cout << "-----------------------------------------------\n";
-  cout << "TESTING CASE 4\n\n";
-  cout << "Adding Node 50\n";
-  tree->insert(50, 0);
-  cout << "Adding Node 20\n";
-  tree->insert(20, 0);
-  cout << "Adding Node 70\n";
-  tree->insert(70, 0);
-  cout << "Adding Node 10\n";
-  tree->insert(10, 0);
-  cout << "Adding Node 30\n";
-  tree->insert(30, 0);
-  cout << "Adding Node 90\n";
-  tree->insert(90, 0);
-  cout << "Adding Node 60\n";
-  tree->insert(60, 0);
-  cout << "Adding Node 5\n";
-  tree->insert(5, 0);
-  cout << "Adding Node 15\n";
-  tree->insert(15, 0);
-  cout << "Adding Node 25\n";
-  tree->insert(25, 0);
-  cout << "Adding Node 35\n";
-  tree->insert(35, 0);
-  cout << "***** Adding Node to trigger test of case 4\n";
-  cout << "Adding Node 13\n";
-  tree->insert(13, 0);
-  cout << "END TESTING CASE 4\n";
-  tree->display();
-  delete tree;
-
-  // Create a tree and test case 5
-  tree = new ptree(&sp->ptrs[0]);
-  cout << "-----------------------------------------------\n";
-  cout << "TESTING CASE 5\n\n";
-  cout << "Adding Node 50\n";
-  tree->insert(50, 0);
-  cout << "Adding Node 20\n";
-  tree->insert(20, 0);
-  cout << "Adding Node 90\n";
-  tree->insert(90, 0);
-  cout << "Adding Node 10\n";
-  tree->insert(10, 0);
-  cout << "Adding Node 40\n";
-  tree->insert(40, 0);
-  cout << "Adding Node 70\n";
-  tree->insert(70, 0);
-  cout << "Adding Node 100\n";
-  tree->insert(100, 0);
-  cout << "Adding Node 5\n";
-  tree->insert(5, 0);
-  cout << "Adding Node 15\n";
-  tree->insert(15, 0);
-  cout << "Adding Node 30\n";
-  tree->insert(30, 0);
-  cout << "Adding Node 45\n";
-  tree->insert(45, 0);
-  cout << "***** Adding Node to trigger test of case 5\n";
-  cout << "Adding Node 35\n";
-  tree->insert(35, 0);
-  cout << "END TESTING CASE 5\n";
-  tree->display();
-  delete tree;
-
-  // Create a tree and test case 6
-  tree = new ptree(&sp->ptrs[0]);
-  cout << "-----------------------------------------------\n";
-  cout << "TESTING CASE 6\n\n";
-  cout << "Adding Node 50\n";
-  tree->insert(50, 0);
-  cout << "Adding Node 20\n";
-  tree->insert(20, 0);
-  cout << "Adding Node 80\n";
-  tree->insert(80, 0);
-  cout << "Adding Node 70\n";
-  tree->insert(70, 0);
-  cout << "Adding Node 90\n";
-  tree->insert(90, 0);
-  cout << "***** Adding Node to trigger test of case 6\n";
-  cout << "Adding Node 75\n";
-  tree->insert(75, 0);
-  cout << "END TESTING CASE 6\n";
-  tree->display();
-  delete tree;
-
-  cout << "All testing complete.\n";
 }
 
