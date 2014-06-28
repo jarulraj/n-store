@@ -22,7 +22,6 @@ void* pmp;
 std::mutex pmp_mutex;
 
 #define MAX_PTRS 128
-int ptr_cnt = 0;
 
 struct static_info {
   int init;
@@ -84,9 +83,10 @@ class plist {
   /*
    * If storing pointers, this will take care of persisting them as well
    */
-  struct node* push_back(T val) {
+  void push_back(T val) {
     if ((*PMEM(head)) == NULL) {
-      return (init(val));
+      init(val);
+      return;
     }
 
     struct node* np = NULL;
@@ -94,7 +94,7 @@ class plist {
 
     if ((np = (struct node*) pmemalloc_reserve(pmp, sizeof(*np))) == NULL) {
       cout << "pmemalloc_reserve failed " << endl;
-      return NULL;
+      return;
     }
 
     // Link it in at the end of the list
@@ -111,12 +111,10 @@ class plist {
 
     // Persists data (pointers) if needed
     if (store_pointers)
-      pmemalloc_activate(pmp, val);
-
-    return np;
+      pmemalloc_activate(pmp, (void*) val);
   }
 
-  T at(const int index) const {
+  T& at(const int index) const {
     struct node * np = (*PMEM(head));
     unsigned int itr = 0;
     bool found = false;
@@ -188,7 +186,7 @@ class plist {
       if (np == (*PMEM(head))) {
         pmemalloc_onfree(pmp, np, (void **) PMEM(head),
         PMEM(np)->next);
-      } else if (np == (*tail)) {
+      } else if (np == (*PMEM(tail))) {
         pmemalloc_onfree(pmp, np, (void **) PMEM(tail), prev);
       }
     }
@@ -329,7 +327,6 @@ int main(int argc, char *argv[]) {
 
   sp = (struct static_info *) pmemalloc_static_area(pmp);
 
-  ptr_cnt = 0;
   dbase_* db;
 
   // Initialize

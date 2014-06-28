@@ -1,90 +1,159 @@
 #include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+
+#include <thread>
+#include <mutex>
+
+#include "libpm.h"
 
 using namespace std;
 
-struct node {
-  int key;
+void* pmp;
+std::mutex pmp_mutex;
 
-  node *left;
-  node *right;
-  node *parent;
-  char balanceFactor;
+#define MAX_PTRS 128
+
+struct static_info {
+  void* ptrs[MAX_PTRS];
 };
+
+struct static_info *sp;
 
 class ptree {
  private:
-  node *root;
+  struct node {
+    int key;
+    int val;
+
+    node *left;
+    node *right;
+    node *parent;
+    char bal;
+  };
+
+  struct node** root;
 
  public:
-  ptree() {
-    root = NULL;
+  ptree()
+      : root(NULL) {
+  }
+
+  ptree(void** _root) {
+
+    root = (struct node**) OFF(_root);
+
+    cout << "root : " << root << "\n";
   }
 
   ~ptree() {
-    clear(root);
+    clear();
+
   }
 
-  void clear(node *n) {
+  void clear() {
+    node* temp = (*PMEM(root));
+    if (temp == NULL) {
+      cout << "Empty tree \n";
+      return;
+    }
+
+    cout << "clearing ::" << PMEM(temp)->key << endl;
+    clear_node(temp);
+
+    (*PMEM(root)) = NULL;
+  }
+
+  void clear_node(node* n) {
     if (n != NULL) {
-      clear(n->left);
-      clear(n->right);
-      delete n;
+      cout << "clearing ::" << PMEM(n)->key << endl;
+      clear_node(PMEM(n)->left);
+      clear_node(PMEM(n)->right);
+      pmemalloc_free(pmp, n);
     }
   }
 
-  void insert(node *newNode) {
+  void insert(int key, int val) {
     node *temp, *back, *ancestor;
+    node* np = NULL;
 
-    temp = root;
+    if ((np = (node*) pmemalloc_reserve(pmp, sizeof(*np))) == NULL) {
+      cout << "pmemalloc_reserve failed " << endl;
+      return;
+    }
+
+    PMEM(np)->key = key;
+    PMEM(np)->val = val;
+    PMEM(np)->left = NULL;
+    PMEM(np)->right = NULL;
+    PMEM(np)->parent = NULL;
+    PMEM(np)->bal = '=';
+
+    // Check for empty tree first
+    if ((*PMEM(root)) == NULL) {
+      pmemalloc_onactive(pmp, np, (void **) PMEM(root), np);
+      pmemalloc_activate(pmp, np);
+      return;
+    }
+
+    temp = (*PMEM(root));
     back = NULL;
     ancestor = NULL;
 
-    // Check for empty tree first
-    if (root == NULL) {
-      root = newNode;
+    // Tree is not empty so search for place to insert
+    while (temp != NULL) {
+      back = temp;
+      // Mark ancestor that will be out of balance after this node is inserted
+      if (PMEM(temp)->bal != '=')
+        ancestor = temp;
+      if (PMEM(np)->key < PMEM(temp)->key)
+        temp = PMEM(temp)->left;
+      else if (PMEM(np)->key > PMEM(temp)->key) {
+        temp = PMEM(temp)->right;
+      } else
+        break;
+    }
+
+    // Update if key already exists
+    if (temp != NULL) {
+      PMEM(temp)->val = PMEM(np)->val;
+      pmem_persist(&PMEM(temp)->val, sizeof(int), 0);
       return;
     }
-    // Tree is not empty so search for place to insert
-    while (temp != NULL)  // Loop till temp falls out of the tree
-    {
-      back = temp;
-      // Mark ancestor that will be out of balance after
-      //   this node is inserted
-      if (temp->balanceFactor != '=')
-        ancestor = temp;
-      if (newNode->key < temp->key)
-        temp = temp->left;
-      else
-        temp = temp->right;
-    }
-    // temp is now NULL
-    // back points to parent node to attach newNode to
-    // ancestor points to most recent out of balance ancestor
 
-    newNode->parent = back;   // Set parent
-    if (newNode->key < back->key)  // Insert at left
-        {
-      back->left = newNode;
-    } else     // Insert at right
-    {
-      back->right = newNode;
+    // Insert if key does not exist
+    // temp is now NULL
+    // back points to parent node to attach np to
+    // ancestor points to most recent out of balance ancestor
+    PMEM(np)->parent = back;   // Set parent
+    pmemalloc_activate(pmp, np);
+
+    if (PMEM(np)->key < PMEM(back)->key) {
+      PMEM(back)->left = np;
+      pmem_persist(&PMEM(back)->left, sizeof(node*), 0);
+    } else {
+      PMEM(back)->right = np;
+      pmem_persist(&PMEM(back)->right, sizeof(node*), 0);
     }
 
     // Now call function to restore the tree's AVL property
-    restoreAVL(ancestor, newNode);
+    restoreAVL(ancestor, np);
   }
 
-  void restoreAVL(node *ancestor, node *newNode) {
+  void restoreAVL(node* ancestor, node* np) {
+    node* temp = (*PMEM(root));
+
     //--------------------------------------------------------------------------------
     // Case 1: ancestor is NULL, i.e. balanceFactor of all ancestors' is '='
     //--------------------------------------------------------------------------------
     if (ancestor == NULL) {
-      if (newNode->key < root->key)       // newNode inserted to left of root
-        root->balanceFactor = 'L';
+      if (PMEM(np)->key < PMEM(temp)->key)  // np inserted to left of root
+        PMEM(temp)->bal = 'L';
       else
-        root->balanceFactor = 'R';   // newNode inserted to right of root
-      // Adjust the balanceFactor for all nodes from newNode back up to root
-      adjustBalanceFactors(root, newNode);
+        PMEM(temp)->bal = 'R';  // np inserted to right of root
+      // Adjust the balanceFactor for all nodes from np back up to root
+      adjustBalanceFactors(temp, np);
     }
 
     //--------------------------------------------------------------------------------
@@ -93,47 +162,49 @@ class ptree {
     //     OR
     //  ancestor.balanceFactor = 'R' AND  Insertion made in ancestor's left subtree
     //--------------------------------------------------------------------------------
-    else if (((ancestor->balanceFactor == 'L') && (newNode->key > ancestor->key))
-        || ((ancestor->balanceFactor == 'R') && (newNode->key < ancestor->key))) {
-      ancestor->balanceFactor = '=';
-      // Adjust the balanceFactor for all nodes from newNode back up to ancestor
-      adjustBalanceFactors(ancestor, newNode);
+    else if (((PMEM(ancestor)->bal == 'L')
+        && (PMEM(np)->key > PMEM(ancestor)->key))
+        || ((PMEM(ancestor)->bal == 'R')
+            && (PMEM(np)->key < PMEM(ancestor)->key))) {
+      PMEM(ancestor)->bal = '=';
+      // Adjust the balanceFactor for all nodes from np back up to ancestor
+      adjustBalanceFactors(ancestor, np);
     }
     //--------------------------------------------------------------------------------
     // Case 3: ancestor.balanceFactor = 'R' and the node inserted is
     //      in the right subtree of ancestor's right child
     //--------------------------------------------------------------------------------
-    else if ((ancestor->balanceFactor == 'R')
-        && (newNode->key > ancestor->right->key)) {
-      ancestor->balanceFactor = '=';  // Reset ancestor's balanceFactor
+    else if ((PMEM(ancestor)->bal == 'R')
+        && (PMEM(np)->key > PMEM(PMEM(ancestor)->right)->key)) {
+      PMEM(ancestor)->bal = '=';  // Reset ancestor's balanceFactor
       rotateLeft(ancestor);       // Do single left rotation about ancestor
-      // Adjust the balanceFactor for all nodes from newNode back up to ancestor's parent
-      adjustBalanceFactors(ancestor->parent, newNode);
+      // Adjust the balanceFactor for all nodes from np back up to ancestor's parent
+      adjustBalanceFactors(PMEM(ancestor)->parent, np);
     }
 
     //--------------------------------------------------------------------------------
     // Case 4: ancestor.balanceFactor is 'L' and the node inserted is
     //      in the left subtree of ancestor's left child
     //--------------------------------------------------------------------------------
-    else if ((ancestor->balanceFactor == 'L')
-        && (newNode->key < ancestor->left->key)) {
-      ancestor->balanceFactor = '=';  // Reset ancestor's balanceFactor
+    else if ((PMEM(ancestor)->bal == 'L')
+        && (PMEM(np)->key < PMEM(PMEM(ancestor)->left)->key)) {
+      PMEM(ancestor)->bal = '=';  // Reset ancestor's balanceFactor
       rotateRight(ancestor);       // Do single right rotation about ancestor
-      // Adjust the balanceFactor for all nodes from newNode back up to ancestor's parent
-      adjustBalanceFactors(ancestor->parent, newNode);
+      // Adjust the balanceFactor for all nodes from np back up to ancestor's parent
+      adjustBalanceFactors(PMEM(ancestor)->parent, np);
     }
 
     //--------------------------------------------------------------------------------
     // Case 5: ancestor.balanceFactor is 'L' and the node inserted is
     //      in the right subtree of ancestor's left child
     //--------------------------------------------------------------------------------
-    else if ((ancestor->balanceFactor == 'L')
-        && (newNode->key > ancestor->left->key)) {
+    else if ((PMEM(ancestor)->bal == 'L')
+        && (PMEM(np)->key > PMEM(PMEM(ancestor)->left)->key)) {
       // Perform double right rotation (actually a left followed by a right)
-      rotateLeft(ancestor->left);
+      rotateLeft(PMEM(ancestor)->left);
       rotateRight(ancestor);
-      // Adjust the balanceFactor for all nodes from newNode back up to ancestor
-      adjustLeftRight(ancestor, newNode);
+      // Adjust the balanceFactor for all nodes from np back up to ancestor
+      adjustLeftRight(ancestor, np);
     }
 
     //--------------------------------------------------------------------------------
@@ -142,9 +213,9 @@ class ptree {
     //--------------------------------------------------------------------------------
     else {
       // Perform double left rotation (actually a right followed by a left)
-      rotateRight(ancestor->right);
+      rotateRight(PMEM(ancestor)->right);
       rotateLeft(ancestor);
-      adjustRightLeft(ancestor, newNode);
+      adjustRightLeft(ancestor, np);
     }
   }
 
@@ -154,15 +225,16 @@ class ptree {
   // @param end– last node back up the tree that needs adjusting
   // @param start – node just inserted
   //------------------------------------------------------------------
-  void adjustBalanceFactors(node *end, node *start) {
-    node *temp = start->parent;  // Set starting point at start's parent
+  void adjustBalanceFactors(node* end, node* start) {
+    node* temp = PMEM(start)->parent;  // Set starting point at start's parent
+
     while (temp != end) {
-      if (start->key < temp->key)
-        temp->balanceFactor = 'L';
+      if (PMEM(start)->key < PMEM(temp)->key)
+        PMEM(temp)->bal = 'L';
       else
-        temp->balanceFactor = 'R';
-      temp = temp->parent;
-    }  // end while
+        PMEM(temp)->bal = 'R';
+      temp = PMEM(temp)->parent;
+    }
   }
 
   //------------------------------------------------------------------
@@ -171,23 +243,25 @@ class ptree {
   //   parent to become n's left child.  Then n's left child will
   //   become the former parent's right child.
   //------------------------------------------------------------------
-  void rotateLeft(node *n) {
-    node *temp = n->right;   //Hold pointer to n's right child
-    n->right = temp->left;      // Move temp 's left child to right child of n
-    if (temp->left != NULL)      // If the left child does exist
-      temp->left->parent = n;      // Reset the left child's parent
-    if (n->parent == NULL)       // If n was the root
+  void rotateLeft(node* n) {
+    node* temp = PMEM(n)->right;   //Hold pointer to n's right child
+    PMEM(n)->right = PMEM(temp)->left;  // Move temp 's left child to right child of n
+
+    if (PMEM(temp)->left != NULL)      // If the left child does exist
+      PMEM(PMEM(temp)->left)->parent = n;      // Reset the left child's parent
+
+    if (PMEM(n)->parent == NULL)       // If n was the root
     {
-      root = temp;      // Make temp the new root
-      temp->parent = NULL;   // Root has no parent
-    } else if (n->parent->left == n)  // If n was the left child of its' parent
-      n->parent->left = temp;   // Make temp the new left child
+      (*PMEM(root)) = temp;      // Make temp the new root
+      PMEM(temp)->parent = NULL;   // Root has no parent
+    } else if (PMEM(PMEM(n)->parent)->left == n)  // If n was the left child of its' parent
+      PMEM(PMEM(n)->parent)->left = temp;   // Make temp the new left child
     else
       // If n was the right child of its' parent
-      n->parent->right = temp;               // Make temp the new right child
+      PMEM(PMEM(n)->parent)->right = temp;      // Make temp the new right child
 
-    temp->left = n;         // Move n to left child of temp
-    n->parent = temp;         // Reset n's parent
+    PMEM(temp)->left = n;         // Move n to left child of temp
+    PMEM(n)->parent = temp;         // Reset n's parent
   }
 
   //------------------------------------------------------------------
@@ -196,23 +270,25 @@ class ptree {
   //   parent to become n's right child.  Then n's right child will
   //   become the former parent's left child.
   //------------------------------------------------------------------
-  void rotateRight(node *n) {
-    node *temp = n->left;   //Hold pointer to temp
-    n->left = temp->right;      // Move temp's right child to left child of n
-    if (temp->right != NULL)      // If the right child does exist
-      temp->right->parent = n;      // Reset right child's parent
-    if (n->parent == NULL)       // If n was root
+  void rotateRight(node* n) {
+    node* temp = PMEM(n)->left;   //Hold pointer to temp
+    PMEM(n)->left = PMEM(temp)->right;  // Move temp's right child to left child of n
+
+    if (PMEM(temp)->right != NULL)      // If the right child does exist
+      PMEM(PMEM(temp)->right)->parent = n;      // Reset right child's parent
+
+    if (PMEM(n)->parent == NULL)       // If n was root
     {
-      root = temp;      // Make temp the root
-      temp->parent = NULL;   // Root has no parent
-    } else if (n->parent->left == n)  // If was the left child of its' parent
-      n->parent->left = temp;   // Make temp the new left child
+      (*PMEM(root)) = temp;      // Make temp the root
+      PMEM(temp)->parent = NULL;   // Root has no parent
+    } else if (PMEM(PMEM(n)->parent)->left == n)  // If was the left child of its' parent
+      PMEM(PMEM(n)->parent)->left = temp;   // Make temp the new left child
     else
       // If n was the right child of its' parent
-      n->parent->right = temp;               // Make temp the new right child
+      PMEM(PMEM(n)->parent)->right = temp;      // Make temp the new right child
 
-    temp->right = n;         // Move n to right child of temp
-    n->parent = temp;         // Reset n's parent
+    PMEM(temp)->right = n;         // Move n to right child of temp
+    PMEM(n)->parent = temp;         // Reset n's parent
   }
 
   //------------------------------------------------------------------
@@ -220,15 +296,15 @@ class ptree {
   // @param end- last node back up the tree that needs adjusting
   // @param start - node just inserted
   //------------------------------------------------------------------
-  void adjustLeftRight(node *end, node *start) {
-    if (end == root)
-      end->balanceFactor = '=';
-    else if (start->key < end->parent->key) {
-      end->balanceFactor = 'R';
-      adjustBalanceFactors(end->parent->left, start);
+  void adjustLeftRight(node* end, node* start) {
+    if (end == (*PMEM(root)))
+      PMEM(end)->bal = '=';
+    else if (PMEM(start)->key < PMEM(PMEM(end)->parent)->key) {
+      PMEM(end)->bal = 'R';
+      adjustBalanceFactors(PMEM(PMEM(end)->parent)->left, start);
     } else {
-      end->balanceFactor = '=';
-      end->parent->left->balanceFactor = 'L';
+      PMEM(end)->bal = '=';
+      PMEM(PMEM(PMEM(end)->parent)->left)->bal = 'L';
       adjustBalanceFactors(end, start);
     }
   }
@@ -239,235 +315,234 @@ class ptree {
   // @param start - node just inserted
   //------------------------------------------------------------------
   void adjustRightLeft(node *end, node *start) {
-    if (end == root)
-      end->balanceFactor = '=';
-    else if (start->key > end->parent->key) {
-      end->balanceFactor = 'L';
-      adjustBalanceFactors(end->parent->right, start);
+    if (end == (*PMEM(root)))
+      PMEM(end)->bal = '=';
+    else if (PMEM(start)->key > PMEM(PMEM(end)->parent)->key) {
+      PMEM(end)->bal = 'L';
+      adjustBalanceFactors(PMEM(PMEM(end)->parent)->right, start);
     } else {
-      end->balanceFactor = '=';
-      end->parent->right->balanceFactor = 'R';
+      PMEM(end)->bal = '=';
+      PMEM(PMEM(PMEM(end)->parent)->right)->bal = 'R';
       adjustBalanceFactors(end, start);
     }
   }
 
   void display() {
-    cout << "\nPrinting the tree...\n";
-    cout << "Root Node: " << root->key << " balanceFactor is "
-         << root->balanceFactor << "\n\n";
-    display_node(root);
+    node* temp = (*PMEM(root));
+    if (temp == NULL) {
+      cout << "Empty tree \n";
+      return;
+    }
+
+    cout << "Tree \n";
+    display_node(temp);
+    cout << "----------------------------- \n";
   }
 
-  void display_node(node *n) {
+  void display_node(node* n) {
     if (n != NULL) {
-      cout << "Node: " << n->key << " balanceFactor is " << n->balanceFactor
-           << "\n";
-      if (n->left != NULL) {
-        cout << "\t moving left\n";
-        display_node(n->left);
-        cout << "Returning to Node" << n->key << " from its' left subtree\n";
-      } else {
-        cout << "\t left subtree is empty\n";
+      cout << "key: " << PMEM(n)->key << " val : " << PMEM(n)->val << "\n";
+
+      if (PMEM(n)->left != NULL) {
+        cout << "left :" << "\n";
+        display_node(PMEM(n)->left);
       }
-      cout << "Node: " << n->key << " balanceFactor is " << n->balanceFactor
-           << "\n";
-      if (n->right != NULL) {
-        cout << "\t moving right\n";
-        display_node(n->right);
-        cout << "Returning to Node" << n->key << " from its' right subtree\n";
-      } else {
-        cout << "\t right subtree is empty\n";
+      if (PMEM(n)->right != NULL) {
+        cout << "right :" << "\n";
+        display_node(PMEM(n)->right);
       }
     }
   }
 
 };
 
-#include <iostream>
+void* operator new(size_t sz) throw (bad_alloc) {
+  std::lock_guard<std::mutex> lock(pmp_mutex);
+  return PMEM(pmemalloc_reserve(pmp, sz));
+}
 
-using namespace std;
-
-//---------------------------------------------
-// Create a new tree node with the given key
-//---------------------------------------------
-node* createNewNode(int key) {
-  node *temp = new node();
-  temp->key = key;
-  temp->left = NULL;
-  temp->right = NULL;
-  temp->parent = NULL;
-  temp->balanceFactor = '=';
-  return temp;
+void operator delete(void *p) throw () {
+  std::lock_guard<std::mutex> lock(pmp_mutex);
+  pmemalloc_free_absolute(pmp, p);
 }
 
 int main() {
-  ptree* tree;
-  char ans[32];
+  const char* path = "./testfile";
 
-  // Test each case by adding some nodes to the tree then
-  //  printing the tree after each insertion
+  long pmp_size = 10 * 1024 * 1024;
+  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
+    cout << "pmemalloc_init on :" << path << endl;
+
+  sp = (struct static_info *) pmemalloc_static_area(pmp);
+
+  ptree* tree;
 
   // Create a tree and test case 1
-  tree = new ptree();
+  tree = new ptree(&sp->ptrs[0]);
   cout << "-----------------------------------------------\n";
   cout << "TESTING CASE 1\n\n";
   cout << "Adding Node 50\n";
-  tree->insert(createNewNode(50));
+  tree->insert(50, 0);
   cout << "Adding Node 20\n";
-  tree->insert(createNewNode(20));
+  tree->insert(20, 0);
   cout << "Adding Node 70\n";
-  tree->insert(createNewNode(70));
+  tree->insert(70, 0);
   cout << "Adding Node 30\n";
-  tree->insert(createNewNode(30));
+  tree->insert(30, 0);
   cout << "Adding Node 10\n";
-  tree->insert(createNewNode(10));
+  tree->insert(10, 0);
   cout << "Adding Node 90\n";
-  tree->insert(createNewNode(90));
+  tree->insert(90, 0);
   cout << "Adding Node 60\n";
-  tree->insert(createNewNode(60));
+  tree->insert(60, 0);
   cout << "***** Adding Node to trigger test of case 1\n";
   cout << "Adding Node 55\n";
-  tree->insert(createNewNode(55));
+  tree->insert(55, 0);
   cout << "END TESTING CASE 1\n";
+  tree->display();
   delete tree;
 
   // Create a tree and test case 2
-  tree = new ptree();
+  tree = new ptree(&sp->ptrs[0]);
   cout << "-----------------------------------------------\n";
   cout << "TESTING CASE 2\n\n";
   cout << "Adding Node 50\n";
-  tree->insert(createNewNode(50));
+  tree->insert(50, 0);
   cout << "Adding Node 20\n";
-  tree->insert(createNewNode(20));
+  tree->insert(20, 0);
   cout << "Adding Node 70\n";
-  tree->insert(createNewNode(70));
+  tree->insert(70, 0);
   cout << "Adding Node 30\n";
-  tree->insert(createNewNode(30));
+  tree->insert(30, 0);
   cout << "Adding Node 10\n";
-  tree->insert(createNewNode(10));
+  tree->insert(10, 0);
   cout << "Adding Node 90\n";
-  tree->insert(createNewNode(90));
+  tree->insert(90, 0);
   cout << "Adding Node 60\n";
-  tree->insert(createNewNode(60));
+  tree->insert(60, 0);
   cout << "Adding Node 55\n";
-  tree->insert(createNewNode(55));
+  tree->insert(55, 0);
   cout << "***** Adding Node to trigger test of case 2\n";
   cout << "Adding Node 28\n";
-  tree->insert(createNewNode(28));
+  tree->insert(28, 0);
   cout << "END TESTING CASE 2\n";
+  tree->display();
   delete tree;
 
   // Create a tree and test case 3
-  tree = new ptree();
+  tree = new ptree(&sp->ptrs[0]);
   cout << "-----------------------------------------------\n";
   cout << "TESTING CASE 3\n\n";
   cout << "Adding Node 50\n";
-  tree->insert(createNewNode(50));
+  tree->insert(50, 0);
   cout << "Adding Node 20\n";
-  tree->insert(createNewNode(20));
+  tree->insert(20, 0);
   cout << "Adding Node 70\n";
-  tree->insert(createNewNode(70));
+  tree->insert(70, 0);
   cout << "Adding Node 10\n";
-  tree->insert(createNewNode(10));
+  tree->insert(10, 0);
   cout << "Adding Node 90\n";
-  tree->insert(createNewNode(90));
+  tree->insert(90, 0);
   cout << "Adding Node 60\n";
-  tree->insert(createNewNode(60));
+  tree->insert(60, 0);
   cout << "Adding Node 80\n";
-  tree->insert(createNewNode(80));
+  tree->insert(80, 0);
   cout << "Adding Node 98\n";
-  tree->insert(createNewNode(98));
+  tree->insert(98, 0);
   cout << "***** Adding Node to trigger test of case 3\n";
   cout << "Adding Node 93\n";
-  tree->insert(createNewNode(93));
+  tree->insert(93, 0);
   cout << "END TESTING CASE 3\n";
+  tree->display();
   delete tree;
-  cout << "-----------------------------------------------\n";
-  cout << "-----------------------------------------------\n";
 
   // Create a tree and test case 4
-  tree = new ptree();
+  tree = new ptree(&sp->ptrs[0]);
   cout << "-----------------------------------------------\n";
   cout << "TESTING CASE 4\n\n";
   cout << "Adding Node 50\n";
-  tree->insert(createNewNode(50));
+  tree->insert(50, 0);
   cout << "Adding Node 20\n";
-  tree->insert(createNewNode(20));
+  tree->insert(20, 0);
   cout << "Adding Node 70\n";
-  tree->insert(createNewNode(70));
+  tree->insert(70, 0);
   cout << "Adding Node 10\n";
-  tree->insert(createNewNode(10));
+  tree->insert(10, 0);
   cout << "Adding Node 30\n";
-  tree->insert(createNewNode(30));
+  tree->insert(30, 0);
   cout << "Adding Node 90\n";
-  tree->insert(createNewNode(90));
+  tree->insert(90, 0);
   cout << "Adding Node 60\n";
-  tree->insert(createNewNode(60));
+  tree->insert(60, 0);
   cout << "Adding Node 5\n";
-  tree->insert(createNewNode(5));
+  tree->insert(5, 0);
   cout << "Adding Node 15\n";
-  tree->insert(createNewNode(15));
+  tree->insert(15, 0);
   cout << "Adding Node 25\n";
-  tree->insert(createNewNode(25));
+  tree->insert(25, 0);
   cout << "Adding Node 35\n";
-  tree->insert(createNewNode(35));
+  tree->insert(35, 0);
   cout << "***** Adding Node to trigger test of case 4\n";
   cout << "Adding Node 13\n";
-  tree->insert(createNewNode(13));
+  tree->insert(13, 0);
   cout << "END TESTING CASE 4\n";
+  tree->display();
   delete tree;
 
   // Create a tree and test case 5
-  tree = new ptree();
+  tree = new ptree(&sp->ptrs[0]);
   cout << "-----------------------------------------------\n";
   cout << "TESTING CASE 5\n\n";
   cout << "Adding Node 50\n";
-  tree->insert(createNewNode(50));
+  tree->insert(50, 0);
   cout << "Adding Node 20\n";
-  tree->insert(createNewNode(20));
+  tree->insert(20, 0);
   cout << "Adding Node 90\n";
-  tree->insert(createNewNode(90));
+  tree->insert(90, 0);
   cout << "Adding Node 10\n";
-  tree->insert(createNewNode(10));
+  tree->insert(10, 0);
   cout << "Adding Node 40\n";
-  tree->insert(createNewNode(40));
+  tree->insert(40, 0);
   cout << "Adding Node 70\n";
-  tree->insert(createNewNode(70));
+  tree->insert(70, 0);
   cout << "Adding Node 100\n";
-  tree->insert(createNewNode(100));
+  tree->insert(100, 0);
   cout << "Adding Node 5\n";
-  tree->insert(createNewNode(5));
+  tree->insert(5, 0);
   cout << "Adding Node 15\n";
-  tree->insert(createNewNode(15));
+  tree->insert(15, 0);
   cout << "Adding Node 30\n";
-  tree->insert(createNewNode(30));
+  tree->insert(30, 0);
   cout << "Adding Node 45\n";
-  tree->insert(createNewNode(45));
+  tree->insert(45, 0);
   cout << "***** Adding Node to trigger test of case 5\n";
   cout << "Adding Node 35\n";
-  tree->insert(createNewNode(35));
+  tree->insert(35, 0);
   cout << "END TESTING CASE 5\n";
+  tree->display();
   delete tree;
 
   // Create a tree and test case 6
-  tree = new ptree();
+  tree = new ptree(&sp->ptrs[0]);
   cout << "-----------------------------------------------\n";
   cout << "TESTING CASE 6\n\n";
   cout << "Adding Node 50\n";
-  tree->insert(createNewNode(50));
+  tree->insert(50, 0);
   cout << "Adding Node 20\n";
-  tree->insert(createNewNode(20));
+  tree->insert(20, 0);
   cout << "Adding Node 80\n";
-  tree->insert(createNewNode(80));
+  tree->insert(80, 0);
   cout << "Adding Node 70\n";
-  tree->insert(createNewNode(70));
+  tree->insert(70, 0);
   cout << "Adding Node 90\n";
-  tree->insert(createNewNode(90));
+  tree->insert(90, 0);
   cout << "***** Adding Node to trigger test of case 6\n";
   cout << "Adding Node 75\n";
-  tree->insert(createNewNode(75));
+  tree->insert(75, 0);
   cout << "END TESTING CASE 6\n";
+  tree->display();
   delete tree;
+
   cout << "All testing complete.\n";
 }
 
