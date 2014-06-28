@@ -7,12 +7,8 @@
 #include <mutex>
 
 #include <vector>
-#include <map>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
-#include <exception>
+#include <thread>
+#include <mutex>
 
 #include "libpm.h"
 
@@ -29,9 +25,6 @@ struct static_info {
 
 struct static_info *sp;
 
-/**
- * An AVL tree
- */
 class ptree {
  public:
 
@@ -55,14 +48,22 @@ class ptree {
     int val;
   };
 
-  node* root_node;
+  node** root;
   int size;
   bool doBalancing;
 
   ptree()
-      : root_node(0),
+      : root(NULL),
         size(0),
         doBalancing(true) {
+  }
+
+  ptree(void** _root)
+      : size(0),
+        doBalancing(true) {
+
+    root = (struct node**) OFF(_root);
+    cout << "root : " << root << "\n";
   }
 
   virtual ~ptree(void) {
@@ -70,67 +71,97 @@ class ptree {
   }
 
   void clear() {
-    clear_node(root_node);
+    clear_node((*PMEM(root)));
   }
 
-  // retrieves the leftmost child
-  node* getLeftMostNode(node* np) const {
-    node* current_node = np;
-    if (!current_node->left) {
-      return current_node;
-    } else {
-      return getLeftMostNode(current_node->left);
-    }
-  }
-
-  void insert(const int& key, const int& val) {
-    node* current_node = this->root_node;
-
-    if (!current_node) {
-      this->root_node = new node(key, val);
-      size++;
+  void clear_node(node* np) {
+    if (np == NULL) {
       return;
     }
 
-    for (;;) {
-      if (current_node->key == key) {
-        current_node->val = val;
-        return;
-      }
+    clear_node(PMEM(np)->left);
+    clear_node(PMEM(np)->right);
+    size--;
 
-      if (current_node->key > key) {
-        if (!current_node->left) {
-          current_node->left = new_node(current_node, key, val);
-          size++;
-          propagate_max_children_size(current_node, current_node->left, 0,
-                                      false);
-          return;
-        }
-        current_node = current_node->left;
-
+    if (PMEM(np)->parent != NULL) {
+      if (PMEM(PMEM(np)->parent)->left == np) {
+        PMEM(PMEM(np)->parent)->left = 0;
+        PMEM(PMEM(np)->parent)->left_max_depth--;
       } else {
-        if (!current_node->right) {
-          current_node->right = new_node(current_node, key, val);
-          size++;
-          propagate_max_children_size(current_node, current_node->right, 0,
-                                      false);
-          return;
-        }
-        current_node = current_node->right;
-
+        PMEM(PMEM(np)->parent)->right = 0;
+        PMEM(PMEM(np)->parent)->right_max_depth--;
       }
-
+    } else {
+      (*PMEM(root)) = NULL;
     }
 
+    delete PMEM(np);
   }
 
-  int at(const int& key) const {
-    node* ret = getNode(key);
-    return ret ? ret->val : 0;
+  int get_balance(node* np) const {
+    return PMEM(np)->right_max_depth - PMEM(np)->left_max_depth;
   }
 
-  bool contains(const int& key) const {
-    return getNode(key) ? true : false;
+  // single right rotate
+  void srr(node* np) {
+    bool newRoot = (np == (*PMEM(root)));
+
+    PMEM(PMEM(np)->left)->parent = PMEM(np)->parent;
+    node* old_right = PMEM(PMEM(np)->left)->right;
+
+    PMEM(PMEM(np)->left)->right = np;
+    PMEM(np)->parent = PMEM(np)->left;
+    PMEM(PMEM(np)->parent)->right = np;
+    PMEM(np)->left = old_right;
+    PMEM(np)->left_max_depth =
+        (old_right ? get_max_children_size(old_right) : 0);
+
+    if (old_right) {
+      PMEM(old_right)->parent = np;
+      PMEM(np)->left_max_depth++;
+    }
+    PMEM(PMEM(np)->parent)->right_max_depth++;
+
+    if (newRoot) {
+      (*PMEM(root)) = PMEM(np)->parent;
+    } else {
+      if (PMEM(PMEM(PMEM(np)->parent)->parent)->left == np) {
+        PMEM(PMEM(PMEM(np)->parent)->parent)->left = PMEM(np)->parent;
+      } else {
+        PMEM(PMEM(PMEM(np)->parent)->parent)->right = PMEM(np)->parent;
+      }
+    }
+  }
+
+  // single left rotate
+  void slr(node* np) {
+    bool newRoot = (np == (*PMEM(root)));
+
+    PMEM(PMEM(np)->right)->parent = PMEM(np)->parent;
+    node* old_left = PMEM(PMEM(np)->right)->left;
+
+    PMEM(PMEM(np)->right)->left = np;
+    PMEM(np)->parent = PMEM(np)->right;
+    PMEM(PMEM(np)->parent)->left = np;
+    PMEM(np)->right = old_left;
+    PMEM(np)->right_max_depth =
+        (old_left ? get_max_children_size(old_left) : 0);
+
+    if (old_left) {
+      PMEM(old_left)->parent = np;
+      PMEM(np)->right_max_depth++;
+    }
+    PMEM(PMEM(np)->parent)->left_max_depth++;
+
+    if (newRoot) {
+      (*PMEM(root)) = PMEM(np)->parent;
+    } else {
+      if (PMEM(PMEM(PMEM(np)->parent)->parent)->left == np) {
+        PMEM(PMEM(PMEM(np)->parent)->parent)->left = PMEM(np)->parent;
+      } else {
+        PMEM(PMEM(PMEM(np)->parent)->parent)->right = PMEM(np)->parent;
+      }
+    }
   }
 
   // balance a node, invoke rotations on demand
@@ -138,12 +169,12 @@ class ptree {
     bool didBalance = false;
 
     if (doBalancing) {
-      int balancing = getBalance_(parent);
+      int balancing = get_balance(parent);
 
       if (balancing < -1) {
-        int balanceRightHeavy = getBalance_(parent->left);
+        int balanceRightHeavy = get_balance(PMEM(parent)->left);
         if (balanceRightHeavy >= 1) {
-          slr(parent->left);
+          slr(PMEM(parent)->left);
           srr(parent);
         } else {
           srr(parent);
@@ -151,9 +182,9 @@ class ptree {
         didBalance = true;
 
       } else if (balancing > 1) {
-        int balanceLeftHeavy = getBalance_(parent->right);
+        int balanceLeftHeavy = get_balance(PMEM(parent)->right);
         if (balanceLeftHeavy <= -1) {
-          srr(parent->right);
+          srr(PMEM(parent)->right);
           slr(parent);
         } else {
           slr(parent);
@@ -166,132 +197,113 @@ class ptree {
     return didBalance;
   }
 
-  // erase a key from the tree
-  bool erase(const int& key) {
-    node* np = getNode(key);
-    if (!np) {
-      return false;
-    }
-
-    this->size--;
-
-    node* parent = np->parent;
-    bool is_root_node = np->parent ? false : true;
-    bool parent_pos_right = !is_root_node ? parent->right == np : false;
-    bool has_left = np->left ? true : false;
-    bool has_right = np->right ? true : false;
-
-    // deleted node has no leaves
-    if (!has_left && !has_right) {
-      if (!is_root_node) {
-        if (!parent_pos_right) {
-          parent->left = 0;
-          parent->left_max_depth--;
-        } else {
-          parent->right = 0;
-          parent->right_max_depth--;
-        }
-      }
-
-      delete np;
-
-      if (is_root_node) {
-        root_node = 0;
-        return true;
-      }
-    }
-
-    // deleted node has exactly one leaf
-    else if ((has_left && !has_right) || (has_right && !has_left)) {
-      bool detachRight = np->right ? true : false;
-
-      if ((!parent_pos_right) && (!is_root_node)) {
-        parent->left = detachRight ? np->right : np->left;
-        parent->left_max_depth = (
-            detachRight ?
-                getMaxChildrenSize_(np->right) : getMaxChildrenSize_(np->left))
-            + 1;
-      } else if (!is_root_node) {
-        parent->right = detachRight ? np->right : np->left;
-        parent->right_max_depth = (
-            detachRight ?
-                getMaxChildrenSize_(np->right) : getMaxChildrenSize_(np->left))
-            + 1;
-      }
-
-      if (detachRight) {
-        np->right->parent = parent;
-      } else {
-        np->left->parent = parent;
-      }
-
-      if (is_root_node) {
-        root_node = detachRight ? np->right : np->left;
-        parent = root_node;
-      }
-
-      delete np;
-    }
-
-    // deleted node has 2 leaves
-    else if (has_left && has_right) {
-      node* replace_node = getLeftMostNode(np->right);
-      node* propagation_root_node = replace_node->parent;
-      np->key = replace_node->key;
-      np->val = replace_node->val;
-
-      if (replace_node != np->right) {
-        replace_node->parent->left = 0;
-        replace_node->parent->left_max_depth = 0;
-        parent = propagation_root_node;
-      } else {
-        node* old_right = replace_node->right;
-        np->right = old_right;
-        np->right_max_depth = old_right ? (old_right->right_max_depth + 1) : 0;
-        if (old_right) {
-          old_right->parent = np;
-        }
-        parent = np;
-      }
-
-      delete (replace_node);
-    }
-
-    bool didBalance = balance(parent);
-    if (didBalance) {
-      parent = parent->parent;
-    }
-
-    if (parent && parent->parent) {
-      propagate_max_children_size(parent->parent, parent,
-                                  getMaxChildrenSize_(parent), true);
-    }
-
-    return true;
+  int get_max_children_size(node* np) const {
+    return std::max(PMEM(np)->left_max_depth, PMEM(np)->right_max_depth);
   }
 
-  node* getNode(const int& key) const {
-    node* current_node = this->root_node;
+  // Propagates new max children size to parents, does balancing on demand.
+  void propagate_max_children_size(node* notified_node, node* sender_node,
+                                   int child_maxsize, bool is_deletion) {
 
-    if (!current_node) {
+    bool isRight = sender_node == PMEM(notified_node)->right;
+    int maxsize = child_maxsize + 1;
+
+    int old_maxsize = get_max_children_size(notified_node);
+    if (isRight) {
+      PMEM(notified_node)->right_max_depth = maxsize;
+    } else {
+      PMEM(notified_node)->left_max_depth = maxsize;
+    }
+
+    int new_maxsize = get_max_children_size(notified_node);
+    if (balance(notified_node)) {
+      if (is_deletion) {
+        notified_node = PMEM(notified_node)->parent;  // our notified_node moved, readjust
+      } else {
+        return;
+      }
+    }
+
+    if (PMEM(notified_node)->parent) {
+      if (is_deletion ?
+          new_maxsize != old_maxsize : new_maxsize > old_maxsize) {
+        propagate_max_children_size(PMEM(notified_node)->parent, notified_node,
+                                    new_maxsize, is_deletion);
+      }
+    }
+  }
+
+  void insert(const int& key, const int& val) {
+    node* current_node = (*PMEM(root));
+
+    if (current_node == NULL) {
+      node* np = OFF(new node(key, val));
+
+      (*PMEM(root)) = np;
+      pmemalloc_activate(pmp, np);
+
+      size++;
+      return;
+    }
+
+    for (;;) {
+      if (PMEM(current_node)->key == key) {
+        PMEM(current_node)->val = val;
+        break;
+      } else if (PMEM(current_node)->key > key) {
+        if (PMEM(current_node)->left == NULL) {
+          node* np = OFF(new node(key, val));
+          PMEM(np)->parent = current_node;
+          PMEM(current_node)->left = np;
+          pmemalloc_activate(pmp, np);
+
+          size++;
+          propagate_max_children_size(current_node, PMEM(current_node)->left, 0,
+                                      false);
+          break;
+        }
+
+        current_node = PMEM(current_node)->left;
+      } else {
+        if (PMEM(current_node)->right == NULL) {
+          node* np = OFF(new node(key, val));
+          PMEM(np)->parent = current_node;
+          PMEM(current_node)->right = np;
+          pmemalloc_activate(pmp, np);
+
+          size++;
+          propagate_max_children_size(current_node, PMEM(current_node)->right,
+                                      0, false);
+          break;
+        }
+        current_node = PMEM(current_node)->right;
+      }
+    }
+
+  }
+
+  node* find(const int& key) const {
+    node* current_node = (*PMEM(root));
+
+    if (current_node == NULL) {
       return NULL;
     }
 
     for (;;) {
-      if (current_node->key == key) {
+      if (PMEM(current_node)->key == key) {
         return current_node;
       }
 
-      if (current_node->key > key) {
-        if (current_node->left) {
-          current_node = current_node->left;
+      if (PMEM(current_node)->key > key) {
+        if (PMEM(current_node)->left) {
+          current_node = PMEM(current_node)->left;
         } else {
           return NULL;
         }
 
       } else {
-        if (current_node->right) {
-          current_node = current_node->right;
+        if (PMEM(current_node)->right) {
+          current_node = PMEM(current_node)->right;
         } else {
           return NULL;
         }
@@ -301,177 +313,189 @@ class ptree {
     return NULL;
   }
 
-  // create a new node
-  node* new_node(node* parent, const int& key, const int& val) {
-    node* newNode = new node(key, val);
-    newNode->parent = parent;
-    return newNode;
+  int at(const int& key) const {
+    node* ret = find(key);
+    return ret ? PMEM(ret)->val : 0;
   }
 
-  // Propagates new max children size to parents, does balancing on demand.
-  void propagate_max_children_size(node* notified_node, node* sender_node,
-                                   int child_maxsize, bool is_deletion) {
-    bool isRight = sender_node == notified_node->right;
-    int maxsize = child_maxsize + 1;
-    int old_maxsize = getMaxChildrenSize_(notified_node);
-    if (isRight) {
-      notified_node->right_max_depth = maxsize;
+  bool contains(const int& key) const {
+    return find(key) ? true : false;
+  }
+
+  // retrieves the leftmost child
+  node* getLeftMostNode(node* np) const {
+    node* current_node = np;
+
+    if (!PMEM(current_node)->left) {
+      return current_node;
     } else {
-      notified_node->left_max_depth = maxsize;
+      return getLeftMostNode(PMEM(current_node)->left);
     }
-    int new_maxsize = getMaxChildrenSize_(notified_node);
+  }
 
-    if (balance(notified_node)) {
-      if (is_deletion) {
-        notified_node = notified_node->parent;  // our notified_node moved, readjust
+  // erase a key from the tree
+  bool erase(const int& key) {
+    node* np = find(key);
+    if (np == NULL) {
+      return false;
+    }
+
+    size--;
+
+    node* parent = PMEM(np)->parent;
+    bool is_root_node = PMEM(np)->parent ? false : true;
+    bool parent_pos_right = !is_root_node ? PMEM(parent)->right == np : false;
+    bool has_left = PMEM(np)->left ? true : false;
+    bool has_right = PMEM(np)->right ? true : false;
+
+    // deleted node has no leaves
+    if (!has_left && !has_right) {
+      if (!is_root_node) {
+        if (!parent_pos_right) {
+          PMEM(parent)->left = 0;
+          PMEM(parent)->left_max_depth--;
+        } else {
+          PMEM(parent)->right = 0;
+          PMEM(parent)->right_max_depth--;
+        }
+      }
+
+      delete PMEM(np);
+
+      if (is_root_node) {
+        (*PMEM(root)) = NULL;
+        return true;
+      }
+    }
+    // deleted node has exactly one leaf
+    else if ((has_left && !has_right) || (has_right && !has_left)) {
+      bool detachRight = PMEM(np)->right ? true : false;
+
+      if ((!parent_pos_right) && (!is_root_node)) {
+        PMEM(parent)->left = detachRight ? PMEM(np)->right : PMEM(np)->left;
+        PMEM(parent)->left_max_depth = (
+            detachRight ?
+                get_max_children_size(PMEM(np)->right) :
+                get_max_children_size(PMEM(np)->left)) + 1;
+      } else if (!is_root_node) {
+        PMEM(parent)->right = detachRight ? PMEM(np)->right : PMEM(np)->left;
+        PMEM(parent)->right_max_depth = (
+            detachRight ?
+                get_max_children_size(PMEM(np)->right) :
+                get_max_children_size(PMEM(np)->left)) + 1;
+      }
+
+      if (detachRight) {
+        PMEM(PMEM(np)->right)->parent = parent;
       } else {
-        return;
+        PMEM(PMEM(np)->left)->parent = parent;
       }
-    }
 
-    if (notified_node->parent) {
-      if (is_deletion ?
-          new_maxsize != old_maxsize : new_maxsize > old_maxsize) {
-        propagate_max_children_size(notified_node->parent, notified_node,
-                                    new_maxsize, is_deletion);
+      if (is_root_node) {
+        (*PMEM(root)) = detachRight ? PMEM(np)->right : PMEM(np)->left;
+        parent = (*PMEM(root));
       }
+
+      delete PMEM(np);
     }
-  }
+    // deleted node has 2 leaves
+    else if (has_left && has_right) {
+      node* replace_node = getLeftMostNode(PMEM(np)->right);
+      node* propagation_root_node = PMEM(replace_node)->parent;
 
-  int getBalance_(node* np) const {
-    return np->right_max_depth - np->left_max_depth;
-  }
+      PMEM(np)->key = PMEM(replace_node)->key;
+      PMEM(np)->val = PMEM(replace_node)->val;
 
-  int getMaxChildrenSize_(node* np) const {
-    return std::max(np->left_max_depth, np->right_max_depth);
-  }
-
-  void clear_node(node* np) {
-    if (!np) {
-      return;
-    }
-
-    if (np->left) {
-      clear_node(np->left);
-    }
-    if (np->right) {
-      clear_node(np->right);
-    }
-
-    this->size--;
-
-    if (np->parent) {
-      if (np->parent->left == np) {
-        np->parent->left = 0;
-        np->parent->left_max_depth--;
+      if (replace_node != PMEM(np)->right) {
+        PMEM(PMEM(replace_node)->parent)->left = 0;
+        PMEM(PMEM(replace_node)->parent)->left_max_depth = 0;
+        parent = propagation_root_node;
       } else {
-        np->parent->right = 0;
-        np->parent->right_max_depth--;
+        node* old_right = PMEM(replace_node)->right;
+        PMEM(np)->right = old_right;
+        PMEM(np)->right_max_depth =
+            old_right ? (PMEM(old_right)->right_max_depth + 1) : 0;
+        if (old_right) {
+          PMEM(old_right)->parent = np;
+        }
+        parent = np;
       }
-    } else {
-      root_node = 0;
+
+      delete PMEM(replace_node);
     }
 
-    delete np;
-  }
-
-  // set tree balancing mode (useful for debugging purposes)
-  void setBalancing(bool mode) {
-    doBalancing = mode;
-  }
-
-  // single right rotate
-  void srr(node* np) {
-    bool newRoot = (np == root_node);
-    np->left->parent = np->parent;
-    node* old_right = np->left->right;
-    np->left->right = np;
-    np->parent = np->left;
-    np->parent->right = np;
-    np->left = old_right;
-    np->left_max_depth = old_right ? getMaxChildrenSize_(old_right) : 0;
-    if (old_right) {
-      old_right->parent = np;
-      np->left_max_depth++;
+    bool didBalance = balance(parent);
+    if (didBalance) {
+      parent = PMEM(parent)->parent;
     }
-    np->parent->right_max_depth++;
 
-    if (newRoot) {
-      root_node = np->parent;
-    } else {
-      if (np->parent->parent->left == np) {
-        np->parent->parent->left = np->parent;
-      } else {
-        np->parent->parent->right = np->parent;
-      }
+    if (parent && PMEM(parent)->parent) {
+      propagate_max_children_size(PMEM(parent)->parent, parent,
+                                  get_max_children_size(parent), true);
     }
-  }
 
-  // single left rotate
-  void slr(node* np) {
-    bool newRoot = (np == root_node);
-    np->right->parent = np->parent;
-    node* old_left = np->right->left;
-    np->right->left = np;
-    np->parent = np->right;
-    np->parent->left = np;
-    np->right = old_left;
-    np->right_max_depth = old_left ? getMaxChildrenSize_(old_left) : 0;
-    if (old_left) {
-      old_left->parent = np;
-      np->right_max_depth++;
-    }
-    np->parent->left_max_depth++;
-
-    if (newRoot) {
-      root_node = np->parent;
-    } else {
-      if (np->parent->parent->left == np) {
-        np->parent->parent->left = np->parent;
-      } else {
-        np->parent->parent->right = np->parent;
-      }
-    }
+    return true;
   }
 
   void display() {
-    display_node(root_node);
-  }
+    node* current_node = (*PMEM(root));
 
-  void display_node(node* pCurr) {
-    if (!pCurr) {
+    if (current_node == NULL) {
+      cout << "Empty tree" << endl;
       return;
     }
 
-    cout << "key: " << pCurr->key << " " << " val: " << pCurr->val << endl;
+    display_node(current_node);
+  }
 
-    if (pCurr->left) {
-      display_node(pCurr->left);
+  void display_node(node* np) {
+    if (np == NULL) {
+      return;
     }
-    if (pCurr->right) {
-      display_node(pCurr->right);
-    }
+
+    cout << "key: " << PMEM(np)->key << " " << " val: " << PMEM(np)->val << " "
+         << " bal: " << get_balance(np) << endl;
+
+    display_node(PMEM(np)->left);
+    display_node(PMEM(np)->right);
+
     return;
   }
 
 };
 
+void* operator new(size_t sz) throw (bad_alloc) {
+  std::lock_guard<std::mutex> lock(pmp_mutex);
+  return PMEM(pmemalloc_reserve(pmp, sz));
+}
+
+void operator delete(void *p) throw () {
+  std::lock_guard<std::mutex> lock(pmp_mutex);
+  pmemalloc_free_absolute(pmp, p);
+}
+
 int main() {
   const char* path = "./testfile";
 
-  ptree* tree = new ptree();
+  long pmp_size = 10 * 1024 * 1024;
+  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
+    cout << "pmemalloc_init on :" << path << endl;
 
-  int val;
+  sp = (struct static_info *) pmemalloc_static_area(pmp);
+
+  ptree* tree = new ptree(&sp->ptrs[0]);
+
+  int key;
   srand(time(NULL));
+  int ops = 10;
 
-  tree->insert(10, 10);
-  tree->insert(30, 30);
-  tree->insert(5, 20);
-
-  std::string str = "./test";
+  for (int i = 0; i < ops; i++) {
+    key = rand() % 10;
+    tree->insert(key, 10);
+  }
   tree->display();
 
-  delete tree;
+  //delete tree;
 
 }
 
