@@ -25,11 +25,12 @@ struct static_info {
 
 struct static_info *sp;
 
+template<typename K, typename V>
 class ptree {
  public:
 
   struct node {
-    node(const int& _key, const int& _val)
+    node(const K& _key, const V& _val)
         : parent(NULL),
           left(NULL),
           right(NULL),
@@ -44,8 +45,8 @@ class ptree {
     node* right;
     int left_max_depth;
     int right_max_depth;
-    int key;
-    int val;
+    K key;
+    V val;
   };
 
   node** root;
@@ -84,12 +85,12 @@ class ptree {
     size--;
 
     if (PMEM(np)->parent != NULL) {
-      if (PMEM(PMEM(np)->parent)->left == np) {
-        PMEM(PMEM(np)->parent)->left = 0;
-        PMEM(PMEM(np)->parent)->left_max_depth--;
+      if (((node*) PMEM(PMEM(np)->parent))->left == np) {
+        ((node*) PMEM(PMEM(np)->parent))->left = 0;
+        ((node*) PMEM(PMEM(np)->parent))->left_max_depth--;
       } else {
-        PMEM(PMEM(np)->parent)->right = 0;
-        PMEM(PMEM(np)->parent)->right_max_depth--;
+        ((node*) PMEM(PMEM(np)->parent))->right = 0;
+        ((node*) PMEM(PMEM(np)->parent))->right_max_depth--;
       }
     } else {
       (*PMEM(root)) = NULL;
@@ -106,12 +107,12 @@ class ptree {
   void srr(node* np) {
     bool newRoot = (np == (*PMEM(root)));
 
-    PMEM(PMEM(np)->left)->parent = PMEM(np)->parent;
-    node* old_right = PMEM(PMEM(np)->left)->right;
+    ((node*) PMEM(PMEM(np)->left))->parent = PMEM(np)->parent;
+    node* old_right = ((node*) PMEM(PMEM(np)->left))->right;
 
-    PMEM(PMEM(np)->left)->right = np;
+    ((node*) PMEM(PMEM(np)->left))->right = np;
     PMEM(np)->parent = PMEM(np)->left;
-    PMEM(PMEM(np)->parent)->right = np;
+    ((node*) PMEM(PMEM(np)->parent))->right = np;
     PMEM(np)->left = old_right;
     PMEM(np)->left_max_depth =
         (old_right ? get_max_children_size(old_right) : 0);
@@ -120,15 +121,17 @@ class ptree {
       PMEM(old_right)->parent = np;
       PMEM(np)->left_max_depth++;
     }
-    PMEM(PMEM(np)->parent)->right_max_depth++;
+    ((node*) PMEM(PMEM(np)->parent))->right_max_depth++;
 
     if (newRoot) {
       (*PMEM(root)) = PMEM(np)->parent;
     } else {
-      if (PMEM(PMEM(PMEM(np)->parent)->parent)->left == np) {
-        PMEM(PMEM(PMEM(np)->parent)->parent)->left = PMEM(np)->parent;
+      if (((node*) PMEM(((node*)PMEM(PMEM(np)->parent))->parent))->left == np) {
+        ((node*) PMEM(((node*)PMEM(PMEM(np)->parent))->parent))->left = PMEM(np)
+            ->parent;
       } else {
-        PMEM(PMEM(PMEM(np)->parent)->parent)->right = PMEM(np)->parent;
+        ((node*) PMEM(((node*)PMEM(PMEM(np)->parent))->parent))->right =
+        PMEM(np)->parent;
       }
     }
   }
@@ -137,12 +140,12 @@ class ptree {
   void slr(node* np) {
     bool newRoot = (np == (*PMEM(root)));
 
-    PMEM(PMEM(np)->right)->parent = PMEM(np)->parent;
-    node* old_left = PMEM(PMEM(np)->right)->left;
+    ((node*) PMEM(PMEM(np)->right))->parent = PMEM(np)->parent;
+    node* old_left = ((node*) PMEM(PMEM(np)->right))->left;
 
-    PMEM(PMEM(np)->right)->left = np;
+    ((node*) PMEM(PMEM(np)->right))->left = np;
     PMEM(np)->parent = PMEM(np)->right;
-    PMEM(PMEM(np)->parent)->left = np;
+    ((node*) PMEM(PMEM(np)->parent))->left = np;
     PMEM(np)->right = old_left;
     PMEM(np)->right_max_depth =
         (old_left ? get_max_children_size(old_left) : 0);
@@ -151,15 +154,17 @@ class ptree {
       PMEM(old_left)->parent = np;
       PMEM(np)->right_max_depth++;
     }
-    PMEM(PMEM(np)->parent)->left_max_depth++;
+    ((node*) PMEM(PMEM(np)->parent))->left_max_depth++;
 
     if (newRoot) {
       (*PMEM(root)) = PMEM(np)->parent;
     } else {
-      if (PMEM(PMEM(PMEM(np)->parent)->parent)->left == np) {
-        PMEM(PMEM(PMEM(np)->parent)->parent)->left = PMEM(np)->parent;
+      if (((node*) PMEM(((node*)PMEM(PMEM(np)->parent))->parent))->left == np) {
+        ((node*) PMEM(((node*)PMEM(PMEM(np)->parent))->parent))->left = PMEM(np)
+            ->parent;
       } else {
-        PMEM(PMEM(PMEM(np)->parent)->parent)->right = PMEM(np)->parent;
+        ((node*) PMEM(((node*)PMEM(PMEM(np)->parent))->parent))->right =
+        PMEM(np)->parent;
       }
     }
   }
@@ -233,7 +238,7 @@ class ptree {
     }
   }
 
-  void insert(const int& key, const int& val) {
+  void insert(const K& key, const V& val) {
     node* current_node = (*PMEM(root));
 
     if (current_node == NULL) {
@@ -282,7 +287,7 @@ class ptree {
 
   }
 
-  node* find(const int& key) const {
+  node* find(const K& key) const {
     node* current_node = (*PMEM(root));
 
     if (current_node == NULL) {
@@ -313,12 +318,12 @@ class ptree {
     return NULL;
   }
 
-  int at(const int& key) const {
+  V at(const K& key) const {
     node* ret = find(key);
     return ret ? PMEM(ret)->val : 0;
   }
 
-  bool contains(const int& key) const {
+  bool contains(const K& key) const {
     return find(key) ? true : false;
   }
 
@@ -334,7 +339,7 @@ class ptree {
   }
 
   // erase a key from the tree
-  bool erase(const int& key) {
+  bool erase(const K& key) {
     node* np = find(key);
     if (np == NULL) {
       return false;
@@ -386,9 +391,9 @@ class ptree {
       }
 
       if (detachRight) {
-        PMEM(PMEM(np)->right)->parent = parent;
+        ((node*) PMEM(PMEM(np)->right))->parent = parent;
       } else {
-        PMEM(PMEM(np)->left)->parent = parent;
+        ((node*) PMEM(PMEM(np)->left))->parent = parent;
       }
 
       if (is_root_node) {
@@ -407,8 +412,8 @@ class ptree {
       PMEM(np)->val = PMEM(replace_node)->val;
 
       if (replace_node != PMEM(np)->right) {
-        PMEM(PMEM(replace_node)->parent)->left = 0;
-        PMEM(PMEM(replace_node)->parent)->left_max_depth = 0;
+        ((node*) PMEM(PMEM(replace_node)->parent))->left = 0;
+        ((node*) PMEM(PMEM(replace_node)->parent))->left_max_depth = 0;
         parent = propagation_root_node;
       } else {
         node* old_right = PMEM(replace_node)->right;
@@ -449,17 +454,11 @@ class ptree {
   }
 
   void display_node(node* np) {
-    if (np == NULL) {
-      return;
+    if (np != NULL) {
+      // print node info
+      display_node(PMEM(np)->left);
+      display_node(PMEM(np)->right);
     }
-
-    cout << "key: " << PMEM(np)->key << " " << " val: " << PMEM(np)->val << " "
-         << " bal: " << get_balance(np) << endl;
-
-    display_node(PMEM(np)->left);
-    display_node(PMEM(np)->right);
-
-    return;
   }
 
 };
@@ -483,7 +482,7 @@ int main() {
 
   sp = (struct static_info *) pmemalloc_static_area(pmp);
 
-  ptree* tree = new ptree(&sp->ptrs[0]);
+  ptree<int, char>* tree = new ptree<int, char>(&sp->ptrs[0]);
 
   int key;
   srand(time(NULL));
@@ -491,11 +490,11 @@ int main() {
 
   for (int i = 0; i < ops; i++) {
     key = rand() % 10;
-    tree->insert(key, 10);
+    tree->insert(key, (char) ('a' + key));
+    cout << "key: " << key << " val: " << tree->at(key) << endl;
   }
-  tree->display();
 
-  //delete tree;
+  delete tree;
 
 }
 
