@@ -1,29 +1,9 @@
-#include <iostream>
-#include <cstdio>
-#include <cstdlib>
-#include <string>
-
-#include <thread>
-#include <mutex>
-
-#include <vector>
-#include <thread>
-#include <mutex>
+#ifndef PMEM_TREE_H_
+#define PMEM_TREE_H_
 
 #include "libpm.h"
 
 using namespace std;
-
-void* pmp;
-std::mutex pmp_mutex;
-
-#define MAX_PTRS 128
-
-struct static_info {
-  void* ptrs[MAX_PTRS];
-};
-
-struct static_info *sp;
 
 template<typename K, typename V>
 class ptree {
@@ -455,7 +435,8 @@ class ptree {
 
   void display_node(node* np) {
     if (np != NULL) {
-      // print node info
+      cout << " key: " << PMEM(np)->key << " val: " << PMEM(np)->val
+          << "  bal: " << get_balance(np) << "\n";
       display_node(PMEM(np)->left);
       display_node(PMEM(np)->right);
     }
@@ -463,38 +444,4 @@ class ptree {
 
 };
 
-void* operator new(size_t sz) throw (bad_alloc) {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  return PMEM(pmemalloc_reserve(pmp, sz));
-}
-
-void operator delete(void *p) throw () {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  pmemalloc_free_absolute(pmp, p);
-}
-
-int main() {
-  const char* path = "./testfile";
-
-  long pmp_size = 10 * 1024 * 1024;
-  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path << endl;
-
-  sp = (struct static_info *) pmemalloc_static_area(pmp);
-
-  ptree<int, char>* tree = new ptree<int, char>(&sp->ptrs[0]);
-
-  int key;
-  srand(time(NULL));
-  int ops = 10;
-
-  for (int i = 0; i < ops; i++) {
-    key = rand() % 10;
-    tree->insert(key, (char) ('a' + key));
-    cout << "key: " << key << " val: " << tree->at(key) << endl;
-  }
-
-  delete tree;
-
-}
-
+#endif /* PMEM_TREE_H_ */
