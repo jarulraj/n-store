@@ -44,29 +44,36 @@ int main(int argc, char *argv[]) {
 
   int key;
   srand(time(NULL));
-  int ops = 10;
+  int ops = 3;
 
   for (int i = 0; i < ops; i++) {
     key = rand() % 10;
 
-    std::string str(10, 'a'+key);
-    char* data = new char[10];
+    std::string str(2, 'a' + key);
+    char* data = new char[3];
     pmemalloc_activate_absolute(pmp, data);
-
     strcpy(data, str.c_str());
+
     list->push_back(OFF(data));
   }
 
-  vector<char*> vec = list->get_data();
-  vector<char*>::iterator vec_itr;
+  list->display();
 
-  for(vec_itr = vec.begin() ; vec_itr != vec.end() ; vec_itr++){
-    char* ptr = (*vec_itr);
-    cout<<" data :"<<PMEM(ptr)<<endl;
-  }
+  char* updated_val = new char[3];
+  pmemalloc_activate_absolute(pmp, updated_val);
+  strcpy(updated_val, "ab");
 
+  list->update(2, OFF(updated_val));
 
-  //delete list;
+  updated_val = new char[3];
+  pmemalloc_activate_absolute(pmp, updated_val);
+  strcpy(updated_val, "cd");
+
+  list->update(0, OFF(updated_val));
+
+  list->display();
+
+  delete list;
 
   return 0;
 }

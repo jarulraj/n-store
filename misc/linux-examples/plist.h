@@ -5,6 +5,7 @@
 
 using namespace std;
 
+// Persistent list for storing pointers
 template<typename V>
 class plist {
  public:
@@ -83,26 +84,21 @@ class plist {
     pmem_persist(&PMEM(tailp)->next, sizeof(*np), 0);
   }
 
+  // Returns the absolute pointer value
   V at(const int index) const {
     struct node * np = (*PMEM(head));
     unsigned int itr = 0;
-    bool found = false;
 
     while (np != NULL) {
       if (itr == index) {
-        found = true;
-        break;
+        return PMEM(PMEM(np)->val);
       } else {
         itr++;
         np = PMEM(np)->next;
       }
     }
 
-    if (found) {
-      return PMEM(np)->val;
-    }
-
-    return 0;
+    return NULL;
   }
 
   struct node* find(V val, struct node** prev) {
@@ -127,6 +123,21 @@ class plist {
       return np;
     } else {
       return NULL;
+    }
+  }
+
+  void update(const int index, V val) {
+    struct node * np = (*PMEM(head));
+    unsigned int itr = 0;
+
+    while (np != NULL) {
+      if (itr == index) {
+        PMEM(np)->val = val;
+        break;
+      } else {
+        itr++;
+        np = PMEM(np)->next;
+      }
     }
   }
 
@@ -166,7 +177,7 @@ class plist {
     struct node* np = (*PMEM(head));
 
     while (np) {
-      cout << PMEM(np)->val << " -> ";
+      cout << PMEM(PMEM(np)->val) << " -> ";
       np = PMEM(np)->next;
     }
     cout << endl;

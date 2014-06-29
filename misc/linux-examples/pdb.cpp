@@ -34,7 +34,8 @@ void operator delete(void *p) throw () {
 
 class tab_index_ {
  public:
-  tab_index_(std::string str) {
+  tab_index_(std::string str)
+      : map(NULL) {
 
     size_t len = str.size();
     data = OFF(new char[len + 1]);
@@ -122,42 +123,42 @@ int main(int argc, char *argv[]) {
 
     // TABLES
     db->val = 1023;
-    db->tables = OFF(new plist<tab_*>(&sp->ptrs[1], &sp->ptrs[2]));
-    pmemalloc_activate(pmp, db->tables);
+    plist<tab_*>* tables = new plist<tab_*>(&sp->ptrs[1], &sp->ptrs[2]);
+    pmemalloc_activate_absolute(pmp, tables);
+    db->tables = OFF(tables);
 
     tab_* usertable = new tab_(123);
     pmemalloc_activate(pmp, OFF(usertable));
-    PMEM(db->tables)->push_back(OFF(usertable));
+    tables->push_back(OFF(usertable));
 
     printf("Table Init : %s \n",
-    PMEM(PMEM(db->tables)->at(0))->get_id().c_str());
+    tables->at(0)->get_id().c_str());
 
     // INDICES
-    usertable->indices = OFF(new plist<tab_index_*>(&sp->ptrs[3], &sp->ptrs[4]));
-    pmemalloc_activate(pmp, usertable->indices);
-
+    plist<tab_index_*>* indices = new plist<tab_index_*>(&sp->ptrs[3], &sp->ptrs[4]);
+    pmemalloc_activate_absolute(pmp, indices);
+    usertable->indices = OFF(indices);
 
     tab_index_* usertable_index = new tab_index_("usertable_index");
     pmemalloc_activate_absolute(pmp, usertable_index);
-    PMEM(usertable->indices)->push_back(OFF(usertable_index));
+    indices->push_back(OFF(usertable_index));
 
     tab_index_* usertable_index_2 = new tab_index_("usertable_index_2");
     pmemalloc_activate_absolute(pmp, usertable_index_2);
-    PMEM(usertable->indices)->push_back(OFF(usertable_index_2));
+    indices->push_back(OFF(usertable_index_2));
 
     ptree<int, int>* usertable_index_map = new ptree<int, int>(&sp->ptrs[5]);
     pmemalloc_activate_absolute(pmp, usertable_index_map);
     usertable_index->map = OFF(usertable_index_map);
 
-    PMEM(usertable_index->map)->insert(1, 10);
-    PMEM(usertable_index->map)->insert(2, 20);
+    usertable_index_map->insert(1, 10);
+    usertable_index_map->insert(2, 20);
 
-    PMEM(usertable_index->map)->display();
+    usertable_index_map->display();
 
-    PMEM(db->tables)->display();
+    tables->display();
 
-    cout << "Index 1: "
-         << PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map
+    cout << "Index 1: " << PMEM(tables->at(0)->indices)->at(0)->map
          << endl;
 
     sp->init = 1;
@@ -169,17 +170,13 @@ int main(int argc, char *argv[]) {
 
     PMEM(db->tables)->display();
 
-    cout << "Index 2: "
-         << PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map
+    cout << "Index 2: " << PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map
          << endl;
 
-    PMEM(PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map)->insert(
-        3, 30);
-    PMEM(PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map)->insert(
-        1, 23);
+    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->insert(3, 30);
+    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->insert(1, 23);
 
-    PMEM(PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map)
-        ->display();
+    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->display();
 
     tab_* usertable_3 = new tab_(14);
     pmemalloc_activate(pmp, OFF(usertable_3));
