@@ -41,7 +41,6 @@ int main(int argc, char *argv[]) {
   sp = (struct static_info *) pmemalloc_static_area(pmp);
 
   plist<int>* list = new plist<int>(&sp->ptrs[0], &sp->ptrs[1]);
-  pmemalloc_activate(pmp, OFF(list));
 
   int key;
   srand(time(NULL));

@@ -8,6 +8,7 @@
 
 #include "libpm.h"
 #include "plist.h"
+#include "ptree.h"
 
 using namespace std;
 
@@ -52,6 +53,7 @@ class tab_index_ {
   }
 
   char* data;
+  ptree<int, int>* map;
 };
 
 class tab_ {
@@ -117,37 +119,39 @@ int main(int argc, char *argv[]) {
     db = new dbase_("ycsb");
     sp->ptrs[0] = OFF(db);
 
-    // Persist database
-    pmemalloc_activate_absolute(pmp, db);
-
     // TABLES
     db->val = 1023;
     db->tables = OFF(new plist<tab_*>(&sp->ptrs[1], &sp->ptrs[2]));
-    pmemalloc_activate(pmp, db->tables);
 
     tab_* usertable = new tab_(123);
     PMEM(db->tables)->push_back(OFF(usertable));
-    pmemalloc_activate(pmp, OFF(usertable));
 
-    printf("Table Init : %s \n", PMEM(PMEM(db->tables)->at(0))->get_id().c_str());
+    printf("Table Init : %s \n",
+    PMEM(PMEM(db->tables)->at(0))->get_id().c_str());
 
     // INDICES
     usertable->indices = OFF(
         new plist<tab_index_*>(&sp->ptrs[3], &sp->ptrs[4]));
-    pmemalloc_activate(pmp, usertable->indices);
 
     tab_index_* usertable_index = new tab_index_("usertable_index");
     PMEM(usertable->indices)->push_back(OFF(usertable_index));
-    pmemalloc_activate(pmp, OFF(usertable_index));
 
     tab_index_* usertable_index_2 = new tab_index_("usertable_index_2");
     PMEM(usertable->indices)->push_back(OFF(usertable_index_2));
-    pmemalloc_activate(pmp, OFF(usertable_index_2));
+
+    ptree<int, int>* usertable_index_map = new ptree<int, int>(&sp->ptrs[5]);
+    usertable_index->map = OFF(usertable_index_map);
+
+    PMEM(usertable_index->map)->insert(1, 10);
+    PMEM(usertable_index->map)->insert(2, 20);
+
+    PMEM(usertable_index->map)->display();
 
     PMEM(db->tables)->display();
 
     cout << "Index 1: "
-         << PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->get_name() << endl;
+         << PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map
+         << endl;
 
     sp->init = 1;
   } else {
@@ -159,7 +163,16 @@ int main(int argc, char *argv[]) {
     PMEM(db->tables)->display();
 
     cout << "Index 2: "
-         << PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(1))->get_name() << endl;
+         << PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map
+         << endl;
+
+    PMEM(PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map)->insert(
+        3, 30);
+    PMEM(PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map)->insert(
+        1, 23);
+
+    PMEM(PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map)
+        ->display();
 
   }
 
