@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 
   sp = (struct static_info *) pmemalloc_static_area(pmp);
 
-  plist<int>* list = new plist<int>(&sp->ptrs[0], &sp->ptrs[1]);
+  plist<char*>* list = new plist<char*>(&sp->ptrs[0], &sp->ptrs[1]);
 
   int key;
   srand(time(NULL));
@@ -48,12 +48,25 @@ int main(int argc, char *argv[]) {
 
   for (int i = 0; i < ops; i++) {
     key = rand() % 10;
-    list->push_back(key);
+
+    std::string str(10, 'a'+key);
+    char* data = new char[10];
+    pmemalloc_activate_absolute(pmp, data);
+
+    strcpy(data, str.c_str());
+    list->push_back(OFF(data));
   }
 
-  list->display();
+  vector<char*> vec = list->get_data();
+  vector<char*>::iterator vec_itr;
 
-  delete list;
+  for(vec_itr = vec.begin() ; vec_itr != vec.end() ; vec_itr++){
+    char* ptr = (*vec_itr);
+    cout<<" data :"<<PMEM(ptr)<<endl;
+  }
+
+
+  //delete list;
 
   return 0;
 }

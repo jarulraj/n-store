@@ -118,28 +118,35 @@ int main(int argc, char *argv[]) {
 
     db = new dbase_("ycsb");
     sp->ptrs[0] = OFF(db);
+    pmemalloc_activate(pmp, OFF(db));
 
     // TABLES
     db->val = 1023;
     db->tables = OFF(new plist<tab_*>(&sp->ptrs[1], &sp->ptrs[2]));
+    pmemalloc_activate(pmp, db->tables);
 
     tab_* usertable = new tab_(123);
+    pmemalloc_activate(pmp, OFF(usertable));
     PMEM(db->tables)->push_back(OFF(usertable));
 
     printf("Table Init : %s \n",
     PMEM(PMEM(db->tables)->at(0))->get_id().c_str());
 
     // INDICES
-    usertable->indices = OFF(
-        new plist<tab_index_*>(&sp->ptrs[3], &sp->ptrs[4]));
+    usertable->indices = OFF(new plist<tab_index_*>(&sp->ptrs[3], &sp->ptrs[4]));
+    pmemalloc_activate(pmp, usertable->indices);
+
 
     tab_index_* usertable_index = new tab_index_("usertable_index");
+    pmemalloc_activate_absolute(pmp, usertable_index);
     PMEM(usertable->indices)->push_back(OFF(usertable_index));
 
     tab_index_* usertable_index_2 = new tab_index_("usertable_index_2");
+    pmemalloc_activate_absolute(pmp, usertable_index_2);
     PMEM(usertable->indices)->push_back(OFF(usertable_index_2));
 
     ptree<int, int>* usertable_index_map = new ptree<int, int>(&sp->ptrs[5]);
+    pmemalloc_activate_absolute(pmp, usertable_index_map);
     usertable_index->map = OFF(usertable_index_map);
 
     PMEM(usertable_index->map)->insert(1, 10);
@@ -173,6 +180,12 @@ int main(int argc, char *argv[]) {
 
     PMEM(PMEM(PMEM(PMEM(PMEM(db->tables)->at(0))->indices)->at(0))->map)
         ->display();
+
+    tab_* usertable_3 = new tab_(14);
+    pmemalloc_activate(pmp, OFF(usertable_3));
+    PMEM(db->tables)->push_back(OFF(usertable_3));
+
+    PMEM(db->tables)->display();
 
   }
 
