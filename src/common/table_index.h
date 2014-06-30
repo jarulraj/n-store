@@ -17,19 +17,17 @@ class table_index {
         key(_key),
         map(NULL) {
 
-    bool* tmp = new bool[num_fields];
-    memcpy(tmp, _key, num_fields);
+    bool* key = new bool[num_fields];
+    memcpy(key, _key, num_fields);
+    pmemalloc_activate(key);
 
-    key = OFF(tmp);
-    pmemalloc_activate(pmp, key);
+    cout<<"key ::"<<key<<endl;
   }
 
   ~table_index() {
-    if (map != NULL)
-      delete PMEM(map);
+    delete map;
 
-    if (key != NULL)
-      delete PMEM(key);
+    delete key;
   }
 
   unsigned int num_fields;

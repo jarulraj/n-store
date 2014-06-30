@@ -9,24 +9,7 @@
 
 using namespace std;
 
-void* pmp;
-std::mutex pmp_mutex;
-
-#define MAX_PTRS 128
-struct static_info {
-  void* ptrs[MAX_PTRS];
-};
-struct static_info *sp;
-
-void* operator new(size_t sz) throw (bad_alloc) {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  return PMEM(pmemalloc_reserve(pmp, sz));
-}
-
-void operator delete(void *p) throw () {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  pmemalloc_free_absolute(pmp, p);
-}
+extern struct static_info* sp;
 
 int main() {
   const char* path = "./testfile";
@@ -35,7 +18,7 @@ int main() {
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
-  sp = (struct static_info *) pmemalloc_static_area(pmp);
+  sp = (struct static_info *) pmemalloc_static_area();
 
   ptree<int, int>* tree = new ptree<int, int>(&sp->ptrs[0]);
 

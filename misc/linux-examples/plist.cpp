@@ -2,34 +2,12 @@
 #include <cstring>
 #include <string>
 
-#include <vector>
-#include <thread>
-#include <mutex>
-
 #include "libpm.h"
 #include "plist.h"
 
 using namespace std;
 
-void* pmp;
-std::mutex pmp_mutex;
-
-#define MAX_PTRS 128
-struct static_info {
-  int init;
-  void* ptrs[MAX_PTRS];
-};
-struct static_info *sp;
-
-void* operator new(size_t sz) throw (bad_alloc) {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  return PMEM(pmemalloc_reserve(pmp, sz));
-}
-
-void operator delete(void *p) throw () {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  pmemalloc_free_absolute(pmp, p);
-}
+extern struct static_info *sp;
 
 int main(int argc, char *argv[]) {
   const char* path = "./testfile";
@@ -38,7 +16,7 @@ int main(int argc, char *argv[]) {
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
-  sp = (struct static_info *) pmemalloc_static_area(pmp);
+  sp = (struct static_info *) pmemalloc_static_area();
 
   plist<char*>* list = new plist<char*>(&sp->ptrs[0], &sp->ptrs[1]);
 
@@ -51,25 +29,25 @@ int main(int argc, char *argv[]) {
 
     std::string str(2, 'a' + key);
     char* data = new char[3];
-    pmemalloc_activate_absolute(pmp, data);
+    pmemalloc_activate(data);
     strcpy(data, str.c_str());
 
-    list->push_back(OFF(data));
+    list->push_back(data);
   }
 
   list->display();
 
   char* updated_val = new char[3];
-  pmemalloc_activate_absolute(pmp, updated_val);
+  pmemalloc_activate(updated_val);
   strcpy(updated_val, "ab");
 
-  list->update(2, OFF(updated_val));
+  list->update(2, updated_val);
 
   updated_val = new char[3];
-  pmemalloc_activate_absolute(pmp, updated_val);
+  pmemalloc_activate(updated_val);
   strcpy(updated_val, "cd");
 
-  list->update(0, OFF(updated_val));
+  list->update(0, updated_val);
 
   list->display();
 

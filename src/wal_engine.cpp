@@ -48,30 +48,33 @@ int wal_engine::insert(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   unsigned int table_id = st.table_id;
 
-  /*
-  table* tab = db->tables[table_id];
+  table* tab = db->tables->at(table_id);
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   int field_id = st.field_id;
+  std::hash<std::string> hash_fn;
 
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
 
-    std::string key = get_data(rec_ptr, tab->indices[index_itr]->key);
+    //std::string key_str = get_data(rec_ptr, tab->indices->at(index_itr)->key);
+    //unsigned long key = hash_fn(key_str);
+
+    unsigned long key = 123;
 
     // check if key already exists
-    if (tab->indices[index_itr]->index.count(key) != 0) {
+    if (tab->indices->at(index_itr)->map->contains(key) != 0) {
       return -1;
     }
 
     record* after_rec = st.rec_ptr;
+    pmemalloc_activate(after_rec);
 
-    tab->indices[index_itr]->index[key] = after_rec;
+    tab->indices->at(index_itr)->map->insert(key, after_rec);
 
     // Add log entry
     entry e(st.transaction_id, st.op_type, st.table_id, after_rec->num_fields, after_rec->fields, -1, NULL);
     undo_log.push(e);
   }
-  */
 
   return 0;
 }
@@ -82,20 +85,23 @@ int wal_engine::update(const statement& st) {
   unsigned int table_id = st.table_id;
 
   /*
-  table* tab = db->tables[table_id];
+  table* tab = PMEM(db->tables)->at(table_id);
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   int field_id = st.field_id;
+  std::hash<std::string> hash_fn;
 
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
 
-    std::string key = get_data(rec_ptr, tab->indices[index_itr]->key);
+    std::string key_str = get_data(rec_ptr, PMEM(PMEM(tab->indices)->at(index_itr)->key));
+    unsigned long key = hash_fn(key_str);
 
-    if (tab->indices[index_itr]->index.count(key) == 0) {
+    // check if key already exists
+    if (PMEM(PMEM(tab->indices)->at(index_itr)->map)->contains(key) != 0) {
       return -1;
     }
 
-    record* before_rec = tab->indices[index_itr]->index.at(key);
+    record* before_rec = PMEM(PMEM(tab->indices)->at(index_itr)->map)->at(key);
 
     field* before_field = before_rec->fields[field_id];
     field* after_field = st.field_ptr;

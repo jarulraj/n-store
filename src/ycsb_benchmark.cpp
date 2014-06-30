@@ -45,51 +45,46 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     cout << "Initialization mode " << endl;
 
     db = new database();
-    conf.sp->ptrs[0] = OFF(db);
-    pmemalloc_activate(pmp, OFF(db));
+    conf.sp->ptrs[0] = db;
+    pmemalloc_activate(db);
 
     // Set global database pointer
     _conf.db = db;
 
     plist<table*>* tables = new plist<table*>(&conf.sp->ptrs[1],
                                               &conf.sp->ptrs[2]);
-    pmemalloc_activate_absolute(pmp, tables);
-    db->tables = OFF(tables);
+    pmemalloc_activate(tables);
+    db->tables = tables;
 
     table* usertable = new table("usertable", 1);
-    pmemalloc_activate(pmp, OFF(usertable));
-    tables->push_back(OFF(usertable));
+    pmemalloc_activate(usertable);
+    tables->push_back(usertable);
 
     bool key[] = { 1, 0 };
     plist<table_index*>* indices = new plist<table_index*>(&conf.sp->ptrs[3],
                                                            &conf.sp->ptrs[4]);
-    pmemalloc_activate_absolute(pmp, indices);
-    usertable->indices = OFF(indices);
+    pmemalloc_activate(indices);
+    usertable->indices = indices;
 
     table_index* key_index = new table_index(2, key);
-    pmemalloc_activate_absolute(pmp, key_index);
-    indices->push_back(OFF(key_index));
+    pmemalloc_activate(key_index);
+    indices->push_back(key_index);
 
     ptree<unsigned long, record*>* key_index_map = new ptree<unsigned long,
         record*>(&conf.sp->ptrs[5]);
-    pmemalloc_activate_absolute(pmp, key_index_map);
-    key_index->map = OFF(key_index_map);
-
-    key_index_map->insert(1, NULL);
-    key_index_map->insert(2, NULL);
-    key_index_map->display();
+    pmemalloc_activate(key_index_map);
+    key_index->map = key_index_map;
 
     conf.sp->init = 1;
     cout << "Initialization done " << endl;
   } else {
     cout << "Recovery mode " << endl;
 
-    db = (database*) PMEM((void* )conf.sp->ptrs[0]);
+    db = (database*) conf.sp->ptrs[0];
     _conf.db = db;
 
-    PMEM(db->tables)->display();
-    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->insert(3, NULL);
-    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->display();
+    db->tables->display();
+    db->tables->at(0)->indices->at(0)->map->display();
 
   }
 
@@ -119,6 +114,8 @@ workload& ycsb_benchmark::get_dataset() {
       t_id = part_range * part_itr + txn_itr;
 
       transaction_id = ++txn_id;
+
+      // INSERT
 
       int key = t_id;
       std::string value = random_string(conf.sz_value);

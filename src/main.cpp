@@ -11,6 +11,9 @@
 
 using namespace std;
 
+// Global persistent memory structure
+extern struct static_info *sp;
+
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
           "   -x --num-txns        :  Number of transactions to execute \n"
@@ -130,27 +133,6 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   assert(state.per_writes >= 0 && state.per_writes <= 1);
 }
 
-/////////////////////////////////////////////////////////////////////
-// Global memory pool
-/////////////////////////////////////////////////////////////////////
-
-void* pmp;
-pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
-struct static_info *sp;
-
-void* operator new(size_t sz) throw (bad_alloc) {
-  pthread_mutex_lock(&pmp_mutex);
-  void* ret = PMEM(pmemalloc_reserve(pmp, sz));
-  pthread_mutex_unlock(&pmp_mutex);
-  return ret;
-}
-
-void operator delete(void *p) throw () {
-  pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(pmp, OFF(p));
-  pthread_mutex_unlock(&pmp_mutex);
-}
-
 
 int main(int argc, char **argv) {
   const char* path = "./testfile";
@@ -159,9 +141,7 @@ int main(int argc, char **argv) {
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
-  //pmemalloc_check(path);
-
-  sp = (struct static_info *) pmemalloc_static_area(pmp);
+  sp = (struct static_info *) pmemalloc_static_area();
 
   // Start
   config state;
@@ -180,7 +160,7 @@ int main(int argc, char **argv) {
     ycsb_benchmark ycsb(state);
     wal_coordinator wal(state);
 
-    //wal.runner(ycsb.get_dataset());
+    wal.runner(ycsb.get_dataset());
     //wal.runner(ycsb.get_workload());
   }
 

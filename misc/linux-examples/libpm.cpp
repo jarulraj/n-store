@@ -1,6 +1,26 @@
 // libpm
 
 #include "libpm.h"
+#include "pthread.h"
+
+pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+struct static_info *sp;
+
+// Global new and delete
+
+void* operator new(size_t sz) throw (bad_alloc) {
+  pthread_mutex_lock(&pmp_mutex);
+  void* ret = pmemalloc_reserve(sz);
+  pthread_mutex_unlock(&pmp_mutex);
+  return ret;
+}
+
+void operator delete(void *p) throw () {
+  pthread_mutex_lock(&pmp_mutex);
+  pmemalloc_free(p);
+  pthread_mutex_unlock(&pmp_mutex);
+}
 
 /////////////////////////////////////////////////////////////////////
 // util.c -- some simple utility routines
@@ -137,6 +157,9 @@ struct pool_header {
   char padding[4096 - 16 - sizeof(size_t)];
 };
 
+// Global memory pool
+void* pmp;
+
 /*
  * Given an absolute pointer, covert it to a file offset.
  */
@@ -167,7 +190,7 @@ struct pool_header {
  *
  * Internal support routine, used during recovery.
  */
-static void pmemalloc_recover(void *pmp) {
+static void pmemalloc_recover(void* pmp) {
   struct clump *clp;
   int i;
 
@@ -239,7 +262,7 @@ static void pmemalloc_recover(void *pmp) {
  *
  * Internal support routine, used during recovery.
  */
-static void pmemalloc_coalesce_free(void *pmp) {
+static void pmemalloc_coalesce_free(void* pmp) {
   struct clump *clp;
   struct clump *firstfree;
   struct clump *lastfree;
@@ -278,7 +301,7 @@ static void pmemalloc_coalesce_free(void *pmp) {
     DEBUG("next clp %lx, offset 0x%lx", clp, OFF(pmp, clp));
   }
   if (firstfree != NULL && lastfree != NULL) {
-    DEBUG("coalesced size 0x%lx", csize); DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
+    DEBUG("coalesced size 0x%lx", csize);DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
         (uintptr_t )firstfree + csize);
     firstfree->size = csize | PMEM_STATE_FREE;
     pmem_persist(firstfree, sizeof(*firstfree), 0);
@@ -342,7 +365,7 @@ pmemalloc_init(const char *path, size_t size) {
       goto out;
     }
 
-    ASSERTeq(sizeof(cl), PMEM_CHUNK_SIZE); ASSERTeq(sizeof(hdr), PMEM_PAGE_SIZE);
+    ASSERTeq(sizeof(cl), PMEM_CHUNK_SIZE);ASSERTeq(sizeof(hdr), PMEM_PAGE_SIZE);
 
     if ((fd = open(path, O_CREAT | O_RDWR, 0666)) < 0)
       goto out;
@@ -441,7 +464,7 @@ pmemalloc_init(const char *path, size_t size) {
  *  pmem_persist(pmem_static_area(pmp), PMEM_STATIC_SIZE);
  */
 void *
-pmemalloc_static_area(void *pmp) {
+pmemalloc_static_area() {
   DEBUG("pmp=0x%lx", pmp);
 
   return PMEM((void *)PMEM_STATIC_OFFSET);
@@ -488,7 +511,7 @@ pmemalloc_static_area(void *pmp) {
 struct clump* prev_clp = NULL;
 
 void *
-pmemalloc_reserve(void *pmp, size_t size) {
+pmemalloc_reserve(size_t size) {
   size_t nsize = roundup(size + PMEM_CHUNK_SIZE, PMEM_CHUNK_SIZE);
   struct clump *clp;
 
@@ -559,7 +582,7 @@ pmemalloc_reserve(void *pmp, size_t size) {
       }
 
       prev_clp = clp;
-      return ptr;
+      return PMEM(ptr);
     }
 
     clp = (struct clump *) ((uintptr_t) clp + sz);
@@ -581,9 +604,10 @@ pmemalloc_reserve(void *pmp, size_t size) {
  *
  *  nptr_ -- value to set in *parentp
  */
-void pmemalloc_onactive(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
+void pmemalloc_onactive(void *abs_ptr_, void **parentp_, void *nptr_) {
   struct clump *clp;
   int i;
+  void *ptr_ = OFF(abs_ptr_);
 
   DEBUG("pmp=0x%lx, ptr_=0x%lx, parentp_=0x%lx, nptr_=0x%lx", pmp, ptr_,
       parentp_, nptr_);
@@ -626,9 +650,10 @@ void pmemalloc_onactive(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
  *
  *  nptr_ -- value to set in *parentp
  */
-void pmemalloc_onfree(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
+void pmemalloc_onfree(void *abs_ptr_, void **parentp_, void *nptr_) {
   struct clump *clp;
   int i;
+  void *ptr_ = OFF(abs_ptr_);
 
   DEBUG("pmp=0x%lx, ptr_=0x%lx, parentp_=0x%lx, nptr_=0x%lx", pmp, ptr_,
       parentp_, nptr_);
@@ -669,10 +694,11 @@ void pmemalloc_onfree(void *pmp, void *ptr_, void **parentp_, void *nptr_) {
  *
  *  ptr_ -- memory to be persisted, as returned by pmemalloc_reserve()
  */
-void pmemalloc_activate(void *pmp, void *ptr_) {
+void pmemalloc_activate(void *abs_ptr_) {
   struct clump *clp;
   size_t sz;
   int i;
+  void *ptr_ = OFF(abs_ptr_);
 
   DEBUG("pmp=%lx, ptr_=%lx", pmp, ptr_);
 
@@ -724,11 +750,12 @@ void pmemalloc_activate(void *pmp, void *ptr_) {
  *
  *  ptr_ -- memory to be freed, as returned by pmemalloc_reserve()
  */
-void pmemalloc_free(void *pmp, void *ptr_) {
+void pmemalloc_free(void *abs_ptr_) {
   struct clump *clp;
   size_t sz;
   int state;
   int i;
+  void *ptr_ = OFF(abs_ptr_);
 
   DEBUG("pmp=%lx, ptr_=%lx", pmp, ptr_);
 
@@ -791,34 +818,6 @@ void pmemalloc_free(void *pmp, void *ptr_) {
 }
 
 /*
- * pmemalloc_activate_absolute -- wrapper handling absolute pointers
- *
- * Inputs:
- *  pmp -- a pmp as returned by pmemalloc_init()
- *
- *  ptr_ -- absolute address (pmp + relative address)
- */
-void pmemalloc_activate_absolute(void *pmp, void *ptr_) {
-
-  pmemalloc_activate(pmp, OFF(ptr_));
-
-}
-
-/*
- * pmemalloc_free_absolute -- free memory -- wrapper handling absolute pointers
- *
- * Inputs:
- *  pmp -- a pmp as returned by pmemalloc_init()
- *
- *  ptr_ -- absolute address (pmp + relative address)
- */
-void pmemalloc_free_absolute(void *pmp, void *ptr_) {
-
-  pmemalloc_free(pmp, OFF(ptr_));
-
-}
-
-/*
  * pmemalloc_check -- check the consistency of a pmem pool
  *
  * Inputs:
@@ -828,6 +827,7 @@ void pmemalloc_free_absolute(void *pmp, void *ptr_) {
  * not make any changes to the pmem pool (maps it read-only, in fact).
  * It is not necessary to call pmemalloc_init() before calling this.
  */
+
 void pmemalloc_check(const char *path) {
   void *pmp;
   int fd;
@@ -869,9 +869,10 @@ void pmemalloc_check(const char *path) {
     FATAL("size %lu too small (must be at least %lu)", stbuf.st_size,
           PMEM_MIN_POOL_SIZE);
 
-  if ((pmp = mmap(NULL, stbuf.st_size, PROT_READ, MAP_SHARED, fd, 0))
-      == MAP_FAILED)
-    FATALSYS("mmap"); DEBUG("pmp %lx", pmp);
+  if ((pmp = mmap((caddr_t) LIBPM, stbuf.st_size, PROT_READ,
+  MAP_SHARED | MAP_FIXED,
+                  fd, 0)) == MAP_FAILED)
+    FATALSYS("mmap");DEBUG("pmp %lx", pmp);
 
   close(fd);
 
@@ -879,7 +880,7 @@ void pmemalloc_check(const char *path) {
   DEBUG("   hdrp 0x%lx (off 0x%lx)", hdrp, OFF(pmp, hdrp));
 
   if (strcmp(hdrp->signature, PMEM_SIGNATURE))
-    FATAL("failed signature check"); DEBUG("signature check passed");
+    FATAL("failed signature check");DEBUG("signature check passed");
 
   clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
   /*
@@ -891,7 +892,7 @@ void pmemalloc_check(const char *path) {
   lastclp = PMEM(
 
   (struct clump *) (stbuf.st_size & ~(PMEM_CHUNK_SIZE - 1)) - PMEM_CHUNK_SIZE);
-  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(pmp, clp)); DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(pmp, lastclp));
+  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(pmp, clp));DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(pmp, lastclp));
 
   clumptotal = (uintptr_t) lastclp - (uintptr_t) clp;
 
@@ -928,7 +929,7 @@ void pmemalloc_check(const char *path) {
     size_t sz = clp->size & ~PMEM_STATE_MASK;
     int state = clp->size & PMEM_STATE_MASK;
 
-    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state); DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
+    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state);DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
         clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
         clp->on[2].ptr_);
 

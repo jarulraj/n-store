@@ -54,15 +54,19 @@ void usage(const char *argfmt, const char *fmt, ...);
 #include <sys/mman.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <iostream>
+
+using namespace std;
 
 #define ALIGN 64  /* assumes 64B cache line size */
+#define LIBPM 0x01000000
 
 static inline void *
 pmem_map(int fd, size_t len) {
   void *base;
 
-  if ((base = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0))
-      == MAP_FAILED)
+  if ((base = mmap((caddr_t) LIBPM, len, PROT_READ | PROT_WRITE,
+                   MAP_SHARED | MAP_FIXED, fd, 0)) == MAP_FAILED)
     return NULL;
 
   return base;
@@ -115,6 +119,11 @@ static inline void pmem_persist(void *addr, size_t len, int flags) {
 
 extern void* pmp;
 
+#define MAX_PTRS 128
+struct static_info {
+  int init;
+  void* ptrs[MAX_PTRS];
+};
 /*
  * given a relative pointer, add in the base associated
  * with the given Persistent Memory Pool (pmp).
@@ -123,14 +132,12 @@ extern void* pmp;
 #define OFF(ptr_) ((decltype(ptr_))((uintptr_t)ptr_ - (uintptr_t)pmp))
 
 void *pmemalloc_init(const char *path, size_t size);
-void *pmemalloc_static_area(void *pmp);
-void *pmemalloc_reserve(void *pmp, size_t size);
-void pmemalloc_onactive(void *pmp, void *ptr_, void **parentp_, void *nptr_);
-void pmemalloc_onfree(void *pmp, void *ptr_, void **parentp_, void *nptr_);
-void pmemalloc_activate(void *pmp, void *ptr_);
-void pmemalloc_free(void *pmp, void *ptr_);
-void pmemalloc_activate_absolute(void *pmp, void *ptr_);
-void pmemalloc_free_absolute(void *pmp, void *ptr_);
+void *pmemalloc_static_area();
+void *pmemalloc_reserve(size_t size);
+void pmemalloc_onactive(void *abs_ptr_, void **parentp_, void *nptr_);
+void pmemalloc_onfree(void *abs_ptr_, void **parentp_, void *nptr_);
+void pmemalloc_activate(void *abs_ptr_);
+void pmemalloc_free(void *abs_ptr_);
 void pmemalloc_check(const char *path);
 
 #endif /* LIBPM_H_ */

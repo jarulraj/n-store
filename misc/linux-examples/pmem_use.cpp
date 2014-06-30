@@ -11,7 +11,6 @@
 
 using namespace std;
 
-void* pmp;
 pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int new_cnt = 0;
@@ -19,34 +18,33 @@ int new_cnt = 0;
 void* operator new(size_t sz) throw (bad_alloc) {
   new_cnt++;
   pthread_mutex_lock(&pmp_mutex);
-  void* ret = PMEM(pmemalloc_reserve(pmp, sz));
-  //void* ret = malloc(sz);
+  void* ret = pmemalloc_reserve(sz);
   pthread_mutex_unlock(&pmp_mutex);
   return ret;
 }
 
 void operator delete(void *p) throw () {
   pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(pmp, OFF(p));
-  //free(p);
+  pmemalloc_free(p);
   pthread_mutex_unlock(&pmp_mutex);
 }
 
 void work() {
-  int cnt = 1024 * 16;
+  int cnt = 16 * 1024;
 
   for (int i = 0; i < cnt; i++) {
 
     int* test1 = new int(10);
+    pmemalloc_activate(test1);
 
-    //int* test2 = new int[5];
-    //vector<int> intvec;
-    //vector<int>::iterator it;
+    int* test2 = new int[5];
+    vector<int> intvec;
+    vector<int>::iterator it;
 
-    //intvec.insert(it, 10);
+    intvec.insert(it, 10);
 
     delete test1;
-    //delete[] test2;
+    delete[] test2;
   }
 
 }

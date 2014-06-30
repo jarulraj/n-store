@@ -12,25 +12,7 @@
 
 using namespace std;
 
-void* pmp;
-std::mutex pmp_mutex;
-
-#define MAX_PTRS 128
-struct static_info {
-  int init;
-  void* ptrs[MAX_PTRS];
-};
-struct static_info *sp;
-
-void* operator new(size_t sz) throw (bad_alloc) {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  return PMEM(pmemalloc_reserve(pmp, sz));
-}
-
-void operator delete(void *p) throw () {
-  std::lock_guard<std::mutex> lock(pmp_mutex);
-  pmemalloc_free_absolute(pmp, p);
-}
+extern struct static_info* sp;
 
 class tab_index_ {
  public:
@@ -38,19 +20,19 @@ class tab_index_ {
       : map(NULL) {
 
     size_t len = str.size();
-    data = OFF(new char[len + 1]);
+    data = new char[len + 1];
 
-    memcpy(PMEM(data), str.c_str(), len + 1);
-    pmemalloc_activate(pmp, data);
+    memcpy(data, str.c_str(), len + 1);
+    pmemalloc_activate(data);
 
   }
 
   std::string get_name() {
-    return std::string(PMEM(data));
+    return std::string(data);
   }
 
   ~tab_index_() {
-    delete PMEM(data);
+    delete data;
   }
 
   char* data;
@@ -82,10 +64,10 @@ class dbase_ {
       : tables(NULL) {
 
     size_t len = str.size();
-    data = OFF(new char[len + 1]);
+    data = new char[len + 1];
 
-    memcpy(PMEM(data), str.c_str(), len + 1);
-    pmemalloc_activate(pmp, data);
+    memcpy(data, str.c_str(), len + 1);
+    pmemalloc_activate(data);
 
     val = 2;
   }
@@ -93,7 +75,7 @@ class dbase_ {
   ~dbase_() {
     tables->clear();
 
-    delete PMEM(data);
+    delete data;
   }
 
   int val;
@@ -108,48 +90,47 @@ int main(int argc, char *argv[]) {
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
-  sp = (struct static_info *) pmemalloc_static_area(pmp);
+  sp = (struct static_info *) pmemalloc_static_area();
 
   dbase_* db;
 
-  // Initialize
   if (sp->init == 0) {
-    cout << "Init" << endl;
-    cout << "head : " << sp->ptrs[1] << " tail: " << sp->ptrs[2] << endl;
+    cout << "Initialization mode" << endl;
+    cout << "Database :" << db << endl;
 
     db = new dbase_("ycsb");
-    sp->ptrs[0] = OFF(db);
-    pmemalloc_activate(pmp, OFF(db));
+    sp->ptrs[0] = db;
+    pmemalloc_activate(db);
 
     // TABLES
     db->val = 1023;
     plist<tab_*>* tables = new plist<tab_*>(&sp->ptrs[1], &sp->ptrs[2]);
-    pmemalloc_activate_absolute(pmp, tables);
-    db->tables = OFF(tables);
+    pmemalloc_activate(tables);
+    db->tables = tables;
 
     tab_* usertable = new tab_(123);
-    pmemalloc_activate(pmp, OFF(usertable));
-    tables->push_back(OFF(usertable));
+    pmemalloc_activate(usertable);
+    tables->push_back(usertable);
 
-    printf("Table Init : %s \n",
-    tables->at(0)->get_id().c_str());
+    printf("Table Init : %s \n", tables->at(0)->get_id().c_str());
 
     // INDICES
-    plist<tab_index_*>* indices = new plist<tab_index_*>(&sp->ptrs[3], &sp->ptrs[4]);
-    pmemalloc_activate_absolute(pmp, indices);
-    usertable->indices = OFF(indices);
+    plist<tab_index_*>* indices = new plist<tab_index_*>(&sp->ptrs[3],
+                                                         &sp->ptrs[4]);
+    pmemalloc_activate(indices);
+    usertable->indices = indices;
 
     tab_index_* usertable_index = new tab_index_("usertable_index");
-    pmemalloc_activate_absolute(pmp, usertable_index);
-    indices->push_back(OFF(usertable_index));
+    pmemalloc_activate(usertable_index);
+    indices->push_back(usertable_index);
 
     tab_index_* usertable_index_2 = new tab_index_("usertable_index_2");
-    pmemalloc_activate_absolute(pmp, usertable_index_2);
-    indices->push_back(OFF(usertable_index_2));
+    pmemalloc_activate(usertable_index_2);
+    indices->push_back(usertable_index_2);
 
     ptree<int, int>* usertable_index_map = new ptree<int, int>(&sp->ptrs[5]);
-    pmemalloc_activate_absolute(pmp, usertable_index_map);
-    usertable_index->map = OFF(usertable_index_map);
+    pmemalloc_activate(usertable_index_map);
+    usertable_index->map = usertable_index_map;
 
     usertable_index_map->insert(1, 10);
     usertable_index_map->insert(2, 20);
@@ -158,31 +139,28 @@ int main(int argc, char *argv[]) {
 
     tables->display();
 
-    cout << "Index 1: " << PMEM(tables->at(0)->indices)->at(0)->map
-         << endl;
+    cout << "Index 1: " << tables->at(0)->indices->at(0)->map << endl;
 
     sp->init = 1;
   } else {
-    cout << "head : " << sp->ptrs[1] << " tail: " << sp->ptrs[2] << endl;
+    cout << "Recovery mode ::" << endl;
+    db = (dbase_*) sp->ptrs[0];
+    cout << "Database :" << db << endl;
 
-    db = (dbase_*) PMEM((void* ) sp->ptrs[0]);
-    cout << "Database :" << OFF(db) << endl;
+    db->tables->display();
 
-    PMEM(db->tables)->display();
+    cout << "Index 2: " << db->tables->at(0)->indices->at(0)->map << endl;
 
-    cout << "Index 2: " << PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map
-         << endl;
+    db->tables->at(0)->indices->at(0)->map->insert(3, 30);
+    db->tables->at(0)->indices->at(0)->map->insert(1, 23);
 
-    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->insert(3, 30);
-    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->insert(1, 23);
-
-    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->display();
+    db->tables->at(0)->indices->at(0)->map->display();
 
     tab_* usertable_3 = new tab_(14);
-    pmemalloc_activate(pmp, OFF(usertable_3));
-    PMEM(db->tables)->push_back(OFF(usertable_3));
+    pmemalloc_activate(usertable_3);
+    db->tables->push_back(usertable_3);
 
-    PMEM(db->tables)->display();
+    db->tables->display();
 
   }
 

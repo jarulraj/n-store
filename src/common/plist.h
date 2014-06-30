@@ -25,8 +25,8 @@ class plist {
 
   plist(void** _head, void** _tail) {
 
-    head = (struct node**) OFF(_head);
-    tail = (struct node**) OFF(_tail);
+    head = (struct node**) _head;
+    tail = (struct node**) _tail;
 
     cout << "head : " << head << " tail : " << tail << "\n";
   }
@@ -41,61 +41,51 @@ class plist {
   }
 
   struct node* init(V val) {
-    struct node* np = NULL;
-    if ((np = (struct node*) pmemalloc_reserve(pmp, sizeof(*np))) == NULL) {
-      cout << "pmemalloc_reserve failed " << endl;
-      return NULL;
-    }
+    struct node* np = new struct node;
 
-    // Link it in at the beginning of the list
-    PMEM(np)->next = (*PMEM(head));
-    PMEM(np)->val = val;
+    np->next = (*head);
+    np->val = val;
 
-    pmemalloc_onactive(pmp, np, (void **) PMEM(head), np);
-    pmemalloc_onactive(pmp, np, (void **) PMEM(tail), np);
-    pmemalloc_activate(pmp, np);
+    pmemalloc_onactive(np, (void **) head, np);
+    pmemalloc_onactive(np, (void **) tail, np);
+    pmemalloc_activate(np);
 
     return np;
   }
 
   void push_back(V val) {
-    if ((*PMEM(head)) == NULL) {
+    if ((*head) == NULL) {
       init(val);
       return;
     }
 
-    struct node* np = NULL;
     struct node* tailp = NULL;
-
-    if ((np = (struct node*) pmemalloc_reserve(pmp, sizeof(*np))) == NULL) {
-      cout << "pmemalloc_reserve failed " << endl;
-      return;
-    }
+    struct node* np = new struct node;
 
     // Link it in at the end of the list
-    PMEM(np)->next = NULL;
-    PMEM(np)->val = val;
+    np->val = val;
+    np->next = NULL;
 
-    tailp = (*PMEM(tail));
+    tailp = (*tail);
 
-    pmemalloc_onactive(pmp, np, (void **) PMEM(tail), np);
-    pmemalloc_activate(pmp, np);
+    pmemalloc_onactive(np, (void **) tail, np);
+    pmemalloc_activate(np);
 
-    PMEM(tailp)->next = np;
-    pmem_persist(&PMEM(tailp)->next, sizeof(*np), 0);
+    tailp->next = np;
+    pmem_persist(&tailp->next, sizeof(*np), 0);
   }
 
   // Returns the absolute pointer value
   V at(const int index) const {
-    struct node * np = (*PMEM(head));
+    struct node * np = (*head);
     unsigned int itr = 0;
 
     while (np != NULL) {
       if (itr == index) {
-        return PMEM(PMEM(np)->val);
+        return np->val;
       } else {
         itr++;
-        np = PMEM(np)->next;
+        np = np->next;
       }
     }
 
@@ -103,17 +93,17 @@ class plist {
   }
 
   struct node* find(V val, struct node** prev) {
-    struct node* np = (*PMEM(head));
+    struct node* np = (*head);
     struct node* tmp = NULL;
     bool found = false;
 
     while (np != NULL) {
-      if (PMEM(np)->val == val) {
+      if (np->val == val) {
         found = true;
         break;
       } else {
         tmp = np;
-        np = PMEM(np)->next;
+        np = np->next;
       }
     }
 
@@ -128,16 +118,16 @@ class plist {
   }
 
   void update(const int index, V val) {
-    struct node * np = (*PMEM(head));
+    struct node * np = (*head);
     unsigned int itr = 0;
 
     while (np != NULL) {
       if (itr == index) {
-        PMEM(np)->val = val;
+        np->val = val;
         break;
       } else {
         itr++;
-        np = PMEM(np)->next;
+        np = np->next;
       }
     }
   }
@@ -146,7 +136,7 @@ class plist {
     struct node* prev = NULL;
     struct node* np = NULL;
 
-    if ((*PMEM(head)) == NULL) {
+    if ((*head) == NULL) {
       return false;
     }
 
@@ -156,61 +146,59 @@ class plist {
       return -1;
     } else {
       if (prev != NULL) {
-        PMEM(prev)->next = PMEM(np)->next;
-        pmem_persist(&PMEM(prev)->next, sizeof(*np), 0);
+        prev->next = np->next;
+        pmem_persist(&prev->next, sizeof(*np), 0);
       }
 
       // Update head and tail
-      if (np == (*PMEM(head))) {
-        pmemalloc_onfree(pmp, np, (void **) PMEM(head),
-        PMEM(np)->next);
-      } else if (np == (*PMEM(tail))) {
-        pmemalloc_onfree(pmp, np, (void **) PMEM(tail), prev);
+      if (np == (*head)) {
+        pmemalloc_onfree(np, (void **) head, np->next);
+      } else if (np == (*tail)) {
+        pmemalloc_onfree(np, (void **) tail, prev);
       }
     }
 
-    pmemalloc_free(pmp, np);
+    delete np;
 
     return true;
   }
 
   void display(void) {
-    struct node* np = (*PMEM(head));
+    struct node* np = (*head);
 
     while (np) {
-      cout << PMEM(PMEM(np)->val) << " -> ";
-      np = PMEM(np)->next;
+      cout << np->val << " -> ";
+      np = np->next;
     }
     cout << endl;
 
   }
 
   void clear(void) {
-    struct node* np = (*PMEM(head));
+    struct node* np = (*head);
     struct node* prev = NULL;
 
     while (np) {
       prev = np;
-      np = PMEM(np)->next;
-      pmemalloc_free(pmp, prev);
+      np = np->next;
+      pmemalloc_free(prev);
     }
 
-    (*PMEM(head)) = NULL;
-    (*PMEM(tail)) = NULL;
+    (*head) = NULL;
+    (*tail) = NULL;
   }
 
   vector<V> get_data(void) {
-    struct node* np = (*PMEM(head));
+    struct node* np = (*head);
     vector<V> data;
 
     while (np) {
-      data.push_back(PMEM(np)->val);
-      np = PMEM(np)->next;
+      data.push_back(np->val);
+      np = np->next;
     }
 
     return data;
   }
-
 };
 
 #endif /* PMEM_LIST_H_ */

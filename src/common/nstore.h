@@ -9,14 +9,6 @@
 
 using namespace std;
 
-#define MAX_PTRS 128
-
-struct static_info {
-  int init;
-  int mode;
-  void* ptrs[MAX_PTRS];
-};
-
 class config {
 
  public:
