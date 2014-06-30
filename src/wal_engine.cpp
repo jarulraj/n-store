@@ -9,12 +9,8 @@
 using namespace std;
 
 void wal_engine::group_commit() {
-  std::unique_lock<std::mutex> lk(gc_mutex);
-  cv.wait(lk, [&] {return ready;});
-
   while (ready) {
-    if (conf.verbose)
-      std::cout << "Syncing log !" << endl;
+    std::cout << "Syncing log !" << endl;
 
     // sync
     undo_log.write();
@@ -26,13 +22,14 @@ void wal_engine::group_commit() {
 std::string wal_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   unsigned int table_id = st.table_id;
+  std::string val;
 
+  /*
   unsigned int table_index_id = st.table_index_id;
   table_index* table_index = db->tables[table_id]->indices[table_index_id];
   bool* projection = st.projection;
 
   std::string key = get_data(rec_ptr, table_index->key);
-  std::string val;
 
   if (table_index->index.count(key) == 0) {
     return NULL;
@@ -42,6 +39,7 @@ std::string wal_engine::select(const statement& st) {
   val = get_data(r, projection);
 
   cout << "val :" << val << endl;
+  */
 
   return val;
 }
@@ -50,6 +48,7 @@ int wal_engine::insert(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   unsigned int table_id = st.table_id;
 
+  /*
   table* tab = db->tables[table_id];
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
@@ -72,6 +71,7 @@ int wal_engine::insert(const statement& st) {
     entry e(st.transaction_id, st.op_type, st.table_id, after_rec->num_fields, after_rec->fields, -1, NULL);
     undo_log.push(e);
   }
+  */
 
   return 0;
 }
@@ -81,6 +81,7 @@ int wal_engine::update(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   unsigned int table_id = st.table_id;
 
+  /*
   table* tab = db->tables[table_id];
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
@@ -105,6 +106,7 @@ int wal_engine::update(const statement& st) {
     entry e(st.transaction_id, st.op_type, st.table_id, rec_ptr->num_fields, rec_ptr->fields, field_id, after_field);
     undo_log.push(e);
   }
+  */
 
   return 0;
 }
@@ -130,16 +132,11 @@ void wal_engine::runner() {
   int consumer_count;
   message msg;
 
-  undo_log.configure(conf.fs_path + "./log_" + std::to_string(partition_id),
-                     conf.pmp);
+  undo_log.configure(conf.fs_path + "./log_" + std::to_string(partition_id));
 
   // Logger start
   std::thread gc(&wal_engine::group_commit, this);
-  {
-    std::lock_guard<std::mutex> lk(gc_mutex);
-    ready = true;
-  }
-  cv.notify_one();
+  ready = true;
 
   bool empty = true;
   while (!done) {

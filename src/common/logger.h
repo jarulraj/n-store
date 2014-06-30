@@ -47,13 +47,11 @@ class logger {
   logger()
       : log_file(NULL),
         log_file_fd(-1),
-        buffer_size(0),
-        pmp(NULL) {
+        buffer_size(0) {
   }
 
-  void configure(std::string _name, void* _pmp) {
+  void configure(std::string _name) {
     log_file_name = _name;
-    pmp = _pmp;
 
     log_file = fopen(log_file_name.c_str(), "w");
     if (log_file != NULL) {
@@ -80,15 +78,14 @@ class logger {
     if (e.after_image != NULL) {
       for (field_itr = 0; field_itr < e.num_fields; field_itr++) {
         if (e.after_image[field_itr] != NULL)
-          buffer_stream << PSUB(pmp, (void* ) e.after_image[field_itr]) << " ";
+          buffer_stream << OFF((void* )e.after_image[field_itr]) << " ";
         else
           buffer_stream << "0x0" << " ";
       }
     }
 
     if (e.field_id != -1) {
-      buffer_stream << std::to_string(e.field_id) << " "
-                    << PSUB(pmp, e.after_field);
+      buffer_stream << std::to_string(e.field_id) << " " << OFF(e.after_field);
     }
 
     buffer_stream << endl;
@@ -125,7 +122,8 @@ class logger {
       if ((*e_itr).op_type == operation_type::Insert) {
         for (field_itr = 0; field_itr < (*e_itr).num_fields; field_itr++) {
           if ((*e_itr).after_image[field_itr] != NULL) {
-            pmemalloc_activate(pmp, PSUB(pmp, (void* ) (*e_itr).after_image[field_itr]));
+            pmemalloc_activate(pmp,
+                               OFF((void* )(*e_itr).after_image[field_itr]));
           }
         }
       }
@@ -144,7 +142,6 @@ class logger {
   }
 
   FILE* log_file;
-  void* pmp;
 
  private:
   vector<entry> entries;

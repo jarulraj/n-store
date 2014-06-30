@@ -9,12 +9,20 @@
 
 using namespace std;
 
+#define MAX_PTRS 128
+
+struct static_info {
+  int init;
+  int mode;
+  void* ptrs[MAX_PTRS];
+};
+
 class config {
 
  public:
   std::string fs_path;
 
-  void* pmp;
+  struct static_info* sp;
   database* db;
 
   int num_keys;

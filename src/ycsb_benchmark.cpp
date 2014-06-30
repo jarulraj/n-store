@@ -8,6 +8,7 @@
 #include "nstore.h"
 
 #include "libpm.h"
+#include "plist.h"
 
 using namespace std;
 
@@ -37,15 +38,53 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     : conf(_conf),
       txn_id(0) {
 
-  database* db = conf.db;
+  database* db;
 
-  table* usertable = new table("usertable", 1);
+  // Initialization mode
+  if (conf.sp->init == 0) {
+    cout << "Initialization mode " << endl;
 
-  bool key[] = { 1, 0 };
-  table_index* key_index = new table_index(2, key);
-  usertable->indices[0] = key_index;
+    db = new database();
+    conf.sp->ptrs[0] = OFF(db);
+    pmemalloc_activate(pmp, OFF(db));
 
-  db->tables[0] = usertable;
+    // Set global database pointer
+    _conf.db = db;
+
+    plist<table*>* tables = new plist<table*>(&conf.sp->ptrs[1],
+                                              &conf.sp->ptrs[2]);
+    pmemalloc_activate_absolute(pmp, tables);
+    db->tables = OFF(tables);
+
+    table* usertable = new table("usertable", 1);
+    pmemalloc_activate(pmp, OFF(usertable));
+    tables->push_back(OFF(usertable));
+
+    bool key[] = { 1, 0 };
+    plist<table_index*>* indices = new plist<table_index*>(&conf.sp->ptrs[3],
+                                                           &conf.sp->ptrs[4]);
+    pmemalloc_activate_absolute(pmp, indices);
+    usertable->indices = OFF(indices);
+
+    table_index* key_index = new table_index(2, key);
+    pmemalloc_activate_absolute(pmp, key_index);
+    indices->push_back(OFF(key_index));
+
+    cout<<"Index 0 # fields :"<<PMEM(tables->at(0)->indices)->at(0)->num_fields<<endl;
+
+    conf.sp->init = 1;
+    cout << "Initialization done " << endl;
+  } else {
+    cout << "Recovery mode " << endl;
+
+    db = (database*) PMEM((void* )conf.sp->ptrs[0]);
+    _conf.db = db;
+
+    PMEM(db->tables)->display();
+
+    cout<<"Index 0 # fields :"<<PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->num_fields<<endl;
+
+  }
 
   // Generate Zipf dist
   long part_range = conf.num_keys / conf.num_parts;

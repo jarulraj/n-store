@@ -7,14 +7,13 @@
 
 using namespace std;
 
-wal_coordinator::wal_coordinator(const config& _conf, database* _db)
+wal_coordinator::wal_coordinator(const config& _conf)
     : conf(_conf),
-      db(_db) {
+      db(_conf.db) {
 
   // Executors
   for (int i = 0; i < conf.num_parts; i++) {
     wal_engine* we = new wal_engine(i, conf, db);
-
     engines.push_back(we);
     executors.push_back(std::thread(&wal_engine::runner, we));
   }
@@ -26,9 +25,7 @@ wal_coordinator::~wal_coordinator() {
   // Turn off engines
   for (int i = 0; i < conf.num_parts; i++) {
     engines[i]->done = true;
-
     executors[i].join();
-
     delete engines[i];
   }
 

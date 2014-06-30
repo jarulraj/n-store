@@ -2,31 +2,23 @@
 #define DATABASE_H_
 
 #include "table.h"
+#include "plist.h"
 
 using namespace std;
 
 class database {
  public:
 
-  database(unsigned int _num_tables)
-      : num_tables(_num_tables) {
-    tables = new table*[num_tables];
-  }
-
   ~database() {
-    unsigned int itr;
-
     // clean up tables
-    for (itr = 0; itr < num_tables; itr++) {
-      delete tables[itr];
-    }
+    vector<table*> table_vec = tables->get_data();
+    for (table* table : table_vec)
+      delete PMEM(table);
 
-    delete[] tables;
+    delete PMEM(tables);
   }
 
-  unsigned int num_tables;
-  table** tables;
-
+  plist<table*>* tables;
 };
 
 #endif /* DATABASE_H_ */

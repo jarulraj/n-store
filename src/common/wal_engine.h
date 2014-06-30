@@ -54,8 +54,7 @@ class wal_engine : public engine {
   const config& conf;
   database* db;
 
-  std::mutex gc_mutex;
-  std::condition_variable cv;bool ready;
+  std::atomic<bool> ready;
 
   logger undo_log;
 

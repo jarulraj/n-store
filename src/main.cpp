@@ -5,8 +5,6 @@
 #include "nstore.h"
 #include "wal_coordinator.h"
 #include "ycsb_benchmark.h"
-//#include "sp.h"
-//#include "lsm.h"
 #include "utils.h"
 
 #include "libpm.h"
@@ -28,14 +26,21 @@ static void usage_exit(FILE *out) {
   exit(-1);
 }
 
-static struct option opts[] = { { "fs-path", optional_argument, NULL, 'f' }, {
-    "num-txns", optional_argument, NULL, 'x' }, { "num-keys", optional_argument,
-NULL, 'k' }, { "num-parts", optional_argument, NULL, 'p' }, { "per-writes",
-optional_argument, NULL, 'w' }, { "gc-interval", optional_argument, NULL, 'g' },
-    { "log-only", no_argument, NULL, 'l' }, { "sp-only", no_argument,
-    NULL, 's' }, { "lsm-only", no_argument, NULL, 'm' }, { "verbose",
-    no_argument, NULL, 'v' }, { "skew", optional_argument, NULL, 'q' }, {
-        "help", no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
+static struct option opts[] = {
+    { "fs-path", optional_argument, NULL, 'f' },
+    { "num-txns", optional_argument, NULL, 'x' },
+    { "num-keys", optional_argument, NULL, 'k' },
+    { "num-parts", optional_argument, NULL, 'p' },
+    { "per-writes", optional_argument, NULL, 'w' },
+    { "gc-interval", optional_argument, NULL, 'g' },
+    { "log-only", no_argument, NULL, 'l' },
+    { "sp-only", no_argument, NULL, 's' },
+    { "lsm-only", no_argument, NULL, 'm' },
+    { "verbose", no_argument, NULL, 'v' },
+    { "skew", optional_argument, NULL, 'q' },
+    { "help", no_argument, NULL, 'h' },
+    { NULL, 0, NULL, 0 }
+};
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 
@@ -131,28 +136,21 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
 void* pmp;
 pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
+struct static_info *sp;
 
 void* operator new(size_t sz) throw (bad_alloc) {
   pthread_mutex_lock(&pmp_mutex);
-  void* ret = PMEM(pmp, pmemalloc_reserve(pmp, sz));
+  void* ret = PMEM(pmemalloc_reserve(pmp, sz));
   pthread_mutex_unlock(&pmp_mutex);
   return ret;
 }
 
 void operator delete(void *p) throw () {
   pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(pmp, PSUB(pmp, p));
+  pmemalloc_free(pmp, OFF(p));
   pthread_mutex_unlock(&pmp_mutex);
 }
 
-#define MAX_PTRS 128
-#define MAX_TABS  16
-
-struct static_info {
-  void* ptrs[MAX_PTRS];
-};
-
-struct static_info *sp;
 
 int main(int argc, char **argv) {
   const char* path = "./testfile";
@@ -166,13 +164,9 @@ int main(int argc, char **argv) {
   sp = (struct static_info *) pmemalloc_static_area(pmp);
 
   // Start
-
   config state;
   parse_arguments(argc, argv, state);
-
-  state.db = new database(MAX_TABS);
-
-  state.pmp = pmp;
+  state.sp = sp;
 
   // Generate Zipf dist
   long range_size = state.num_keys / state.num_parts;
@@ -184,11 +178,10 @@ int main(int argc, char **argv) {
     cout << "WAL :: " << endl;
 
     ycsb_benchmark ycsb(state);
-    wal_coordinator wal(state, state.db);
+    wal_coordinator wal(state);
 
-    wal.runner(ycsb.get_dataset());
-
-    wal.runner(ycsb.get_workload());
+    //wal.runner(ycsb.get_dataset());
+    //wal.runner(ycsb.get_workload());
   }
 
   /*

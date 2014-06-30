@@ -8,7 +8,7 @@ using namespace std;
 
 class wal_coordinator : public coordinator {
  public:
-  wal_coordinator(const config& _conf, database* db);
+  wal_coordinator(const config& _conf);
   ~wal_coordinator();
 
   void runner(const workload& load);
