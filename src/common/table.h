@@ -14,22 +14,25 @@ class table {
         indices(NULL) {
 
     size_t len = name.size();
-    char* val = new char[len + 1];
-    memcpy(val, name.c_str(), len + 1);
+    char* tmp = new char[len + 1];
+    memcpy(tmp, name.c_str(), len + 1);
 
-    table_name = OFF(val);
+    table_name = OFF(tmp);
     pmemalloc_activate(pmp, table_name);
   }
 
   ~table() {
-    // clean up table indices
-    vector<table_index*> index_vec = indices->get_data();
-    for (table_index* index : index_vec)
-      delete PMEM(index);
+    if (indices != NULL) {
+      // clean up table indices
+      vector<table_index*> index_vec = PMEM(indices)->get_data();
+      for (table_index* index : index_vec)
+        delete PMEM(index);
 
-    delete PMEM(indices);
+      delete PMEM(indices);
+    }
 
-    delete PMEM(table_name);
+    if (table_name != NULL)
+      delete PMEM(table_name);
   }
 
   //private:

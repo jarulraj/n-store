@@ -70,7 +70,14 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate_absolute(pmp, key_index);
     indices->push_back(OFF(key_index));
 
-    cout<<"Index 0 # fields :"<<PMEM(tables->at(0)->indices)->at(0)->num_fields<<endl;
+    ptree<unsigned long, record*>* key_index_map = new ptree<unsigned long,
+        record*>(&conf.sp->ptrs[5]);
+    pmemalloc_activate_absolute(pmp, key_index_map);
+    key_index->map = OFF(key_index_map);
+
+    key_index_map->insert(1, NULL);
+    key_index_map->insert(2, NULL);
+    key_index_map->display();
 
     conf.sp->init = 1;
     cout << "Initialization done " << endl;
@@ -81,8 +88,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     _conf.db = db;
 
     PMEM(db->tables)->display();
-
-    cout<<"Index 0 # fields :"<<PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->num_fields<<endl;
+    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->insert(3, NULL);
+    PMEM(PMEM(PMEM(db->tables)->at(0)->indices)->at(0)->map)->display();
 
   }
 
