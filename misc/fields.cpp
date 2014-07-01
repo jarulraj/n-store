@@ -26,7 +26,7 @@ struct column_info {
   column_info(unsigned int _offset, unsigned int _len, char _type,
               bool _inlined, bool _enabled)
       : offset(_offset),
-        len(_len),
+        len(_len+1),
         type(_type),
         inlined(_inlined),
         enabled(_enabled) {
@@ -95,10 +95,8 @@ class record {
   record(table* _tptr)
       : tptr(_tptr),
         data(NULL) {
-    data = new char[tptr->sptr->len + 1];
+    data = new char[tptr->sptr->len];
   }
-
-  virtual std::string get_string() = 0;
 
   virtual ~record() {
     delete data;
@@ -119,29 +117,6 @@ class table_record : public record {
     std::sprintf(&(data[sptr->columns[1].offset]), "%d", f1);
     std::sprintf(&(data[sptr->columns[2].offset]), "%lf", d1);
     std::sprintf(&(data[sptr->columns[3].offset]), "%p", vc1);
-
-  }
-
-  std::string get_string() {
-    schema* sptr = tptr->sptr;
-    unsigned int num_columns = sptr->num_columns;
-    unsigned int itr;
-    std::string rec_str;
-
-    int f0, f1;
-    double d1;
-    char* vc1;
-
-    std::sscanf(&(data[sptr->columns[0].offset]), "%d", &f0);
-    rec_str += std::to_string(f0) + " ";
-    std::sscanf(&(data[sptr->columns[1].offset]), "%d", &f1);
-    rec_str += std::to_string(f1) + " ";
-    std::sscanf(&(data[sptr->columns[2].offset]), "%lf", &d1);
-    rec_str += std::to_string(d1) + " ";
-    std::sscanf(&(data[sptr->columns[3].offset]), "%p", &vc1);
-    rec_str += std::string(vc1) + " ";
-
-    return rec_str;
   }
 };
 
@@ -206,7 +181,8 @@ int main() {
 
   record* r = new table_record(t1, 21, 56, 23.68, vc1);
 
-  cout << "data : " << r->get_string() << endl;
+  std::string key = get_data(r, s);
+  cout << "key : " << key << endl;
 
   offset = 0, len = 0;
   cols.clear();
@@ -218,8 +194,8 @@ int main() {
 
   table_index* ti1 = new table_index(s2);
 
-  std::string key = get_data(r, s2);
-  cout<<"key : " <<key<<endl;
+  key = get_data(r, s2);
+  cout << "key : " << key << endl;
 
   return 0;
 }
