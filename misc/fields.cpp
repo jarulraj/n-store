@@ -26,7 +26,7 @@ struct column_info {
   column_info(unsigned int _offset, unsigned int _len, char _type,
               bool _inlined, bool _enabled)
       : offset(_offset),
-        len(_len+1),
+        len(_len + 1),
         type(_type),
         inlined(_inlined),
         enabled(_enabled) {
@@ -98,13 +98,49 @@ class record {
     data = new char[tptr->sptr->len];
   }
 
-  virtual ~record() {
+  std::string get_data(const int field_id, schema* sptr) {
+    unsigned int num_columns = sptr->num_columns;
+    std::string field;
+
+    if (field_id < num_columns) {
+      char type = sptr->columns[field_id].type;
+
+      switch (type) {
+        case field_type::INTEGER:
+          int ival;
+          std::sscanf(&(data[sptr->columns[field_id].offset]), "%d", &ival);
+          field = std::to_string(ival);
+          break;
+
+        case field_type::DOUBLE:
+          double dval;
+          std::sscanf(&(data[sptr->columns[field_id].offset]), "%lf", &dval);
+          field = std::to_string(dval);
+          break;
+
+        case field_type::VARCHAR:
+          char* vcval;
+          std::sscanf(&(data[sptr->columns[field_id].offset]), "%p", &vcval);
+          field = std::string(vcval);
+          break;
+
+        default:
+          cout << "Invalid type" << endl;
+          break;
+      }
+    }
+
+    return field;
+  }
+
+  ~record() {
     delete data;
   }
 
   table* tptr;
   char* data;
-};
+}
+;
 
 class table_record : public record {
  public:
@@ -127,27 +163,7 @@ std::string get_data(record* rptr, schema* sptr) {
   char* data = rptr->data;
 
   for (itr = 0; itr < num_columns; itr++) {
-    char type = sptr->columns[itr].type;
-
-    switch (type) {
-      case field_type::INTEGER:
-        int ival;
-        std::sscanf(&(data[sptr->columns[itr].offset]), "%d", &ival);
-        rec_str += std::to_string(ival) + " ";
-        break;
-
-      case field_type::DOUBLE:
-        double dval;
-        std::sscanf(&(data[sptr->columns[itr].offset]), "%lf", &dval);
-        rec_str += std::to_string(dval) + " ";
-        break;
-
-      case field_type::VARCHAR:
-        char* vcval;
-        std::sscanf(&(data[sptr->columns[itr].offset]), "%p", &vcval);
-        rec_str += std::string(vcval) + " ";
-        break;
-    }
+    rec_str += rptr->get_data(itr, sptr) + " ";
   }
 
   return rec_str;
