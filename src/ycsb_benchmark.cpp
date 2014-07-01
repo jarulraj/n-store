@@ -12,26 +12,26 @@
 
 using namespace std;
 
-#define DELIM ' '
-
 class usertable_record : public record {
  public:
-  usertable_record(unsigned int _num_fields, unsigned int _key,
-                   const std::string& _val)
-      : record(_num_fields) {
+  usertable_record(schema* _sptr, int _key, const std::string& _val)
+      : record(_sptr),
+        vc(NULL) {
+    std::string str;
 
-    integer_field* key = new integer_field(_key);
+    size_t _val_len = _val.size();
+    char* vc = new char[_val_len + 1];
+    strcpy(vc, _val.c_str());
 
-    varchar_field* val;
-    if (_val.empty())
-      val = NULL;
-    else
-      val = new varchar_field(_val);
-
-    fields[0] = key;
-    fields[1] = val;
+    std::sprintf(&(data[sptr->columns[0].offset]), "%d", _key);
+    std::sprintf(&(data[sptr->columns[1].offset]), "%p", vc);
   }
 
+  ~usertable_record() {
+    delete vc;
+  }
+
+  char* vc;
 };
 
 ycsb_benchmark::ycsb_benchmark(config& _conf)
@@ -47,26 +47,42 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db = new database();
     conf.sp->ptrs[0] = db;
     pmemalloc_activate(db);
-
-    // Set global database pointer
-    _conf.db = db;
+    conf.db = db;
 
     plist<table*>* tables = new plist<table*>(&conf.sp->ptrs[1],
                                               &conf.sp->ptrs[2]);
     pmemalloc_activate(tables);
     db->tables = tables;
 
-    table* usertable = new table("usertable", 1);
+    // USERTABLE
+    size_t offset = 0, len = 0;
+    field_info col1(offset, sizeof(int), field_type::INTEGER, 1, 1);
+    offset += col1.len;
+    field_info col2(offset, sizeof(void*), field_type::VARCHAR, 0, 1);
+    offset += col2.len;
+    len = offset;
+
+    vector<field_info> cols;
+    cols.push_back(col1);
+    cols.push_back(col2);
+    schema* usertable_schema = new schema(cols, len);
+    pmemalloc_activate(usertable_schema);
+
+    table* usertable = new table("usertable", usertable_schema, 1);
     pmemalloc_activate(usertable);
     tables->push_back(usertable);
 
-    bool key[] = { 1, 0 };
     plist<table_index*>* indices = new plist<table_index*>(&conf.sp->ptrs[3],
                                                            &conf.sp->ptrs[4]);
     pmemalloc_activate(indices);
     usertable->indices = indices;
 
-    table_index* key_index = new table_index(2, key);
+    cols.clear();
+    cols.push_back(col1);
+    schema* usertable_index_schema = new schema(cols, len);
+    pmemalloc_activate(usertable_index_schema);
+
+    table_index* key_index = new table_index(usertable_index_schema, 2);
     pmemalloc_activate(key_index);
     indices->push_back(key_index);
 
@@ -104,6 +120,7 @@ workload& ycsb_benchmark::get_dataset() {
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
   unsigned int transaction_id;
+  schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
 
   int part_range = conf.num_keys / conf.num_parts;
   int part_itr, txn_itr, t_id;
@@ -120,11 +137,11 @@ workload& ycsb_benchmark::get_dataset() {
       int key = t_id;
       std::string value = random_string(conf.sz_value);
 
-      record* rec_ptr = new usertable_record(2, key, value);
+      record* rec_ptr = new usertable_record(usertable_schema, key, value);
 
       statement st(transaction_id, partition_type::Single, part_itr,
-                   operation_type::Insert, usertable_id, rec_ptr, -1, NULL,
-                   usertable_index_id, NULL);
+                   operation_type::Insert, usertable_id, rec_ptr, -1,
+                   usertable_index_id);
 
       vector<statement> stmts = { st };
       transaction txn(transaction_id, stmts);
@@ -142,6 +159,7 @@ workload& ycsb_benchmark::get_workload() {
 
   load.txns.clear();
 
+  /*
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
   bool projection[] = { 1, 1 };
@@ -197,6 +215,7 @@ workload& ycsb_benchmark::get_workload() {
     }
 
   }
+  */
 
   //cout << load.txns.size() << " workload transactions " << endl;
 

@@ -10,7 +10,7 @@ using namespace std;
 
 void wal_engine::group_commit() {
   while (ready) {
-    std::cout << "Syncing log !" << endl;
+    //std::cout << "Syncing log !" << endl;
 
     // sync
     undo_log.write();
@@ -49,6 +49,7 @@ int wal_engine::insert(const statement& st) {
   unsigned int table_id = st.table_id;
 
   table* tab = db->tables->at(table_id);
+  plist<table_index*>* indices = tab->indices;
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   int field_id = st.field_id;
@@ -56,24 +57,23 @@ int wal_engine::insert(const statement& st) {
 
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
 
-    //std::string key_str = get_data(rec_ptr, tab->indices->at(index_itr)->key);
-    //unsigned long key = hash_fn(key_str);
-
-    unsigned long key = 123;
+    std::string key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
+    cout<<"key :: "<<key_str<<endl;
+    unsigned long key = hash_fn(key_str);
 
     // check if key already exists
-    if (tab->indices->at(index_itr)->map->contains(key) != 0) {
+    if (indices->at(index_itr)->map->contains(key) != 0) {
       return -1;
     }
 
     record* after_rec = st.rec_ptr;
     pmemalloc_activate(after_rec);
 
-    tab->indices->at(index_itr)->map->insert(key, after_rec);
+    indices->at(index_itr)->map->insert(key, after_rec);
 
     // Add log entry
-    entry e(st.transaction_id, st.op_type, st.table_id, after_rec->num_fields, after_rec->fields, -1, NULL);
-    undo_log.push(e);
+    //entry e(st.transaction_id, st.op_type, st.table_id, after_rec->num_fields, after_rec->fields, -1, NULL);
+    //undo_log.push(e);
   }
 
   return 0;

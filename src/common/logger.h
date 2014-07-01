@@ -18,15 +18,13 @@ using namespace std;
 class entry {
  public:
   entry(int _transaction_id, operation_type _op_type, int _table_id,
-        unsigned int _num_fields, field** _after_image, int _field_id,
-        field* _after_field)
+        unsigned int _num_fields, record* _after_image, int _field_id)
       : transaction_id(_transaction_id),
         op_type(_op_type),
         table_id(_table_id),
         num_fields(_num_fields),
         field_id(_field_id),
-        after_image(_after_image),
-        after_field(_after_field) {
+        after_image(_after_image){
   }
 
   //private:
@@ -35,11 +33,10 @@ class entry {
   int table_id;
 
   unsigned int num_fields;
-  field** after_image;
+  record* after_image;
 
   // Only Update
   int field_id;
-  field* after_field;
 };
 
 class logger {
@@ -68,6 +65,7 @@ class logger {
     entries.push_back(e);
     log_mutex.unlock();
 
+    /*
     buffer_stream.str("");
 
     buffer_stream << e.transaction_id << " " << e.op_type << " " << e.table_id
@@ -85,7 +83,7 @@ class logger {
     }
 
     if (e.field_id != -1) {
-      buffer_stream << std::to_string(e.field_id) << " " << OFF(e.after_field);
+      buffer_stream << std::to_string(e.field_id) << " " << OFF(e.after_image);
     }
 
     buffer_stream << endl;
@@ -94,6 +92,7 @@ class logger {
     buffer_size = buffer.size();
 
     fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
+    */
   }
 
   int write() {
@@ -114,11 +113,14 @@ class logger {
       unsigned int field_itr;
 
       // Update
+      /*
       if ((*e_itr).op_type == operation_type::Update) {
-        //pmemalloc_activate(pmp, PSUB(pmp, (*e_itr).after_field));
+        pmemalloc_activate(pmp, PSUB(pmp, (*e_itr).after_field));
       }
+      */
 
       // Insert
+      /*
       if ((*e_itr).op_type == operation_type::Insert) {
         for (field_itr = 0; field_itr < (*e_itr).num_fields; field_itr++) {
           if ((*e_itr).after_image[field_itr] != NULL) {
@@ -126,6 +128,7 @@ class logger {
           }
         }
       }
+      */
     }
 
     // CLEAR log

@@ -1,7 +1,7 @@
 #ifndef TABLE_H_
 #define TABLE_H_
 
-#include "record.h"
+#include "schema.h"
 #include "table_index.h"
 #include "plist.h"
 
@@ -9,8 +9,9 @@ using namespace std;
 
 class table {
  public:
-  table(const std::string& name, unsigned int _num_indices)
+  table(const std::string& name, schema* _sptr, unsigned int _num_indices)
       : table_name(NULL),
+        sptr(_sptr),
         num_indices(_num_indices),
         indices(NULL) {
 
@@ -22,6 +23,9 @@ class table {
   }
 
   ~table() {
+    delete table_name;
+    delete sptr;
+
     if (indices != NULL) {
       // clean up table indices
       vector<table_index*> index_vec = indices->get_data();
@@ -30,12 +34,11 @@ class table {
 
       delete indices;
     }
-
-    delete table_name;
   }
 
   //private:
   char* table_name;
+  schema* sptr;
   unsigned int num_indices;
   plist<table_index*>* indices;
 };

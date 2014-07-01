@@ -32,15 +32,13 @@ class statement {
         table_id(-1),
         rec_ptr(NULL),
         field_id(-1),
-        field_ptr(NULL),
-        table_index_id(-1),
-        projection(NULL){
+        table_index_id(-1) {
   }
 
   statement(unsigned int _txn_id, partition_type _ptype,
             unsigned int _partition_id, operation_type _otype,
-            unsigned int _table_id, record* _rptr, int _fid, field* _fptr,
-            unsigned int _table_index_id, bool* _projection)
+            unsigned int _table_id, record* _rptr, int _fid,
+            unsigned int _table_index_id)
       : transaction_id(_txn_id),
         part_type(_ptype),
         partition_id(_partition_id),
@@ -48,9 +46,7 @@ class statement {
         table_id(_table_id),
         rec_ptr(_rptr),
         field_id(_fid),
-        field_ptr(_fptr),
-        table_index_id(_table_index_id),
-        projection(_projection) {
+        table_index_id(_table_index_id) {
   }
 
 //private:
@@ -62,14 +58,10 @@ class statement {
   // Insert and Delete
   record* rec_ptr;
   int table_id;
-
   // Update
   int field_id;
-  field* field_ptr;
-
   // Select
   int table_index_id;
-  bool* projection;
 
 };
 

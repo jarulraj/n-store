@@ -1,10 +1,8 @@
 #ifndef TABLE_INDEX_H_
 #define TABLE_INDEX_H_
 
-#include <unordered_map>
+#include "schema.h"
 #include "record.h"
-
-#include "libpm.h"
 #include "ptree.h"
 
 using namespace std;
@@ -12,26 +10,19 @@ using namespace std;
 class table_index {
  public:
 
-  table_index(unsigned int _num_fields, bool* _key)
-      : num_fields(_num_fields),
-        key(_key),
+  table_index(schema* _sptr, unsigned int _num_fields)
+      : sptr(_sptr),
+        num_fields(_num_fields),
         map(NULL) {
-
-    bool* key = new bool[num_fields];
-    memcpy(key, _key, num_fields);
-    pmemalloc_activate(key);
-
-    cout<<"key ::"<<key<<endl;
   }
 
   ~table_index() {
+    delete sptr;
     delete map;
-
-    delete key;
   }
 
+  schema* sptr;
   unsigned int num_fields;
-  bool* key;
 
   ptree<unsigned long, record*>* map;
 };

@@ -9,64 +9,36 @@
 using namespace std;
 
 enum field_type {
+  INVALID,
   INTEGER,
+  DOUBLE,
   VARCHAR
 };
 
-class field {
- public:
-
-  virtual std::string get_string() = 0;
-
-  field_type get_type();
-
-  virtual ~field() {
+struct field_info {
+  field_info()
+      : offset(0),
+        len(0),
+        type(field_type::INVALID),
+        inlined(1),
+        enabled(1) {
   }
 
-};
+  field_info(unsigned int _offset, unsigned int _len, char _type,
+              bool _inlined, bool _enabled)
+      : offset(_offset),
+        len(_len + 1),
+        type(_type),
+        inlined(_inlined),
+        enabled(_enabled) {
 
-class integer_field : public field {
- public:
-  integer_field(int _val)
-      : val(_val) {
   }
 
-  std::string get_string() {
-    return std::to_string(val);
-  }
-
-  field_type get_type() {
-    return field_type::INTEGER;
-  }
-
- private:
-  int val;
-};
-
-class varchar_field : public field {
- public:
-  varchar_field(const std::string& str) {
-    if (!str.empty()) {
-      size_t len = str.size();
-      data = new char[len+1];
-      memcpy(data, str.c_str(), len+1);
-    }
-  }
-
-  std::string get_string() {
-    return std::string(data);
-  }
-
-  field_type get_type() {
-    return field_type::VARCHAR;
-  }
-
-  ~varchar_field() {
-    delete data;
-  }
-
- private:
-  char* data;
+  unsigned int offset;
+  unsigned int len;
+  char type;
+  bool inlined;
+  bool enabled;
 };
 
 #endif /* FIELD_H_ */
