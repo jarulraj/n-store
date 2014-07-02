@@ -29,7 +29,7 @@ class usertable_record : public record {
     std::sprintf(&(data[sptr->columns[1].offset]), "%p", vc);
   }
 
-  ~usertable_record() {
+  ~usertable_record(){
     delete vc;
   }
 
@@ -113,8 +113,6 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
 
-    cout << "Map size ::" << db->tables->at(0)->indices->at(0)->map->size
-         << endl;
   }
 
   // Generate Zipf dist
@@ -148,7 +146,7 @@ workload& ycsb_benchmark::get_dataset() {
 
   }
 
-  cout << load.txns.size() << " dataset transactions " << endl;
+  //cout << load.txns.size() << " dataset transactions " << endl;
 
   return load;
 }
@@ -168,21 +166,35 @@ workload& ycsb_benchmark::get_workload() {
     int key = zipf_dist[txn_itr];
     double u = uniform_dist[txn_itr];
 
-    // UPDATE
     if (u < conf.per_writes) {
 
-      std::string updated_val(conf.sz_value, 'x');
+      // UPDATE
+      if (u < conf.per_writes / 2) {
+        std::string updated_val(conf.sz_value, 'x');
 
-      record* rec_ptr = new usertable_record(usertable_schema, key,
-                                             updated_val);
+        record* rec_ptr = new usertable_record(usertable_schema, key,
+                                               updated_val);
 
-      statement st(txn_id, operation_type::Update, usertable_id, rec_ptr, 1,
-                   usertable_index_id, NULL);
+        statement st(txn_id, operation_type::Update, usertable_id, rec_ptr, 1,
+                     -1, NULL);
 
-      vector<statement> stmts = { st };
+        vector<statement> stmts = { st };
 
-      transaction txn(txn_itr, stmts);
-      load.txns.push_back(txn);
+        transaction txn(txn_itr, stmts);
+        load.txns.push_back(txn);
+      }
+      // DELETE
+      else {
+        record* rec_ptr = new usertable_record(usertable_schema, key, empty);
+
+        statement st(txn_id, operation_type::Delete, usertable_id, rec_ptr, 1,
+                     -1, NULL);
+
+        vector<statement> stmts = { st };
+
+        transaction txn(txn_itr, stmts);
+        load.txns.push_back(txn);
+      }
     } else {
 
       // SELECT
@@ -199,7 +211,7 @@ workload& ycsb_benchmark::get_workload() {
     }
   }
 
-  cout << load.txns.size() << " workload transactions " << endl;
+  //cout << load.txns.size() << " workload transactions " << endl;
 
   return load;
 }

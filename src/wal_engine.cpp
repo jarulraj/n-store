@@ -10,19 +10,21 @@ wal_engine::wal_engine(const config& _conf)
       undo_log(db->log),
       entry_len(0) {
 
-  for (int i = 0; i < conf.num_executors; i++)
-    executors.push_back(std::thread(&wal_engine::runner, this));
+  //for (int i = 0; i < conf.num_executors; i++)
+  //  executors.push_back(std::thread(&wal_engine::runner, this));
 
 }
 
 wal_engine::~wal_engine() {
 
-  for (int i = 0; i < conf.num_executors; i++)
-    executors[i].join();
+  // done = true;
+  //for (int i = 0; i < conf.num_executors; i++)
+  //  executors[i].join();
 
 }
 
 std::string wal_engine::select(const statement& st) {
+  //cout<<"Select "<<endl;
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
@@ -38,12 +40,13 @@ std::string wal_engine::select(const statement& st) {
 
   rec_ptr = table_index->map->at(key);
   val = get_data(rec_ptr, st.projection);
-  cout << "val :" << val << endl;
+  //cout << "val :" << val << endl;
 
   return val;
 }
 
 void wal_engine::insert(const statement& st) {
+  //cout<<"Insert "<<endl;
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -85,6 +88,7 @@ void wal_engine::insert(const statement& st) {
 }
 
 void wal_engine::remove(const statement& st) {
+  //cout << "Remove " << endl;
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -126,10 +130,11 @@ void wal_engine::remove(const statement& st) {
 }
 
 void wal_engine::update(const statement& st) {
+  //cout<<"Update "<<endl;
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
-  std::string before_field, after_field;
+  void *before_field, *after_field;
 
   unsigned int index_itr = 0;
   int field_id = st.field_id;
@@ -143,8 +148,8 @@ void wal_engine::update(const statement& st) {
   }
 
   record* before_rec = indices->at(index_itr)->map->at(key);
-  before_field = before_rec->get_data(field_id, before_rec->sptr);
-  after_field = rec_ptr->get_data(field_id, rec_ptr->sptr);
+  before_field = before_rec->get_pointer(field_id, before_rec->sptr);
+  after_field = rec_ptr->get_pointer(field_id, rec_ptr->sptr);
 
   // Add log entry
   entry_stream.str("");
@@ -158,11 +163,10 @@ void wal_engine::update(const statement& st) {
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
 
-  // Activate new field if not inlined
-  if (rec_ptr->sptr->columns[field_id].inlined == 0)
-    pmemalloc_activate((void*) after_field.c_str());
-
-  db->commit_free_list->push_back((void*) before_field.c_str());
+  // Activate new field and garbage collect previous field
+  if (rec_ptr->sptr->columns[field_id].inlined == 0) {
+    db->commit_free_list->push_back(before_field);
+  }
 
   // Update existing record
   before_rec->set_data(field_id, rec_ptr, before_rec->sptr);
@@ -173,22 +177,30 @@ void wal_engine::update(const statement& st) {
 void wal_engine::execute(const transaction& txn) {
   vector<statement>::const_iterator stmt_itr;
 
-  for (stmt_itr = txn.stmts.begin(); stmt_itr != txn.stmts.end(); stmt_itr++) {
-    const statement& st = (*stmt_itr);
-
-    if (st.op_type == operation_type::Insert) {
-      insert(st);
-    } else if (st.op_type == operation_type::Select) {
+  for (const statement& st : txn.stmts) {
+    if (st.op_type == operation_type::Select) {
       select(st);
+    } else if (st.op_type == operation_type::Insert) {
+      insert(st);
     } else if (st.op_type == operation_type::Update) {
       update(st);
+    } else if (st.op_type == operation_type::Delete) {
+      remove(st);
     }
   }
+
+  // Clean up stuff
+  vector<void*> commit_free_list = db->commit_free_list->get_data();
+  for (void* ptr : commit_free_list) {
+    pmemalloc_free(ptr);
+  }
+  db->commit_free_list->clear();
+
 }
 
 void wal_engine::runner() {
   bool empty = true;
-
+  /*
   while (!done) {
     rdlock(&txn_queue_rwlock);
     empty = txn_queue.empty();
@@ -212,19 +224,28 @@ void wal_engine::runner() {
 
     execute(txn);
   }
+  */
 }
 
 void wal_engine::generator(const workload& load) {
 
-  undo_log->display();
+  //recovery();
 
-  vector<transaction>::const_iterator txn_itr;
-  for (txn_itr = load.txns.begin(); txn_itr != load.txns.end(); txn_itr++) {
-    wrlock(&txn_queue_rwlock);
-    txn_queue.push(*txn_itr);
-    unlock(&txn_queue_rwlock);
+  for (const transaction& txn : load.txns)
+    execute(txn);
+
+}
+
+void wal_engine::recovery() {
+
+  vector<char*> undo_log = db->log->get_data();
+
+  for (char* ptr : undo_log) {
+    std::string str(ptr);
+    cout << str;
+    delete ptr;
   }
 
-  done = true;
+  db->log->clear();
 }
 

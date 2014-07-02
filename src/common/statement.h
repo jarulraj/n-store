@@ -29,9 +29,9 @@ class statement {
         projection(NULL) {
   }
 
-  statement(unsigned int _txn_id, operation_type _otype,
-            unsigned int _table_id, record* _rptr, int _fid,
-            unsigned int _table_index_id, schema* _projection)
+  statement(int _txn_id, operation_type _otype,
+            int _table_id, record* _rptr, int _fid,
+            int _table_index_id, schema* _projection)
       : transaction_id(_txn_id),
         op_type(_otype),
         table_id(_table_id),

@@ -59,7 +59,7 @@ void usage(const char *argfmt, const char *fmt, ...);
 using namespace std;
 
 #define ALIGN 64  /* assumes 64B cache line size */
-#define LIBPM 0x01000000
+#define LIBPM 0x10000000
 
 static inline void *
 pmem_map(int fd, size_t len) {

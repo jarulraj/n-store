@@ -54,6 +54,18 @@ class record {
     return field;
   }
 
+  void* get_pointer(const int field_id, schema* sptr) {
+    unsigned int num_columns = sptr->num_columns;
+    void* field = NULL;
+
+    if (field_id < num_columns && sptr->columns[field_id].inlined == 0) {
+      size_t offset = sptr->columns[field_id].offset;
+      std::sscanf(&(data[offset]), "%p", &field);
+    }
+
+    return field;
+  }
+
   void set_data(const int field_id, record* rec_ptr, schema* sptr) {
 
     if (field_id < sptr->num_columns) {
