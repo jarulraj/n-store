@@ -67,7 +67,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.log_only = false;
   state.lsm_only = false;
 
-  state.skew = 1.0;
+  state.skew = 0.1;
 
   // Parse args
   while (1) {
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
     wal_coordinator wal(state);
 
     wal.runner(ycsb.get_dataset());
-    //wal.runner(ycsb.get_workload());
+    wal.runner(ycsb.get_workload());
   }
 
   /*

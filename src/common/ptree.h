@@ -31,20 +31,15 @@ class ptree {
 
   node** root;
   int size;
-  bool doBalancing;
 
   ptree()
       : root(NULL),
-        size(0),
-        doBalancing(true) {
+        size(0) {
   }
 
   ptree(void** _root)
-      : size(0),
-        doBalancing(true) {
-
+      : size(0) {
     root = (struct node**) _root;
-    cout << "root : " << root << "\n";
   }
 
   virtual ~ptree(void) {
@@ -147,30 +142,28 @@ class ptree {
   bool balance(node* parent) {
     bool didBalance = false;
 
-    if (doBalancing) {
-      int balancing = get_balance(parent);
+    int balancing = get_balance(parent);
 
-      if (balancing < -1) {
-        int balanceRightHeavy = get_balance(parent->left);
-        if (balanceRightHeavy >= 1) {
-          slr(parent->left);
-          srr(parent);
-        } else {
-          srr(parent);
-        }
-        didBalance = true;
-
-      } else if (balancing > 1) {
-        int balanceLeftHeavy = get_balance(parent->right);
-        if (balanceLeftHeavy <= -1) {
-          srr(parent->right);
-          slr(parent);
-        } else {
-          slr(parent);
-        }
-        didBalance = true;
-
+    if (balancing < -1) {
+      int balanceRightHeavy = get_balance(parent->left);
+      if (balanceRightHeavy >= 1) {
+        slr(parent->left);
+        srr(parent);
+      } else {
+        srr(parent);
       }
+      didBalance = true;
+
+    } else if (balancing > 1) {
+      int balanceLeftHeavy = get_balance(parent->right);
+      if (balanceLeftHeavy <= -1) {
+        srr(parent->right);
+        slr(parent);
+      } else {
+        slr(parent);
+      }
+      didBalance = true;
+
     }
 
     return didBalance;

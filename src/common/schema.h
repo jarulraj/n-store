@@ -30,10 +30,23 @@ class schema {
     delete[] columns;
   }
 
+  void display() {
+    unsigned int itr;
+
+    for (itr = 0; itr < num_columns; itr++) {
+      cout << "offset : " << columns[itr].offset << " ";
+      cout << "len : " << columns[itr].len << " ";
+      cout << "type : " << (int) columns[itr].type << " ";
+      cout << "inlined : " << (int) columns[itr].inlined << " ";
+      cout << endl;
+    }
+
+    cout << endl;
+  }
+
   size_t len;
   unsigned int num_columns;
   field_info* columns;
 };
-
 
 #endif /* SCHEMA_H_ */

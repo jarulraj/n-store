@@ -1,120 +1,154 @@
 // WRITE-AHEAD LOGGING
 
-#include <cstring>
-#include <cstdlib>
-#include <fstream>
-
 #include "wal_engine.h"
 
 using namespace std;
 
-void wal_engine::group_commit() {
-  while (ready) {
-    //std::cout << "Syncing log !" << endl;
-
-    // sync
-    undo_log.write();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
-  }
-}
-
 std::string wal_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
-  unsigned int table_id = st.table_id;
+  table* tab = db->tables->at(st.table_id);
+  table_index* table_index = tab->indices->at(st.table_index_id);
+
+  std::string key_str = get_data(rec_ptr, table_index->sptr);
+  unsigned long key = hash_fn(key_str);
   std::string val;
 
-  /*
-  unsigned int table_index_id = st.table_index_id;
-  table_index* table_index = db->tables[table_id]->indices[table_index_id];
-  bool* projection = st.projection;
-
-  std::string key = get_data(rec_ptr, table_index->key);
-
-  if (table_index->index.count(key) == 0) {
-    return NULL;
+  // check if key does not exist
+  if (table_index->map->contains(key) == 0) {
+    return val;
   }
 
-  record* r = table_index->index[key];
-  val = get_data(r, projection);
-
+  rec_ptr = table_index->map->at(key);
+  val = get_data(rec_ptr, st.projection);
   cout << "val :" << val << endl;
-  */
 
   return val;
 }
 
-int wal_engine::insert(const statement& st) {
-  record* rec_ptr = st.rec_ptr;
-  unsigned int table_id = st.table_id;
-
-  table* tab = db->tables->at(table_id);
+void wal_engine::insert(const statement& st) {
+  record* after_rec = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
+
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
-  int field_id = st.field_id;
-  std::hash<std::string> hash_fn;
 
+  std::string key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+  unsigned long key = hash_fn(key_str);
+
+  // Check if key exists
+  if (indices->at(0)->map->contains(key) != 0) {
+    return;
+  }
+
+  // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << after_rec << endl;
+  entry_str = entry_stream.str();
+  entry_len = entry_str.size();
+
+  char* entry = new char[entry_len + 1];
+  strcpy(entry, entry_str.c_str());
+  pmemalloc_activate(entry);
+  undo_log->push_back(entry);
+
+  // Activate new record
+  db->recovery_free_list->push_back(after_rec);
+  pmemalloc_activate(after_rec);
+
+  // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-
-    std::string key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
-    cout<<"key :: "<<key_str<<endl;
+    std::string key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     unsigned long key = hash_fn(key_str);
-
-    // check if key already exists
-    if (indices->at(index_itr)->map->contains(key) != 0) {
-      return -1;
-    }
-
-    record* after_rec = st.rec_ptr;
-    pmemalloc_activate(after_rec);
 
     indices->at(index_itr)->map->insert(key, after_rec);
-
-    // Add log entry
-    //entry e(st.transaction_id, st.op_type, st.table_id, after_rec->num_fields, after_rec->fields, -1, NULL);
-    //undo_log.push(e);
   }
-
-  return 0;
 }
 
-int wal_engine::update(const statement& st) {
-
+void wal_engine::remove(const statement& st) {
   record* rec_ptr = st.rec_ptr;
-  unsigned int table_id = st.table_id;
+  table* tab = db->tables->at(st.table_id);
+  plist<table_index*>* indices = tab->indices;
 
-  /*
-  table* tab = PMEM(db->tables)->at(table_id);
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
-  int field_id = st.field_id;
-  std::hash<std::string> hash_fn;
 
+  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  unsigned long key = hash_fn(key_str);
+
+  // Check if key does not exist
+  if (indices->at(0)->map->contains(key) == 0) {
+    return;
+  }
+
+  record* before_rec = indices->at(index_itr)->map->at(key);
+  db->commit_free_list->push_back(before_rec);
+
+  // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << before_rec << endl;
+  entry_str = entry_stream.str();
+  entry_len = entry_str.size();
+
+  char* entry = new char[entry_len + 1];
+  strcpy(entry, entry_str.c_str());
+  pmemalloc_activate(entry);
+  undo_log->push_back(entry);
+
+  // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-
-    std::string key_str = get_data(rec_ptr, PMEM(PMEM(tab->indices)->at(index_itr)->key));
+    std::string key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
     unsigned long key = hash_fn(key_str);
 
-    // check if key already exists
-    if (PMEM(PMEM(tab->indices)->at(index_itr)->map)->contains(key) != 0) {
-      return -1;
-    }
-
-    record* before_rec = PMEM(PMEM(tab->indices)->at(index_itr)->map)->at(key);
-
-    field* before_field = before_rec->fields[field_id];
-    field* after_field = st.field_ptr;
-
-    before_rec->fields[field_id] = after_field;
-
-    // Add log entry
-    entry e(st.transaction_id, st.op_type, st.table_id, rec_ptr->num_fields, rec_ptr->fields, field_id, after_field);
-    undo_log.push(e);
+    indices->at(index_itr)->map->erase(key);
   }
-  */
 
-  return 0;
+}
+
+void wal_engine::update(const statement& st) {
+  record* rec_ptr = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
+  plist<table_index*>* indices = tab->indices;
+  std::string before_field, after_field;
+
+  unsigned int index_itr = 0;
+  int field_id = st.field_id;
+
+  std::string key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
+  unsigned long key = hash_fn(key_str);
+
+  // Check if key does not exist
+  if (indices->at(index_itr)->map->contains(key) == 0) {
+    return;
+  }
+
+  record* before_rec = indices->at(index_itr)->map->at(key);
+  before_field = before_rec->get_data(field_id, before_rec->sptr);
+  after_field = rec_ptr->get_data(field_id, rec_ptr->sptr);
+
+  // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << before_rec << " " << before_field << endl;
+  entry_str = entry_stream.str();
+  entry_len = entry_str.size();
+
+  char* entry = new char[entry_len + 1];
+  strcpy(entry, entry_str.c_str());
+  pmemalloc_activate(entry);
+  undo_log->push_back(entry);
+
+  // Activate new field if not inlined
+  if (rec_ptr->sptr->columns[field_id].inlined == 0)
+    pmemalloc_activate((void*) after_field.c_str());
+
+
+  db->commit_free_list->push_back((void*) before_field.c_str());
+
+  // Update existing record
+  before_rec->set_data(field_id, rec_ptr, before_rec->sptr);
 }
 
 // RUNNER + LOADER
@@ -138,11 +172,7 @@ void wal_engine::runner() {
   int consumer_count;
   message msg;
 
-  undo_log.configure(conf.fs_path + "./log_" + std::to_string(partition_id));
-
-  // Logger start
-  std::thread gc(&wal_engine::group_commit, this);
-  ready = true;
+  //undo_log->display();
 
   bool empty = true;
   while (!done) {
@@ -166,11 +196,6 @@ void wal_engine::runner() {
     handle_message(msg);
   }
 
-  // Logger end
-  ready = false;
-  gc.join();
-
-  undo_log.write();
 }
 
 int wal_engine::test() {

@@ -24,11 +24,8 @@ class plist {
   }
 
   plist(void** _head, void** _tail) {
-
     head = (struct node**) _head;
     tail = (struct node**) _tail;
-
-    cout << "head : " << head << " tail : " << tail << "\n";
   }
 
   ~plist() {
@@ -166,8 +163,13 @@ class plist {
   void display(void) {
     struct node* np = (*head);
 
+    if(np == NULL){
+      cout<<"Empty list"<<endl;
+      return;
+    }
+
     while (np) {
-      cout << np->val << " -> ";
+      cout << np->val;
       np = np->next;
     }
     cout << endl;

@@ -121,7 +121,8 @@ extern void* pmp;
 
 #define MAX_PTRS 128
 struct static_info {
-  int init;
+  unsigned int init;
+  unsigned int itr;
   void* ptrs[MAX_PTRS];
 };
 /*

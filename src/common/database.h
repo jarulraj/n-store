@@ -8,17 +8,29 @@ using namespace std;
 
 class database {
  public:
+  database()
+      : tables(NULL),
+        log(NULL),
+        commit_free_list(NULL),
+        recovery_free_list(NULL) {
+  }
 
   ~database() {
     // clean up tables
     vector<table*> table_vec = tables->get_data();
     for (table* table : table_vec)
-      delete PMEM(table);
+      delete table;
 
-    delete PMEM(tables);
+    delete tables;
+    delete log;
+    delete commit_free_list;
+    delete recovery_free_list;
   }
 
   plist<table*>* tables;
+  plist<char*>* log;
+  plist<void*>* commit_free_list;
+  plist<void*>* recovery_free_list;
 };
 
 #endif /* DATABASE_H_ */

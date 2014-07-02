@@ -14,7 +14,9 @@ using namespace std;
 class engine {
  public:
   virtual std::string select(const statement& st) = 0;
-  virtual int update(const statement& st) = 0;
+  virtual void insert(const statement& st) = 0;
+  virtual void remove(const statement& st) = 0;
+  virtual void update(const statement& st) = 0;
 
   virtual int test() = 0;
 
