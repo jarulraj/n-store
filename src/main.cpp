@@ -3,7 +3,7 @@
 #include <cassert>
 
 #include "nstore.h"
-#include "wal_coordinator.h"
+#include "wal_engine.h"
 #include "ycsb_benchmark.h"
 #include "utils.h"
 
@@ -16,9 +16,9 @@ extern struct static_info *sp;
 
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
-          "   -x --num-txns        :  Number of transactions to execute \n"
+          "   -x --num-txns        :  Number of transactions \n"
           "   -k --num-keys        :  Number of keys \n"
-          "   -p --num-parts       :  Number of partitions \n"
+          "   -e --num-executors   :  Number of executors \n"
           "   -w --per-writes      :  Percent of writes \n"
           "   -f --fs-path         :  Path for FS \n"
           "   -g --gc-interval     :  Group commit interval \n"
@@ -33,7 +33,7 @@ static struct option opts[] = {
     { "fs-path", optional_argument, NULL, 'f' },
     { "num-txns", optional_argument, NULL, 'x' },
     { "num-keys", optional_argument, NULL, 'k' },
-    { "num-parts", optional_argument, NULL, 'p' },
+    { "num-executors", optional_argument, NULL, 'e' },
     { "per-writes", optional_argument, NULL, 'w' },
     { "gc-interval", optional_argument, NULL, 'g' },
     { "log-only", no_argument, NULL, 'l' },
@@ -52,7 +52,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.num_keys = 20;
   state.num_txns = 10;
-  state.num_parts = 1;
+  state.num_executors = 1;
 
   state.sz_value = 4;
   state.verbose = false;
@@ -72,7 +72,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:p:w:g:q:vlsmh", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:w:g:q:vlsmh", opts, &idx);
 
     if (c == -1)
       break;
@@ -90,9 +90,9 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         state.num_keys = atoi(optarg);
         cout << "num_keys: " << state.num_keys << endl;
         break;
-      case 'p':
-        state.num_parts = atoi(optarg);
-        cout << "num_parts: " << state.num_parts << endl;
+      case 'e':
+        state.num_executors = atoi(optarg);
+        cout << "num_executors: " << state.num_executors << endl;
         break;
       case 'v':
         state.verbose = true;
@@ -148,20 +148,14 @@ int main(int argc, char **argv) {
   parse_arguments(argc, argv, state);
   state.sp = sp;
 
-  // Generate Zipf dist
-  long range_size = state.num_keys / state.num_parts;
-  long range_txns = state.num_txns / state.num_parts;
-  simple_skew(state.zipf_dist, range_size, range_txns);
-  uniform(state.uniform_dist, range_txns);
-
   if (state.sp_only == false && state.lsm_only == false) {
     cout << "WAL :: " << endl;
 
     ycsb_benchmark ycsb(state);
-    wal_coordinator wal(state);
+    wal_engine wal(state);
 
-    wal.runner(ycsb.get_dataset());
-    wal.runner(ycsb.get_workload());
+    wal.generator(ycsb.get_dataset());
+    wal.generator(ycsb.get_workload());
   }
 
   /*

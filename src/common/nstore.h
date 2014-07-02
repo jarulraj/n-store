@@ -19,7 +19,7 @@ class config {
 
   int num_keys;
   int num_txns;
-  int num_parts;
+  int num_executors;
 
   int sz_value;
   int sz_tuple;
@@ -35,9 +35,6 @@ class config {
   bool log_only;
   bool sp_only;
   bool lsm_only;
-
-  vector<int> zipf_dist;
-  vector<double> uniform_dist;
 };
 
 #endif /* NSTORE_H_ */

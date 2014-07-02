@@ -4,6 +4,24 @@
 
 using namespace std;
 
+wal_engine::wal_engine(const config& _conf)
+    : conf(_conf),
+      db(conf.db),
+      undo_log(db->log),
+      entry_len(0) {
+
+  for (int i = 0; i < conf.num_executors; i++)
+    executors.push_back(std::thread(&wal_engine::runner, this));
+
+}
+
+wal_engine::~wal_engine() {
+
+  for (int i = 0; i < conf.num_executors; i++)
+    executors[i].join();
+
+}
+
 std::string wal_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -144,7 +162,6 @@ void wal_engine::update(const statement& st) {
   if (rec_ptr->sptr->columns[field_id].inlined == 0)
     pmemalloc_activate((void*) after_field.c_str());
 
-
   db->commit_free_list->push_back((void*) before_field.c_str());
 
   // Update existing record
@@ -153,67 +170,61 @@ void wal_engine::update(const statement& st) {
 
 // RUNNER + LOADER
 
-void wal_engine::handle_message(const message& msg) {
-  const statement& st = msg.st;
+void wal_engine::execute(const transaction& txn) {
+  vector<statement>::const_iterator stmt_itr;
 
-  unsigned int s_id = msg.statement_id;
+  for (stmt_itr = txn.stmts.begin(); stmt_itr != txn.stmts.end(); stmt_itr++) {
+    const statement& st = (*stmt_itr);
 
-  if (st.op_type == operation_type::Insert) {
-    insert(st);
-  } else if (st.op_type == operation_type::Select) {
-    select(st);
-  } else if (st.op_type == operation_type::Update) {
-    update(st);
+    if (st.op_type == operation_type::Insert) {
+      insert(st);
+    } else if (st.op_type == operation_type::Select) {
+      select(st);
+    } else if (st.op_type == operation_type::Update) {
+      update(st);
+    }
   }
-
 }
 
 void wal_engine::runner() {
-  int consumer_count;
-  message msg;
-
-  //undo_log->display();
-
   bool empty = true;
-  while (!done) {
 
-    rdlock(&msg_queue_rwlock);
-    empty = msg_queue.empty();
-    unlock(&msg_queue_rwlock);
+  while (!done) {
+    rdlock(&txn_queue_rwlock);
+    empty = txn_queue.empty();
+    unlock(&txn_queue_rwlock);
 
     if (!empty) {
-      wrlock(&msg_queue_rwlock);
-      msg = msg_queue.front();
-      msg_queue.pop();
-      unlock(&msg_queue_rwlock);
-      handle_message(msg);
+      wrlock(&txn_queue_rwlock);
+      const transaction& txn = txn_queue.front();
+      txn_queue.pop();
+      unlock(&txn_queue_rwlock);
+
+      execute(txn);
     }
   }
 
-  while (!msg_queue.empty()) {
-    msg = msg_queue.front();
-    msg_queue.pop();
-    handle_message(msg);
+  while (!txn_queue.empty()) {
+    wrlock(&txn_queue_rwlock);
+    const transaction& txn = txn_queue.front();
+    txn_queue.pop();
+    unlock(&txn_queue_rwlock);
+
+    execute(txn);
+  }
+}
+
+void wal_engine::generator(const workload& load) {
+
+  undo_log->display();
+
+  vector<transaction>::const_iterator txn_itr;
+  for (txn_itr = load.txns.begin(); txn_itr != load.txns.end(); txn_itr++) {
+    wrlock(&txn_queue_rwlock);
+    txn_queue.push(*txn_itr);
+    unlock(&txn_queue_rwlock);
   }
 
+  done = true;
 }
 
-int wal_engine::test() {
-
-  // Recovery
-  //check();
-
-  /*
-   start = std::chrono::high_resolution_clock::now();
-
-   recovery();
-
-   finish = std::chrono::high_resolution_clock::now();
-   elapsed_seconds = finish - start;
-   std::cout << "Recovery duration: " << elapsed_seconds.count() << endl;
-
-   check();
-   */
-
-  return 0;
-}

@@ -12,7 +12,6 @@ LIBS = -lrt
 
 nstore_SOURCES  =  	main.cpp \
 					wal_engine.cpp  \
-					wal_coordinator.cpp \
 					ycsb_benchmark.cpp \
 					libpm.cpp \
 					utils.cpp

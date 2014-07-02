@@ -113,16 +113,13 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
 
-    cout<<"Map size ::"<<db->tables->at(0)->indices->at(0)->map->size<<endl;
+    cout << "Map size ::" << db->tables->at(0)->indices->at(0)->map->size
+         << endl;
   }
 
   // Generate Zipf dist
-  long part_range = conf.num_keys / conf.num_parts;
-  long part_txns = conf.num_txns / conf.num_parts;
-
-  zipf(zipf_dist, conf.skew, part_range, part_txns);
-  uniform(uniform_dist, part_txns);
-
+  zipf(zipf_dist, conf.skew, conf.num_keys, conf.num_txns);
+  uniform(uniform_dist, conf.num_txns);
 }
 
 workload& ycsb_benchmark::get_dataset() {
@@ -131,38 +128,27 @@ workload& ycsb_benchmark::get_dataset() {
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
-  unsigned int transaction_id;
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
+  unsigned int txn_itr;
 
-  int part_range = conf.num_keys / conf.num_parts;
-  int part_itr, txn_itr, t_id;
+  for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++) {
 
-  for (int txn_itr = 0; txn_itr < part_range; txn_itr++) {
+    // INSERT
+    int key = txn_itr;
+    std::string value = random_string(conf.sz_value);
 
-    for (int part_itr = 0; part_itr < conf.num_parts; part_itr++) {
-      t_id = part_range * part_itr + txn_itr;
+    record* rec_ptr = new usertable_record(usertable_schema, key, value);
 
-      transaction_id = ++txn_id;
+    statement st(txn_id, operation_type::Insert, usertable_id, rec_ptr, -1,
+                 usertable_index_id, NULL);
 
-      // INSERT
-
-      int key = t_id;
-      std::string value = random_string(conf.sz_value);
-
-      record* rec_ptr = new usertable_record(usertable_schema, key, value);
-
-      statement st(transaction_id, partition_type::Single, part_itr,
-                   operation_type::Insert, usertable_id, rec_ptr, -1,
-                   usertable_index_id, NULL);
-
-      vector<statement> stmts = { st };
-      transaction txn(transaction_id, stmts);
-      load.txns.push_back(txn);
-    }
+    vector<statement> stmts = { st };
+    transaction txn(txn_itr, stmts);
+    load.txns.push_back(txn);
 
   }
 
-  //cout << load.txns.size() << " dataset transactions " << endl;
+  cout << load.txns.size() << " dataset transactions " << endl;
 
   return load;
 }
@@ -173,61 +159,47 @@ workload& ycsb_benchmark::get_workload() {
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
+  unsigned int txn_itr;
+  schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   std::string empty;
 
-  int part_range = conf.num_keys / conf.num_parts;
-  int part_txns = conf.num_txns / conf.num_parts;
-  int part_itr, txn_itr, t_id;
-  unsigned int transaction_id;
-  schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
+  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++, txn_id++) {
 
-  for (txn_itr = 0; txn_itr < part_txns; txn_itr++) {
+    int key = zipf_dist[txn_itr];
+    double u = uniform_dist[txn_itr];
 
-    for (part_itr = 0; part_itr < conf.num_parts; part_itr++) {
-      t_id = part_range * part_itr + txn_itr;
+    // UPDATE
+    if (u < conf.per_writes) {
 
-      //int key = conf.zipf_dist[t_id];
-      int key = rand() % 10;
-      double u = conf.uniform_dist[t_id];
+      std::string updated_val(conf.sz_value, 'x');
 
-      // UPDATE
-      if (u < conf.per_writes) {
+      record* rec_ptr = new usertable_record(usertable_schema, key,
+                                             updated_val);
 
-        std::string updated_val(conf.sz_value, 'x');
+      statement st(txn_id, operation_type::Update, usertable_id, rec_ptr, 1,
+                   usertable_index_id, NULL);
 
-        record* rec_ptr = new usertable_record(usertable_schema, key,
-                                               updated_val);
+      vector<statement> stmts = { st };
 
-        transaction_id = ++txn_id;
+      transaction txn(txn_itr, stmts);
+      load.txns.push_back(txn);
+    } else {
 
-        statement st(transaction_id, partition_type::Single, part_itr,
-                     operation_type::Update, usertable_id, rec_ptr, 1,
-                     usertable_index_id, NULL);
+      // SELECT
 
-        vector<statement> stmts = { st };
+      record* rec_ptr = new usertable_record(usertable_schema, key, empty);
 
-        transaction txn(transaction_id, stmts);
-        load.txns.push_back(txn);
-      } else {
+      statement st(txn_id, operation_type::Select, usertable_id, rec_ptr, -1,
+                   usertable_index_id, usertable_schema);
 
-        // SELECT
+      vector<statement> stmts = { st };
 
-        record* rec_ptr = new usertable_record(usertable_schema, key, empty);
-
-        statement st(transaction_id, partition_type::Single, part_itr,
-                     operation_type::Select, usertable_id, rec_ptr, -1,
-                     usertable_index_id, usertable_schema);
-
-        vector<statement> stmts = { st };
-
-        transaction txn(transaction_id, stmts);
-        load.txns.push_back(txn);
-      }
+      transaction txn(txn_itr, stmts);
+      load.txns.push_back(txn);
     }
-
   }
 
-  //cout << load.txns.size() << " workload transactions " << endl;
+  cout << load.txns.size() << " workload transactions " << endl;
 
   return load;
 }

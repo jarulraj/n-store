@@ -22,37 +22,26 @@ using namespace std;
 
 class wal_engine : public engine {
  public:
-  wal_engine(unsigned int _part_id, const config& _conf, database* _db)
-      : partition_id(_part_id),
-        conf(_conf),
-        db(_db),
-        done(false),
-        undo_log(db->log),
-        entry_len(0) {
-  }
+  wal_engine(const config& _conf);
+  ~wal_engine();
 
-  void runner();
 
   std::string select(const statement& st);
   void update(const statement& st);
   void insert(const statement& t);
   void remove(const statement& t);
 
-  int test();
+  void generator(const workload& load);
+  void runner();
+  void execute(const transaction& t);
 
-  // Custom functions
-  void group_commit();
-
-  void handle_message(const message& msg);
-  void check();
-
-  void snapshot();
   void recovery();
 
   //private:
-  unsigned int partition_id;
   const config& conf;
   database* db;
+
+  std::vector<std::thread> executors;
 
   plist<char*>* undo_log;
   std::stringstream entry_stream;
@@ -60,8 +49,8 @@ class wal_engine : public engine {
   size_t entry_len;
   std::hash<std::string> hash_fn;
 
-  pthread_rwlock_t msg_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-  std::queue<message> msg_queue;
+  pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+  std::queue<transaction> txn_queue;
   std::atomic<bool> done;
 };
 

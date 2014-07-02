@@ -9,11 +9,6 @@
 
 using namespace std;
 
-enum partition_type {
-  Single,
-  Multiple
-};
-
 enum operation_type {
   Insert,
   Delete,
@@ -26,8 +21,6 @@ class statement {
 
   statement()
       : transaction_id(-1),
-        part_type(partition_type::Single),
-        partition_id(-1),
         op_type(operation_type::Insert),
         table_id(-1),
         rec_ptr(NULL),
@@ -36,13 +29,10 @@ class statement {
         projection(NULL) {
   }
 
-  statement(unsigned int _txn_id, partition_type _ptype,
-            unsigned int _partition_id, operation_type _otype,
+  statement(unsigned int _txn_id, operation_type _otype,
             unsigned int _table_id, record* _rptr, int _fid,
             unsigned int _table_index_id, schema* _projection)
       : transaction_id(_txn_id),
-        part_type(_ptype),
-        partition_id(_partition_id),
         op_type(_otype),
         table_id(_table_id),
         rec_ptr(_rptr),
@@ -53,8 +43,6 @@ class statement {
 
 //private:
   int transaction_id;
-  partition_type part_type;
-  int partition_id;
   operation_type op_type;
 
   // Insert and Delete

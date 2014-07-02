@@ -3,6 +3,7 @@
 
 #include "transaction.h"
 #include "statement.h"
+#include "workload.h"
 
 #include <boost/lockfree/queue.hpp>
 #include <thread>
@@ -18,10 +19,9 @@ class engine {
   virtual void remove(const statement& st) = 0;
   virtual void update(const statement& st) = 0;
 
-  virtual int test() = 0;
+  virtual void runner() = 0;
 
   virtual ~engine() {}
-
 };
 
 #endif  /* ENGINE_H_ */
