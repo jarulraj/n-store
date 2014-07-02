@@ -14,7 +14,6 @@ class record {
       : sptr(_sptr),
         data(NULL) {
     data = new char[sptr->len];
-    pmemalloc_activate(data);
   }
 
   std::string get_data(const int field_id, schema* sptr) {
@@ -93,8 +92,16 @@ class record {
     }
   }
 
-  ~record() {
-    delete data;
+  void persist_data() {
+    pmemalloc_activate(data);
+
+    unsigned int field_itr;
+    for (field_itr = 0; field_itr < sptr->num_columns; field_itr++) {
+      if (sptr->columns[field_itr].inlined == 0) {
+        void* ptr = get_pointer(field_itr, sptr);
+        pmemalloc_activate(ptr);
+      }
+    }
   }
 
   schema* sptr;

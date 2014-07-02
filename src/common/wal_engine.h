@@ -49,7 +49,7 @@ class wal_engine : public engine {
   size_t entry_len;
   std::hash<std::string> hash_fn;
 
-  //pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+  pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::queue<transaction> txn_queue;
   std::atomic<bool> done;
 };

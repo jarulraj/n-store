@@ -22,15 +22,10 @@ class usertable_record : public record {
       size_t _val_len = _val.size();
       vc = new char[_val_len + 1];
       strcpy(vc, _val.c_str());
-      pmemalloc_activate(vc);
     }
 
     std::sprintf(&(data[sptr->columns[0].offset]), "%d", _key);
     std::sprintf(&(data[sptr->columns[1].offset]), "%p", vc);
-  }
-
-  ~usertable_record(){
-    delete vc;
   }
 
   char* vc;
@@ -198,7 +193,6 @@ workload& ycsb_benchmark::get_workload() {
     } else {
 
       // SELECT
-
       record* rec_ptr = new usertable_record(usertable_schema, key, empty);
 
       statement st(txn_id, operation_type::Select, usertable_id, rec_ptr, -1,

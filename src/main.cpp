@@ -151,10 +151,16 @@ int main(int argc, char **argv) {
   if (state.sp_only == false && state.lsm_only == false) {
     cout << "WAL :: " << endl;
 
+    bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
     wal_engine wal(state);
 
-    wal.generator(ycsb.get_dataset());
+    if(generate_dataset){
+      cout<<"Dataset txns"<<endl;
+      wal.generator(ycsb.get_dataset());
+    }
+
+    cout<<"Workload txns"<<endl;
     wal.generator(ycsb.get_workload());
   }
 
