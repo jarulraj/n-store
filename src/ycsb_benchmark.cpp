@@ -59,11 +59,6 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db->commit_free_list = commit_free_list;
     pmemalloc_activate(commit_free_list);
 
-    plist<void*>* recovery_free_list = new plist<void*>(
-        &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
-    db->recovery_free_list = recovery_free_list;
-    pmemalloc_activate(recovery_free_list);
-
     // USERTABLE
     size_t offset = 0, len = 0;
     field_info col1(offset, sizeof(int), field_type::INTEGER, 1, 1);

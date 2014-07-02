@@ -24,13 +24,13 @@ wal_engine::~wal_engine() {
 }
 
 std::string wal_engine::select(const statement& st) {
-  std::string val;
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
   std::string key_str = get_data(rec_ptr, table_index->sptr);
   unsigned long key = hash_fn(key_str);
+  std::string val;
 
   // check if key does not exist
   if (table_index->map->contains(key) == 0) {
@@ -39,7 +39,7 @@ std::string wal_engine::select(const statement& st) {
 
   rec_ptr = table_index->map->at(key);
   val = get_data(rec_ptr, st.projection);
-  //cout << "val :" << val << endl;
+  cout << "val :" << val << endl;
 
   return val;
 }
@@ -73,7 +73,6 @@ void wal_engine::insert(const statement& st) {
   undo_log->push_back(entry);
 
   // Activate new record
-  db->recovery_free_list->push_back(after_rec);
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
@@ -104,6 +103,7 @@ void wal_engine::remove(const statement& st) {
 
   record* before_rec = indices->at(index_itr)->map->at(key);
   db->commit_free_list->push_back(before_rec);
+  cout << "during remove :: before_rec: " << before_rec<<endl;
 
   // Add log entry
   entry_stream.str("");
@@ -128,7 +128,6 @@ void wal_engine::remove(const statement& st) {
 }
 
 void wal_engine::update(const statement& st) {
-  //cout<<"Update "<<endl;
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -146,13 +145,29 @@ void wal_engine::update(const statement& st) {
   }
 
   record* before_rec = indices->at(index_itr)->map->at(key);
-  before_field = before_rec->get_pointer(field_id, before_rec->sptr);
-  after_field = rec_ptr->get_pointer(field_id, rec_ptr->sptr);
+
+  // Pointer field
+  if (rec_ptr->sptr->columns[field_id].inlined == 0) {
+    before_field = before_rec->get_pointer(field_id, before_rec->sptr);
+    after_field = rec_ptr->get_pointer(field_id, rec_ptr->sptr);
+
+    entry_stream.str("");
+    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+                 << " " << field_id << " " << before_rec << " " << before_field
+                 << " " << after_field << endl;
+  }
+  // Data field
+  else {
+    before_field = before_rec->get_pointer(field_id, before_rec->sptr);
+    std::string before_data = before_rec->get_data(field_id, before_rec->sptr);
+
+    entry_stream.str("");
+    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+                 << " " << field_id << " " << before_rec << " " << before_data
+                 << endl;
+  }
 
   // Add log entry
-  entry_stream.str("");
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << before_rec << " " << before_field << endl;
   entry_str = entry_stream.str();
   entry_len = entry_str.size();
 
@@ -163,8 +178,8 @@ void wal_engine::update(const statement& st) {
 
   // Activate new field and garbage collect previous field
   if (rec_ptr->sptr->columns[field_id].inlined == 0) {
-    pmemalloc_activate(after_field);
     db->commit_free_list->push_back(before_field);
+    pmemalloc_activate(after_field);
   }
 
   // Update existing record
@@ -175,33 +190,42 @@ void wal_engine::update(const statement& st) {
 
 void wal_engine::execute(const transaction& txn) {
   vector<statement>::const_iterator stmt_itr;
+  bool inserted = false;
+  bool updated = false;
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
       select(st);
     } else if (st.op_type == operation_type::Insert) {
+      inserted = true;
       insert(st);
     } else if (st.op_type == operation_type::Update) {
+      updated = true;
       update(st);
     } else if (st.op_type == operation_type::Delete) {
       remove(st);
     }
   }
 
-  // Clean up stuff
+  // Clear commit_free list
   vector<void*> commit_free_list = db->commit_free_list->get_data();
   for (void* ptr : commit_free_list) {
     pmemalloc_free(ptr);
   }
   db->commit_free_list->clear();
 
+  // Clear log
+  vector<char*> undo_log = db->log->get_data();
+  for (char* ptr : undo_log)
+    delete ptr;
+  db->log->clear();
 }
 
 void wal_engine::runner() {
   bool empty = true;
 
   while (!done) {
-    rdlock (&txn_queue_rwlock);
+    rdlock(&txn_queue_rwlock);
     empty = txn_queue.empty();
     unlock(&txn_queue_rwlock);
 
@@ -216,7 +240,7 @@ void wal_engine::runner() {
   }
 
   while (!txn_queue.empty()) {
-    wrlock (&txn_queue_rwlock);
+    wrlock(&txn_queue_rwlock);
     const transaction& txn = txn_queue.front();
     txn_queue.pop();
     unlock(&txn_queue_rwlock);
@@ -235,11 +259,103 @@ void wal_engine::generator(const workload& load) {
 }
 
 void wal_engine::recovery() {
+  vector<char*> undo_vec = db->log->get_data();
 
-  vector<char*> undo_log = db->log->get_data();
+  int op_type, txn_id, table_id;
+  table *tab ;
+  plist<table_index*>* indices;
+  unsigned int num_indices, index_itr;
+  record *before_rec, *after_rec;
+  field_info finfo;
 
-  for (char* ptr : undo_log) {
-    std::string str(ptr);
+  for (char* ptr : undo_vec) {
+    std::sscanf(ptr, "%d %d %d", &txn_id, &op_type, &table_id);
+
+    switch (op_type) {
+      case operation_type::Insert:
+        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id, &after_rec);
+        cout<<"after_rec :: "<<after_rec<<endl;
+
+        tab = db->tables->at(table_id);
+        indices = tab->indices;
+        num_indices = tab->num_indices;
+
+        // Remove entry in indices
+        for (index_itr = 0; index_itr < num_indices; index_itr++) {
+          std::string key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+          unsigned long key = hash_fn(key_str);
+
+          indices->at(index_itr)->map->erase(key);
+        }
+
+        // Free after_rec
+        pmemalloc_free(after_rec);
+        break;
+
+      case operation_type::Delete:
+        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id, &before_rec);
+
+        tab = db->tables->at(table_id);
+        indices = tab->indices;
+        num_indices = tab->num_indices;
+
+        // Fix entry in indices to point to before_rec
+        for (index_itr = 0; index_itr < num_indices; index_itr++) {
+          std::string key_str = get_data(before_rec,
+                                         indices->at(index_itr)->sptr);
+          unsigned long key = hash_fn(key_str);
+
+          indices->at(index_itr)->map->insert(key, before_rec);
+        }
+        break;
+
+      case operation_type::Update:
+        int field_id;
+        std::sscanf(ptr, "%d %d %d %d %p", &txn_id, &op_type, &table_id, &field_id, &before_rec);
+
+        tab = db->tables->at(table_id);
+        indices = tab->indices;
+        finfo = before_rec->sptr->columns[field_id];
+
+        // Pointer
+        if (finfo.inlined == 0) {
+          void *before_field, *after_field;
+          std::sscanf(ptr, "%d %d %d %d %p %p %p", &txn_id, &op_type, &table_id, &field_id, &before_rec, &before_field, &after_field);
+          before_rec->set_pointer(field_id, before_field, before_rec->sptr);
+
+          // Free after_field
+          pmemalloc_free(after_field);
+        }
+        // Data
+        else {
+          field_type type = finfo.type;
+          size_t offset = before_rec->sptr->columns[field_id].offset;
+
+          switch (type) {
+            case field_type::INTEGER:
+              int ival;
+              std::sscanf(ptr, "%d %d %d %d %p %d", &txn_id, &op_type, &table_id, &field_id, &before_rec, &ival);
+              std::sprintf(&(before_rec->data[offset]), "%d", ival);
+              break;
+
+            case field_type::DOUBLE:
+              double dval;
+              std::sscanf(ptr, "%d %d %d %d %p %lf", &txn_id, &op_type, &table_id, &field_id, &before_rec, &dval);
+              std::sprintf(&(before_rec->data[offset]), "%lf", dval);
+              break;
+
+            default:
+              cout << "Invalid field type" << op_type << endl;
+              break;
+          }
+        }
+        break;
+
+      default:
+        cout << "Invalid operation type" << op_type << endl;
+        break;
+    }
+
     delete ptr;
   }
 

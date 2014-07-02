@@ -11,8 +11,7 @@ class database {
   database()
       : tables(NULL),
         log(NULL),
-        commit_free_list(NULL),
-        recovery_free_list(NULL) {
+        commit_free_list(NULL) {
   }
 
   ~database() {
@@ -24,13 +23,11 @@ class database {
     delete tables;
     delete log;
     delete commit_free_list;
-    delete recovery_free_list;
   }
 
   plist<table*>* tables;
   plist<char*>* log;
   plist<void*>* commit_free_list;
-  plist<void*>* recovery_free_list;
 };
 
 #endif /* DATABASE_H_ */

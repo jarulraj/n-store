@@ -92,6 +92,15 @@ class record {
     }
   }
 
+  void set_pointer(const int field_id, void* field_ptr, schema* sptr) {
+    unsigned int num_columns = sptr->num_columns;
+
+    if (field_id < num_columns && sptr->columns[field_id].inlined == 0) {
+      size_t offset = sptr->columns[field_id].offset;
+      std::sprintf(&(data[offset]), "%p", field_ptr);
+    }
+  }
+
   void persist_data() {
     pmemalloc_activate(data);
 

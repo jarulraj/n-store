@@ -24,7 +24,7 @@ struct field_info {
         enabled(1) {
   }
 
-  field_info(unsigned int _offset, unsigned int _len, char _type,
+  field_info(unsigned int _offset, unsigned int _len, field_type _type,
               bool _inlined, bool _enabled)
       : offset(_offset),
         len(_len + 1),
@@ -36,7 +36,7 @@ struct field_info {
 
   unsigned int offset;
   unsigned int len;
-  char type;
+  field_type type;
   bool inlined;
   bool enabled;
 };
