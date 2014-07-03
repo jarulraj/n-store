@@ -28,13 +28,11 @@ std::string wal_engine::select(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
-  std::string key_str =  get_data(rec_ptr, table_index->sptr);
-  unsigned long key = hash_fn(key_str);
+  unsigned long key = hash_fn(st.key);
   std::string val;
 
   rec_ptr = table_index->map->at(key);
-  if(rec_ptr != NULL)
-    val = get_data(rec_ptr, st.projection);
+  val = get_data(rec_ptr, st.projection);
   //cout << "val :" << val << endl;
 
   return val;

@@ -16,11 +16,11 @@ class record {
     data = new char[sptr->len];
   }
 
-  std::string get_data(const int field_id) {
-    unsigned int num_columns = sptr->num_columns;
+  inline std::string get_data(const int field_id) {
     std::string field;
-    char type = sptr->columns[field_id].type;
-    size_t offset = sptr->columns[field_id].offset;
+    field_info finfo = sptr->columns[field_id];
+    char type = finfo.type;
+    size_t offset = finfo.offset;
 
     switch (type) {
       case field_type::INTEGER:

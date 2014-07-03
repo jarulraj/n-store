@@ -262,10 +262,6 @@ class ptree {
     }
 
     for (;;) {
-      if (current_node->key == key) {
-        return current_node;
-      }
-
       if (current_node->key > key) {
         if (current_node->left) {
           current_node = current_node->left;
@@ -273,13 +269,14 @@ class ptree {
           return NULL;
         }
 
-      } else {
+      } else if (current_node->key < key) {
         if (current_node->right) {
           current_node = current_node->right;
         } else {
           return NULL;
         }
-      }
+      } else if (current_node->key == key)
+        return current_node;
     }
 
     return NULL;
@@ -294,7 +291,7 @@ class ptree {
     return find(key) ? true : false;
   }
 
-  // retrieves the leftmost child
+// retrieves the leftmost child
   node* getLeftMostNode(node* np) const {
     node* current_node = np;
 
@@ -305,7 +302,7 @@ class ptree {
     }
   }
 
-  // erase a key from the tree
+// erase a key from the tree
   bool erase(const K& key) {
     node* np = find(key);
     if (np == NULL) {

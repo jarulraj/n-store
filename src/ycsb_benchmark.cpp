@@ -117,6 +117,7 @@ workload& ycsb_benchmark::get_dataset() {
   unsigned int usertable_index_id = 0;
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   unsigned int txn_itr;
+  std::string empty;
 
   for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++) {
 
@@ -127,7 +128,7 @@ workload& ycsb_benchmark::get_dataset() {
     record* rec_ptr = new usertable_record(usertable_schema, key, value);
 
     statement st(txn_id, operation_type::Insert, usertable_id, rec_ptr, -1,
-                 usertable_index_id, NULL);
+                 usertable_index_id, NULL, empty);
 
     vector<statement> stmts = { st };
     transaction txn(txn_itr, stmts);
@@ -163,7 +164,7 @@ workload& ycsb_benchmark::get_workload() {
                                              updated_val);
 
       statement st(txn_id, operation_type::Update, usertable_id, rec_ptr, 1, -1,
-                   NULL);
+                   NULL, empty);
 
       vector<statement> stmts = { st };
 
@@ -175,8 +176,12 @@ workload& ycsb_benchmark::get_workload() {
       // SELECT
       record* rec_ptr = new usertable_record(usertable_schema, key, empty);
 
+      table* tab = conf.db->tables->at(usertable_id);
+      table_index* table_index = tab->indices->at(usertable_index_id);
+
+      std::string key_str =  get_data(rec_ptr, table_index->sptr);
       statement st(txn_id, operation_type::Select, usertable_id, rec_ptr, -1,
-                   usertable_index_id, usertable_schema);
+                   usertable_index_id, usertable_schema, key_str);
 
       vector<statement> stmts = { st };
 
