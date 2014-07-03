@@ -82,7 +82,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(indices);
     usertable->indices = indices;
 
-    col2.enabled = 0;
+    cols[1].enabled = 0;
     schema* usertable_index_schema = new schema(cols, len);
     pmemalloc_activate(usertable_index_schema);
 
