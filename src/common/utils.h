@@ -20,14 +20,14 @@ inline std::string random_string(size_t len) {
   return str;
 }
 
-inline std::string get_key(record* rptr, schema* sptr) {
+inline std::string get_data(record* rptr, schema* sptr) {
   unsigned int num_columns = sptr->num_columns;
   unsigned int itr;
   std::string rec_str;
 
   for (itr = 0; itr < num_columns; itr++){
     if(sptr->columns[itr].enabled)
-      rec_str += rptr->get_data(itr, sptr) + " ";
+      rec_str += rptr->get_data(itr) + " ";
   }
 
   return rec_str;

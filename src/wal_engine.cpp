@@ -28,13 +28,13 @@ std::string wal_engine::select(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
-  std::string key_str =  get_key(rec_ptr, table_index->sptr);
+  std::string key_str =  get_data(rec_ptr, table_index->sptr);
   unsigned long key = hash_fn(key_str);
   std::string val;
 
   rec_ptr = table_index->map->at(key);
   if(rec_ptr != NULL)
-    val = get_key(rec_ptr, st.projection);
+    val = get_data(rec_ptr, st.projection);
   //cout << "val :" << val << endl;
 
   return val;
@@ -48,7 +48,7 @@ void wal_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = get_key(after_rec, indices->at(0)->sptr);
+  std::string key_str = get_data(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
@@ -74,7 +74,7 @@ void wal_engine::insert(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_key(after_rec, indices->at(index_itr)->sptr);
+    key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->map->insert(key, after_rec);
@@ -89,7 +89,7 @@ void wal_engine::remove(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = get_key(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
@@ -114,7 +114,7 @@ void wal_engine::remove(const statement& st) {
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_key(rec_ptr, indices->at(index_itr)->sptr);
+    key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->map->erase(key);
@@ -129,7 +129,8 @@ void wal_engine::update(const statement& st) {
   void *before_field, *after_field;
   int field_id = st.field_id;
 
-  std::string key_str = get_key(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  //cout<<"update key ::"<<key_str<<endl;
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
@@ -141,8 +142,8 @@ void wal_engine::update(const statement& st) {
 
   // Pointer field
   if (rec_ptr->sptr->columns[field_id].inlined == 0) {
-    before_field = before_rec->get_pointer(field_id, before_rec->sptr);
-    after_field = rec_ptr->get_pointer(field_id, rec_ptr->sptr);
+    before_field = before_rec->get_pointer(field_id);
+    after_field = rec_ptr->get_pointer(field_id);
 
     entry_stream.str("");
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -151,8 +152,8 @@ void wal_engine::update(const statement& st) {
   }
   // Data field
   else {
-    before_field = before_rec->get_pointer(field_id, before_rec->sptr);
-    std::string before_data = before_rec->get_data(field_id, before_rec->sptr);
+    before_field = before_rec->get_pointer(field_id);
+    std::string before_data = before_rec->get_data(field_id);
 
     entry_stream.str("");
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -176,7 +177,7 @@ void wal_engine::update(const statement& st) {
   }
 
   // Update existing record
-  before_rec->set_data(field_id, rec_ptr, before_rec->sptr);
+  before_rec->set_data(field_id, rec_ptr);
 }
 
 // RUNNER + LOADER
@@ -276,7 +277,7 @@ void wal_engine::recovery() {
 
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = get_key(after_rec,
+          std::string key_str = get_data(after_rec,
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
@@ -297,7 +298,7 @@ void wal_engine::recovery() {
 
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = get_key(before_rec,
+          std::string key_str = get_data(before_rec,
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
@@ -319,7 +320,7 @@ void wal_engine::recovery() {
           void *before_field, *after_field;
           std::sscanf(ptr, "%d %d %d %d %p %p %p", &txn_id, &op_type, &table_id,
                       &field_id, &before_rec, &before_field, &after_field);
-          before_rec->set_pointer(field_id, before_field, before_rec->sptr);
+          before_rec->set_pointer(field_id, before_field);
 
           // Free after_field
           pmemalloc_free(after_field);
