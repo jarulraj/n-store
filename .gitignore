@@ -1,6 +1,5 @@
 # Autotools
 Makefile
-Makefile.am
 configure
 *.o
 *~
@@ -47,5 +46,5 @@ perf.*
 usertable*
 *nstore
 
-# Pool
 testfile
+test_*

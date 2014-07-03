@@ -6,6 +6,9 @@ AM_CPPFLAGS = -I$(srcdir)/common -Wno-pointer-arith
 AM_LDFLAGS  = $(PTHREAD_CFLAGS)
 LIBS = -lrt 
 
+noinst_LIBRARIES = libpm.a
+libpm_a_SOURCES = libpm.cpp 
+
 #AM_CPPFLAGS = $(BOOST_CPPFLAGS) 
 #AM_LDFLAGS = $(BOOST_SYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS) $(PTHREAD_CFLAGS)
 #LIBS = $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) 
@@ -13,6 +16,8 @@ LIBS = -lrt
 nstore_SOURCES  =  	main.cpp \
 					wal_engine.cpp  \
 					ycsb_benchmark.cpp \
-					libpm.cpp \
 					utils.cpp
+
+nstore_LDADD  = libpm.a
+
 

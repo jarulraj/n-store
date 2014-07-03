@@ -27,7 +27,8 @@ AX_CXX_COMPILE_STDCXX_11(noext)
 #BOOST_SERIALIZATION
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])                  
+                 src/Makefile
+                 test/Makefile])                  
                 
 #[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h.in])
 AC_OUTPUT
