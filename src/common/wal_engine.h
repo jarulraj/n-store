@@ -20,6 +20,8 @@
 
 using namespace std;
 
+#define MAX_ENTRY_LEN 1024
+
 class wal_engine : public engine {
  public:
   wal_engine(const config& _conf);

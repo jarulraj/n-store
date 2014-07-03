@@ -50,19 +50,16 @@ class record {
     return field;
   }
 
-  void* get_pointer(const int field_id) {
-    unsigned int num_columns = sptr->num_columns;
+  inline void* get_pointer(const int field_id) {
     void* field = NULL;
-
     if (sptr->columns[field_id].inlined == 0) {
-      size_t offset = sptr->columns[field_id].offset;
-      std::sscanf(&(data[offset]), "%p", &field);
+      std::sscanf(&(data[sptr->columns[field_id].offset]), "%p", &field);
     }
 
     return field;
   }
 
-  void set_data(const int field_id, record* rec_ptr) {
+  inline void set_data(const int field_id, record* rec_ptr) {
     char type = sptr->columns[field_id].type;
     size_t offset = sptr->columns[field_id].offset;
     size_t len = sptr->columns[field_id].len;
@@ -86,16 +83,13 @@ class record {
     }
   }
 
-  void set_pointer(const int field_id, void* field_ptr) {
-    unsigned int num_columns = sptr->num_columns;
-
+  inline void set_pointer(const int field_id, void* field_ptr) {
     if (sptr->columns[field_id].inlined == 0) {
-      size_t offset = sptr->columns[field_id].offset;
-      std::sprintf(&(data[offset]), "%p", field_ptr);
+      std::sprintf(&(data[sptr->columns[field_id].offset]), "%p", field_ptr);
     }
   }
 
-  void persist_data() {
+  inline void persist_data() {
     pmemalloc_activate(data);
 
     unsigned int field_itr;

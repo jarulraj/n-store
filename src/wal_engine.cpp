@@ -55,14 +55,9 @@ void wal_engine::insert(const statement& st) {
   }
 
   // Add log entry
-  entry_stream.str("");
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << after_rec << endl;
-  entry_str = entry_stream.str();
-  entry_len = entry_str.size();
-
-  char* entry = new char[entry_len + 1];
-  strcpy(entry, entry_str.c_str());
+  char* entry = new char[MAX_ENTRY_LEN];
+  std::sprintf(entry, "%d %d %d %p \n", st.transaction_id, st.op_type,
+               st.table_id, after_rec);
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
 
@@ -99,14 +94,9 @@ void wal_engine::remove(const statement& st) {
   db->commit_free_list->push_back(before_rec);
 
   // Add log entry
-  entry_stream.str("");
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << before_rec << endl;
-  entry_str = entry_stream.str();
-  entry_len = entry_str.size();
-
-  char* entry = new char[entry_len + 1];
-  strcpy(entry, entry_str.c_str());
+  char* entry = new char[MAX_ENTRY_LEN];
+  std::sprintf(entry, "%d %d %d %p \n", st.transaction_id, st.op_type,
+               st.table_id, before_rec);
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
 
@@ -122,49 +112,40 @@ void wal_engine::remove(const statement& st) {
 
 void wal_engine::update(const statement& st) {
   record* rec_ptr = st.rec_ptr;
-  table* tab = db->tables->at(st.table_id);
-  plist<table_index*>* indices = tab->indices;
-  void *before_field, *after_field;
-  int field_id = st.field_id;
+  plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
-  //cout<<"update key ::"<<key_str<<endl;
   unsigned long key = hash_fn(key_str);
 
-  // Check if key does not exist
-  if (indices->at(0)->map->contains(key) == 0) {
-    return;
-  }
-
   record* before_rec = indices->at(0)->map->at(key);
+
+  // Check if key does not exist
+  if (before_rec == 0)
+    return;
+
+  void *before_field, *after_field;
+  int field_id = st.field_id;
+  char* entry = new char[MAX_ENTRY_LEN];
 
   // Pointer field
   if (rec_ptr->sptr->columns[field_id].inlined == 0) {
     before_field = before_rec->get_pointer(field_id);
     after_field = rec_ptr->get_pointer(field_id);
 
-    entry_stream.str("");
-    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-                 << " " << field_id << " " << before_rec << " " << before_field
-                 << " " << after_field << endl;
+    std::sprintf(entry, "%d %d %d %d %p %p %p \n", st.transaction_id,
+                 st.op_type, st.table_id, field_id, before_rec, before_field,
+                 after_field);
   }
   // Data field
   else {
     before_field = before_rec->get_pointer(field_id);
     std::string before_data = before_rec->get_data(field_id);
 
-    entry_stream.str("");
-    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-                 << " " << field_id << " " << before_rec << " " << before_data
-                 << endl;
+    std::sprintf(entry, "%d %d %d %d %p %s \n", st.transaction_id, st.op_type,
+                 st.table_id, field_id, before_rec, before_data.c_str());
   }
 
   // Add log entry
-  entry_str = entry_stream.str();
-  entry_len = entry_str.size();
-
-  char* entry = new char[entry_len + 1];
-  strcpy(entry, entry_str.c_str());
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
 
