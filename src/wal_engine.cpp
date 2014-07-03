@@ -28,18 +28,14 @@ std::string wal_engine::select(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
-  std::string key_str = get_data(rec_ptr, table_index->sptr);
+  std::string key_str =  get_key(rec_ptr, table_index->sptr);
   unsigned long key = hash_fn(key_str);
   std::string val;
 
-  // check if key does not exist
-  if (table_index->map->contains(key) == 0) {
-    return val;
-  }
-
   rec_ptr = table_index->map->at(key);
-  val = get_data(rec_ptr, st.projection);
-  cout << "val :" << val << endl;
+  if(rec_ptr != NULL)
+    val = get_key(rec_ptr, st.projection);
+  //cout << "val :" << val << endl;
 
   return val;
 }
@@ -52,7 +48,7 @@ void wal_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+  std::string key_str = get_key(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
@@ -78,8 +74,8 @@ void wal_engine::insert(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    std::string key_str = get_data(after_rec, indices->at(index_itr)->sptr);
-    unsigned long key = hash_fn(key_str);
+    key_str = get_key(after_rec, indices->at(index_itr)->sptr);
+    key = hash_fn(key_str);
 
     indices->at(index_itr)->map->insert(key, after_rec);
   }
@@ -93,7 +89,7 @@ void wal_engine::remove(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = get_key(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
@@ -101,9 +97,8 @@ void wal_engine::remove(const statement& st) {
     return;
   }
 
-  record* before_rec = indices->at(index_itr)->map->at(key);
+  record* before_rec = indices->at(0)->map->at(key);
   db->commit_free_list->push_back(before_rec);
-  cout << "during remove :: before_rec: " << before_rec<<endl;
 
   // Add log entry
   entry_stream.str("");
@@ -119,8 +114,8 @@ void wal_engine::remove(const statement& st) {
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    std::string key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
-    unsigned long key = hash_fn(key_str);
+    key_str = get_key(rec_ptr, indices->at(index_itr)->sptr);
+    key = hash_fn(key_str);
 
     indices->at(index_itr)->map->erase(key);
   }
@@ -132,19 +127,17 @@ void wal_engine::update(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
   void *before_field, *after_field;
-
-  unsigned int index_itr = 0;
   int field_id = st.field_id;
 
-  std::string key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
+  std::string key_str = get_key(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
-  if (indices->at(index_itr)->map->contains(key) == 0) {
+  if (indices->at(0)->map->contains(key) == 0) {
     return;
   }
 
-  record* before_rec = indices->at(index_itr)->map->at(key);
+  record* before_rec = indices->at(0)->map->at(key);
 
   // Pointer field
   if (rec_ptr->sptr->columns[field_id].inlined == 0) {
@@ -190,17 +183,13 @@ void wal_engine::update(const statement& st) {
 
 void wal_engine::execute(const transaction& txn) {
   vector<statement>::const_iterator stmt_itr;
-  bool inserted = false;
-  bool updated = false;
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
       select(st);
     } else if (st.op_type == operation_type::Insert) {
-      inserted = true;
       insert(st);
     } else if (st.op_type == operation_type::Update) {
-      updated = true;
       update(st);
     } else if (st.op_type == operation_type::Delete) {
       remove(st);
@@ -253,16 +242,20 @@ void wal_engine::generator(const workload& load) {
 
   recovery();
 
+  timespec time1, time2;
+  clock_gettime(CLOCK_REALTIME, &time1);
   for (const transaction& txn : load.txns)
     execute(txn);
+  clock_gettime(CLOCK_REALTIME, &time2);
 
+  display_stats(time1, time2, load.txns.size());
 }
 
 void wal_engine::recovery() {
   vector<char*> undo_vec = db->log->get_data();
 
   int op_type, txn_id, table_id;
-  table *tab ;
+  table *tab;
   plist<table_index*>* indices;
   unsigned int num_indices, index_itr;
   record *before_rec, *after_rec;
@@ -273,8 +266,9 @@ void wal_engine::recovery() {
 
     switch (op_type) {
       case operation_type::Insert:
-        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id, &after_rec);
-        cout<<"after_rec :: "<<after_rec<<endl;
+        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id,
+                    &after_rec);
+        cout << "after_rec :: " << after_rec << endl;
 
         tab = db->tables->at(table_id);
         indices = tab->indices;
@@ -282,7 +276,8 @@ void wal_engine::recovery() {
 
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+          std::string key_str = get_key(after_rec,
+                                         indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
           indices->at(index_itr)->map->erase(key);
@@ -293,7 +288,8 @@ void wal_engine::recovery() {
         break;
 
       case operation_type::Delete:
-        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id, &before_rec);
+        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id,
+                    &before_rec);
 
         tab = db->tables->at(table_id);
         indices = tab->indices;
@@ -301,7 +297,7 @@ void wal_engine::recovery() {
 
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = get_data(before_rec,
+          std::string key_str = get_key(before_rec,
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
@@ -311,7 +307,8 @@ void wal_engine::recovery() {
 
       case operation_type::Update:
         int field_id;
-        std::sscanf(ptr, "%d %d %d %d %p", &txn_id, &op_type, &table_id, &field_id, &before_rec);
+        std::sscanf(ptr, "%d %d %d %d %p", &txn_id, &op_type, &table_id,
+                    &field_id, &before_rec);
 
         tab = db->tables->at(table_id);
         indices = tab->indices;
@@ -320,7 +317,8 @@ void wal_engine::recovery() {
         // Pointer
         if (finfo.inlined == 0) {
           void *before_field, *after_field;
-          std::sscanf(ptr, "%d %d %d %d %p %p %p", &txn_id, &op_type, &table_id, &field_id, &before_rec, &before_field, &after_field);
+          std::sscanf(ptr, "%d %d %d %d %p %p %p", &txn_id, &op_type, &table_id,
+                      &field_id, &before_rec, &before_field, &after_field);
           before_rec->set_pointer(field_id, before_field, before_rec->sptr);
 
           // Free after_field
@@ -334,13 +332,15 @@ void wal_engine::recovery() {
           switch (type) {
             case field_type::INTEGER:
               int ival;
-              std::sscanf(ptr, "%d %d %d %d %p %d", &txn_id, &op_type, &table_id, &field_id, &before_rec, &ival);
+              std::sscanf(ptr, "%d %d %d %d %p %d", &txn_id, &op_type,
+                          &table_id, &field_id, &before_rec, &ival);
               std::sprintf(&(before_rec->data[offset]), "%d", ival);
               break;
 
             case field_type::DOUBLE:
               double dval;
-              std::sscanf(ptr, "%d %d %d %d %p %lf", &txn_id, &op_type, &table_id, &field_id, &before_rec, &dval);
+              std::sscanf(ptr, "%d %d %d %d %p %lf", &txn_id, &op_type,
+                          &table_id, &field_id, &before_rec, &dval);
               std::sprintf(&(before_rec->data[offset]), "%lf", dval);
               break;
 

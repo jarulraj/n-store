@@ -44,9 +44,6 @@ void display_stats(timespec start, timespec finish, int num_txns) {
 }
 
 // RANDOM DIST
-
-// Get a value in [0, N-1] that follows zipf distribution
-// P(i) = C/I^Alpha for i = 1 to N
 void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
   static double c = 0;          // Normalization constant
   double z;                     // Uniform random number (0 < z < 1)

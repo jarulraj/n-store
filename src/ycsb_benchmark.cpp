@@ -82,8 +82,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(indices);
     usertable->indices = indices;
 
-    cols.clear();
-    cols.push_back(col1);
+    col2.enabled = 0;
     schema* usertable_index_schema = new schema(cols, len);
     pmemalloc_activate(usertable_index_schema);
 
@@ -157,34 +156,20 @@ workload& ycsb_benchmark::get_workload() {
     double u = uniform_dist[txn_itr];
 
     if (u < conf.per_writes) {
-
       // UPDATE
-      if (u < conf.per_writes / 2) {
-        std::string updated_val(conf.sz_value, 'x');
+      std::string updated_val(conf.sz_value, 'x');
 
-        record* rec_ptr = new usertable_record(usertable_schema, key,
-                                               updated_val);
+      record* rec_ptr = new usertable_record(usertable_schema, key,
+                                             updated_val);
 
-        statement st(txn_id, operation_type::Update, usertable_id, rec_ptr, 1,
-                     -1, NULL);
+      statement st(txn_id, operation_type::Update, usertable_id, rec_ptr, 1, -1,
+                   NULL);
 
-        vector<statement> stmts = { st };
+      vector<statement> stmts = { st };
 
-        transaction txn(txn_itr, stmts);
-        load.txns.push_back(txn);
-      }
-      // DELETE
-      else {
-        record* rec_ptr = new usertable_record(usertable_schema, key, empty);
+      transaction txn(txn_itr, stmts);
+      load.txns.push_back(txn);
 
-        statement st(txn_id, operation_type::Delete, usertable_id, rec_ptr, 1,
-                     -1, NULL);
-
-        vector<statement> stmts = { st };
-
-        transaction txn(txn_itr, stmts);
-        load.txns.push_back(txn);
-      }
     } else {
 
       // SELECT

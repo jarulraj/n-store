@@ -20,28 +20,17 @@ inline std::string random_string(size_t len) {
   return str;
 }
 
-inline std::string get_data(record* rptr, schema* sptr) {
+inline std::string get_key(record* rptr, schema* sptr) {
   unsigned int num_columns = sptr->num_columns;
   unsigned int itr;
   std::string rec_str;
 
-  for (itr = 0; itr < num_columns; itr++) {
-    rec_str += rptr->get_data(itr, sptr) + " ";
+  for (itr = 0; itr < num_columns; itr++){
+    if(sptr->columns[itr].enabled)
+      rec_str += rptr->get_data(itr, sptr) + " ";
   }
 
   return rec_str;
-}
-
-inline bool* get_key(vector<bool> key_vec) {
-  size_t len = key_vec.size();
-
-  bool* key = new bool[len];
-  unsigned int itr = 0;
-
-  for (itr = 0; itr < len; itr++)
-    key[itr] = key_vec[itr];
-
-  return key;
 }
 
 void simple_skew(vector<int>& zipf_dist, int n, int num_values);

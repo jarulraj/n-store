@@ -185,6 +185,8 @@ void* pmp;
 #define PMEM_STATE_FREEING 4  /* clump in the process of being freed */
 #define PMEM_STATE_UNUSED 5 /* must be highest value + 1 */
 
+#define PMEM_STATE_MASK_TOG ~PMEM_STATE_MASK
+
 /*
  * pmemalloc_recover -- recover after a possible crash
  *
@@ -514,6 +516,8 @@ void *
 pmemalloc_reserve(size_t size) {
   size_t nsize = roundup(size + PMEM_CHUNK_SIZE, PMEM_CHUNK_SIZE);
   struct clump *clp;
+  size_t sz;
+  int state;
 
   DEBUG("pmp=0x%lx, size=0x%lx -> 0x%lx", pmp, size, nsize);
 
@@ -528,61 +532,64 @@ pmemalloc_reserve(size_t size) {
 
   /* first fit */
   while (clp->size) {
-    size_t sz = clp->size & ~PMEM_STATE_MASK;
-    int state = clp->size & PMEM_STATE_MASK;
+    sz = clp->size & PMEM_STATE_MASK_TOG;
 
     DEBUG("[0x%lx] clump size 0x%lx state %d", OFF(pmp, clp), sz, state);
 
-    if (state == PMEM_STATE_FREE && nsize <= sz) {
-      void *ptr = (void *) (uintptr_t) clp + PMEM_CHUNK_SIZE - (uintptr_t) pmp;
-      size_t leftover = sz - nsize;
+    if (nsize <= sz) {
+      state = clp->size & PMEM_STATE_MASK;
+      if (state == PMEM_STATE_FREE) {
+        void *ptr = (void *) (uintptr_t) clp + PMEM_CHUNK_SIZE
+            - (uintptr_t) pmp;
+        size_t leftover = sz - nsize;
 
-      DEBUG("fit found ptr 0x%lx, leftover 0x%lx bytes", ptr, leftover);
-      if (leftover >= PMEM_CHUNK_SIZE * 2) {
-        struct clump *newclp;
-        int i;
+        DEBUG("fit found ptr 0x%lx, leftover 0x%lx bytes", ptr, leftover);
+        if (leftover >= PMEM_CHUNK_SIZE * 2) {
+          struct clump *newclp;
+          int i;
 
-        newclp = (struct clump *) ((uintptr_t) clp + nsize);
+          newclp = (struct clump *) ((uintptr_t) clp + nsize);
 
-        DEBUG("splitting: [0x%lx] new clump", OFF(pmp, newclp));
-        /*
-         * can go ahead and start fiddling with
-         * this freely since it is in the middle
-         * of a free clump until we change fields
-         * in *clp.  order here is important:
-         *  1. initialize new clump
-         *  2. persist new clump
-         *  3. initialize existing clump do list
-         *  4. persist existing clump
-         *  5. set new clump size, RESERVED
-         *  6. persist existing clump
-         */
-        memset(newclp, '\0', sizeof(*newclp));
-        newclp->size = leftover | PMEM_STATE_FREE;
-        pmem_persist(newclp, sizeof(*newclp), 0);
-        for (i = 0; i < PMEM_NUM_ON; i++) {
-          clp->on[i].off = 0;
-          clp->on[i].ptr_ = 0;
+          DEBUG("splitting: [0x%lx] new clump", OFF(pmp, newclp));
+          /*
+           * can go ahead and start fiddling with
+           * this freely since it is in the middle
+           * of a free clump until we change fields
+           * in *clp.  order here is important:
+           *  1. initialize new clump
+           *  2. persist new clump
+           *  3. initialize existing clump do list
+           *  4. persist existing clump
+           *  5. set new clump size, RESERVED
+           *  6. persist existing clump
+           */
+          memset(newclp, '\0', sizeof(*newclp));
+          newclp->size = leftover | PMEM_STATE_FREE;
+          pmem_persist(newclp, sizeof(*newclp), 0);
+          for (i = 0; i < PMEM_NUM_ON; i++) {
+            clp->on[i].off = 0;
+            clp->on[i].ptr_ = 0;
+          }
+          pmem_persist(clp, sizeof(*clp), 0);
+          clp->size = nsize | PMEM_STATE_RESERVED;
+          pmem_persist(clp, sizeof(*clp), 0);
+        } else {
+          int i;
+
+          DEBUG("no split required");
+
+          for (i = 0; i < PMEM_NUM_ON; i++) {
+            clp->on[i].off = 0;
+            clp->on[i].ptr_ = 0;
+          }
+          pmem_persist(clp, sizeof(*clp), 0);
+          clp->size = sz | PMEM_STATE_RESERVED;
+          pmem_persist(clp, sizeof(*clp), 0);
         }
-        pmem_persist(clp, sizeof(*clp), 0);
-        clp->size = nsize | PMEM_STATE_RESERVED;
-        pmem_persist(clp, sizeof(*clp), 0);
-      } else {
-        int i;
 
-        DEBUG("no split required");
-
-        for (i = 0; i < PMEM_NUM_ON; i++) {
-          clp->on[i].off = 0;
-          clp->on[i].ptr_ = 0;
-        }
-        pmem_persist(clp, sizeof(*clp), 0);
-        clp->size = sz | PMEM_STATE_RESERVED;
-        pmem_persist(clp, sizeof(*clp), 0);
+        prev_clp = clp;
+        return PMEM(ptr);
       }
-
-      prev_clp = clp;
-      return PMEM(ptr);
     }
 
     clp = (struct clump *) ((uintptr_t) clp + sz);
