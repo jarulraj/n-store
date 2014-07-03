@@ -23,6 +23,7 @@ wal_engine::~wal_engine() {
 }
 
 std::string wal_engine::select(const statement& st) {
+  LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
@@ -38,6 +39,7 @@ std::string wal_engine::select(const statement& st) {
 }
 
 void wal_engine::insert(const statement& st) {
+  LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -74,6 +76,7 @@ void wal_engine::insert(const statement& st) {
 }
 
 void wal_engine::remove(const statement& st) {
+  LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -110,6 +113,7 @@ void wal_engine::remove(const statement& st) {
 }
 
 void wal_engine::update(const statement& st) {
+  LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
 

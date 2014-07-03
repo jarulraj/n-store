@@ -11,8 +11,8 @@
 
 using namespace std;
 
-// Global persistent memory structure
-extern struct static_info *sp;
+extern struct static_info *sp; // global persistent memory structure
+int level = 2; // verbosity level
 
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
@@ -96,6 +96,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         break;
       case 'v':
         state.verbose = true;
+        level = 3;
         break;
       case 'w':
         state.per_writes = atof(optarg);
@@ -149,18 +150,18 @@ int main(int argc, char **argv) {
   state.sp = sp;
 
   if (state.sp_only == false && state.lsm_only == false) {
-    cout << "WAL :: " << endl;
+    LOG_WARN("WAL");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
     wal_engine wal(state);
 
     if(generate_dataset){
-      cout<<"Dataset txns"<<endl;
+      LOG_INFO("Dataset txns");
       wal.generator(ycsb.get_dataset());
     }
 
-    cout<<"Workload txns"<<endl;
+    LOG_INFO("Workload txns");
     wal.generator(ycsb.get_workload());
   }
 

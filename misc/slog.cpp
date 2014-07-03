@@ -1,16 +1,14 @@
-#ifndef NSTORE_H_
-#define NSTORE_H_
+#include <cstdio>
+#include <errno.h>
+#include <cstdarg>
+#include <string.h>
 
-#include <string>
-#include <getopt.h>
 #include <vector>
-
-#include "database.h"
+#include <thread>
 
 using namespace std;
 
-// Logging
-extern int level;
+int level = 2; // verbosity level
 
 #ifdef NDEBUG
 #define LOG_ERR(M, ...)
@@ -23,33 +21,30 @@ extern int level;
 #define LOG_INFO(M, ...) if(level > 2) fprintf(stderr, "[INFO] [%s :: %s:%d] " M "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 #endif
 
+void work() {
+  int cnt = 16 * 1024;
 
-class config {
+  for (int i = 0; i < cnt; i++) {
 
- public:
-  std::string fs_path;
+    void* pmp = (void*) 0x1000034;
+    size_t sz = 123;
+    int state = 50;
 
-  struct static_info* sp;
-  database* db;
+    LOG_ERR("pmp: %p clump size %lu state %d", pmp, sz, state);
+    LOG_WARN("warn: %lu", sz);
+  }
 
-  int num_keys;
-  int num_txns;
-  int num_executors;
+}
 
-  int sz_value;
-  int sz_tuple;
+int main() {
+  std::vector<std::thread> executors;
+  int num_thds = 4;
 
-  double per_writes;
+  for (int i = 0; i < num_thds; i++)
+    executors.push_back(std::thread(work));
 
-  int gc_interval;
-  int lsm_size;
+  for (int i = 0; i < num_thds; i++)
+    executors[i].join();
 
-  double skew;
+}
 
-  bool verbose;
-  bool log_only;
-  bool sp_only;
-  bool lsm_only;
-};
-
-#endif /* NSTORE_H_ */
