@@ -761,7 +761,6 @@ void pmemalloc_free(void *abs_ptr_) {
   struct clump *clp;
   size_t sz;
   int state;
-  int i;
   void *ptr_ = OFF(abs_ptr_);
 
   DEBUG("pmp=%lx, ptr_=%lx", pmp, ptr_);
@@ -793,14 +792,14 @@ void pmemalloc_free(void *abs_ptr_) {
      */
     clp->size = sz | PMEM_STATE_FREEING;
     pmem_persist(clp, sizeof(*clp), 0);
-    for (i = 0; i < PMEM_NUM_ON; i++)
+    for (int i = 0; i < PMEM_NUM_ON; i++)
       if (clp->on[i].off) {
         uintptr_t *dest = PMEM((uintptr_t * )clp->on[i].off);
         *dest = (uintptr_t) clp->on[i].ptr_;
         pmem_persist(dest, sizeof(*dest), 0);
       } else
         break;
-    for (i = PMEM_NUM_ON - 1; i >= 0; i--)
+    for (int i = PMEM_NUM_ON - 1; i >= 0; i--)
       clp->on[i].off = 0;
     pmem_persist(clp, sizeof(*clp), 0);
   }

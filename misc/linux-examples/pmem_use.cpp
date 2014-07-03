@@ -37,14 +37,9 @@ void work() {
     int* test1 = new int(10);
     pmemalloc_activate(test1);
 
-    int* test2 = new int[5];
     vector<int> intvec;
-    vector<int>::iterator it;
-
-    intvec.insert(it, 10);
 
     delete test1;
-    delete[] test2;
   }
 
 }

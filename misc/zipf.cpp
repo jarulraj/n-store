@@ -52,7 +52,7 @@ vector<int> zipf(double alpha, int n, int num_values) {
     zipf_dist.push_back(zipf_value);
   }
 
-  delete powers;
+  delete[] powers;
 
   return zipf_dist;
 }

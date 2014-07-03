@@ -2,7 +2,6 @@
 #define DATABASE_H_
 
 #include "table.h"
-#include "plist.h"
 
 using namespace std;
 

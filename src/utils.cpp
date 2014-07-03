@@ -114,7 +114,7 @@ void uniform(vector<double>& uniform_dist, int num_values) {
   int seed = 0;
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> dis(0, 1);
-  double i, z;
+  double i;
 
   for (i = 0; i < num_values; i++)
     uniform_dist.push_back(dis(gen));
@@ -123,8 +123,7 @@ void uniform(vector<double>& uniform_dist, int num_values) {
 // PTHREAD WRAPPERS
 
 void wrlock(pthread_rwlock_t* access) {
-  int rc = -1;
-  rc = pthread_rwlock_wrlock(access);
+  int rc = pthread_rwlock_wrlock(access);
 
   if (rc != 0) {
     printf("wrlock failed \n");
@@ -133,8 +132,7 @@ void wrlock(pthread_rwlock_t* access) {
 }
 
 void rdlock(pthread_rwlock_t* access) {
-  int rc = -1;
-  rc = pthread_rwlock_rdlock(access);
+  int rc = pthread_rwlock_rdlock(access);
 
   if (rc != 0) {
     printf("rdlock failed \n");
@@ -143,8 +141,7 @@ void rdlock(pthread_rwlock_t* access) {
 }
 
 void unlock(pthread_rwlock_t* access) {
-  int rc = -1;
-  rc = pthread_rwlock_unlock(access);
+  int rc = pthread_rwlock_unlock(access);
 
   if (rc != 0) {
     printf("unlock failed \n");

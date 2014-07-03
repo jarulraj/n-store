@@ -7,8 +7,7 @@ using namespace std;
 wal_engine::wal_engine(const config& _conf)
     : conf(_conf),
       db(conf.db),
-      undo_log(db->log),
-      entry_len(0) {
+      undo_log(db->log) {
 
   //for (int i = 0; i < conf.num_executors; i++)
   //  executors.push_back(std::thread(&wal_engine::runner, this));
@@ -162,7 +161,6 @@ void wal_engine::update(const statement& st) {
 // RUNNER + LOADER
 
 void wal_engine::execute(const transaction& txn) {
-  vector<statement>::const_iterator stmt_itr;
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {

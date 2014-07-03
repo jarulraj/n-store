@@ -22,8 +22,6 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  offset = 0;
-
   if (stat("log", &sbuf) == -1) {
     perror("stat");
     exit(1);

@@ -44,7 +44,6 @@ int main() {
   std::cout << "hr_elapsed time: " << hr_elapsed_seconds.count() << "s\n";
 
   timespec time1, time2;
-  int temp;
 
   clock_gettime(CLOCK_REALTIME, &time1);
   std::cout << "f(42) = " << fibonacci(42) << '\n';

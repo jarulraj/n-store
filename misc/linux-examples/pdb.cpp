@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 
   sp = (struct static_info *) pmemalloc_static_area();
 
-  dbase_* db;
+  dbase_* db = NULL;
 
   if (sp->init == 0) {
     cout << "Initialization mode" << endl;

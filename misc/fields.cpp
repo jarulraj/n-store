@@ -134,7 +134,7 @@ class record_ {
   }
 
   ~record_() {
-    delete data;
+    delete[] data;
   }
 
   table_* tptr;
@@ -146,7 +146,6 @@ class table_record_ : public record_ {
 
   table_record_(table_* _tptr, int f0, int f1, double d1, char* vc1)
       : record_(_tptr) {
-    std::string str;
     schema_* sptr = tptr->sptr;
 
     std::sprintf(&(data[sptr->columns[0].offset]), "%d", f0);
@@ -160,7 +159,6 @@ std::string get_data(record_* rptr, schema_* sptr) {
   unsigned int num_columns = sptr->num_columns;
   unsigned int itr;
   std::string rec_str;
-  char* data = rptr->data;
 
   for (itr = 0; itr < num_columns; itr++) {
     rec_str += rptr->get_data(itr, sptr) + " ";
