@@ -9,8 +9,7 @@ class database {
  public:
   database()
       : tables(NULL),
-        log(NULL),
-        commit_free_list(NULL) {
+        log(NULL) {
   }
 
   ~database() {
@@ -21,12 +20,10 @@ class database {
 
     delete tables;
     delete log;
-    delete commit_free_list;
   }
 
   plist<table*>* tables;
   plist<char*>* log;
-  plist<void*>* commit_free_list;
 };
 
 #endif /* DATABASE_H_ */

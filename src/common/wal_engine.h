@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 #include <queue>
+#include <sstream>
 
 #include "engine.h"
 #include "nstore.h"
@@ -46,9 +47,14 @@ class wal_engine : public engine {
   plist<char*>* undo_log;
   std::hash<std::string> hash_fn;
 
+  std::stringstream entry_stream;
+  std::string entry_str;
+
   pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::queue<transaction> txn_queue;
   std::atomic<bool> done;
+
+  std::vector<void*> commit_free_list;
 };
 
 #endif /* WAL_H_ */

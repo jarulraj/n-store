@@ -56,9 +56,14 @@ void wal_engine::insert(const statement& st) {
   }
 
   // Add log entry
-  char* entry = new char[MAX_ENTRY_LEN];
-  std::sprintf(entry, "%d %d %d %p \n", st.transaction_id, st.op_type,
-               st.table_id, after_rec);
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << after_rec;
+
+  entry_str = entry_stream.str();
+  char* entry = new char[entry_str.size() + 1];
+  strcpy(entry, entry_str.c_str());
+
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
 
@@ -93,12 +98,17 @@ void wal_engine::remove(const statement& st) {
   }
 
   record* before_rec = indices->at(0)->map->at(key);
-  db->commit_free_list->push_back(before_rec);
+  commit_free_list.push_back(before_rec);
 
   // Add log entry
-  char* entry = new char[MAX_ENTRY_LEN];
-  std::sprintf(entry, "%d %d %d %p \n", st.transaction_id, st.op_type,
-               st.table_id, before_rec);
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << before_rec;
+
+  entry_str = entry_stream.str();
+  char* entry = new char[entry_str.size() + 1];
+  strcpy(entry, entry_str.c_str());
+
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
 
@@ -127,39 +137,50 @@ void wal_engine::update(const statement& st) {
     return;
 
   void *before_field, *after_field;
-  int field_id = st.field_id;
-  char* entry = new char[MAX_ENTRY_LEN];
+  int num_fields = st.field_ids.size();
 
-  // Pointer field
-  if (rec_ptr->sptr->columns[field_id].inlined == 0) {
-    before_field = before_rec->get_pointer(field_id);
-    after_field = rec_ptr->get_pointer(field_id);
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << num_fields << " ";
 
-    std::sprintf(entry, "%d %d %d %d %p %p %p \n", st.transaction_id,
-                 st.op_type, st.table_id, field_id, before_rec, before_field,
-                 after_field);
-  }
-  // Data field
-  else {
-    before_field = before_rec->get_pointer(field_id);
-    std::string before_data = before_rec->get_data(field_id);
+  for (int field_itr : st.field_ids) {
+    // Pointer field
+    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
+      before_field = before_rec->get_pointer(field_itr);
+      after_field = rec_ptr->get_pointer(field_itr);
 
-    std::sprintf(entry, "%d %d %d %d %p %s \n", st.transaction_id, st.op_type,
-                 st.table_id, field_id, before_rec, before_data.c_str());
+      entry_stream << field_itr << " " << before_rec << " " << before_field
+                   << " " << after_field << " ";
+    }
+    // Data field
+    else {
+      before_field = before_rec->get_pointer(field_itr);
+      std::string before_data = before_rec->get_data(field_itr);
+
+      entry_stream << field_itr << " " << before_rec << " " << before_data
+                   << " ";
+    }
   }
 
   // Add log entry
+  entry_str = entry_stream.str();
+  char* entry = new char[entry_str.size() + 1];
+  strcpy(entry, entry_str.c_str());
+
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
 
-  // Activate new field and garbage collect previous field
-  if (rec_ptr->sptr->columns[field_id].inlined == 0) {
-    db->commit_free_list->push_back(before_field);
-    pmemalloc_activate(after_field);
+  for (int field_itr : st.field_ids) {
+    // Activate new field and garbage collect previous field
+    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
+      commit_free_list.push_back(before_field);
+      pmemalloc_activate(after_field);
+    }
+
+    // Update existing record
+    before_rec->set_data(field_itr, rec_ptr);
   }
 
-  // Update existing record
-  before_rec->set_data(field_id, rec_ptr);
 }
 
 // RUNNER + LOADER
@@ -179,11 +200,10 @@ void wal_engine::execute(const transaction& txn) {
   }
 
   // Clear commit_free list
-  vector<void*> commit_free_list = db->commit_free_list->get_data();
   for (void* ptr : commit_free_list) {
     pmemalloc_free(ptr);
   }
-  db->commit_free_list->clear();
+  commit_free_list.clear();
 
   // Clear log
   vector<char*> undo_log = db->log->get_data();
@@ -222,8 +242,6 @@ void wal_engine::runner() {
 
 void wal_engine::generator(const workload& load) {
 
-  recovery();
-
   timespec time1, time2;
   clock_gettime(CLOCK_REALTIME, &time1);
   for (const transaction& txn : load.txns)
@@ -244,13 +262,17 @@ void wal_engine::recovery() {
   field_info finfo;
 
   for (char* ptr : undo_vec) {
-    std::sscanf(ptr, "%d %d %d", &txn_id, &op_type, &table_id);
+    LOG_INFO("entry : %s ", ptr);
+
+    int offset = 0;
+    offset += std::sscanf(ptr + offset, "%d %d %d ", &txn_id, &op_type,
+                          &table_id);
+    offset += 3;
 
     switch (op_type) {
       case operation_type::Insert:
-        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id,
-                    &after_rec);
-        cout << "after_rec :: " << after_rec << endl;
+        LOG_INFO("Reverting Insert");
+        std::sscanf(ptr + offset, "%p", &after_rec);
 
         tab = db->tables->at(table_id);
         indices = tab->indices;
@@ -270,8 +292,8 @@ void wal_engine::recovery() {
         break;
 
       case operation_type::Delete:
-        std::sscanf(ptr, "%d %d %d %p", &txn_id, &op_type, &table_id,
-                    &before_rec);
+        LOG_INFO("Reverting Delete");
+        std::sscanf(ptr, "%p ", &before_rec);
 
         tab = db->tables->at(table_id);
         indices = tab->indices;
@@ -288,49 +310,62 @@ void wal_engine::recovery() {
         break;
 
       case operation_type::Update:
-        int field_id;
-        std::sscanf(ptr, "%d %d %d %d %p", &txn_id, &op_type, &table_id,
-                    &field_id, &before_rec);
+        LOG_INFO("Reverting Update");
+        int num_fields;
+        int field_itr;
+        offset += std::sscanf(ptr + offset, "%d ", &num_fields);
+        offset += 1;
 
-        tab = db->tables->at(table_id);
-        indices = tab->indices;
-        finfo = before_rec->sptr->columns[field_id];
+        for (field_itr = 0; field_itr < num_fields; field_itr++) {
 
-        // Pointer
-        if (finfo.inlined == 0) {
-          void *before_field, *after_field;
-          std::sscanf(ptr, "%d %d %d %d %p %p %p", &txn_id, &op_type, &table_id,
-                      &field_id, &before_rec, &before_field, &after_field);
-          before_rec->set_pointer(field_id, before_field);
+          offset += std::sscanf(ptr + offset, "%d %p", &field_itr, &before_rec);
+          offset += 1;
 
-          // Free after_field
-          pmemalloc_free(after_field);
-        }
-        // Data
-        else {
-          field_type type = finfo.type;
-          size_t offset = before_rec->sptr->columns[field_id].offset;
+          tab = db->tables->at(table_id);
+          indices = tab->indices;
+          finfo = before_rec->sptr->columns[field_itr];
 
-          switch (type) {
-            case field_type::INTEGER:
-              int ival;
-              std::sscanf(ptr, "%d %d %d %d %p %d", &txn_id, &op_type,
-                          &table_id, &field_id, &before_rec, &ival);
-              std::sprintf(&(before_rec->data[offset]), "%d", ival);
-              break;
+          // Pointer
+          if (finfo.inlined == 0) {
+            LOG_INFO("Pointer ");
+            void *before_field, *after_field;
 
-            case field_type::DOUBLE:
-              double dval;
-              std::sscanf(ptr, "%d %d %d %d %p %lf", &txn_id, &op_type,
-                          &table_id, &field_id, &before_rec, &dval);
-              std::sprintf(&(before_rec->data[offset]), "%lf", dval);
-              break;
+            offset += std::sscanf(ptr + offset, "%p %p", &before_field,
+                                  &after_field);
+            before_rec->set_pointer(field_itr, before_field);
 
-            default:
-              cout << "Invalid field type" << op_type << endl;
-              break;
+            // Free after_field
+            pmemalloc_free(after_field);
+          }
+          // Data
+          else {
+            LOG_INFO("Inlined ");
+
+            field_type type = finfo.type;
+            size_t field_offset = before_rec->sptr->columns[field_itr].offset;
+
+            switch (type) {
+              case field_type::INTEGER:
+                int ival;
+                offset += std::sscanf(ptr + offset, "%d", &ival);
+                offset += 1;
+                std::sprintf(&(before_rec->data[field_offset]), "%d", ival);
+                break;
+
+              case field_type::DOUBLE:
+                double dval;
+                offset += std::sscanf(ptr + offset, "%lf", &dval);
+                offset += 1;
+                std::sprintf(&(before_rec->data[field_offset]), "%lf", dval);
+                break;
+
+              default:
+                cout << "Invalid field type : " << op_type << endl;
+                break;
+            }
           }
         }
+
         break;
 
       default:
@@ -342,5 +377,6 @@ void wal_engine::recovery() {
   }
 
   db->log->clear();
+
 }
 
