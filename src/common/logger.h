@@ -3,8 +3,6 @@
 
 #include <stdlib.h>
 #include <unistd.h>
-
-#include <mutex>
 #include <sstream>
 #include <string>
 
@@ -13,128 +11,52 @@
 
 using namespace std;
 
-// LOGGING
-
-class entry {
- public:
-  entry(int _transaction_id, operation_type _op_type, int _table_id,
-        unsigned int _num_fields, record* _after_image, int _field_id)
-      : transaction_id(_transaction_id),
-        op_type(_op_type),
-        table_id(_table_id),
-        num_fields(_num_fields),
-        field_id(_field_id),
-        after_image(_after_image){
-  }
-
-  //private:
-  int transaction_id;
-  operation_type op_type;
-  int table_id;
-
-  unsigned int num_fields;
-  record* after_image;
-
-  // Only Update
-  int field_id;
-};
+// FS LOGGING
 
 class logger {
  public:
   logger()
       : log_file(NULL),
-        log_file_fd(-1),
-        buffer_size(0) {
+        log_file_fd(-1) {
   }
 
   void configure(std::string _name) {
     log_file_name = _name;
 
-    log_file = fopen(log_file_name.c_str(), "w");
+    log_file = fopen(log_file_name.c_str(), "a");
     if (log_file != NULL) {
       log_file_fd = fileno(log_file);
     } else {
-      cout << "Log file not found : " << log_file_name << endl;
+      std::cout << "Log file not found : " << log_file_name << std::endl;
       exit(EXIT_FAILURE);
     }
   }
 
-  void push(const entry& e) {
+  void push_back(const char* entry, int len) {
+    fwrite(entry, sizeof(char), len, log_file);
+  }
 
-    log_mutex.lock();
-    entries.push_back(e);
-    log_mutex.unlock();
-
-    /*
-    buffer_stream.str("");
-
-    buffer_stream << e.transaction_id << " " << e.op_type << " " << e.table_id
-                  << " ";
-
-    unsigned int field_itr;
-
-    if (e.after_image != NULL) {
-      for (field_itr = 0; field_itr < e.num_fields; field_itr++) {
-        if (e.after_image[field_itr] != NULL)
-          buffer_stream << OFF((void* )e.after_image[field_itr]) << " ";
-        else
-          buffer_stream << "0x0" << " ";
-      }
-    }
-
-    if (e.field_id != -1) {
-      buffer_stream << std::to_string(e.field_id) << " " << OFF(e.after_image);
-    }
-
-    buffer_stream << endl;
-
-    buffer = buffer_stream.str();
-    buffer_size = buffer.size();
-
-    fwrite(buffer.c_str(), sizeof(char), buffer_size, log_file);
-    */
+  void push_back(std::string entry) {
+    buffer_stream << entry << "\n";
   }
 
   int write() {
     int ret;
-    vector<entry>::iterator e_itr;
 
-    // SYNC log
+    buffer = buffer_stream.str();
+
+    fwrite(buffer.c_str(), sizeof(char), buffer.size(), log_file);
+
+    // sync log
     ret = fsync(log_file_fd);
-    if (ret == -1) {
+    if (ret != 0) {
       perror("fsync failed");
       exit(EXIT_FAILURE);
     }
 
-    log_mutex.lock();
-
-    // PERSIST pointers
-    for (e_itr = entries.begin(); e_itr != entries.end(); e_itr++) {
-      unsigned int field_itr;
-
-      // Update
-      /*
-      if ((*e_itr).op_type == operation_type::Update) {
-        pmemalloc_activate(pmp, PSUB(pmp, (*e_itr).after_field));
-      }
-      */
-
-      // Insert
-      /*
-      if ((*e_itr).op_type == operation_type::Insert) {
-        for (field_itr = 0; field_itr < (*e_itr).num_fields; field_itr++) {
-          if ((*e_itr).after_image[field_itr] != NULL) {
-            pmemalloc_activate((*e_itr).after_image[field_itr]);
-          }
-        }
-      }
-      */
-    }
-
-    // CLEAR log
-    entries.clear();
-
-    log_mutex.unlock();
+    // clear buffer
+    buffer_stream.str("");
+    buffer_stream.clear();
 
     return ret;
   }
@@ -146,12 +68,8 @@ class logger {
   FILE* log_file;
 
  private:
-  vector<entry> entries;
-  std::mutex log_mutex;
-
-  stringstream buffer_stream;
-  string buffer;
-  size_t buffer_size;
+  std::stringstream buffer_stream;
+  std::string buffer;
 
   std::string log_file_name;
   int log_file_fd;

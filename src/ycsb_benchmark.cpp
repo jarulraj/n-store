@@ -97,6 +97,17 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
 
+    // Clear all indices
+    if(conf.aries_enable == 1){
+      vector<table*> tables = db->tables->get_data();
+      for(table* tab : tables){
+        vector<table_index*> indices = tab->indices->get_data();
+        for(table_index* index : indices){
+          index->map->clear();
+        }
+      }
+    }
+
   }
 
   // Generate Zipf dist
@@ -170,7 +181,7 @@ workload& ycsb_benchmark::get_workload() {
       // SELECT
       record* rec_ptr = new usertable_record(usertable_schema, key, empty);
 
-      std::string key_str = std::to_string(key);
+      std::string key_str = std::to_string(key) + " ";
 
       statement st(txn_id, operation_type::Select, usertable_id, rec_ptr,
                    usertable_index_id, usertable_schema, key_str);

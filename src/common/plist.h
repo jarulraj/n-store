@@ -56,20 +56,17 @@ class plist {
       return;
     }
 
-    struct node* tailp = NULL;
     struct node* np = new struct node;
 
     // Link it in at the end of the list
     np->val = val;
     np->next = NULL;
 
-    tailp = (*tail);
-
     pmemalloc_onactive(np, (void **) tail, np);
     pmemalloc_activate(np);
 
-    tailp->next = np;
-    pmem_persist(&tailp->next, sizeof(*np), 0);
+    (*tail)->next = np;
+    pmem_persist(&(*tail)->next, sizeof(*np), 0);
   }
 
   // Returns the absolute pointer value
@@ -164,7 +161,7 @@ class plist {
     struct node* np = (*head);
 
     if(np == NULL){
-      cout<<"Empty list"<<endl;
+      cout<<"empty list"<<endl;
       return;
     }
 

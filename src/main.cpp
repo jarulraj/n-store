@@ -4,6 +4,8 @@
 
 #include "nstore.h"
 #include "wal_engine.h"
+#include "aries_engine.h"
+
 #include "ycsb_benchmark.h"
 #include "utils.h"
 
@@ -11,8 +13,8 @@
 
 using namespace std;
 
-extern struct static_info *sp; // global persistent memory structure
-int level = 2; // verbosity level
+extern struct static_info *sp;  // global persistent memory structure
+int level = 2;  // verbosity level
 
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
@@ -22,28 +24,22 @@ static void usage_exit(FILE *out) {
           "   -w --per-writes      :  Percent of writes \n"
           "   -f --fs-path         :  Path for FS \n"
           "   -g --gc-interval     :  Group commit interval \n"
-          "   -l --log-only        :  WAL only \n"
-          "   -s --sp-only         :  SP only \n"
-          "   -m --lsm-only        :  LSM only \n"
+          "   -l --log-enable      :  WAL enable \n"
+          "   -s --sp-enable       :  SP enable \n"
+          "   -m --lsm-enable      :  LSM enable \n"
           "   -h --help            :  Print help message \n");
   exit(-1);
 }
 
-static struct option opts[] = {
-    { "fs-path", optional_argument, NULL, 'f' },
-    { "num-txns", optional_argument, NULL, 'x' },
-    { "num-keys", optional_argument, NULL, 'k' },
-    { "num-executors", optional_argument, NULL, 'e' },
-    { "per-writes", optional_argument, NULL, 'w' },
-    { "gc-interval", optional_argument, NULL, 'g' },
-    { "log-only", no_argument, NULL, 'l' },
-    { "sp-only", no_argument, NULL, 's' },
-    { "lsm-only", no_argument, NULL, 'm' },
-    { "verbose", no_argument, NULL, 'v' },
-    { "skew", optional_argument, NULL, 'q' },
-    { "help", no_argument, NULL, 'h' },
-    { NULL, 0, NULL, 0 }
-};
+static struct option opts[] = { { "fs-path", optional_argument, NULL, 'f' }, {
+    "num-txns", optional_argument, NULL, 'x' }, { "num-keys", optional_argument,
+NULL, 'k' }, { "num-executors", optional_argument, NULL, 'e' }, { "per-writes",
+    optional_argument, NULL, 'w' }, { "gc-interval",
+optional_argument, NULL, 'g' }, { "log-enable", no_argument, NULL, 'l' }, {
+    "sp-enable", no_argument, NULL, 's' }, { "aries-enable", no_argument, NULL,
+    'a' }, { "lsm-enable", no_argument, NULL, 'm' }, { "verbose", no_argument,
+NULL, 'v' }, { "skew", optional_argument, NULL, 'q' }, { "help",
+no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 
@@ -63,16 +59,17 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.lsm_size = 1000;
   state.per_writes = 0.2;
 
-  state.sp_only = false;
-  state.log_only = false;
-  state.lsm_only = false;
+  state.sp_enable = false;
+  state.aries_enable = false;
+  state.log_enable = false;
+  state.lsm_enable = false;
 
   state.skew = 0.1;
 
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:w:g:q:vlsmh", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:w:g:q:vlsmah", opts, &idx);
 
     if (c == -1)
       break;
@@ -107,16 +104,20 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         cout << "gc_interval: " << state.gc_interval << endl;
         break;
       case 'l':
-        state.log_only = true;
-        cout << "log_only: " << state.log_only << endl;
+        state.log_enable = true;
+        cout << "log_enable: " << state.log_enable << endl;
         break;
       case 's':
-        state.sp_only = true;
-        cout << "sp_only: " << state.sp_only << endl;
+        state.sp_enable = true;
+        cout << "sp_enable: " << state.sp_enable << endl;
         break;
       case 'm':
-        state.lsm_only = true;
-        cout << "lsm_only: " << state.lsm_only << endl;
+        state.lsm_enable = true;
+        cout << "lsm_enable: " << state.lsm_enable << endl;
+        break;
+      case 'a':
+        state.aries_enable = true;
+        cout << "aries_enable: " << state.aries_enable << endl;
         break;
       case 'q':
         state.skew = atof(optarg);
@@ -134,9 +135,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   assert(state.per_writes >= 0 && state.per_writes <= 1);
 }
 
-
 int main(int argc, char **argv) {
-  const char* path = "./testfile";
+  const char* path = "./zfile";
 
   long pmp_size = 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
@@ -149,35 +149,28 @@ int main(int argc, char **argv) {
   parse_arguments(argc, argv, state);
   state.sp = sp;
 
-  if (state.sp_only == false && state.lsm_only == false) {
+  if (state.log_enable == true) {
     LOG_WARN("WAL");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
     wal_engine wal(state);
 
-    if(generate_dataset){
-      LOG_INFO("Dataset txns");
-      wal.generator(ycsb.get_dataset());
-    }
-
-    LOG_INFO("Workload txns");
-    wal.generator(ycsb.get_workload());
+    if (generate_dataset)
+      wal.generator(ycsb.get_dataset(), false);
+    wal.generator(ycsb.get_workload(), true);
   }
 
-  /*
-   if (state.log_only == false && state.lsm_only == false) {
-   cout << "SP  :: ";
-   sp_engine sp(state);
-   sp.test();
-   }
+  if (state.aries_enable == true) {
+    LOG_WARN("ARIES");
 
-   if (state.log_only == false && state.sp_only == false) {
-   cout << "LSM :: ";
-   lsm_engine lsm(state);
-   lsm.test();
-   }
-   */
+    bool generate_dataset = !sp->init;
+    ycsb_benchmark ycsb(state);
+    aries_engine aries(state);
+
+    aries.generator(ycsb.get_dataset(), false);
+    aries.generator(ycsb.get_workload(), true);
+  }
 
   return 0;
 }

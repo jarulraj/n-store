@@ -15,6 +15,7 @@ libpm_a_SOURCES = libpm.cpp
 
 nstore_SOURCES  =  	main.cpp \
 					wal_engine.cpp  \
+					aries_engine.cpp  \
 					ycsb_benchmark.cpp \
 					utils.cpp
 

@@ -33,7 +33,7 @@ std::string wal_engine::select(const statement& st) {
 
   rec_ptr = table_index->map->at(key);
   val = get_data(rec_ptr, st.projection);
-  //cout << "val :" << val << endl;
+  LOG_INFO("val : %s", val.c_str());
 
   return val;
 }
@@ -240,15 +240,17 @@ void wal_engine::runner() {
   }
 }
 
-void wal_engine::generator(const workload& load) {
-
+void wal_engine::generator(const workload& load, bool stats) {
   timespec time1, time2;
   clock_gettime(CLOCK_REALTIME, &time1);
+
   for (const transaction& txn : load.txns)
     execute(txn);
+
   clock_gettime(CLOCK_REALTIME, &time2);
 
-  display_stats(time1, time2, load.txns.size());
+  if(stats)
+    display_stats(time1, time2, load.txns.size());
 }
 
 void wal_engine::recovery() {

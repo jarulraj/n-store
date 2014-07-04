@@ -47,9 +47,10 @@ class config {
   double skew;
 
   bool verbose;
-  bool log_only;
-  bool sp_only;
-  bool lsm_only;
+  bool log_enable;
+  bool aries_enable;
+  bool sp_enable;
+  bool lsm_enable;
 };
 
 #endif /* NSTORE_H_ */

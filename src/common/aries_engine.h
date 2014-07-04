@@ -1,5 +1,5 @@
-#ifndef WAL_H_
-#define WAL_H_
+#ifndef ARIES_ENGINE_H_
+#define ARIES_ENGINE_H_
 
 #include <vector>
 #include <string>
@@ -15,14 +15,14 @@
 #include "workload.h"
 #include "database.h"
 #include "pthread.h"
-#include "plist.h"
+#include "logger.h"
 
 using namespace std;
 
-class wal_engine : public engine {
+class aries_engine : public engine {
  public:
-  wal_engine(const config& _conf);
-  ~wal_engine();
+  aries_engine(const config& _conf);
+  ~aries_engine();
 
   std::string select(const statement& st);
   void update(const statement& st);
@@ -40,7 +40,7 @@ class wal_engine : public engine {
   database* db;
   std::vector<std::thread> executors;
 
-  plist<char*>* undo_log;
+  logger undo_log;
   std::hash<std::string> hash_fn;
 
   std::stringstream entry_stream;
@@ -50,7 +50,6 @@ class wal_engine : public engine {
   std::queue<transaction> txn_queue;
   std::atomic<bool> done;
 
-  std::vector<void*> commit_free_list;
 };
 
 #endif /* WAL_H_ */

@@ -12,8 +12,9 @@ class record {
  public:
   record(schema* _sptr)
       : sptr(_sptr),
-        data(NULL) {
-    data = new char[sptr->len];
+        data(NULL),
+        data_len(_sptr->len){
+    data = new char[data_len];
   }
 
   inline std::string get_data(const int field_id) {
@@ -26,20 +27,20 @@ class record {
       case field_type::INTEGER:
         int ival;
         std::sscanf(&(data[offset]), "%d", &ival);
-        field = std::to_string(ival);
+        field = std::to_string(ival) + " ";
         break;
 
       case field_type::DOUBLE:
         double dval;
         std::sscanf(&(data[offset]), "%lf", &dval);
-        field = std::to_string(dval);
+        field = std::to_string(dval) + " ";
         break;
 
       case field_type::VARCHAR:
         char* vcval;
         std::sscanf(&(data[offset]), "%p", &vcval);
         if (vcval != NULL)
-          field = std::string(vcval);
+          field = std::string(vcval) + " ";
         break;
 
       default:
@@ -103,6 +104,7 @@ class record {
 
   schema* sptr;
   char* data;
+  size_t data_len;
 }
 ;
 
