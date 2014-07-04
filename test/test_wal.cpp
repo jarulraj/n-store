@@ -36,8 +36,8 @@ int main(int argc, char **argv) {
 
   ycsb_benchmark ycsb(state);
   wal_engine wal(state);
-  wal.generator(ycsb.get_dataset());
-  wal.generator(ycsb.get_workload());
+  wal.generator(ycsb.get_dataset(), false);
+  wal.generator(ycsb.get_workload(), true);
 
   int ret = std::remove(path);
   assert(ret == 0);
