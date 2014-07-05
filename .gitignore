@@ -3,7 +3,6 @@ Makefile
 configure
 *.o
 *~
-Makefile.in
 config.*
 config-h.in
 libtool
