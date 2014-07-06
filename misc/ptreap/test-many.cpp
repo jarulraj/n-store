@@ -8,10 +8,10 @@
 
 using namespace std;
 
-void lookup(PTree *tree, unsigned int version, const unsigned long key) {
+void lookup(PTreap *tree, unsigned int version, const unsigned long key) {
   void* ret;
 
-  ret = p_tree_lookup_v(tree, version, key);
+  ret = p_treap_lookup_v(tree, version, key);
   cout<< "version :: "<<version<<"  key :: "<<key <<" ";
   if (ret != NULL)
     cout << "val :: " << GPOINTER_TO_UINT(ret) << endl;
@@ -22,7 +22,7 @@ void lookup(PTree *tree, unsigned int version, const unsigned long key) {
 
 int main(int argc, char **argv) {
   unsigned int i, *nums;
-  PTree *tree;
+  PTreap *tree;
 
   int n = 10;
   nums = new unsigned int[n];
@@ -31,27 +31,27 @@ int main(int argc, char **argv) {
 
   printf(" Persistent Tree with many versions...\n");
 
-  tree = p_tree_new();
+  tree = p_treap_new();
 
-  p_tree_insert(tree, 1, GUINT_TO_POINTER(nums[1]));
-  p_tree_insert(tree, 2, GUINT_TO_POINTER(nums[2]));
-  p_tree_insert(tree, 3, GUINT_TO_POINTER(nums[3]));
+  p_treap_insert(tree, 1, GUINT_TO_POINTER(nums[1]));
+  p_treap_insert(tree, 2, GUINT_TO_POINTER(nums[2]));
+  p_treap_insert(tree, 3, GUINT_TO_POINTER(nums[3]));
 
   cout << "nodes ::" << tree->nnodes << endl;
 
   for (i = 1; i <= 4; ++i)
-     lookup(tree, p_tree_current_version(tree), i);
+     lookup(tree, p_treap_current_version(tree), i);
 
   // Next version
-  p_tree_next_version(tree);
+  p_treap_next_version(tree);
 
-  p_tree_insert(tree, 2, GUINT_TO_POINTER(nums[5]));
-  p_tree_remove(tree, 3);
+  p_treap_insert(tree, 2, GUINT_TO_POINTER(nums[5]));
+  p_treap_remove(tree, 3);
 
-  p_tree_insert(tree, 4, GUINT_TO_POINTER(nums[4]));
+  p_treap_insert(tree, 4, GUINT_TO_POINTER(nums[4]));
 
   for (i = 1; i <= 4; ++i)
-    lookup(tree, p_tree_current_version(tree), i);
+    lookup(tree, p_treap_current_version(tree), i);
 
   cout << "nodes ::" << tree->nnodes << endl;
 
@@ -62,14 +62,14 @@ int main(int argc, char **argv) {
 
   cout << "nodes ::" << tree->nnodes << endl;
 
-  p_tree_delete_versions(tree, 0);
+  p_treap_delete_versions(tree, 0);
 
   lookup(tree, 0, 2);
   lookup(tree, 0, 3);
 
   cout << "nodes ::" << tree->nnodes << endl;
 
-  p_tree_destroy(tree);
+  p_treap_destroy(tree);
 
   cout << "nodes ::" << tree->nnodes << endl;
 

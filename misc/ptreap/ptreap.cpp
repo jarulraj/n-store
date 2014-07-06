@@ -13,48 +13,34 @@ using namespace std;
 #define MAX_ROOTS 128
 
 #define MAX_IN_DEGREE 3
-#define TABLE_SIZE (MAX_IN_DEGREE+1) /* This is the minimum size required so
-                                        that you only have a constant number of
-                                        nodes fill up their tables and
-                                        require a new node to be created at
-                                        a time. */
+#define TABLE_SIZE (MAX_IN_DEGREE+1)
 
-unsigned int tree_rotations = 0;
-
-unsigned int p_tree_rotations() {
-  int i = tree_rotations;
-  tree_rotations = 0;
-  return i;
-}
-
-static PTreeNode* p_tree_node_new(PTree *tree, unsigned long key, void* value);
-static unsigned int p_tree_priority(PTreeNode *node);
-static void p_tree_insert_internal(PTree *tree, unsigned long key, void* value,
-bool replace);
-static bool p_tree_remove_internal(PTree *tree, const unsigned long key,
+static PTreapNode* p_treap_node_new(PTreap *tree, unsigned long key,
+                                    void* value);
+static unsigned int p_treap_priority(PTreapNode *node);
+static void p_treap_insert_internal(PTreap *tree, unsigned long key,
+                                    void* value,
+                                    bool replace);
+static bool p_treap_remove_internal(PTreap *tree, const unsigned long key,
 bool steal);
-static PTreeNode *p_tree_find_node(PTree *tree, const unsigned long key,
-                                   PTreeSearchType search_type,
-                                   unsigned int version);
-static int p_tree_node_pre_order(PTreeNode *node, GTraverseFunc traverse_func,
-                                 void* data);
-static int p_tree_node_in_order(PTreeNode *node, GTraverseFunc traverse_func,
-                                void* data);
-static int p_tree_node_post_order(PTreeNode *node, GTraverseFunc traverse_func,
+static PTreapNode *p_treap_find_node(PTreap *tree, const unsigned long key,
+                                     PTreapSearchType search_type,
+                                     unsigned int version);
+static int p_treap_node_pre_order(PTreapNode *node, GTraverseFunc traverse_func,
                                   void* data);
+static int p_treap_node_in_order(PTreapNode *node, GTraverseFunc traverse_func,
+                                 void* data);
+static int p_treap_node_post_order(PTreapNode *node,
+                                   GTraverseFunc traverse_func, void* data);
 
-static PTreeNode* p_tree_node_rotate_left(PTree *tree, PTreeNode *node);
-static PTreeNode* p_tree_node_rotate_right(PTree *tree, PTreeNode *node);
-#ifdef P_TREE_DEBUG
-static void p_tree_node_check (PTreeNode *node,
-    unsigned int version);
-#endif
+static PTreapNode* p_treap_node_rotate_left(PTreap *tree, PTreapNode *node);
+static PTreapNode* p_treap_node_rotate_right(PTreap *tree, PTreapNode *node);
 
-static PTreeNode*
-p_tree_node_new(PTree *tree, unsigned long key, void* value) {
-  PTreeNode *node = new PTreeNode;
+static PTreapNode*
+p_treap_node_new(PTreap *tree, unsigned long key, void* value) {
+  PTreapNode *node = new PTreapNode;
 
-  node->data = new PTreeNodeData;
+  node->data = new PTreapNodeData;
   node->data->key = key;
   node->data->value = value;
   node->data->ref_count = 1;
@@ -64,9 +50,9 @@ p_tree_node_new(PTree *tree, unsigned long key, void* value) {
    so that we don't use a lot more memory when persistence isn't even
    being used */
   if (tree->version == 0)
-    node->v = new PTreeNodeVersion;
+    node->v = new PTreapNodeVersion;
   else
-    node->v = new PTreeNodeVersion[TABLE_SIZE];
+    node->v = new PTreapNodeVersion[TABLE_SIZE];
 
   node->nv = 1;
 
@@ -78,7 +64,7 @@ p_tree_node_new(PTree *tree, unsigned long key, void* value) {
   return node;
 }
 
-static bool p_tree_node_data_unref(PTree *tree, PTreeNode *node) {
+static bool p_treap_node_data_unref(PTreap *tree, PTreapNode *node) {
   /* free the node's data if it's the last node which is using it. just
    because the version of the node was created in the latest version
    of the tree, doesn't mean there aren't older versions around still */
@@ -89,11 +75,11 @@ static bool p_tree_node_data_unref(PTree *tree, PTreeNode *node) {
   return false;
 }
 
-static bool p_tree_node_free(PTree *tree, PTreeNode *node) {
+static bool p_treap_node_free(PTreap *tree, PTreapNode *node) {
   bool data_free;
 
   if (node->data)
-    data_free = p_tree_node_data_unref(tree, node);
+    data_free = p_treap_node_data_unref(tree, node);
   else
     data_free = false;
 
@@ -111,7 +97,7 @@ static bool p_tree_node_free(PTree *tree, PTreeNode *node) {
 
 /* Make a new root pointer if the current one is not for the current version
  of the tree */
-static void p_tree_root_next_version(PTree *tree) {
+static void p_treap_root_next_version(PTreap *tree) {
   assert(tree->r[0].version <= tree->version);
 
   if (tree->r[0].version < tree->version) {
@@ -124,28 +110,28 @@ static void p_tree_root_next_version(PTree *tree) {
 }
 
 /**
- * p_tree_new_full:
+ * p_treap_new_full:
  * @key_compare_func: qsort()-style comparison function.
  * @key_compare_data: data to pass to comparison function.
  * @key_destroy_func: a function to free the memory allocated for the key 
- *   used when removing the entry from the #PTree or %NULL if you don't
+ *   used when removing the entry from the #PTreap or %NULL if you don't
  *   want to supply such a function.
  * @value_destroy_func: a function to free the memory allocated for the 
- *   value used when removing the entry from the #PTree or %NULL if you 
+ *   value used when removing the entry from the #PTreap or %NULL if you
  *   don't want to supply such a function.
  * 
- * Creates a new #PTree like p_tree_new() and allows to specify functions 
+ * Creates a new #PTreap like p_treap_new() and allows to specify functions
  * to free the memory allocated for the key and value that get called when 
- * removing the entry from the #PTree.
+ * removing the entry from the #PTreap.
  * 
- * Return value: a new #PTree.
+ * Return value: a new #PTreap.
  **/
-PTree*
-p_tree_new() {
-  PTree *tree;
+PTreap*
+p_treap_new() {
+  PTreap *tree;
 
-  tree = new PTree;
-  tree->r = new PTreeRootVersion[MAX_ROOTS];
+  tree = new PTreap;
+  tree->r = new PTreapRootVersion[MAX_ROOTS];
   tree->nr = 1;
   tree->nnodes = 0;
   tree->ref_count = 1;
@@ -158,12 +144,12 @@ p_tree_new() {
 }
 
 /* finds the largest version in the array, that is <= the query version */
-static inline PTreeRootVersion *
-p_tree_root_find_version(PTree *tree, unsigned int version) {
-  PTreeRootVersion * const v = tree->r;
+static inline PTreapRootVersion *
+p_treap_root_find_version(PTreap *tree, unsigned int version) {
+  PTreapRootVersion * const v = tree->r;
   const unsigned int nv = tree->nr;
-  PTreeRootVersion *l, *r;
-  static PTreeRootVersion none = { NULL, 0 };
+  PTreapRootVersion *l, *r;
+  static PTreapRootVersion none = { NULL, 0 };
 
   if (v[0].version <= version) {
     return v; /* fast when looking for the current version */
@@ -173,7 +159,7 @@ p_tree_root_find_version(PTree *tree, unsigned int version) {
   r = v + (nv - 1);
   while (l <= r) /* binary search */
   {
-    PTreeRootVersion * const m = l + (r - l) / 2;
+    PTreapRootVersion * const m = l + (r - l) / 2;
     if (version == m->version) {
       return m;
     } else if (version < m->version)
@@ -194,11 +180,11 @@ p_tree_root_find_version(PTree *tree, unsigned int version) {
   }
 }
 
-static inline PTreeNodeVersion *
-p_tree_node_find_version(PTreeNode *node, unsigned int version) {
-  PTreeNodeVersion * const v = node->v;
+static inline PTreapNodeVersion *
+p_treap_node_find_version(PTreapNode *node, unsigned int version) {
+  PTreapNodeVersion * const v = node->v;
   const unsigned int nv = node->nv;
-  PTreeNodeVersion *n;
+  PTreapNodeVersion *n;
 
   /* note: we never search for a version smaller than the smallest
    version in the array */
@@ -216,39 +202,39 @@ p_tree_node_find_version(PTreeNode *node, unsigned int version) {
   return n;
 }
 
-static inline PTreeNode *
-p_tree_first_node(PTree *tree, unsigned int version) {
-  PTreeNode *tmp;
-  PTreeNodeVersion *tmpv;
-  PTreeRootVersion *rv;
+static inline PTreapNode *
+p_treap_first_node(PTreap *tree, unsigned int version) {
+  PTreapNode *tmp;
+  PTreapNodeVersion *tmpv;
+  PTreapRootVersion *rv;
 
-  rv = p_tree_root_find_version(tree, version);
+  rv = p_treap_root_find_version(tree, version);
   if (!rv->root)
     return NULL;
 
-  tmpv = p_tree_node_find_version(tmp = rv->root, version);
+  tmpv = p_treap_node_find_version(tmp = rv->root, version);
 
   while (tmpv->left)
-    tmpv = p_tree_node_find_version(tmp = tmpv->left, version);
+    tmpv = p_treap_node_find_version(tmp = tmpv->left, version);
 
   return tmp;
 }
 
-static inline PTreeNode *
-p_tree_node_next(PTreeNode *node, unsigned int version) {
-  PTreeNode *tmp;
-  PTreeNodeVersion *nodev, *tmpv;
+static inline PTreapNode *
+p_treap_node_next(PTreapNode *node, unsigned int version) {
+  PTreapNode *tmp;
+  PTreapNodeVersion *nodev, *tmpv;
 
-  nodev = p_tree_node_find_version(node, version);
+  nodev = p_treap_node_find_version(node, version);
 
   if (nodev->right) {
-    tmpv = p_tree_node_find_version(tmp = nodev->right, version);
+    tmpv = p_treap_node_find_version(tmp = nodev->right, version);
     while (tmpv->left)
-      tmpv = p_tree_node_find_version(tmp = tmpv->left, version);
+      tmpv = p_treap_node_find_version(tmp = tmpv->left, version);
   } else {
     tmp = nodev->parent;
     while (tmp) {
-      tmpv = p_tree_node_find_version(tmp, version);
+      tmpv = p_treap_node_find_version(tmp, version);
       if (tmpv->left == node)
         break;
       node = tmp;
@@ -258,41 +244,41 @@ p_tree_node_next(PTreeNode *node, unsigned int version) {
   return tmp;
 }
 
-static inline void p_tree_node_free_all(PTree *tree, PTreeNode *node) {
+static inline void p_treap_node_free_all(PTreap *tree, PTreapNode *node) {
   unsigned int i;
 
   if (!node)
     return;
 
   for (i = 0; i < node->nv; ++i) {
-    p_tree_node_free_all(tree, node->v[i].parent);
-    p_tree_node_free_all(tree, node->v[i].left);
-    p_tree_node_free_all(tree, node->v[i].right);
+    p_treap_node_free_all(tree, node->v[i].parent);
+    p_treap_node_free_all(tree, node->v[i].left);
+    p_treap_node_free_all(tree, node->v[i].right);
   }
 
-  p_tree_node_free(tree, node);
+  p_treap_node_free(tree, node);
 }
 
-static inline PTreeNode *
-p_tree_node_decompose(PTree *tree, PTreeNode *node) {
+static inline PTreapNode *
+p_treap_node_decompose(PTreap *tree, PTreapNode *node) {
   unsigned int i;
 
   if (!node || !node->data)
     return NULL;
 
-  p_tree_node_data_unref(tree, node);
+  p_treap_node_data_unref(tree, node);
   node->data = NULL;
 
   for (i = 0; i < node->nv; ++i) {
-    node->v[i].parent = p_tree_node_decompose(tree, node->v[i].parent);
-    node->v[i].left = p_tree_node_decompose(tree, node->v[i].left);
-    node->v[i].right = p_tree_node_decompose(tree, node->v[i].right);
+    node->v[i].parent = p_treap_node_decompose(tree, node->v[i].parent);
+    node->v[i].left = p_treap_node_decompose(tree, node->v[i].left);
+    node->v[i].right = p_treap_node_decompose(tree, node->v[i].right);
   }
 
   return node;
 }
 
-static void p_tree_remove_all(PTree *tree) {
+static void p_treap_remove_all(PTreap *tree) {
   unsigned int i;
 
   g_return_if_fail(tree != NULL);
@@ -301,12 +287,12 @@ static void p_tree_remove_all(PTree *tree) {
    root pointers in the graph, so that there are no cycles while we are
    freeing them */
   for (i = 0; i < tree->nr; ++i) {
-    tree->r[i].root = p_tree_node_decompose(tree, tree->r[i].root);
+    tree->r[i].root = p_treap_node_decompose(tree, tree->r[i].root);
   }
 
   /* free everything */
   for (i = 0; i < tree->nr; ++i)
-    p_tree_node_free_all(tree, tree->r[i].root);
+    p_treap_node_free_all(tree, tree->r[i].root);
 
   tree->r[0].root = NULL;
   tree->r[0].version = tree->version = 0;
@@ -314,18 +300,18 @@ static void p_tree_remove_all(PTree *tree) {
 }
 
 /**
- * p_tree_ref:
- * @tree: a #PTree.
+ * p_treap_ref:
+ * @tree: a #PTreap.
  *
  * Increments the reference count of @tree by one.  It is safe to call
  * this function from any thread.
  *
- * Return value: the passed in #PTree.
+ * Return value: the passed in #PTreap.
  *
  * Since: 2.22
  **/
-PTree *
-p_tree_ref(PTree *tree) {
+PTreap *
+p_treap_ref(PTreap *tree) {
   g_return_val_if_fail(tree != NULL, NULL);
 
   tree->ref_count++;
@@ -334,8 +320,8 @@ p_tree_ref(PTree *tree) {
 }
 
 /**
- * p_tree_unref:
- * @tree: a #PTree.
+ * p_treap_unref:
+ * @tree: a #PTreap.
  *
  * Decrements the reference count of @tree by one.  If the reference count
  * drops to 0, all keys and values will be destroyed (if destroy
@@ -346,57 +332,57 @@ p_tree_ref(PTree *tree) {
  *
  * Since: 2.22
  **/
-void p_tree_unref(PTree *tree) {
+void p_treap_unref(PTreap *tree) {
   g_return_if_fail(tree != NULL);
 
   if ((--tree->ref_count) == 0) {
-    p_tree_remove_all(tree);
+    p_treap_remove_all(tree);
     delete tree->r;
     delete tree;
   }
 }
 
 /**
- * p_tree_destroy:
- * @tree: a #PTree.
+ * p_treap_destroy:
+ * @tree: a #PTreap.
  * 
- * Removes all keys and values from the #PTree and decreases its
+ * Removes all keys and values from the #PTreap and decreases its
  * reference count by one. If keys and/or values are dynamically
- * allocated, you should either free them first or create the #PTree
- * using p_tree_new_full().  In the latter case the destroy functions
+ * allocated, you should either free them first or create the #PTreap
+ * using p_treap_new_full().  In the latter case the destroy functions
  * you supplied will be called on all keys and values before destroying
- * the #PTree.
+ * the #PTreap.
  **/
-void p_tree_destroy(PTree *tree) {
+void p_treap_destroy(PTreap *tree) {
   g_return_if_fail(tree != NULL);
 
-  p_tree_remove_all(tree);
-  p_tree_unref(tree);
+  p_treap_remove_all(tree);
+  p_treap_unref(tree);
 }
 
 /**
- * p_tree_current_version:
- * @tree: a #PTree
+ * p_treap_current_version:
+ * @tree: a #PTreap
  *
- * Returns the current version number of the #PTree.  Inserting or deleting
+ * Returns the current version number of the #PTreap.  Inserting or deleting
  * keys will affect the current version, but not change earlier versions.
  *
- * Returns: the current version number of the #PTree.
+ * Returns: the current version number of the #PTreap.
  **/
-unsigned int p_tree_current_version(PTree *tree) {
+unsigned int p_treap_current_version(PTreap *tree) {
   return tree->version;
 }
 
 /**
- * p_tree_next_version:
- * @tree: a #PTree
+ * p_treap_next_version:
+ * @tree: a #PTreap
  *
  * Increments the version number of the tree.  Inserting or deleting keys will
  * affect the new version of the tree, but not change earlier versions.
  *
- * Returns: the new current version number of the #PTree.
+ * Returns: the new current version number of the #PTreap.
  **/
-unsigned int p_tree_next_version(PTree *tree) {
+unsigned int p_treap_next_version(PTreap *tree) {
   assert(tree->version + 1 != 0);
   return ++tree->version;
 }
@@ -419,9 +405,9 @@ unsigned int p_tree_next_version(PTree *tree) {
    ((i) == 1 ? (n) : /* it was the first, return something invalid */       \
     (i)-1)); /* it was somewhere else in the array, return the previous */
 
-static unsigned int p_tree_node_delete_versions(PTree *tree, PTreeNode *node,
-                                                unsigned int pnext,
-                                                unsigned int version) {
+static unsigned int p_treap_node_delete_versions(PTreap *tree, PTreapNode *node,
+                                                 unsigned int pnext,
+                                                 unsigned int version) {
   unsigned int rm, i, nv, next, nextv, lnext, rnext, ret;
 
   if (!node)
@@ -446,7 +432,7 @@ static unsigned int p_tree_node_delete_versions(PTree *tree, PTreeNode *node,
       lnext = pnext;
     else
       lnext = 0;
-    lnext = p_tree_node_delete_versions(tree, node->v[i].left, lnext, nextv);
+    lnext = p_treap_node_delete_versions(tree, node->v[i].left, lnext, nextv);
 
     if (next < nv && node->v[i].right && node->v[next].right == node->v[i].right
         && (!pnext || node->v[next].version <= pnext))
@@ -455,7 +441,7 @@ static unsigned int p_tree_node_delete_versions(PTree *tree, PTreeNode *node,
       rnext = pnext;
     else
       rnext = 0;
-    rnext = p_tree_node_delete_versions(tree, node->v[i].right, rnext, nextv);
+    rnext = p_treap_node_delete_versions(tree, node->v[i].right, rnext, nextv);
 
     /* smallest non-zero of pnext, rnext, and lnext (or zero if all 3 are) */
     nextv = std::min(
@@ -479,7 +465,7 @@ static unsigned int p_tree_node_delete_versions(PTree *tree, PTreeNode *node,
 
   /* if we removed the last version inside the node, then we can free it */
   if (node->nv == 0) {
-    p_tree_node_free(tree, node);
+    p_treap_node_free(tree, node);
     node = NULL;
   }
 
@@ -499,23 +485,23 @@ static unsigned int p_tree_node_delete_versions(PTree *tree, PTreeNode *node,
 }
 
 /**
- * p_tree_delete_versions:
- * @tree: a #PTree.
+ * p_treap_delete_versions:
+ * @tree: a #PTreap.
  * @version: the highest version to delete.
  *
- * Deletes all versions in the #PTree which are at most @version.  You can not
- * delete the latest version of the #PTree, so @version must be less than the
- * value returned by p_tree_current_version().
+ * Deletes all versions in the #PTreap which are at most @version.  You can not
+ * delete the latest version of the #PTreap, so @version must be less than the
+ * value returned by p_treap_current_version().
 
- * Deleting a version from the #PTree frees all resources used that are not
- * needed for later versions in the #PTree.  All elements which have been
+ * Deleting a version from the #PTreap frees all resources used that are not
+ * needed for later versions in the #PTreap.  All elements which have been
  * removed from the tree in a version no later than @version will be freed,
  * and if you supplied a @key_destroy_func or @value_destroy_func when
- * creating the #PTree, any such nodes will have their keys and values
- * freed using these functions (unless it was removed from the #PTree by
- * p_tree_steal(), in which case the key and value is not freed).
+ * creating the #PTreap, any such nodes will have their keys and values
+ * freed using these functions (unless it was removed from the #PTreap by
+ * p_treap_steal(), in which case the key and value is not freed).
  **/
-void p_tree_delete_versions(PTree *tree, unsigned int version) {
+void p_treap_delete_versions(PTreap *tree, unsigned int version) {
   unsigned int rm, i, l, keep, next;
 
   g_return_if_fail(tree != NULL);
@@ -543,7 +529,7 @@ void p_tree_delete_versions(PTree *tree, unsigned int version) {
     else
       v = version;
 
-    l = p_tree_node_delete_versions(tree, tree->r[i].root, nextv, v);
+    l = p_treap_node_delete_versions(tree, tree->r[i].root, nextv, v);
     assert(l == 0 || l > v);
 
     if (l > v)
@@ -566,31 +552,31 @@ void p_tree_delete_versions(PTree *tree, unsigned int version) {
   }
 
   tree->nr -= rm;
-  //tree->r = new PTreeRootVersion[tree->nr];
+  //tree->r = new PTreapRootVersion[tree->nr];
 
 #ifdef P_TREE_DEBUG
   {
     unsigned int i;
     for (i = 0; i <= tree->version; ++i)
-    p_tree_node_check (p_tree_root_find_version (tree, i)->root, i);
+    p_treap_node_check (p_treap_root_find_version (tree, i)->root, i);
   }
 #endif
 }
 
 /* add a new version of pointers to a node.  return true if ok, and false
  if there is no room to do so. */
-static inline PTreeNode *
-p_tree_node_add_version(PTree *tree, PTreeNode *node) {
+static inline PTreapNode *
+p_treap_node_add_version(PTreap *tree, PTreapNode *node) {
   if (!node)
     return NULL;
 
   /* node already has the current version */
   if (node->v[0].version == tree->version)
     return node;
-  /* if we filled the node's pointer table and need to make a new PTreeNode */
+  /* if we filled the node's pointer table and need to make a new PTreapNode */
   else if (node->v[0].version == 0 || node->nv >= TABLE_SIZE) {
-    PTreeNode *newnode = new PTreeNode;
-    newnode->v = new PTreeNodeVersion[TABLE_SIZE];
+    PTreapNode *newnode = new PTreapNode;
+    newnode->v = new PTreapNodeVersion[TABLE_SIZE];
     newnode->data = node->data;
     newnode->data->ref_count++;
     newnode->v[0] = node->v[0]; /* copy the latest version to here */
@@ -608,10 +594,10 @@ p_tree_node_add_version(PTree *tree, PTreeNode *node) {
   }
 }
 
-static inline void p_tree_node_fix_incoming(PTree *tree, PTreeNode *oldnode,
-                                            PTreeNode *newnode) {
-  PTreeNode *oldparent, *oldleft, *oldright;
-  PTreeNode *newparent, *newleft, *newright;
+static inline void p_treap_node_fix_incoming(PTreap *tree, PTreapNode *oldnode,
+                                             PTreapNode *newnode) {
+  PTreapNode *oldparent, *oldleft, *oldright;
+  PTreapNode *newparent, *newleft, *newright;
 
   if (oldnode == newnode)
     return;
@@ -633,9 +619,9 @@ static inline void p_tree_node_fix_incoming(PTree *tree, PTreeNode *oldnode,
 
   /* add new pointers for nodes that point to me, possibly creating new
    versions of the nodes */
-  newparent = p_tree_node_add_version(tree, oldparent);
-  newleft = p_tree_node_add_version(tree, oldleft);
-  newright = p_tree_node_add_version(tree, oldright);
+  newparent = p_treap_node_add_version(tree, oldparent);
+  newleft = p_treap_node_add_version(tree, oldleft);
+  newright = p_treap_node_add_version(tree, oldright);
 
   /* 1. update my pointers to point to the new versions (if a prev node
    points to me, then i'm its next node, and its my parent or
@@ -665,89 +651,89 @@ static inline void p_tree_node_fix_incoming(PTree *tree, PTreeNode *oldnode,
 
   /* 3. recurse on each of the incoming nodes if they had to create a new
    version */
-  p_tree_node_fix_incoming(tree, oldparent, newparent);
-  p_tree_node_fix_incoming(tree, oldleft, newleft);
-  p_tree_node_fix_incoming(tree, oldright, newright);
+  p_treap_node_fix_incoming(tree, oldparent, newparent);
+  p_treap_node_fix_incoming(tree, oldleft, newleft);
+  p_treap_node_fix_incoming(tree, oldright, newright);
 
   /* 4. if this was the root node, then the root pointer into the tree needs
    be updated */
   if (tree->r[0].root == oldnode) {
-    p_tree_root_next_version(tree);
+    p_treap_root_next_version(tree);
     tree->r[0].root = newnode;
   }
 }
 
 /* You must call this on a node before you start changing its pointers,
  or you might be changing an old (permanent) version of the node */
-static PTreeNode*
-p_tree_node_next_version(PTree *tree, PTreeNode *oldnode) {
-  PTreeNode *newnode;
+static PTreapNode*
+p_treap_node_next_version(PTreap *tree, PTreapNode *oldnode) {
+  PTreapNode *newnode;
 
   if (!oldnode)
     return NULL;
 
   assert(oldnode->v[0].version <= tree->version);
 
-  newnode = p_tree_node_add_version(tree, oldnode);
-  p_tree_node_fix_incoming(tree, oldnode, newnode);
+  newnode = p_treap_node_add_version(tree, oldnode);
+  p_treap_node_fix_incoming(tree, oldnode, newnode);
   return newnode;
 }
 
 /**
- * p_tree_insert:
- * @tree: a #PTree.
+ * p_treap_insert:
+ * @tree: a #PTreap.
  * @key: the key to insert.
  * @value: the value corresponding to the key.
  * 
- * Inserts a key/value pair into a #PTree. If the given key already exists 
- * in the #PTree its corresponding value is set to the new value. If you 
- * supplied a value_destroy_func when creating the #PTree, the old value is 
+ * Inserts a key/value pair into a #PTreap. If the given key already exists
+ * in the #PTreap its corresponding value is set to the new value. If you
+ * supplied a value_destroy_func when creating the #PTreap, the old value is
  * freed using that function. If you supplied a @key_destroy_func when 
- * creating the #PTree, the passed key is freed using that function.
+ * creating the #PTreap, the passed key is freed using that function.
  *
  * The tree is automatically 'balanced' as new key/value pairs are added,
  * so that the distance from the root to every leaf is small.
  **/
-void p_tree_insert(PTree *tree, unsigned long key, void* value) {
+void p_treap_insert(PTreap *tree, unsigned long key, void* value) {
   g_return_if_fail(tree != NULL);
 
-  p_tree_insert_internal(tree, key, value, false);
+  p_treap_insert_internal(tree, key, value, false);
 
 #ifdef P_TREE_DEBUG
   {
     unsigned int i;
     for (i = 0; i <= tree->version; ++i)
-    p_tree_node_check (p_tree_root_find_version (tree, i)->root, i);
+    p_treap_node_check (p_treap_root_find_version (tree, i)->root, i);
   }
 #endif
 }
 
 /**
- * p_tree_replace:
- * @tree: a #PTree.
+ * p_treap_replace:
+ * @tree: a #PTreap.
  * @key: the key to insert.
  * @value: the value corresponding to the key.
  * 
- * Inserts a new key and value into a #PTree similar to p_tree_insert(). 
- * The difference is that if the key already exists in the #PTree, it gets 
+ * Inserts a new key and value into a #PTreap similar to p_treap_insert().
+ * The difference is that if the key already exists in the #PTreap, it gets
  * replaced by the new key. If you supplied a @value_destroy_func when 
- * creating the #PTree, the old value is freed using that function. If you 
- * supplied a @key_destroy_func when creating the #PTree, the old key is 
+ * creating the #PTreap, the old value is freed using that function. If you
+ * supplied a @key_destroy_func when creating the #PTreap, the old key is
  * freed using that function. 
  *
  * The tree is automatically 'balanced' as new key/value pairs are added,
  * so that the distance from the root to every leaf is small.
  **/
-void p_tree_replace(PTree *tree, unsigned long key, void* value) {
+void p_treap_replace(PTreap *tree, unsigned long key, void* value) {
   g_return_if_fail(tree != NULL);
 
-  p_tree_insert_internal(tree, key, value, true);
+  p_treap_insert_internal(tree, key, value, true);
 
 #ifdef P_TREE_DEBUG
   {
     unsigned int i;
     for (i = 0; i <= tree->version; ++i)
-    p_tree_node_check (p_tree_root_find_version (tree, i)->root, i);
+    p_treap_node_check (p_treap_root_find_version (tree, i)->root, i);
   }
 #endif
 }
@@ -757,7 +743,7 @@ void p_tree_replace(PTree *tree, unsigned long key, void* value) {
  *
  * (Copied from gsequence.c)
  */
-static unsigned int p_tree_priority(PTreeNode *node) {
+static unsigned int p_treap_priority(PTreapNode *node) {
   unsigned int key = GPOINTER_TO_UINT(node->data);
 
   /* This hash function is based on one found on Thomas Wang's
@@ -779,15 +765,16 @@ static unsigned int p_tree_priority(PTreeNode *node) {
 
 /* Internal insert routine.  Always inserts into the current version of the
  tree. */
-static void p_tree_insert_internal(PTree *tree, unsigned long key, void* value,
-bool replace) {
-  PTreeNode *node, *child;
+static void p_treap_insert_internal(PTreap *tree, unsigned long key,
+                                    void* value,
+                                    bool replace) {
+  PTreapNode *node, *child;
 
   g_return_if_fail(tree != NULL);
 
   if (!tree->r[0].root) {
-    p_tree_root_next_version(tree);
-    tree->r[0].root = p_tree_node_new(tree, key, value);
+    p_treap_root_next_version(tree);
+    tree->r[0].root = p_treap_node_new(tree, key, value);
     tree->nnodes++;
     return;
   }
@@ -807,8 +794,8 @@ bool replace) {
       if (node->v[0].left)
         node = node->v[0].left;
       else {
-        child = p_tree_node_new(tree, key, value);
-        node = p_tree_node_next_version(tree, node);
+        child = p_treap_node_new(tree, key, value);
+        node = p_treap_node_next_version(tree, node);
 
         child->v[0].parent = node;
         node->v[0].left = child;
@@ -821,8 +808,8 @@ bool replace) {
       if (node->v[0].right)
         node = node->v[0].right;
       else {
-        child = p_tree_node_new(tree, key, value);
-        node = p_tree_node_next_version(tree, node);
+        child = p_treap_node_new(tree, key, value);
+        node = p_treap_node_next_version(tree, node);
 
         child->v[0].parent = node;
         node->v[0].right = child;
@@ -837,20 +824,20 @@ bool replace) {
   /* rotate the new node up until the heap property is restored */
   node = child;
   while (node->v[0].parent
-      && p_tree_priority(node) < p_tree_priority(node->v[0].parent)) {
-    PTreeNode *sp, *p;
+      && p_treap_priority(node) < p_treap_priority(node->v[0].parent)) {
+    PTreapNode *sp, *p;
 
     /* we'll be changing both of these nodes */
-    p = p_tree_node_next_version(tree, node->v[0].parent);
-    sp = p_tree_node_next_version(tree, p->v[0].parent);
+    p = p_treap_node_next_version(tree, node->v[0].parent);
+    sp = p_treap_node_next_version(tree, p->v[0].parent);
 
     if (p->v[0].left == node)
-      node = p_tree_node_rotate_right(tree, p);
+      node = p_treap_node_rotate_right(tree, p);
     else
-      node = p_tree_node_rotate_left(tree, p);
+      node = p_treap_node_rotate_left(tree, p);
 
     if (!sp) {
-      p_tree_root_next_version(tree);
+      p_treap_root_next_version(tree);
       tree->r[0].root = node;
     } else if (sp->v[0].left == p)
       sp->v[0].left = node;
@@ -860,35 +847,35 @@ bool replace) {
 }
 
 /**
- * p_tree_remove:
- * @tree: a #PTree.
+ * p_treap_remove:
+ * @tree: a #PTreap.
  * @key: the key to remove.
  * 
- * Removes a key/value pair from a #PTree.
+ * Removes a key/value pair from a #PTreap.
  *
- * If the #PTree was created using p_tree_new_full(), the key and value 
+ * If the #PTreap was created using p_treap_new_full(), the key and value
  * are freed using the supplied destroy functions, otherwise you have to 
  * make sure that any dynamically allocated values are freed yourself.
  * Note that if the key existed in
- * earlier versions of the tree (p_tree_next_version() has been called since
+ * earlier versions of the tree (p_treap_next_version() has been called since
  * it was inserted), then it cannot be removed from the tree. *
- * If the key does not exist in the #PTree, the function does nothing.
+ * If the key does not exist in the #PTreap, the function does nothing.
  *
  * Returns: %true if the key was found and able to be removed
  *   (prior to 2.8, this function returned nothing)
  **/
-bool p_tree_remove(PTree *tree, const unsigned long key) {
+bool p_treap_remove(PTreap *tree, const unsigned long key) {
   bool removed;
 
   g_return_val_if_fail(tree != NULL, false);
 
-  removed = p_tree_remove_internal(tree, key, false);
+  removed = p_treap_remove_internal(tree, key, false);
 
 #ifdef P_TREE_DEBUG
   {
     unsigned int i;
     for (i = 0; i <= tree->version; ++i)
-    p_tree_node_check (p_tree_root_find_version (tree, i)->root, i);
+    p_treap_node_check (p_treap_root_find_version (tree, i)->root, i);
   }
 #endif
 
@@ -896,36 +883,36 @@ bool p_tree_remove(PTree *tree, const unsigned long key) {
 }
 
 /**
- * p_tree_steal:
- * @tree: a #PTree.
+ * p_treap_steal:
+ * @tree: a #PTreap.
  * @key: the key to remove.
  * 
- * Removes a key and its associated value from a #PTree without calling 
+ * Removes a key and its associated value from a #PTreap without calling
  * the key and value destroy functions.  Note that if the key existed in
- * earlier versions of the tree (p_tree_next_version() has been called since
+ * earlier versions of the tree (p_treap_next_version() has been called since
  * it was inserted), then it cannot be removed from the tree until all
  * versions containing the node are removed from the tree, by calling
- * p_tree_delete_versions().  However, if the node is removed from the current
- * version of the tree with p_tree_steal() then the key and value destroy
+ * p_treap_delete_versions().  However, if the node is removed from the current
+ * version of the tree with p_treap_steal() then the key and value destroy
  * functions will not be called once the last version of the key/value pair
  * is removed.
- * If the key does not exist in the #PTree, the function does nothing.
+ * If the key does not exist in the #PTreap, the function does nothing.
  *
  * Returns: %true if the key was found and able to be removed
  *   (prior to 2.8, this function returned nothing)
  **/
-bool p_tree_steal(PTree *tree, const unsigned long key) {
+bool p_treap_steal(PTreap *tree, const unsigned long key) {
   bool removed;
 
   g_return_val_if_fail(tree != NULL, false);
 
-  removed = p_tree_remove_internal(tree, key, true);
+  removed = p_treap_remove_internal(tree, key, true);
 
 #ifdef P_TREE_DEBUG
   {
     unsigned int i;
     for (i = 0; i <= tree->version; ++i)
-    p_tree_node_check (p_tree_root_find_version (tree, i)->root, i);
+    p_treap_node_check (p_treap_root_find_version (tree, i)->root, i);
   }
 #endif
 
@@ -933,9 +920,9 @@ bool p_tree_steal(PTree *tree, const unsigned long key) {
 }
 
 /* internal remove routine */
-static bool p_tree_remove_internal(PTree *tree, const unsigned long key,
+static bool p_treap_remove_internal(PTreap *tree, const unsigned long key,
 bool steal) {
-  PTreeNode *node, *parent;
+  PTreapNode *node, *parent;
   bool is_leftchild;
   bool data_free;
 
@@ -972,38 +959,38 @@ bool steal) {
   while (node->v[0].left || node->v[0].right) {
     /* we're changing this node, make sure our pointer will stay valid
      when we rotate it */
-    node = p_tree_node_next_version(tree, node);
+    node = p_treap_node_next_version(tree, node);
     /* getting the next version for the node may change where its parent
      lies, so get a new pointer for it, from the node */
     parent = node->v[0].parent;
 
     if (!node->v[0].left
         || (node->v[0].right
-            && p_tree_priority(node->v[0].left)
-                > p_tree_priority(node->v[0].right))) {
+            && p_treap_priority(node->v[0].left)
+                > p_treap_priority(node->v[0].right))) {
       /* rotate the right child up */
       if (!parent) {
-        p_tree_root_next_version(tree);
-        parent = tree->r[0].root = p_tree_node_rotate_left(tree, node);
+        p_treap_root_next_version(tree);
+        parent = tree->r[0].root = p_treap_node_rotate_left(tree, node);
       } else {
-        parent = p_tree_node_next_version(tree, parent);
+        parent = p_treap_node_next_version(tree, parent);
         if (is_leftchild)
-          parent = parent->v[0].left = p_tree_node_rotate_left(tree, node);
+          parent = parent->v[0].left = p_treap_node_rotate_left(tree, node);
         else
-          parent = parent->v[0].right = p_tree_node_rotate_left(tree, node);
+          parent = parent->v[0].right = p_treap_node_rotate_left(tree, node);
       }
       is_leftchild = true;
     } else {
       /* rotate the left child up */
       if (!parent) {
-        p_tree_root_next_version(tree);
-        parent = tree->r[0].root = p_tree_node_rotate_right(tree, node);
+        p_treap_root_next_version(tree);
+        parent = tree->r[0].root = p_treap_node_rotate_right(tree, node);
       } else {
-        parent = p_tree_node_next_version(tree, parent);
+        parent = p_treap_node_next_version(tree, parent);
         if (is_leftchild)
-          parent = parent->v[0].left = p_tree_node_rotate_right(tree, node);
+          parent = parent->v[0].left = p_treap_node_rotate_right(tree, node);
         else
-          parent = parent->v[0].right = p_tree_node_rotate_right(tree, node);
+          parent = parent->v[0].right = p_treap_node_rotate_right(tree, node);
       }
       is_leftchild = false;
     }
@@ -1011,14 +998,14 @@ bool steal) {
 
   /* remove any pointers to the node in the treap */
   if (!parent) {
-    p_tree_root_next_version(tree);
+    p_treap_root_next_version(tree);
     tree->r[0].root = NULL;
   } else {
     /* make a new version of the parent to cut the child off.
      making a new version of the parent may make a new version of
      the node being deleted, which is the one we'd want to free then
      instead, so update the node pointer */
-    parent = p_tree_node_next_version(tree, parent);
+    parent = p_treap_node_next_version(tree, parent);
     if (is_leftchild) {
       node = parent->v[0].left;
       parent->v[0].left = NULL;
@@ -1042,54 +1029,54 @@ bool steal) {
   /* only really delete the node if it was only in the current version,
    otherwise it needs to be remembered */
   if (node->nv == 0)
-    data_free = p_tree_node_free(tree, node);
+    data_free = p_treap_node_free(tree, node);
 
   return data_free;
 }
 
 /**
- * p_tree_lookup:
- * @tree: a #PTree.
+ * p_treap_lookup:
+ * @tree: a #PTreap.
  * @key: the key to look up.
  * 
- * Gets the value corresponding to the given key. Since a #PTree is 
+ * Gets the value corresponding to the given key. Since a #PTreap is
  * automatically balanced as key/value pairs are added, key lookup is very 
  * fast.
  *
  * Return value: the value corresponding to the key, or %NULL if the key was
  * not found.
  **/
-void* p_tree_lookup(PTree *tree, const unsigned long key) {
+void* p_treap_lookup(PTreap *tree, const unsigned long key) {
 
-  return p_tree_lookup_related_v(tree, tree->version, key, P_TREE_SEARCH_EXACT);
+  return p_treap_lookup_related_v(tree, tree->version, key, P_TREE_SEARCH_EXACT);
 }
 
 /**
- * p_tree_lookup_v:
- * @tree: a #PTree.
+ * p_treap_lookup_v:
+ * @tree: a #PTreap.
  * @version: the version of the tree within which to search.  If
- *   p_tree_next_version() has not been used, then this is 0.  This value
- *   must be at most the value returned by p_tree_current_version().
+ *   p_treap_next_version() has not been used, then this is 0.  This value
+ *   must be at most the value returned by p_treap_current_version().
  * @key: the key to look up.
  *
  * Gets the value corresponding to the given key in a specified @version of
- * the #PTree. Since a #PTree is
+ * the #PTreap. Since a #PTreap is
  * automatically balanced as key/value pairs are added, key lookup is very
  * fast.
  *
  * Return value: the value corresponding to the key, or %NULL if the key was
  * not found.
  **/
-void* p_tree_lookup_v(PTree *tree, unsigned int version,
-                      const unsigned long key) {
-  return p_tree_lookup_related_v(tree, version, key, P_TREE_SEARCH_EXACT);
+void* p_treap_lookup_v(PTreap *tree, unsigned int version,
+                       const unsigned long key) {
+  return p_treap_lookup_related_v(tree, version, key, P_TREE_SEARCH_EXACT);
 }
 
 /**
- * p_tree_lookup_related:
- * @tree: a #PTree.
+ * p_treap_lookup_related:
+ * @tree: a #PTreap.
  * @key: the key to look up.
- * @search_type: the search behavior if the @key is not present in the #PTree,
+ * @search_type: the search behavior if the @key is not present in the #PTreap,
  *   one of %P_TREE_SEARCH_EXACT, %P_TREE_SEARCH_SUCCESSOR, and
  *   %P_TREE_SEARCH_PREDECESSOR.
  *
@@ -1105,31 +1092,31 @@ void* p_tree_lookup_v(PTree *tree, unsigned int version,
  * %P_TREE_SEARCH_PREDECESSOR, the function will find the next smaller key that
  * is present in the tree and return its value, or %NULL if there are no keys
  * smaller than @key in the tree.
- * Since a #PTree is
+ * Since a #PTreap is
  * automatically balanced as key/value pairs are added, key lookup is very
  * fast.
  *
  * Return value: the value corresponding to the found key, or %NULL if no
  * matching key was found.
  **/
-void* p_tree_lookup_related(PTree *tree, const unsigned long key,
-                            PTreeSearchType search_type) {
-  return p_tree_lookup_related_v(tree, tree->version, key, search_type);
+void* p_treap_lookup_related(PTreap *tree, const unsigned long key,
+                             PTreapSearchType search_type) {
+  return p_treap_lookup_related_v(tree, tree->version, key, search_type);
 }
 
 /**
- * p_tree_lookup_related_v:
- * @tree: a #PTree.
+ * p_treap_lookup_related_v:
+ * @tree: a #PTreap.
  * @version: the version of the tree within which to search.  If
- *   p_tree_next_version() has not been used, then this is 0.  This value
- *   must be at most the value returned by p_tree_current_version().
+ *   p_treap_next_version() has not been used, then this is 0.  This value
+ *   must be at most the value returned by p_treap_current_version().
  * @key: the key to look up.
- * @search_type: the search behavior if the @key is not present in the #PTree,
+ * @search_type: the search behavior if the @key is not present in the #PTreap,
  *   one of %P_TREE_SEARCH_EXACT, %P_TREE_SEARCH_SUCCESSOR, and
  *   %P_TREE_SEARCH_PREDECESSOR.
  *
  * Gets a value corresponding to the given key in a specified @version of the
- * #PTree.
+ * #PTreap.
  *
  * If the given @key is present in the tree, then its corresponding value is
  * always returned.  If it is not, then the @search_type will define the
@@ -1141,73 +1128,73 @@ void* p_tree_lookup_related(PTree *tree, const unsigned long key,
  * %P_TREE_SEARCH_PREDECESSOR, the function will find the next smaller key that
  * is present in the tree and return its value, or %NULL if there are no keys
  * smaller than @key in the tree.
- * Since a #PTree is
+ * Since a #PTreap is
  * automatically balanced as key/value pairs are added, key lookup is very
  * fast.
  *
  * Return value: the value corresponding to the found key, or %NULL if no
  * matching key was found.
  **/
-void* p_tree_lookup_related_v(PTree *tree, unsigned int version,
-                              const unsigned long key,
-                              PTreeSearchType search_type) {
-  PTreeNode *node;
+void* p_treap_lookup_related_v(PTreap *tree, unsigned int version,
+                               const unsigned long key,
+                               PTreapSearchType search_type) {
+  PTreapNode *node;
 
   g_return_val_if_fail(tree != NULL, NULL);
   g_return_val_if_fail(version <= tree->version, NULL);
 
-  node = p_tree_find_node(tree, key, search_type, version);
+  node = p_treap_find_node(tree, key, search_type, version);
 
   return node ? node->data->value : NULL;
 }
 
 /**
- * p_tree_lookup_extended:
- * @tree: a #PTree.
+ * p_treap_lookup_extended:
+ * @tree: a #PTreap.
  * @lookup_key: the key to look up.
  * @orig_key: returns the original key.
  * @value: returns the value associated with the key.
  * 
- * Looks up a key in the #PTree, returning the original key and the
+ * Looks up a key in the #PTreap, returning the original key and the
  * associated value and a #bool which is %true if the key was found. This
  * is useful if you need to free the memory allocated for the original key, 
- * for example before calling p_tree_remove().
+ * for example before calling p_treap_remove().
  * 
- * Return value: %true if the key was found in the #PTree.
+ * Return value: %true if the key was found in the #PTreap.
  **/
-bool p_tree_lookup_extended(PTree *tree, const unsigned long lookup_key,
-                            unsigned long *orig_key, void* *value) {
-  return p_tree_lookup_extended_v(tree, tree->version, lookup_key, orig_key,
-                                  value);
+bool p_treap_lookup_extended(PTreap *tree, const unsigned long lookup_key,
+                             unsigned long *orig_key, void* *value) {
+  return p_treap_lookup_extended_v(tree, tree->version, lookup_key, orig_key,
+                                   value);
 }
 
 /**
- * p_tree_lookup_extended_v:
- * @tree: a #PTree.
+ * p_treap_lookup_extended_v:
+ * @tree: a #PTreap.
  * @version: the version of the tree within which to search.  If
- *   p_tree_next_version() has not been used, then this is 0.  This value
- *   must be at most the value returned by p_tree_current_version().
+ *   p_treap_next_version() has not been used, then this is 0.  This value
+ *   must be at most the value returned by p_treap_current_version().
  * @lookup_key: the key to 5Blook up.
  * @orig_key: returns the original key.
  * @value: returns the value associated with the key.
  *
- * Looks up a key in a specified @version of the #PTree, returning the
+ * Looks up a key in a specified @version of the #PTreap, returning the
  * original key and the
  * associated value and a #bool which is %true if the key was found. This
  * is useful if you need to free the memory allocated for the original key,
- * for example before calling p_tree_remove().
+ * for example before calling p_treap_remove().
  *
- * Return value: %true if the key was found in the #PTree.
+ * Return value: %true if the key was found in the #PTreap.
  **/
-bool p_tree_lookup_extended_v(PTree *tree, unsigned int version,
-                              const unsigned long lookup_key,
-                              unsigned long *orig_key, void* *value) {
-  PTreeNode *node;
+bool p_treap_lookup_extended_v(PTreap *tree, unsigned int version,
+                               const unsigned long lookup_key,
+                               unsigned long *orig_key, void* *value) {
+  PTreapNode *node;
 
   g_return_val_if_fail(tree != NULL, false);
   g_return_val_if_fail(version <= tree->version, false);
 
-  node = p_tree_find_node(tree, lookup_key, P_TREE_SEARCH_EXACT, version);
+  node = p_treap_find_node(tree, lookup_key, P_TREE_SEARCH_EXACT, version);
 
   if (node) {
     if (orig_key)
@@ -1220,13 +1207,13 @@ bool p_tree_lookup_extended_v(PTree *tree, unsigned int version,
 }
 
 /**
- * p_tree_foreach:
- * @tree: a #PTree.
+ * p_treap_foreach:
+ * @tree: a #PTreap.
  * @func: the function to call for each node visited. If this function
  *   returns %true, the traversal is stopped.
  * @user_data: user data to pass to the function.
  * 
- * Calls the given function for each of the key/value pairs in the #PTree.
+ * Calls the given function for each of the key/value pairs in the #PTreap.
  * The function is passed the key and value of each pair, and the given
  * @data parameter. The tree is traversed in sorted order.
  *
@@ -1235,22 +1222,22 @@ bool p_tree_lookup_extended_v(PTree *tree, unsigned int version,
  * to add each item to a list in your #GTraverseFunc as you walk over 
  * the tree, then walk the list and remove each item.
  **/
-void p_tree_foreach(PTree *tree, GTraverseFunc func, void* user_data) {
-  p_tree_foreach_v(tree, tree->version, func, user_data);
+void p_treap_foreach(PTreap *tree, GTraverseFunc func, void* user_data) {
+  p_treap_foreach_v(tree, tree->version, func, user_data);
 }
 
 /**
- * p_tree_foreach_v:
- * @tree: a #PTree.
+ * p_treap_foreach_v:
+ * @tree: a #PTreap.
  * @version: the version of the tree to traverse.  If
- *   p_tree_next_version() has not been used, then this is 0.  This value
- *   must be at most the value returned by p_tree_current_version().
+ *   p_treap_next_version() has not been used, then this is 0.  This value
+ *   must be at most the value returned by p_treap_current_version().
  * @func: the function to call for each node visited. If this function
  *   returns %true, the traversal is stopped.
  * @user_data: user data to pass to the function.
  *
  * Calls the given function for each of the key/value pairs in a
- * specified @version of the #PTree.
+ * specified @version of the #PTreap.
  * The function is passed the key and value of each pair, and the given
  * @data parameter. The tree is traversed in sorted order.
  *
@@ -1259,9 +1246,9 @@ void p_tree_foreach(PTree *tree, GTraverseFunc func, void* user_data) {
  * to add each item to a list in your #GTraverseFunc as you walk over
  * the tree, then walk the list and remove each item.
  **/
-void p_tree_foreach_v(PTree *tree, unsigned int version, GTraverseFunc func,
-                      void* user_data) {
-  PTreeNode *node;
+void p_treap_foreach_v(PTreap *tree, unsigned int version, GTraverseFunc func,
+                       void* user_data) {
+  PTreapNode *node;
 
   g_return_if_fail(tree != NULL);
   g_return_if_fail(version <= tree->version);
@@ -1269,34 +1256,34 @@ void p_tree_foreach_v(PTree *tree, unsigned int version, GTraverseFunc func,
   if (!tree->r[0].root)
     return;
 
-  node = p_tree_first_node(tree, version);
+  node = p_treap_first_node(tree, version);
 
   while (node) {
     if ((*func)(node->data->key, node->data->value, user_data))
       break;
 
-    node = p_tree_node_next(node, version);
+    node = p_treap_node_next(node, version);
   }
 }
 
 /**
- * p_tree_traverse:
- * @tree: a #PTree.
+ * p_treap_traverse:
+ * @tree: a #PTreap.
  * @traverse_func: the function to call for each node visited. If this 
  *   function returns %true, the traversal is stopped.
  * @traverse_type: the order in which nodes are visited, one of %G_IN_ORDER,
  *   %G_PRE_ORDER and %G_POST_ORDER.
  * @user_data: user data to pass to the function.
  * 
- * Calls the given function for each node in the #PTree. 
+ * Calls the given function for each node in the #PTreap.
  *
  * Deprecated:2.2: The order of a balanced tree is somewhat arbitrary. If you 
- * just want to visit all nodes in sorted order, use p_tree_foreach() 
+ * just want to visit all nodes in sorted order, use p_treap_foreach()
  * instead. If you really need to visit nodes in a different order, consider
  * using an <link linkend="glib-N-ary-Trees">N-ary Tree</link>.
  **/
-void p_tree_traverse(PTree *tree, GTraverseFunc traverse_func,
-                     GTraverseType traverse_type, void* user_data) {
+void p_treap_traverse(PTreap *tree, GTraverseFunc traverse_func,
+                      GTraverseType traverse_type, void* user_data) {
   g_return_if_fail(tree != NULL);
 
   if (!tree->r[0].root)
@@ -1304,97 +1291,97 @@ void p_tree_traverse(PTree *tree, GTraverseFunc traverse_func,
 
   switch (traverse_type) {
     case G_PRE_ORDER:
-      p_tree_node_pre_order(tree->r[0].root, traverse_func, user_data);
+      p_treap_node_pre_order(tree->r[0].root, traverse_func, user_data);
       break;
 
     case G_IN_ORDER:
-      p_tree_node_in_order(tree->r[0].root, traverse_func, user_data);
+      p_treap_node_in_order(tree->r[0].root, traverse_func, user_data);
       break;
 
     case G_POST_ORDER:
-      p_tree_node_post_order(tree->r[0].root, traverse_func, user_data);
+      p_treap_node_post_order(tree->r[0].root, traverse_func, user_data);
       break;
 
     case G_LEVEL_ORDER:
       printf(
-          "p_tree_traverse(): traverse type G_LEVEL_ORDER isn't implemented.");
+          "p_treap_traverse(): traverse type G_LEVEL_ORDER isn't implemented.");
       break;
   }
 }
 
-static int p_tree_node_height(PTreeNode *node, unsigned int version) {
-  PTreeNodeVersion *nv;
+static int p_treap_node_height(PTreapNode *node, unsigned int version) {
+  PTreapNodeVersion *nv;
   int l = 0, r = 0;
   if (node == NULL)
     return 0;
-  nv = p_tree_node_find_version(node, version);
+  nv = p_treap_node_find_version(node, version);
   if (nv->left)
-    l = p_tree_node_height(nv->left, version);
+    l = p_treap_node_height(nv->left, version);
   if (nv->right)
-    r = p_tree_node_height(nv->right, version);
+    r = p_treap_node_height(nv->right, version);
   return 1 + std::max(l, r);
 }
 
 /**
- * p_tree_height:
- * @tree: a #PTree.
+ * p_treap_height:
+ * @tree: a #PTreap.
  * 
- * Gets the height of a #PTree.
+ * Gets the height of a #PTreap.
  *
- * If the #PTree contains no nodes, the height is 0.
- * If the #PTree contains only one root node the height is 1.
+ * If the #PTreap contains no nodes, the height is 0.
+ * If the #PTreap contains only one root node the height is 1.
  * If the root node has children the height is 2, etc.
  * 
- * Return value: the height of the #PTree.
+ * Return value: the height of the #PTreap.
  **/
-int p_tree_height(PTree *tree) {
-  return p_tree_height_v(tree, tree->version);
+int p_treap_height(PTreap *tree) {
+  return p_treap_height_v(tree, tree->version);
 }
 
 /**
- * p_tree_height_v:
- * @tree: a #PTree.
+ * p_treap_height_v:
+ * @tree: a #PTreap.
  * @version: the version of the tree which should be queried. If
- *   p_tree_next_version() has not been used, then this is 0.  This value
- *   must be at most the value returned by p_tree_current_version().
+ *   p_treap_next_version() has not been used, then this is 0.  This value
+ *   must be at most the value returned by p_treap_current_version().
  *
- * Gets the height of a specified @version of the #PTree.
+ * Gets the height of a specified @version of the #PTreap.
  *
- * If the #PTree contains no nodes, the height is 0.
- * If the #PTree contains only one root node the height is 1.
+ * If the #PTreap contains no nodes, the height is 0.
+ * If the #PTreap contains only one root node the height is 1.
  * If the root node has children the height is 2, etc.
  *
- * Return value: the height of the #PTree.
+ * Return value: the height of the #PTreap.
  **/
-int p_tree_height_v(PTree *tree, unsigned int version) {
+int p_treap_height_v(PTreap *tree, unsigned int version) {
   g_return_val_if_fail(tree != NULL, 0);
   g_return_val_if_fail(version <= tree->version, 0);
 
-  return p_tree_node_height(p_tree_root_find_version(tree, version)->root,
-                            version);
+  return p_treap_node_height(p_treap_root_find_version(tree, version)->root,
+                             version);
 }
 
 /**
- * p_tree_nnodes:
- * @tree: a #PTree.
+ * p_treap_nnodes:
+ * @tree: a #PTreap.
  * 
- * Gets the number of nodes in the current version of a #PTree.
+ * Gets the number of nodes in the current version of a #PTreap.
  * 
- * Return value: the number of nodes in the latest version of the #PTree.
+ * Return value: the number of nodes in the latest version of the #PTreap.
  **/
-int p_tree_nnodes(PTree *tree) {
+int p_treap_nnodes(PTreap *tree) {
   g_return_val_if_fail(tree != NULL, 0);
 
   return tree->nnodes;
 }
 
-static PTreeNode *
-p_tree_find_node(PTree *tree, const unsigned long key,
-                 PTreeSearchType search_type, unsigned int version) {
-  PTreeNode *node, *remember;
-  PTreeRootVersion *rv;
+static PTreapNode *
+p_treap_find_node(PTreap *tree, const unsigned long key,
+                  PTreapSearchType search_type, unsigned int version) {
+  PTreapNode *node, *remember;
+  PTreapRootVersion *rv;
 
-  rv = p_tree_root_find_version(tree, version);
+  rv = p_treap_root_find_version(tree, version);
   node = rv->root;
   //cout<<"root ::"<<rv->root<<endl;
   if (!node) {
@@ -1406,7 +1393,7 @@ p_tree_find_node(PTree *tree, const unsigned long key,
     if (key == node->data->key) {
       return node;
     } else if (key < node->data->key) {
-      PTreeNodeVersion *nodev = p_tree_node_find_version(node, version);
+      PTreapNodeVersion *nodev = p_treap_node_find_version(node, version);
       if (search_type == P_TREE_SEARCH_SUCCESSOR)
         remember = node;
       if (!nodev->left)
@@ -1414,7 +1401,7 @@ p_tree_find_node(PTree *tree, const unsigned long key,
 
       node = nodev->left;
     } else {
-      PTreeNodeVersion *nodev = p_tree_node_find_version(node, version);
+      PTreapNodeVersion *nodev = p_treap_node_find_version(node, version);
       if (search_type == P_TREE_SEARCH_PREDECESSOR)
         remember = node;
       if (!nodev->right)
@@ -1427,51 +1414,51 @@ p_tree_find_node(PTree *tree, const unsigned long key,
   return NULL;
 }
 
-static int p_tree_node_pre_order(PTreeNode *node, GTraverseFunc traverse_func,
-                                 void* data) {
-  if ((*traverse_func)(node->data->key, node->data->value, data))
-    return true;
-
-  if (node->v[0].left) {
-    if (p_tree_node_pre_order(node->v[0].left, traverse_func, data))
-      return true;
-  }
-
-  if (node->v[0].right) {
-    if (p_tree_node_pre_order(node->v[0].right, traverse_func, data))
-      return true;
-  }
-
-  return false;
-}
-
-static int p_tree_node_in_order(PTreeNode *node, GTraverseFunc traverse_func,
-                                void* data) {
-  if (node->v[0].left) {
-    if (p_tree_node_in_order(node->v[0].left, traverse_func, data))
-      return true;
-  }
-
-  if ((*traverse_func)(node->data->key, node->data->value, data))
-    return true;
-
-  if (node->v[0].right) {
-    if (p_tree_node_in_order(node->v[0].right, traverse_func, data))
-      return true;
-  }
-
-  return false;
-}
-
-static int p_tree_node_post_order(PTreeNode *node, GTraverseFunc traverse_func,
+static int p_treap_node_pre_order(PTreapNode *node, GTraverseFunc traverse_func,
                                   void* data) {
+  if ((*traverse_func)(node->data->key, node->data->value, data))
+    return true;
+
   if (node->v[0].left) {
-    if (p_tree_node_post_order(node->v[0].left, traverse_func, data))
+    if (p_treap_node_pre_order(node->v[0].left, traverse_func, data))
       return true;
   }
 
   if (node->v[0].right) {
-    if (p_tree_node_post_order(node->v[0].right, traverse_func, data))
+    if (p_treap_node_pre_order(node->v[0].right, traverse_func, data))
+      return true;
+  }
+
+  return false;
+}
+
+static int p_treap_node_in_order(PTreapNode *node, GTraverseFunc traverse_func,
+                                 void* data) {
+  if (node->v[0].left) {
+    if (p_treap_node_in_order(node->v[0].left, traverse_func, data))
+      return true;
+  }
+
+  if ((*traverse_func)(node->data->key, node->data->value, data))
+    return true;
+
+  if (node->v[0].right) {
+    if (p_treap_node_in_order(node->v[0].right, traverse_func, data))
+      return true;
+  }
+
+  return false;
+}
+
+static int p_treap_node_post_order(PTreapNode *node,
+                                   GTraverseFunc traverse_func, void* data) {
+  if (node->v[0].left) {
+    if (p_treap_node_post_order(node->v[0].left, traverse_func, data))
+      return true;
+  }
+
+  if (node->v[0].right) {
+    if (p_treap_node_post_order(node->v[0].right, traverse_func, data))
       return true;
   }
 
@@ -1481,17 +1468,16 @@ static int p_tree_node_post_order(PTreeNode *node, GTraverseFunc traverse_func,
   return false;
 }
 
-static PTreeNode*
-p_tree_node_rotate_left(PTree *tree, PTreeNode *node) {
-  tree_rotations++;
-  PTreeNode *right;
+static PTreapNode*
+p_treap_node_rotate_left(PTreap *tree, PTreapNode *node) {
+  PTreapNode *right;
 
   assert(node->v[0].version == tree->version);
 
-  right = p_tree_node_next_version(tree, node->v[0].right);
+  right = p_treap_node_next_version(tree, node->v[0].right);
 
   if (right->v[0].left) {
-    node->v[0].right = p_tree_node_next_version(tree, right->v[0].left);
+    node->v[0].right = p_treap_node_next_version(tree, right->v[0].left);
     node->v[0].right->v[0].parent = node;
   } else
     node->v[0].right = NULL;
@@ -1502,17 +1488,16 @@ p_tree_node_rotate_left(PTree *tree, PTreeNode *node) {
   return right;
 }
 
-static PTreeNode*
-p_tree_node_rotate_right(PTree *tree, PTreeNode *node) {
-  tree_rotations++;
-  PTreeNode *left;
+static PTreapNode*
+p_treap_node_rotate_right(PTreap *tree, PTreapNode *node) {
+  PTreapNode *left;
 
   assert(node->v[0].version == tree->version);
 
-  left = p_tree_node_next_version(tree, node->v[0].left);
+  left = p_treap_node_next_version(tree, node->v[0].left);
 
   if (left->v[0].right) {
-    node->v[0].left = p_tree_node_next_version(tree, left->v[0].right);
+    node->v[0].left = p_treap_node_next_version(tree, left->v[0].right);
     node->v[0].left->v[0].parent = node;
   } else
     node->v[0].left = NULL;
@@ -1523,70 +1508,32 @@ p_tree_node_rotate_right(PTree *tree, PTreeNode *node) {
   return left;
 }
 
-#ifdef P_TREE_DEBUG
-static void
-p_tree_node_check (PTreeNode *node,
-    unsigned int version)
-{
-  PTreeNodeVersion *nv, *tmpv;
+static void p_treap_node_check(PTreapNode *node, unsigned int version) {
+  PTreapNodeVersion *nv, *tmpv;
 
-  if (node)
-  {
-    nv = p_tree_node_find_version (node, version);
+  if (node) {
+    nv = p_treap_node_find_version(node, version);
 
-    assert (nv->left == NULL || nv->left != nv->right);
+    assert(nv->left == NULL || nv->left != nv->right);
 
-    if (nv->left)
-    {
-      tmpv = p_tree_node_find_version (nv->left, version);
-      assert (tmpv->parent == node);
+    if (nv->left) {
+      tmpv = p_treap_node_find_version(nv->left, version);
+      assert(tmpv->parent == node);
     }
 
-    if (nv->right)
-    {
-      tmpv = p_tree_node_find_version (nv->right, version);
-      assert (tmpv->parent == node);
+    if (nv->right) {
+      tmpv = p_treap_node_find_version(nv->right, version);
+      assert(tmpv->parent == node);
     }
 
-    if (nv->parent)
-    {
-      tmpv = p_tree_node_find_version (nv->parent, version);
-      assert (tmpv->left == node || tmpv->right == node);
+    if (nv->parent) {
+      tmpv = p_treap_node_find_version(nv->parent, version);
+      assert(tmpv->left == node || tmpv->right == node);
     }
 
     if (nv->left)
-    p_tree_node_check (nv->left, version);
+      p_treap_node_check(nv->left, version);
     if (nv->right)
-    p_tree_node_check (nv->right, version);
+      p_treap_node_check(nv->right, version);
   }
 }
-
-static void
-p_tree_node_dump (PTreeNode *node,
-    unsigned int version,
-    int indent)
-{
-  PTreeNodeVersion *nv = p_tree_node_find_version (node, version);
-
-  g_print ("%*s%c\n", indent, "", *(char *)node->data->key);
-
-  if (nv->left)
-  p_tree_node_dump (nv->left, version, indent + 2);
-  else if ((node = p_tree_node_previous (node, version)))
-  g_print ("%*s<%c\n", indent + 2, "", *(char *)node->data->key);
-
-  if (nv->right)
-  p_tree_node_dump (nv->right, version, indent + 2);
-  else if ((node = p_tree_node_next (node, version)))
-  g_print ("%*s>%c\n", indent + 2, "", *(char *)node->data->key);
-}
-
-void
-p_tree_dump (PTree *tree,
-    unsigned int version)
-{
-  PTreeRootVersion *rv = p_tree_root_find_version (tree, version);
-  if (rv->root)
-  p_tree_node_dump (rv->root, version, 0);
-}
-#endif
