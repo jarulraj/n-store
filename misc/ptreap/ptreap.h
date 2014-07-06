@@ -82,6 +82,7 @@ class ptreap {
   unsigned int version;
 
   ptreap_root_version none = { NULL, 0 };
+  ptreap* tree = NULL;
 
   /**
    * new_full:
@@ -109,6 +110,34 @@ class ptreap {
 
     r[0].root = NULL;
     r[0].version = 0;
+    tree = this;
+
+    cout<<"new tree :: "<<tree<<"\n";
+  }
+
+
+
+  /**
+   * new_full:
+   * @key_compare_func: qsort()-style comparison function.
+   * @key_compare_data: data to pass to comparison function.
+   * @key_destroy_func: a function to free the memory allocated for the key
+   *   used when removing the entry from the #PTreap or %NULL if you don't
+   *   want to supply such a function.
+   * @value_destroy_func: a function to free the memory allocated for the
+   *   value used when removing the entry from the #PTreap or %NULL if you
+   *   don't want to supply such a function.
+   *
+   * Creates a new #PTreap like new() and allows to specify functions
+   * to free the memory allocated for the key and value that get called when
+   * removing the entry from the #PTreap.
+   *
+   * Return value: a new #PTreap.
+   **/
+  ptreap(void** __tree) {
+    tree = (*__tree);
+
+    cout<<"existing tree :: "<<tree<<"\n";
   }
 
   /**
@@ -1128,7 +1157,7 @@ class ptreap {
    * matching key was found.
    **/
   V lookup_related_v(unsigned int version, const K key,
-                         ptreap_search_type search_type) {
+                     ptreap_search_type search_type) {
     ptreap_node *node;
 
     g_return_val_if_fail(version <= version, NULL);
@@ -1151,8 +1180,7 @@ class ptreap {
    *
    * Return value: %true if the key was found in the #PTreap.
    **/
-  bool lookup_extended(const K lookup_key, K *orig_key,
-                       V *value) {
+  bool lookup_extended(const K lookup_key, K *orig_key, V *value) {
     return lookup_extended_v(version, lookup_key, orig_key, value);
   }
 
@@ -1173,8 +1201,8 @@ class ptreap {
    *
    * Return value: %true if the key was found in the #PTreap.
    **/
-  bool lookup_extended_v(unsigned int version, const K lookup_key,
-                         K *orig_key, V *value) {
+  bool lookup_extended_v(unsigned int version, const K lookup_key, K *orig_key,
+                         V *value) {
     ptreap_node *node;
 
     g_return_val_if_fail(version <= version, false);
@@ -1253,8 +1281,7 @@ class ptreap {
   }
 
   ptreap_node *
-  find_node(const K key, ptreap_search_type search_type,
-            unsigned int version) {
+  find_node(const K key, ptreap_search_type search_type, unsigned int version) {
     ptreap_node *node, *remember;
     ptreap_root_version *rv;
 
@@ -1329,36 +1356,6 @@ class ptreap {
     node->v[0].parent = left;
 
     return left;
-  }
-
-  void node_check(ptreap_node *node, unsigned int version) {
-    ptreap_node_version *nv, *tmpv;
-
-    if (node) {
-      nv = node_find_version(node, version);
-
-      assert(nv->left == NULL || nv->left != nv->right);
-
-      if (nv->left) {
-        tmpv = node_find_version(nv->left, version);
-        assert(tmpv->parent == node);
-      }
-
-      if (nv->right) {
-        tmpv = node_find_version(nv->right, version);
-        assert(tmpv->parent == node);
-      }
-
-      if (nv->parent) {
-        tmpv = node_find_version(nv->parent, version);
-        assert(tmpv->left == node || tmpv->right == node);
-      }
-
-      if (nv->left)
-        node_check(nv->left, version);
-      if (nv->right)
-        node_check(nv->right, version);
-    }
   }
 
 };

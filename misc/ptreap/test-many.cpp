@@ -8,32 +8,32 @@
 
 using namespace std;
 
-void lookup(ptreap<int, int> *tree, unsigned int version, const unsigned long key) {
-  int ret;
+void lookup(ptreap<int, int*> *tree, unsigned int version, const unsigned long key) {
+  int* ret;
 
   ret = tree->lookup(version, key);
   cout<< "version :: "<<version<<"  key :: "<<key <<" ";
   if (ret != NULL)
-    cout << "val :: " << ret << endl;
+    cout << "val :: " << (*ret) << endl;
   else
     cout << "val :: not found" << endl;
 
 }
 
 int main(int argc, char **argv) {
-  unsigned int i, *nums;
-  ptreap<int, int>* tree = new ptreap<int, int>();
+  int i;
+  ptreap<int, int*>* tree = new ptreap<int, int*>();
 
   int n = 10;
-  nums = new unsigned int[n];
+  int* nums = new int[n];
   for (i = 0; i < n; ++i)
-    nums[i] = i;
+    nums[i] = i * 10;
 
   printf("Persistent Tree with many versions...\n");
 
-  tree->insert(1, 10);
-  tree->insert(2, 20);
-  tree->insert(3, 30);
+  tree->insert(1, &(nums[1]));
+  tree->insert(2, &(nums[2]));
+  tree->insert(3, &(nums[3]));
 
   cout << "nodes ::" << tree->nnodes << endl;
 
@@ -43,10 +43,10 @@ int main(int argc, char **argv) {
   // Next version
   tree->next_version();
 
-  tree->insert(2, 50);
+  tree->insert(2, &(nums[5]));
   tree->remove(3);
 
-  tree->insert(4, 40);
+  tree->insert(4, &(nums[4]));
 
   for (i = 1; i <= 4; ++i)
     lookup(tree, tree->current_version(), i);
