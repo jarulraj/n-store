@@ -8,13 +8,13 @@
 
 using namespace std;
 
-void lookup(ptreap *tree, unsigned int version, const unsigned long key) {
-  void* ret;
+void lookup(ptreap<int, int> *tree, unsigned int version, const unsigned long key) {
+  int ret;
 
   ret = tree->lookup(version, key);
   cout<< "version :: "<<version<<"  key :: "<<key <<" ";
   if (ret != NULL)
-    cout << "val :: " << GPOINTER_TO_UINT(ret) << endl;
+    cout << "val :: " << ret << endl;
   else
     cout << "val :: not found" << endl;
 
@@ -22,7 +22,7 @@ void lookup(ptreap *tree, unsigned int version, const unsigned long key) {
 
 int main(int argc, char **argv) {
   unsigned int i, *nums;
-  ptreap* tree = new ptreap;
+  ptreap<int, int>* tree = new ptreap<int, int>();
 
   int n = 10;
   nums = new unsigned int[n];
@@ -31,9 +31,9 @@ int main(int argc, char **argv) {
 
   printf("Persistent Tree with many versions...\n");
 
-  tree->insert(1, GUINT_TO_POINTER(nums[1]));
-  tree->insert(2, GUINT_TO_POINTER(nums[2]));
-  tree->insert(3, GUINT_TO_POINTER(nums[3]));
+  tree->insert(1, 10);
+  tree->insert(2, 20);
+  tree->insert(3, 30);
 
   cout << "nodes ::" << tree->nnodes << endl;
 
@@ -43,10 +43,10 @@ int main(int argc, char **argv) {
   // Next version
   tree->next_version();
 
-  tree->insert(2, GUINT_TO_POINTER(nums[5]));
+  tree->insert(2, 50);
   tree->remove(3);
 
-  tree->insert(4, GUINT_TO_POINTER(nums[4]));
+  tree->insert(4, 40);
 
   for (i = 1; i <= 4; ++i)
     lookup(tree, tree->current_version(), i);

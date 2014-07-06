@@ -22,51 +22,56 @@ using namespace std;
 #define MAX_IN_DEGREE 3
 #define TABLE_SIZE (MAX_IN_DEGREE+1)
 
-/* Tree Search Types */
-typedef enum {
-  P_TREE_SEARCH_EXACT,
-  P_TREE_SEARCH_SUCCESSOR,
-  P_TREE_SEARCH_PREDECESSOR
-} ptreap_search_type;
-
-typedef struct ptreap_root_version ptreap_root_version;
-typedef struct ptreap_node_version ptreap_node_version;
-typedef struct ptreap_node_data ptreap_node_data;
-typedef struct ptreap_node ptreap_node;
-
-struct ptreap_root_version {
-  ptreap_node *root;
-  unsigned int version;
-};
-
-struct ptreap_node_version {
-  unsigned int version;
-  ptreap_node *left; /* left subtree */
-  ptreap_node *right; /* right subtree */
-  ptreap_node *parent; /* parent node */
-};
-
-struct ptreap_node_data {
-  unsigned long key; /* key for this node */
-  void* value; /* value stored at this node */
-  std::atomic_int ref_count;
-  short unsigned int stolen; /* true if the node is stolen instead of removed */
-};
-
-struct ptreap_node {
-  ptreap_node_data *data; /* the node's permanent data */
-  ptreap_node_version *v; /* versions of pointers for the node.  v[0] is the
-   highest (latest) version.  then v[1]..v[nv-1] are
-   older versions in ascending order.  Use first_v(),
-   next_v() and prev_v() to traverse the list. */
-  unsigned int nv; /* number of versions stored in this node */
-};
-
-/* Persistent balanced binary trees
+/*
+ * Persistent balanced binary tree
  */
-
+template<typename K, typename V>
 class ptreap {
  public:
+  /* Tree Search Types */
+  typedef enum {
+    P_TREE_SEARCH_EXACT,
+    P_TREE_SEARCH_SUCCESSOR,
+    P_TREE_SEARCH_PREDECESSOR
+  } ptreap_search_type;
+
+  class ptreap_root_version;
+  class ptreap_node_version;
+  class ptreap_node_data;
+  class ptreap_node;
+
+  class ptreap_root_version {
+   public:
+    ptreap_node *root;
+    unsigned int version;
+  };
+
+  class ptreap_node_version {
+   public:
+    unsigned int version;
+    ptreap_node *left; /* left subtree */
+    ptreap_node *right; /* right subtree */
+    ptreap_node *parent; /* parent node */
+  };
+
+  class ptreap_node_data {
+   public:
+    K key; /* key for this node */
+    V value; /* value stored at this node */
+    std::atomic_int ref_count;
+    short unsigned int stolen; /* true if the node is stolen instead of removed */
+  };
+
+  class ptreap_node {
+   public:
+    ptreap_node_data *data; /* the node's permanent data */
+    ptreap_node_version *v; /* versions of pointers for the node.  v[0] is the
+     highest (latest) version.  then v[1]..v[nv-1] are
+     older versions in ascending order.  Use first_v(),
+     next_v() and prev_v() to traverse the list. */
+    unsigned int nv; /* number of versions stored in this node */
+  };
+
   ptreap_root_version *r; /* versioned root nodes of the tree.  r[0] is
    the highest (latest) version.  then r[1]..r[nr-1] are
    older versions in ascending order.  Use first_v(),
@@ -122,7 +127,7 @@ class ptreap {
   }
 
   ptreap_node*
-  node_new(unsigned long key, void* value) {
+  node_new(K key, V value) {
     ptreap_node *node = new ptreap_node;
 
     node->data = new ptreap_node_data;
@@ -698,7 +703,7 @@ class ptreap {
    * The tree is automatically 'balanced' as new key/value pairs are added,
    * so that the distance from the root to every leaf is small.
    **/
-  void insert(unsigned long key, void* value) {
+  void insert(K key, V value) {
 
     insert_internal(key, value, false);
 
@@ -726,7 +731,7 @@ class ptreap {
    * The tree is automatically 'balanced' as new key/value pairs are added,
    * so that the distance from the root to every leaf is small.
    **/
-  void replace(unsigned long key, void* value) {
+  void replace(K key, V value) {
 
     insert_internal(key, value, true);
 
@@ -766,7 +771,7 @@ class ptreap {
 
   /* Internal insert routine.  Always inserts into the current version of the
    tree. */
-  void insert_internal(unsigned long key, void* value,
+  void insert_internal(K key, V value,
   bool replace) {
     ptreap_node *node, *child;
 
@@ -861,7 +866,7 @@ class ptreap {
    * Returns: %true if the key was found and able to be removed
    *   (prior to 2.8, this function returned nothing)
    **/
-  bool remove(const unsigned long key) {
+  bool remove(const K key) {
     bool removed;
 
     removed = remove_internal(key, false);
@@ -896,7 +901,7 @@ class ptreap {
    * Returns: %true if the key was found and able to be removed
    *   (prior to 2.8, this function returned nothing)
    **/
-  bool steal(const unsigned long key) {
+  bool steal(const K key) {
     bool removed;
 
     removed = remove_internal(key, true);
@@ -913,7 +918,7 @@ class ptreap {
   }
 
   /* internal remove routine */
-  bool remove_internal(const unsigned long key,
+  bool remove_internal(const K key,
   bool steal) {
     ptreap_node *node, *parent;
     bool is_leftchild;
@@ -1036,7 +1041,7 @@ class ptreap {
    * Return value: the value corresponding to the key, or %NULL if the key was
    * not found.
    **/
-  void* lookup(const unsigned long key) {
+  V lookup(const K key) {
 
     return lookup_related_v(version, key, P_TREE_SEARCH_EXACT);
   }
@@ -1057,7 +1062,7 @@ class ptreap {
    * Return value: the value corresponding to the key, or %NULL if the key was
    * not found.
    **/
-  void* lookup(unsigned int version, const unsigned long key) {
+  V lookup(unsigned int version, const K key) {
     return lookup_related_v(version, key, P_TREE_SEARCH_EXACT);
   }
 
@@ -1088,7 +1093,7 @@ class ptreap {
    * Return value: the value corresponding to the found key, or %NULL if no
    * matching key was found.
    **/
-  void* lookup_related(const unsigned long key, ptreap_search_type search_type) {
+  V lookup_related(const K key, ptreap_search_type search_type) {
     return lookup_related_v(version, key, search_type);
   }
 
@@ -1122,7 +1127,7 @@ class ptreap {
    * Return value: the value corresponding to the found key, or %NULL if no
    * matching key was found.
    **/
-  void* lookup_related_v(unsigned int version, const unsigned long key,
+  V lookup_related_v(unsigned int version, const K key,
                          ptreap_search_type search_type) {
     ptreap_node *node;
 
@@ -1146,8 +1151,8 @@ class ptreap {
    *
    * Return value: %true if the key was found in the #PTreap.
    **/
-  bool lookup_extended(const unsigned long lookup_key, unsigned long *orig_key,
-                       void* *value) {
+  bool lookup_extended(const K lookup_key, K *orig_key,
+                       V *value) {
     return lookup_extended_v(version, lookup_key, orig_key, value);
   }
 
@@ -1168,8 +1173,8 @@ class ptreap {
    *
    * Return value: %true if the key was found in the #PTreap.
    **/
-  bool lookup_extended_v(unsigned int version, const unsigned long lookup_key,
-                         unsigned long *orig_key, void* *value) {
+  bool lookup_extended_v(unsigned int version, const K lookup_key,
+                         K *orig_key, V *value) {
     ptreap_node *node;
 
     g_return_val_if_fail(version <= version, false);
@@ -1248,7 +1253,7 @@ class ptreap {
   }
 
   ptreap_node *
-  find_node(const unsigned long key, ptreap_search_type search_type,
+  find_node(const K key, ptreap_search_type search_type,
             unsigned int version) {
     ptreap_node *node, *remember;
     ptreap_root_version *rv;
