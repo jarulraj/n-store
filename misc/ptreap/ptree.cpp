@@ -25,12 +25,13 @@ unsigned int p_tree_rotations() {
   return i;
 }
 
-static PTreeNode* p_tree_node_new(PTree *tree, void* key, void* value);
+static PTreeNode* p_tree_node_new(PTree *tree, unsigned long key, void* value);
 static unsigned int p_tree_priority(PTreeNode *node);
-static void p_tree_insert_internal(PTree *tree, void* key, void* value,
+static void p_tree_insert_internal(PTree *tree, unsigned long key, void* value,
 bool replace);
-static bool p_tree_remove_internal(PTree *tree, const void* key, bool steal);
-static PTreeNode *p_tree_find_node(PTree *tree, const void* key,
+static bool p_tree_remove_internal(PTree *tree, const unsigned long key,
+bool steal);
+static PTreeNode *p_tree_find_node(PTree *tree, const unsigned long key,
                                    PTreeSearchType search_type,
                                    unsigned int version);
 static int p_tree_node_pre_order(PTreeNode *node, GTraverseFunc traverse_func,
@@ -39,9 +40,7 @@ static int p_tree_node_in_order(PTreeNode *node, GTraverseFunc traverse_func,
                                 void* data);
 static int p_tree_node_post_order(PTreeNode *node, GTraverseFunc traverse_func,
                                   void* data);
-static void* p_tree_node_search(PTreeNode *node, GCompareFunc search_func,
-                                const void* data, PTreeSearchType search_type,
-                                unsigned int version);
+
 static PTreeNode* p_tree_node_rotate_left(PTree *tree, PTreeNode *node);
 static PTreeNode* p_tree_node_rotate_right(PTree *tree, PTreeNode *node);
 #ifdef P_TREE_DEBUG
@@ -50,7 +49,7 @@ static void p_tree_node_check (PTreeNode *node,
 #endif
 
 static PTreeNode*
-p_tree_node_new(PTree *tree, void* key, void* value) {
+p_tree_node_new(PTree *tree, unsigned long key, void* value) {
   PTreeNode *node = new PTreeNode;
 
   node->data = new PTreeNodeData;
@@ -82,12 +81,6 @@ static bool p_tree_node_data_unref(PTree *tree, PTreeNode *node) {
    because the version of the node was created in the latest version
    of the tree, doesn't mean there aren't older versions around still */
   if ((--node->data->ref_count) == 0) {
-    if (!node->data->stolen) {
-      if (tree->key_destroy_func)
-        tree->key_destroy_func(node->data->key);
-      if (tree->value_destroy_func)
-        tree->value_destroy_func(node->data->value);
-    }
     delete node->data;
     return true;
   }
@@ -114,41 +107,20 @@ static bool p_tree_node_free(PTree *tree, PTreeNode *node) {
   return data_free;
 }
 
-/**
- * p_tree_new:
- * @key_compare_func: the function used to order the nodes in the #PTree.
- *   It should return values similar to the standard strcmp() function -
- *   0 if the two arguments are equal, a negative value if the first argument 
- *   comes before the second, or a positive value if the first argument comes 
- *   after the second.
- * 
- * Creates a new #PTree.
- * 
- * Return value: a new #PTree.
- **/
-PTree*
-p_tree_new(GCompareFunc key_compare_func) {
-  g_return_val_if_fail(key_compare_func != NULL, NULL);
+/* Make a new root pointer if the current one is not for the current version
+ of the tree */
+static void p_tree_root_next_version(PTree *tree) {
+  assert(tree->r[0].version <= tree->version);
 
-  return p_tree_new_full((GCompareDataFunc) key_compare_func, NULL, NULL, NULL);
-}
+  if (tree->r[0].version < tree->version) {
+    /* add a new version of the root */
+    tree->nr++;
 
-/**
- * p_tree_new_with_data:
- * @key_compare_func: qsort()-style comparison function.
- * @key_compare_data: data to pass to comparison function.
- * 
- * Creates a new #PTree with a comparison function that accepts user data.
- * See p_tree_new() for more details.
- * 
- * Return value: a new #PTree.
- **/
-PTree*
-p_tree_new_with_data(GCompareDataFunc key_compare_func,
-                     void* key_compare_data) {
-  g_return_val_if_fail(key_compare_func != NULL, NULL);
-
-  return p_tree_new_full(key_compare_func, key_compare_data, NULL, NULL);
+    tree->r = new PTreeRootVersion[tree->nr];
+    /* copy the latest version from r[0] */
+    tree->r[tree->nr - 1] = tree->r[0];
+    tree->r[0].version = tree->version;
+  }
 }
 
 /**
@@ -169,20 +141,12 @@ p_tree_new_with_data(GCompareDataFunc key_compare_func,
  * Return value: a new #PTree.
  **/
 PTree*
-p_tree_new_full(GCompareDataFunc key_compare_func, void* key_compare_data,
-                GDestroyNotify key_destroy_func,
-                GDestroyNotify value_destroy_func) {
+p_tree_new() {
   PTree *tree;
-
-  g_return_val_if_fail(key_compare_func != NULL, NULL);
 
   tree = new PTree;
   tree->r = new PTreeRootVersion;
   tree->nr = 1;
-  tree->key_compare = key_compare_func;
-  tree->key_destroy_func = key_destroy_func;
-  tree->value_destroy_func = value_destroy_func;
-  tree->key_compare_data = key_compare_data;
   tree->nnodes = 0;
   tree->ref_count = 1;
   tree->version = 0;
@@ -201,17 +165,18 @@ p_tree_root_find_version(PTree *tree, unsigned int version) {
   PTreeRootVersion *l, *r;
   static PTreeRootVersion none = { NULL, 0 };
 
-  if (v[0].version <= version)
+  if (v[0].version <= version) {
     return v; /* fast when looking for the current version */
+  }
 
   l = v + 1;
   r = v + (nv - 1);
   while (l <= r) /* binary search */
   {
     PTreeRootVersion * const m = l + (r - l) / 2;
-    if (version == m->version)
+    if (version == m->version) {
       return m;
-    else if (version < m->version)
+    } else if (version < m->version)
       r = m - 1;
     else
       l = m + 1;
@@ -222,10 +187,11 @@ p_tree_root_find_version(PTree *tree, unsigned int version) {
   /* When searching for the second last root (the last position in the array),
    l will be off the end of the list */
   assert(l == v + nv || l->version > version);
-  if (r == v)
+  if (r == v) {
     return &none;
-  else
+  } else {
     return r;
+  }
 }
 
 static inline PTreeNodeVersion *
@@ -265,30 +231,6 @@ p_tree_first_node(PTree *tree, unsigned int version) {
   while (tmpv->left)
     tmpv = p_tree_node_find_version(tmp = tmpv->left, version);
 
-  return tmp;
-}
-
-static inline PTreeNode *
-p_tree_node_previous(PTreeNode *node, unsigned int version) {
-  PTreeNode *tmp;
-  PTreeNodeVersion *nodev, *tmpv;
-
-  nodev = p_tree_node_find_version(node, version);
-
-  if (nodev->left) {
-    tmpv = p_tree_node_find_version(tmp = nodev->left, version);
-    while (tmpv->right)
-      tmpv = p_tree_node_find_version(tmp = tmpv->right, version);
-  } else {
-    tmp = nodev->parent;
-    while (tmp) {
-      tmpv = p_tree_node_find_version(tmp, version);
-      if (tmpv->right == node)
-        break;
-      node = tmp;
-      tmp = tmpv->parent;
-    }
-  }
   return tmp;
 }
 
@@ -358,8 +300,9 @@ static void p_tree_remove_all(PTree *tree) {
   /* decompose the graph into individual trees rooted at the various
    root pointers in the graph, so that there are no cycles while we are
    freeing them */
-  for (i = 0; i < tree->nr; ++i)
+  for (i = 0; i < tree->nr; ++i) {
     tree->r[i].root = p_tree_node_decompose(tree, tree->r[i].root);
+  }
 
   /* free everything */
   for (i = 0; i < tree->nr; ++i)
@@ -578,8 +521,9 @@ void p_tree_delete_versions(PTree *tree, unsigned int version) {
   g_return_if_fail(tree != NULL);
   g_return_if_fail(version < tree->version);
 
-  if (version < tree->r[first_v(tree->nr)].version)
+  if (version < tree->r[first_v(tree->nr)].version) {
     return;
+  }
 
   rm = 0;
   keep = i = first_v(tree->nr);
@@ -631,21 +575,6 @@ void p_tree_delete_versions(PTree *tree, unsigned int version) {
     p_tree_node_check (p_tree_root_find_version (tree, i)->root, i);
   }
 #endif
-}
-
-/* Make a new root pointer if the current one is not for the current version
- of the tree */
-static void p_tree_root_next_version(PTree *tree) {
-  assert(tree->r[0].version <= tree->version);
-
-  if (tree->r[0].version < tree->version) {
-    /* add a new version of the root */
-    tree->nr++;
-    tree->r = new PTreeRootVersion[tree->nr];
-    /* copy the latest version from r[0] */
-    tree->r[tree->nr - 1] = tree->r[0];
-    tree->r[0].version = tree->version;
-  }
 }
 
 /* add a new version of pointers to a node.  return true if ok, and false
@@ -779,7 +708,7 @@ p_tree_node_next_version(PTree *tree, PTreeNode *oldnode) {
  * The tree is automatically 'balanced' as new key/value pairs are added,
  * so that the distance from the root to every leaf is small.
  **/
-void p_tree_insert(PTree *tree, void* key, void* value) {
+void p_tree_insert(PTree *tree, unsigned long key, void* value) {
   g_return_if_fail(tree != NULL);
 
   p_tree_insert_internal(tree, key, value, false);
@@ -809,7 +738,7 @@ void p_tree_insert(PTree *tree, void* key, void* value) {
  * The tree is automatically 'balanced' as new key/value pairs are added,
  * so that the distance from the root to every leaf is small.
  **/
-void p_tree_replace(PTree *tree, void* key, void* value) {
+void p_tree_replace(PTree *tree, unsigned long key, void* value) {
   g_return_if_fail(tree != NULL);
 
   p_tree_insert_internal(tree, key, value, true);
@@ -850,7 +779,7 @@ static unsigned int p_tree_priority(PTreeNode *node) {
 
 /* Internal insert routine.  Always inserts into the current version of the
  tree. */
-static void p_tree_insert_internal(PTree *tree, void* key, void* value,
+static void p_tree_insert_internal(PTree *tree, unsigned long key, void* value,
 bool replace) {
   PTreeNode *node, *child;
 
@@ -866,27 +795,15 @@ bool replace) {
   node = tree->r[0].root;
 
   while (1) {
-    int cmp = tree->key_compare(key, node->data->key, tree->key_compare_data);
-
-    if (cmp == 0) {
-      if (tree->value_destroy_func)
-        tree->value_destroy_func(node->data->value);
-
+    if (key == node->data->key) {
       node->data->value = value;
 
       if (replace) {
-        if (tree->key_destroy_func)
-          tree->key_destroy_func(node->data->key);
-
         node->data->key = key;
-      } else {
-        /* free the passed key */
-        if (tree->key_destroy_func)
-          tree->key_destroy_func(key);
       }
 
       return;
-    } else if (cmp < 0) {
+    } else if (key < node->data->key) {
       if (node->v[0].left)
         node = node->v[0].left;
       else {
@@ -960,7 +877,7 @@ bool replace) {
  * Returns: %true if the key was found and able to be removed
  *   (prior to 2.8, this function returned nothing)
  **/
-bool p_tree_remove(PTree *tree, const void* key) {
+bool p_tree_remove(PTree *tree, const unsigned long key) {
   bool removed;
 
   g_return_val_if_fail(tree != NULL, false);
@@ -997,7 +914,7 @@ bool p_tree_remove(PTree *tree, const void* key) {
  * Returns: %true if the key was found and able to be removed
  *   (prior to 2.8, this function returned nothing)
  **/
-bool p_tree_steal(PTree *tree, const void* key) {
+bool p_tree_steal(PTree *tree, const unsigned long key) {
   bool removed;
 
   g_return_val_if_fail(tree != NULL, false);
@@ -1016,7 +933,8 @@ bool p_tree_steal(PTree *tree, const void* key) {
 }
 
 /* internal remove routine */
-static bool p_tree_remove_internal(PTree *tree, const void* key, bool steal) {
+static bool p_tree_remove_internal(PTree *tree, const unsigned long key,
+bool steal) {
   PTreeNode *node, *parent;
   bool is_leftchild;
   bool data_free;
@@ -1031,11 +949,9 @@ static bool p_tree_remove_internal(PTree *tree, const void* key, bool steal) {
   is_leftchild = false;
 
   while (1) {
-    int cmp = tree->key_compare(key, node->data->key, tree->key_compare_data);
-
-    if (cmp == 0)
+    if (key == node->data->key)
       break;
-    else if (cmp < 0) {
+    else if (key < node->data->key) {
       if (!node->v[0].left)
         return false;
 
@@ -1143,7 +1059,7 @@ static bool p_tree_remove_internal(PTree *tree, const void* key, bool steal) {
  * Return value: the value corresponding to the key, or %NULL if the key was
  * not found.
  **/
-void* p_tree_lookup(PTree *tree, const void* key) {
+void* p_tree_lookup(PTree *tree, const unsigned long key) {
 
   return p_tree_lookup_related_v(tree, tree->version, key, P_TREE_SEARCH_EXACT);
 }
@@ -1164,7 +1080,8 @@ void* p_tree_lookup(PTree *tree, const void* key) {
  * Return value: the value corresponding to the key, or %NULL if the key was
  * not found.
  **/
-void* p_tree_lookup_v(PTree *tree, unsigned int version, const void* key) {
+void* p_tree_lookup_v(PTree *tree, unsigned int version,
+                      const unsigned long key) {
   return p_tree_lookup_related_v(tree, version, key, P_TREE_SEARCH_EXACT);
 }
 
@@ -1195,7 +1112,7 @@ void* p_tree_lookup_v(PTree *tree, unsigned int version, const void* key) {
  * Return value: the value corresponding to the found key, or %NULL if no
  * matching key was found.
  **/
-void* p_tree_lookup_related(PTree *tree, const void* key,
+void* p_tree_lookup_related(PTree *tree, const unsigned long key,
                             PTreeSearchType search_type) {
   return p_tree_lookup_related_v(tree, tree->version, key, search_type);
 }
@@ -1232,7 +1149,8 @@ void* p_tree_lookup_related(PTree *tree, const void* key,
  * matching key was found.
  **/
 void* p_tree_lookup_related_v(PTree *tree, unsigned int version,
-                              const void* key, PTreeSearchType search_type) {
+                              const unsigned long key,
+                              PTreeSearchType search_type) {
   PTreeNode *node;
 
   g_return_val_if_fail(tree != NULL, NULL);
@@ -1257,8 +1175,8 @@ void* p_tree_lookup_related_v(PTree *tree, unsigned int version,
  * 
  * Return value: %true if the key was found in the #PTree.
  **/
-bool p_tree_lookup_extended(PTree *tree, const void* lookup_key,
-                            void* *orig_key, void* *value) {
+bool p_tree_lookup_extended(PTree *tree, const unsigned long lookup_key,
+                            unsigned long *orig_key, void* *value) {
   return p_tree_lookup_extended_v(tree, tree->version, lookup_key, orig_key,
                                   value);
 }
@@ -1282,8 +1200,8 @@ bool p_tree_lookup_extended(PTree *tree, const void* lookup_key,
  * Return value: %true if the key was found in the #PTree.
  **/
 bool p_tree_lookup_extended_v(PTree *tree, unsigned int version,
-                              const void* lookup_key, void* *orig_key,
-                              void* *value) {
+                              const unsigned long lookup_key,
+                              unsigned long *orig_key, void* *value) {
   PTreeNode *node;
 
   g_return_val_if_fail(tree != NULL, false);
@@ -1404,144 +1322,6 @@ void p_tree_traverse(PTree *tree, GTraverseFunc traverse_func,
   }
 }
 
-/**
- * p_tree_search:
- * @tree: a #PTree.
- * @search_func: a function used to search the #PTree. 
- * @user_data: the data passed as the second argument to the @search_func 
- * function.
- * 
- * Searches a #PTree using @search_func.
- *
- * The @search_func is called with a pointer to the key of a key/value pair in 
- * the tree, and the passed in @user_data. If @search_func returns 0 for a 
- * key/value pair, then p_tree_search_func() will return the value of that 
- * pair. If @search_func returns -1,  searching will proceed among the 
- * key/value pairs that have a smaller key; if @search_func returns 1, 
- * searching will proceed among the key/value pairs that have a larger key.
- *
- * Return value: the value corresponding to the found key, or %NULL if the key 
- * was not found.
- **/
-void* p_tree_search(PTree *tree, GCompareFunc search_func,
-                    const void* user_data) {
-  return p_tree_search_v(tree, tree->version, search_func, user_data);
-}
-
-/**
- * p_tree_search_v:
- * @tree: a #PTree.
- * @version: the version of the tree within which to search.  If
- *   p_tree_next_version() has not been used, then this is 0.  This value
- *   must be at most the value returned by p_tree_current_version().
- * @search_func: a function used to search the #PTree.
- * @user_data: the data passed as the second argument to the @search_func
- * function.
- *
- * Searches a specified @version of the #PTree using @search_func.
- *
- * The @search_func is called with a pointer to the key of a key/value pair in
- * the tree, and the passed in @user_data. If @search_func returns 0 for a
- * key/value pair, then p_tree_search_func() will return the value of that
- * pair. If @search_func returns -1,  searching will proceed among the
- * key/value pairs that have a smaller key; if @search_func returns 1,
- * searching will proceed among the key/value pairs that have a larger key.
- *
- * Return value: the value corresponding to the found key, or %NULL if the key
- * was not found.
- **/
-void* p_tree_search_v(PTree *tree, unsigned int version,
-                      GCompareFunc search_func, const void* user_data) {
-  g_return_val_if_fail(tree != NULL, NULL);
-  g_return_val_if_fail(version <= tree->version, NULL);
-
-  return p_tree_node_search(p_tree_root_find_version(tree, version)->root,
-                            search_func, user_data, P_TREE_SEARCH_EXACT,
-                            version);
-}
-
-/**
- * p_tree_search_related:
- * @tree: a #PTree.
- * @search_func: a function used to search the #PTree.
- * @user_data: the data passed as the second argument to the @search_func
- * @search_type: the search behavior if the @key is not present in the #PTree,
- *   one of %P_TREE_SEARCH_EXACT, %P_TREE_SEARCH_SUCCESSOR, and
- *   %P_TREE_SEARCH_PREDECESSOR.
- *
- * Searches a #PTree using @search_func.
- *
- * The @search_func is called with a pointer to the key of a key/value pair in
- * the tree, and the passed in @user_data. If @search_func returns 0 for a
- * key/value pair, then p_tree_search_func() will return the value of that
- * pair. If @search_func returns -1,  searching will proceed among the
- * key/value pairs that have a smaller key; if @search_func returns 1,
- * searching will proceed among the key/value pairs that have a larger key.
- * If @search_func never returns 0 before searching the entire height of the
- * tree, then the @search_type will define what the function returns.
- * If @search_type is %P_TREE_SEARCH_EXACT, the
- * function will return %NULL.  If @search_type is
- * %P_TREE_SEARCH_SUCCESSOR, the function will return the value corresponding
- * to the last key at which @search_func returned -1.  This key would be the
- * successor to the element being searched for. If @search_type is
- * %P_TREE_SEARCH_PREDECESSOR, the function return the value corresponding
- * to the last key at which @search_func returned 1.  This key would be the
- * predecessor to the element being searched for.
- *
- * Return value: the value corresponding to the found key, or %NULL if no
- * matching key was found.
- **/
-void* p_tree_search_related(PTree *tree, GCompareFunc search_func,
-                            const void* user_data,
-                            PTreeSearchType search_type) {
-  return p_tree_search_related_v(tree, tree->version, search_func, user_data,
-                                 search_type);
-}
-
-/**
- * p_tree_search_related_v:
- * @tree: a #PTree.
- * @version: the version of the tree within which to search.  If
- *   p_tree_next_version() has not been used, then this is 0.  This value
- *   must be at most the value returned by p_tree_current_version().
- * @search_func: a function used to search the #PTree.
- * @user_data: the data passed as the second argument to the @search_func
- * @search_type: the search behavior if the @key is not present in the #PTree,
- *   one of %P_TREE_SEARCH_EXACT, %P_TREE_SEARCH_SUCCESSOR, and
- *   %P_TREE_SEARCH_PREDECESSOR.
- *
- * Searches a specified @version of the #PTree using @search_func.
- *
- * The @search_func is called with a pointer to the key of a key/value pair in
- * the tree, and the passed in @user_data. If @search_func returns 0 for a
- * key/value pair, then p_tree_search_func() will return the value of that
- * pair. If @search_func returns -1,  searching will proceed among the
- * key/value pairs that have a smaller key; if @search_func returns 1,
- * searching will proceed among the key/value pairs that have a larger key.
- * If @search_func never returns 0 before searching the entire height of the
- * tree, then the @search_type will define what the function returns.
- * If @search_type is %P_TREE_SEARCH_EXACT, the
- * function will return %NULL.  If @search_type is
- * %P_TREE_SEARCH_SUCCESSOR, the function will return the value corresponding
- * to the last key at which @search_func returned -1.  This key would be the
- * successor to the element being searched for. If @search_type is
- * %P_TREE_SEARCH_PREDECESSOR, the function return the value corresponding
- * to the last key at which @search_func returned 1.  This key would be the
- * predecessor to the element being searched for.
- *
- * Return value: the value corresponding to the found key, or %NULL if no
- * matching key was found.
- **/
-void* p_tree_search_related_v(PTree *tree, unsigned int version,
-                              GCompareFunc search_func, const void* user_data,
-                              PTreeSearchType search_type) {
-  g_return_val_if_fail(tree != NULL, NULL);
-  g_return_val_if_fail(version <= tree->version, NULL);
-
-  return p_tree_node_search(p_tree_root_find_version(tree, version)->root,
-                            search_func, user_data, search_type, version);
-}
-
 static int p_tree_node_height(PTreeNode *node, unsigned int version) {
   PTreeNodeVersion *nv;
   int l = 0, r = 0;
@@ -1609,26 +1389,22 @@ int p_tree_nnodes(PTree *tree) {
 }
 
 static PTreeNode *
-p_tree_find_node(PTree *tree, const void* key, PTreeSearchType search_type,
-                 unsigned int version) {
+p_tree_find_node(PTree *tree, const unsigned long key,
+                 PTreeSearchType search_type, unsigned int version) {
   PTreeNode *node, *remember;
   PTreeRootVersion *rv;
-  int cmp;
 
   rv = p_tree_root_find_version(tree, version);
   node = rv->root;
   if (!node) {
-    cout<<"root NULL"<<endl;
     return NULL;
   }
 
   remember = NULL;
   while (1) {
-    cmp = tree->key_compare(key, node->data->key, tree->key_compare_data);
-    cout<<"cmp ::"<<cmp<<endl;
-    if (cmp == 0)
+    if (key == node->data->key) {
       return node;
-    else if (cmp < 0) {
+    } else if (key < node->data->key) {
       PTreeNodeVersion *nodev = p_tree_node_find_version(node, version);
       if (search_type == P_TREE_SEARCH_SUCCESSOR)
         remember = node;
@@ -1646,6 +1422,8 @@ p_tree_find_node(PTree *tree, const void* key, PTreeSearchType search_type,
       node = nodev->right;
     }
   }
+
+  return NULL;
 }
 
 static int p_tree_node_pre_order(PTreeNode *node, GTraverseFunc traverse_func,
@@ -1700,40 +1478,6 @@ static int p_tree_node_post_order(PTreeNode *node, GTraverseFunc traverse_func,
     return true;
 
   return false;
-}
-
-static void* p_tree_node_search(PTreeNode *node, GCompareFunc search_func,
-                                const void* data, PTreeSearchType search_type,
-                                unsigned int version) {
-  int dir;
-  PTreeNode *remember;
-
-  if (!node)
-    return NULL;
-
-  remember = NULL;
-  while (1) {
-    dir = (*search_func)(node->data->key, data);
-    if (dir == 0)
-      return node->data->value;
-    else if (dir < 0) {
-      PTreeNodeVersion *nodev = p_tree_node_find_version(node, version);
-      if (search_type == P_TREE_SEARCH_SUCCESSOR)
-        remember = node;
-      if (!nodev->left)
-        return remember;
-
-      node = nodev->left;
-    } else {
-      PTreeNodeVersion *nodev = p_tree_node_find_version(node, version);
-      if (search_type == P_TREE_SEARCH_PREDECESSOR)
-        remember = node;
-      if (!nodev->right)
-        return remember;
-
-      node = nodev->right;
-    }
-  }
 }
 
 static PTreeNode*

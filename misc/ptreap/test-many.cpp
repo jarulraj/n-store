@@ -8,102 +8,69 @@
 
 using namespace std;
 
-static int cmp(const void* k1, const void* k2) {
-  long r = GPOINTER_TO_UINT(k1) - GPOINTER_TO_UINT(k2);
-  return r < 0 ? -1 : (r == 0 ? 0 : 1);
-}
+void lookup(PTree *tree, unsigned int version, const unsigned long key) {
+  void* ret;
 
-static void time_normalize(struct timeval *len) {
-  while (len->tv_usec < 0) {
-    --len->tv_sec;
-    len->tv_usec += 1000000;
-  }
-  while (len->tv_usec >= 1000000) {
-    ++len->tv_sec;
-    len->tv_usec -= 1000000;
-  }
-}
+  ret = p_tree_lookup_v(tree, version, key);
+  cout<< "version :: "<<version<<"  key :: "<<key <<" ";
+  if (ret != NULL)
+    cout << "val :: " << GPOINTER_TO_UINT(ret) << endl;
+  else
+    cout << "val :: not found" << endl;
 
-static void time_distance(struct timeval start, struct timeval end,
-                          struct timeval *len) {
-  len->tv_sec = end.tv_sec - start.tv_sec;
-  len->tv_usec = end.tv_usec - start.tv_usec;
-
-  time_normalize(len);
 }
 
 int main(int argc, char **argv) {
-  struct timeval start, end, len;
-  unsigned int i, n, seed, *nums;
+  unsigned int i, *nums;
   PTree *tree;
 
-  if (argc != 3)
-    return 1;
-
-  seed = atol(argv[1]);
-  n = atol(argv[2]);
-
+  int n = 10;
   nums = new unsigned int[n];
   for (i = 0; i < n; ++i)
     nums[i] = i;
 
   printf(" Persistent Tree with many versions...\n");
 
-  tree = p_tree_new(cmp);
-
-  cout<< "tree :: "<< tree <<endl;
-
-  printf("  Inserting %8d elements...", n);
-  fflush(stdout);
-  gettimeofday(&start, NULL);
-  for (i = 0; i < n; ++i) {
-    cout<<" node ::"<<tree->nnodes <<endl;
-    p_tree_next_version(tree);
-    p_tree_insert(tree, GUINT_TO_POINTER(nums[i]), GUINT_TO_POINTER(nums[i]));
-  }
-
+  tree = p_tree_new();
   p_tree_next_version(tree);
-  gettimeofday(&end, NULL);
-  time_distance(start, end, &len);
-  printf("done. %lu.%06lu seconds", (unsigned long) len.tv_sec,
-         (unsigned long) len.tv_usec);
-  printf(" %u rotations\n", p_tree_rotations());
+  p_tree_next_version(tree);
 
-  printf("  Performing %8d queries...", n);
-  fflush(stdout);
-  gettimeofday(&start, NULL);
-  for (i = 0; i < n ; ++i){
-    void* ret = p_tree_lookup(tree, GUINT_TO_POINTER(nums[i]+1));
-    cout<<"ret :: "<<GPOINTER_TO_UINT(ret)<<endl;
-  }
-  gettimeofday(&end, NULL);
-  time_distance(start, end, &len);
-  printf("done. %lu.%06lu seconds", (unsigned long) len.tv_sec,
-         (unsigned long) len.tv_usec);
-  printf(" %u rotations\n", p_tree_rotations());
+  p_tree_insert(tree, 1, GUINT_TO_POINTER(nums[1]));
+  p_tree_insert(tree, 2, GUINT_TO_POINTER(nums[2]));
+  p_tree_insert(tree, 3, GUINT_TO_POINTER(nums[3]));
 
-  printf("  Deleting  %8d elements...", n);
-  fflush(stdout);
-  gettimeofday(&start, NULL);
-  for (i = 0; i < n ; ++i)
-    p_tree_remove(tree, GUINT_TO_POINTER(nums[i]));
-  gettimeofday(&end, NULL);
-  time_distance(start, end, &len);
-  printf("done. %lu.%06lu seconds", (unsigned long) len.tv_sec,
-         (unsigned long) len.tv_usec);
-  printf(" %u rotations\n", p_tree_rotations());
+  cout << "nodes ::" << tree->nnodes << endl;
 
-  cout<<" nodes ::"<<tree->nnodes <<endl;
+  for (i = 1; i <= 4; ++i)
+     lookup(tree, p_tree_current_version(tree), i);
 
-  printf("  Destroying the tree...        ");
-  fflush(stdout);
-  gettimeofday(&start, NULL);
-  p_tree_unref(tree);
-  gettimeofday(&end, NULL);
-  time_distance(start, end, &len);
-  printf("done. %lu.%06lu seconds", (unsigned long) len.tv_sec,
-         (unsigned long) len.tv_usec);
-  printf(" %u rotations\n", p_tree_rotations());
+  // Next version
+  p_tree_next_version(tree);
+
+  p_tree_insert(tree, 2, GUINT_TO_POINTER(nums[5]));
+  p_tree_remove(tree, 3);
+
+  p_tree_insert(tree, 4, GUINT_TO_POINTER(nums[4]));
+
+  for (i = 1; i <= 4; ++i)
+    lookup(tree, p_tree_current_version(tree), i);
+
+  cout << "nodes ::" << tree->nnodes << endl;
+
+  lookup(tree, 3, 3);
+  lookup(tree, 3, 2);
+  lookup(tree, 2, 3);
+  lookup(tree, 2, 2);
+
+  //p_tree_delete_versions(tree, p_tree_current_version(tree) - 1);
+
+  cout << "nodes ::" << tree->nnodes << endl;
+
+  /*
+   printf("  Deleting  %8d elements... \n", n);
+   for (i = 0; i < n; ++i)
+   p_tree_remove(tree, i);
+   */
 
   delete[] nums;
 
