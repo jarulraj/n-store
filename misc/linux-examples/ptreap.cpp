@@ -4,15 +4,19 @@
 #include <time.h>
 #include <sys/time.h>
 
+#include "libpm.h"
 #include "ptreap.h"
 
 using namespace std;
 
-void lookup(ptreap<int, int*> *tree, unsigned int version, const unsigned long key) {
+extern struct static_info* sp;
+
+void lookup(ptreap<int, int*> *tree, unsigned int version,
+            const unsigned long key) {
   int* ret;
 
   ret = tree->lookup(version, key);
-  cout<< "version :: "<<version<<"  key :: "<<key <<" ";
+  cout << "version :: " << version << "  key :: " << key << " ";
   if (ret != NULL)
     cout << "val :: " << (*ret) << endl;
   else
@@ -21,8 +25,17 @@ void lookup(ptreap<int, int*> *tree, unsigned int version, const unsigned long k
 }
 
 int main(int argc, char **argv) {
+
+  const char* path = "./testfile";
+
+  long pmp_size = 10 * 1024 * 1024;
+  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
+    cout << "pmemalloc_init on :" << path << endl;
+
+  sp = (struct static_info *) pmemalloc_static_area();
+
   int i;
-  ptreap<int, int*>* tree = new ptreap<int, int*>();
+  ptreap<int, int*>* tree = new ptreap<int, int*>(&sp->ptrs[0]);
 
   int n = 10;
   int* nums = new int[n];
@@ -34,11 +47,12 @@ int main(int argc, char **argv) {
   tree->insert(1, &(nums[1]));
   tree->insert(2, &(nums[2]));
   tree->insert(3, &(nums[3]));
+  tree->insert(6, &(nums[6]));
 
   cout << "nodes ::" << tree->nnodes << endl;
 
   for (i = 1; i <= 4; ++i)
-     lookup(tree, tree->current_version(), i);
+    lookup(tree, tree->current_version(), i);
 
   // Next version
   tree->next_version();

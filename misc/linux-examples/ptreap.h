@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <atomic>
 
+#include "libpm.h"
 #include "ptreap.h"
 
 using namespace std;
@@ -101,43 +102,25 @@ class ptreap {
    *
    * Return value: a new #PTreap.
    **/
-  ptreap() {
-    r = new ptreap_root_version[MAX_ROOTS];
-    nr = 1;
-    nnodes = 0;
-    ref_count = 1;
-    version = 0;
-
-    r[0].root = NULL;
-    r[0].version = 0;
-    tree = this;
-
-    cout<<"new tree :: "<<tree<<"\n";
-  }
-
-
-
-  /**
-   * new_full:
-   * @key_compare_func: qsort()-style comparison function.
-   * @key_compare_data: data to pass to comparison function.
-   * @key_destroy_func: a function to free the memory allocated for the key
-   *   used when removing the entry from the #PTreap or %NULL if you don't
-   *   want to supply such a function.
-   * @value_destroy_func: a function to free the memory allocated for the
-   *   value used when removing the entry from the #PTreap or %NULL if you
-   *   don't want to supply such a function.
-   *
-   * Creates a new #PTreap like new() and allows to specify functions
-   * to free the memory allocated for the key and value that get called when
-   * removing the entry from the #PTreap.
-   *
-   * Return value: a new #PTreap.
-   **/
   ptreap(void** __tree) {
-    tree = (*__tree);
+    tree = (ptreap*) (*__tree);
 
-    cout<<"existing tree :: "<<tree<<"\n";
+    if (tree == NULL) {
+      r = new ptreap_root_version[MAX_ROOTS];
+      pmemalloc_activate(r);
+      nr = 1;
+      nnodes = 0;
+      ref_count = 1;
+      version = 0;
+
+      r[0].root = NULL;
+      r[0].version = 0;
+      (*__tree) = this;
+
+      //cout << "new tree :: " << (*__tree) << "\n";
+    } else {
+      //cout << "existing tree :: " << tree << "\n";
+    }
   }
 
   /**
@@ -158,8 +141,10 @@ class ptreap {
   ptreap_node*
   node_new(K key, V value) {
     ptreap_node *node = new ptreap_node;
+    pmemalloc_activate(node);
 
     node->data = new ptreap_node_data;
+    pmemalloc_activate(node->data);
     node->data->key = key;
     node->data->value = value;
     node->data->ref_count = 1;
@@ -172,6 +157,7 @@ class ptreap {
       node->v = new ptreap_node_version;
     else
       node->v = new ptreap_node_version[TABLE_SIZE];
+    pmemalloc_activate(node->v);
 
     node->nv = 1;
 
@@ -616,7 +602,9 @@ class ptreap {
     /* if we filled the node's pointer table and need to make a new PTreapNode */
     else if (node->v[0].version == 0 || node->nv >= TABLE_SIZE) {
       ptreap_node *newnode = new ptreap_node;
+      pmemalloc_activate(newnode);
       newnode->v = new ptreap_node_version[TABLE_SIZE];
+      pmemalloc_activate(newnode->v);
       newnode->data = node->data;
       newnode->data->ref_count++;
       newnode->v[0] = node->v[0]; /* copy the latest version to here */
