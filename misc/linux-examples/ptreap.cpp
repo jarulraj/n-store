@@ -82,6 +82,7 @@ int main(int argc, char **argv) {
   cout << "nodes ::" << tree->nnodes << endl;
 
   delete tree;
+  sp->ptrs[0] = NULL;
 
   cout << "nodes ::" << tree->nnodes << endl;
 

@@ -18,7 +18,7 @@ using namespace std;
 #define GPOINTER_TO_UINT(p) ((unsigned int) (unsigned long) (p))
 #define GUINT_TO_POINTER(u) ((void*) (unsigned long) (u))
 
-#define MAX_ROOTS 128
+#define MAX_ROOTS 1024
 
 #define MAX_IN_DEGREE 3
 #define TABLE_SIZE (MAX_IN_DEGREE+1)
@@ -117,9 +117,9 @@ class ptreap {
       r[0].version = 0;
       (*__tree) = this;
 
-      //cout << "new tree :: " << (*__tree) << "\n";
+      cout << "new tree :: " << (*__tree) << "\n";
     } else {
-      //cout << "existing tree :: " << tree << "\n";
+      cout << "existing tree :: " << tree << "\n";
     }
   }
 
@@ -207,7 +207,7 @@ class ptreap {
 
     if (r[0].version < version) {
       /* add a new version of the root */
-      nr++;
+      nr = (nr+1) % MAX_ROOTS;
       /* copy the latest version from r[0] */
       r[nr - 1] = r[0];
       r[0].version = version;
