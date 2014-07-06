@@ -4,11 +4,13 @@
 
 #include <iostream>
 
-#include "ptree.h"
+#include "ptreap.h"
 
 using namespace std;
 
 #undef P_TREE_DEBUG
+
+#define MAX_ROOTS 128
 
 #define MAX_IN_DEGREE 3
 #define TABLE_SIZE (MAX_IN_DEGREE+1) /* This is the minimum size required so
@@ -115,8 +117,6 @@ static void p_tree_root_next_version(PTree *tree) {
   if (tree->r[0].version < tree->version) {
     /* add a new version of the root */
     tree->nr++;
-
-    tree->r = new PTreeRootVersion[tree->nr];
     /* copy the latest version from r[0] */
     tree->r[tree->nr - 1] = tree->r[0];
     tree->r[0].version = tree->version;
@@ -145,7 +145,7 @@ p_tree_new() {
   PTree *tree;
 
   tree = new PTree;
-  tree->r = new PTreeRootVersion;
+  tree->r = new PTreeRootVersion[MAX_ROOTS];
   tree->nr = 1;
   tree->nnodes = 0;
   tree->ref_count = 1;
@@ -566,7 +566,7 @@ void p_tree_delete_versions(PTree *tree, unsigned int version) {
   }
 
   tree->nr -= rm;
-  tree->r = new PTreeRootVersion[tree->nr];
+  //tree->r = new PTreeRootVersion[tree->nr];
 
 #ifdef P_TREE_DEBUG
   {
@@ -1396,6 +1396,7 @@ p_tree_find_node(PTree *tree, const unsigned long key,
 
   rv = p_tree_root_find_version(tree, version);
   node = rv->root;
+  //cout<<"root ::"<<rv->root<<endl;
   if (!node) {
     return NULL;
   }

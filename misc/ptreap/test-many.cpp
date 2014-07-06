@@ -4,7 +4,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#include "ptree.h"
+#include "ptreap.h"
 
 using namespace std;
 
@@ -32,8 +32,6 @@ int main(int argc, char **argv) {
   printf(" Persistent Tree with many versions...\n");
 
   tree = p_tree_new();
-  p_tree_next_version(tree);
-  p_tree_next_version(tree);
 
   p_tree_insert(tree, 1, GUINT_TO_POINTER(nums[1]));
   p_tree_insert(tree, 2, GUINT_TO_POINTER(nums[2]));
@@ -57,20 +55,23 @@ int main(int argc, char **argv) {
 
   cout << "nodes ::" << tree->nnodes << endl;
 
-  lookup(tree, 3, 3);
-  lookup(tree, 3, 2);
-  lookup(tree, 2, 3);
-  lookup(tree, 2, 2);
-
-  //p_tree_delete_versions(tree, p_tree_current_version(tree) - 1);
+  lookup(tree, 1, 2);
+  lookup(tree, 1, 3);
+  lookup(tree, 0, 2);
+  lookup(tree, 0, 3);
 
   cout << "nodes ::" << tree->nnodes << endl;
 
-  /*
-   printf("  Deleting  %8d elements... \n", n);
-   for (i = 0; i < n; ++i)
-   p_tree_remove(tree, i);
-   */
+  p_tree_delete_versions(tree, 0);
+
+  lookup(tree, 0, 2);
+  lookup(tree, 0, 3);
+
+  cout << "nodes ::" << tree->nnodes << endl;
+
+  p_tree_destroy(tree);
+
+  cout << "nodes ::" << tree->nnodes << endl;
 
   delete[] nums;
 
