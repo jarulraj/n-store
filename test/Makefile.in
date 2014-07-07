@@ -51,7 +51,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 check_PROGRAMS = test_plist$(EXEEXT) test_ptree$(EXEEXT) \
-	test_wal$(EXEEXT)
+	test_ptreap$(EXEEXT) test_wal$(EXEEXT)
 subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -69,6 +69,9 @@ CONFIG_CLEAN_VPATH_FILES =
 am_test_plist_OBJECTS = test_plist.$(OBJEXT)
 test_plist_OBJECTS = $(am_test_plist_OBJECTS)
 test_plist_DEPENDENCIES = $(top_builddir)/src/libpm.a
+am_test_ptreap_OBJECTS = test_ptreap.$(OBJEXT)
+test_ptreap_OBJECTS = $(am_test_ptreap_OBJECTS)
+test_ptreap_DEPENDENCIES = $(top_builddir)/src/libpm.a
 am_test_ptree_OBJECTS = test_ptree.$(OBJEXT)
 test_ptree_OBJECTS = $(am_test_ptree_OBJECTS)
 test_ptree_DEPENDENCIES = $(top_builddir)/src/libpm.a
@@ -89,10 +92,10 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(test_plist_SOURCES) $(test_ptree_SOURCES) \
-	$(test_wal_SOURCES)
-DIST_SOURCES = $(test_plist_SOURCES) $(test_ptree_SOURCES) \
-	$(test_wal_SOURCES)
+SOURCES = $(test_plist_SOURCES) $(test_ptreap_SOURCES) \
+	$(test_ptree_SOURCES) $(test_wal_SOURCES)
+DIST_SOURCES = $(test_plist_SOURCES) $(test_ptreap_SOURCES) \
+	$(test_ptree_SOURCES) $(test_wal_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -232,6 +235,8 @@ test_ptree_SOURCES = test_ptree.cpp
 test_ptree_LDADD = $(top_builddir)/src/libpm.a
 test_plist_SOURCES = test_plist.cpp 
 test_plist_LDADD = $(top_builddir)/src/libpm.a
+test_ptreap_SOURCES = test_ptreap.cpp 
+test_ptreap_LDADD = $(top_builddir)/src/libpm.a
 test_wal_SOURCES = test_wal.cpp \
 				$(top_builddir)/src/wal_engine.cpp \
 				$(top_builddir)/src/ycsb_benchmark.cpp \
@@ -285,6 +290,9 @@ clean-checkPROGRAMS:
 test_plist$(EXEEXT): $(test_plist_OBJECTS) $(test_plist_DEPENDENCIES) $(EXTRA_test_plist_DEPENDENCIES) 
 	@rm -f test_plist$(EXEEXT)
 	$(CXXLINK) $(test_plist_OBJECTS) $(test_plist_LDADD) $(LIBS)
+test_ptreap$(EXEEXT): $(test_ptreap_OBJECTS) $(test_ptreap_DEPENDENCIES) $(EXTRA_test_ptreap_DEPENDENCIES) 
+	@rm -f test_ptreap$(EXEEXT)
+	$(CXXLINK) $(test_ptreap_OBJECTS) $(test_ptreap_LDADD) $(LIBS)
 test_ptree$(EXEEXT): $(test_ptree_OBJECTS) $(test_ptree_DEPENDENCIES) $(EXTRA_test_ptree_DEPENDENCIES) 
 	@rm -f test_ptree$(EXEEXT)
 	$(CXXLINK) $(test_ptree_OBJECTS) $(test_ptree_LDADD) $(LIBS)
@@ -299,6 +307,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_plist.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ptreap.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ptree.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_wal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utils.Po@am__quote@
