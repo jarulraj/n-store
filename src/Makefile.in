@@ -76,8 +76,8 @@ libpm_a_OBJECTS = $(am_libpm_a_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_nstore_OBJECTS = main.$(OBJEXT) wal_engine.$(OBJEXT) \
-	aries_engine.$(OBJEXT) ycsb_benchmark.$(OBJEXT) \
-	utils.$(OBJEXT)
+	aries_engine.$(OBJEXT) sp_engine.$(OBJEXT) \
+	ycsb_benchmark.$(OBJEXT) utils.$(OBJEXT)
 nstore_OBJECTS = $(am_nstore_OBJECTS)
 nstore_DEPENDENCIES = libpm.a
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
@@ -237,6 +237,7 @@ libpm_a_SOURCES = libpm.cpp
 nstore_SOURCES = main.cpp \
 					wal_engine.cpp  \
 					aries_engine.cpp  \
+					sp_engine.cpp  \
 					ycsb_benchmark.cpp \
 					utils.cpp
 
@@ -341,6 +342,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aries_engine.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libpm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sp_engine.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wal_engine.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ycsb_benchmark.Po@am__quote@

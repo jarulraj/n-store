@@ -54,6 +54,11 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db->log = log;
     pmemalloc_activate(log);
 
+    ptreap<unsigned long, record*>* dirs = new ptreap<unsigned long, record*>(&conf.sp->ptrs[conf.sp->itr++]);
+
+    db->dirs = dirs;
+    pmemalloc_activate(dirs);
+
     // USERTABLE
     size_t offset = 0, len = 0;
     field_info col1(offset, sizeof(int), field_type::INTEGER, 1, 1);
@@ -71,6 +76,10 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     table* usertable = new table("usertable", usertable_schema, 1);
     pmemalloc_activate(usertable);
     tables->push_back(usertable);
+
+    plist<record*>* usertable_data = new plist<record*>(&conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
+    pmemalloc_activate(usertable_data);
+    usertable->data = usertable_data;
 
     plist<table_index*>* indices = new plist<table_index*>(
         &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
@@ -90,6 +99,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(key_index_map);
     key_index->map = key_index_map;
 
+    cout<<"Dirs :: "<<db->dirs<<endl;
+
     cout << "Initialization Mode" << endl;
     conf.sp->init = 1;
   } else {
@@ -107,6 +118,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
         }
       }
     }
+
+    cout<<"Dirs :: "<<conf.db->dirs<<endl;
 
   }
 

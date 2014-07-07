@@ -2,6 +2,8 @@
 #define DATABASE_H_
 
 #include "table.h"
+#include "plist.h"
+#include "ptreap.h"
 
 using namespace std;
 
@@ -9,7 +11,9 @@ class database {
  public:
   database()
       : tables(NULL),
-        log(NULL) {
+        log(NULL),
+        dirs(NULL),
+        version(0){
   }
 
   ~database() {
@@ -22,8 +26,15 @@ class database {
     delete log;
   }
 
+  // WAL
   plist<table*>* tables;
+
+  // ARIES
   plist<char*>* log;
+
+  // SP
+  ptreap<unsigned long, record*>* dirs;
+  unsigned int version;
 };
 
 #endif /* DATABASE_H_ */

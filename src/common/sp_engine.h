@@ -1,5 +1,5 @@
-#ifndef ARIES_ENGINE_H_
-#define ARIES_ENGINE_H_
+#ifndef SP_ENGINE_H_
+#define SP_ENGINE_H_
 
 #include <vector>
 #include <string>
@@ -15,14 +15,14 @@
 #include "workload.h"
 #include "database.h"
 #include "pthread.h"
-#include "logger.h"
+#include "ptreap.h"
 
 using namespace std;
 
-class aries_engine : public engine {
+class sp_engine : public engine {
  public:
-  aries_engine(const config& _conf);
-  ~aries_engine();
+  sp_engine(const config& _conf);
+  ~sp_engine();
 
   std::string select(const statement& st);
   void update(const statement& st);
@@ -40,16 +40,11 @@ class aries_engine : public engine {
   database* db;
   std::vector<std::thread> executors;
 
-  logger undo_log;
   std::hash<std::string> hash_fn;
-
-  std::stringstream entry_stream;
-  std::string entry_str;
 
   pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::queue<transaction> txn_queue;
   std::atomic<bool> done;
-
 };
 
-#endif /* ARIES_ENGINE_H_ */
+#endif /* SP_ENGINE_H_ */

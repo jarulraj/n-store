@@ -1,5 +1,5 @@
-#ifndef WAL_H_
-#define WAL_H_
+#ifndef WAL_ENGINE_H_
+#define WAL_ENGINE_H_
 
 #include <vector>
 #include <string>
@@ -53,4 +53,4 @@ class wal_engine : public engine {
   std::vector<void*> commit_free_list;
 };
 
-#endif /* WAL_H_ */
+#endif /* WAL_ENGINE_H_ */

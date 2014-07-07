@@ -15,7 +15,7 @@ void lookup(ptreap<int, int*> *tree, unsigned int version,
             const unsigned long key) {
   int* ret;
 
-  ret = tree->lookup(version, key);
+  ret = tree->at(version, key);
   cout << "version :: " << version << "  key :: " << key << " ";
   if (ret != NULL)
     cout << "val :: " << (*ret) << endl;

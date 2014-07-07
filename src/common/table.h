@@ -13,7 +13,8 @@ class table {
       : table_name(NULL),
         sptr(_sptr),
         num_indices(_num_indices),
-        indices(NULL) {
+        indices(NULL),
+        data(NULL){
 
     size_t len = name.size();
     char* table_name = new char[len + 1];
@@ -41,6 +42,8 @@ class table {
   schema* sptr;
   unsigned int num_indices;
   plist<table_index*>* indices;
+
+  plist<record*>* data;
 };
 
 #endif /* TABLE_H_ */

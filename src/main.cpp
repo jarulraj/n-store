@@ -5,6 +5,7 @@
 #include "nstore.h"
 #include "wal_engine.h"
 #include "aries_engine.h"
+#include "sp_engine.h"
 
 #include "ycsb_benchmark.h"
 #include "utils.h"
@@ -171,6 +172,19 @@ int main(int argc, char **argv) {
     aries.generator(ycsb.get_dataset(), false);
     aries.generator(ycsb.get_workload(), true);
   }
+
+  if (state.sp_enable == true) {
+     LOG_WARN("SP");
+
+     bool generate_dataset = !sp->init;
+     ycsb_benchmark ycsb(state);
+     sp_engine sp(state);
+
+     if (generate_dataset)
+       sp.generator(ycsb.get_dataset(), false);
+     sp.generator(ycsb.get_workload(), true);
+   }
+
 
   return 0;
 }

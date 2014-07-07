@@ -71,6 +71,8 @@ void wal_engine::insert(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
+  tab->data->push_back(after_rec);
+
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
@@ -111,6 +113,8 @@ void wal_engine::remove(const statement& st) {
 
   pmemalloc_activate(entry);
   undo_log->push_back(entry);
+
+  tab->data->erase(before_rec);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -280,6 +284,8 @@ void wal_engine::recovery() {
         indices = tab->indices;
         num_indices = tab->num_indices;
 
+        tab->data->erase(after_rec);
+
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = get_data(after_rec,
@@ -300,6 +306,8 @@ void wal_engine::recovery() {
         tab = db->tables->at(table_id);
         indices = tab->indices;
         num_indices = tab->num_indices;
+
+        tab->data->push_back(after_rec);
 
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {

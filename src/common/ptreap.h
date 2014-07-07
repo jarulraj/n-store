@@ -1058,8 +1058,7 @@ class ptreap {
    * Return value: the value corresponding to the key, or %NULL if the key was
    * not found.
    **/
-  V lookup(const K key) {
-
+  V at(const K key) {
     return lookup_related_v(version, key, P_TREE_SEARCH_EXACT);
   }
 
@@ -1079,7 +1078,7 @@ class ptreap {
    * Return value: the value corresponding to the key, or %NULL if the key was
    * not found.
    **/
-  V lookup(unsigned int version, const K key) {
+  V at(const K key, unsigned int version) {
     return lookup_related_v(version, key, P_TREE_SEARCH_EXACT);
   }
 
@@ -1262,9 +1261,7 @@ class ptreap {
    *
    * Return value: the number of nodes in the latest version of the #PTreap.
    **/
-  int get_nnodes(ptreap *tree) {
-    g_return_val_if_fail(tree != NULL, 0);
-
+  int get_nnodes() {
     return nnodes;
   }
 
