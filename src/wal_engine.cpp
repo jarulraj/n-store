@@ -254,16 +254,17 @@ void wal_engine::runner() {
 }
 
 void wal_engine::generator(const workload& load, bool stats) {
-  timespec time1, time2;
-  clock_gettime(CLOCK_REALTIME, &time1);
+  timeval t1, t2;
+
+  gettimeofday(&t1, NULL);
 
   for (const transaction& txn : load.txns)
     execute(txn);
 
-  clock_gettime(CLOCK_REALTIME, &time2);
+  gettimeofday(&t2, NULL);
 
   if (stats)
-    display_stats(time1, time2, load.txns.size());
+    display_stats(t1, t2, load.txns.size());
 }
 
 void wal_engine::recovery() {

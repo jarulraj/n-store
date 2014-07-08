@@ -4,6 +4,7 @@
 #include <string>
 #include <getopt.h>
 #include <vector>
+#include <sys/time.h>
 
 #include "database.h"
 

@@ -110,7 +110,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values);
 
 void uniform(vector<double>& uniform_dist, int num_values);
 
-void display_stats(timespec start, timespec finish, int num_txns);
+void display_stats(timeval start, timeval finish, int num_txns);
 
 void wrlock(pthread_rwlock_t* access);
 

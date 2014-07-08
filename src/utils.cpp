@@ -13,34 +13,18 @@ using namespace std;
 
 // TIMER
 
-timespec diff(timespec start, timespec finish) {
-  timespec temp;
-  if ((finish.tv_nsec - start.tv_nsec) < 0) {
-    temp.tv_sec = finish.tv_sec - start.tv_sec - 1;
-    temp.tv_nsec = 1000000000 + finish.tv_nsec - start.tv_nsec;
-  } else {
-    temp.tv_sec = finish.tv_sec - start.tv_sec;
-    temp.tv_nsec = finish.tv_nsec - start.tv_nsec;
-  }
-
-  return temp;
-}
-
-void display_stats(timespec start, timespec finish, int num_txns) {
-  timespec elapsed_seconds;
+void display_stats(timeval t1, timeval t2, int num_txns) {
   double duration;
   double throughput;
 
-  elapsed_seconds = diff(start, finish);
-  duration = elapsed_seconds.tv_sec
-      + (double) (elapsed_seconds.tv_nsec) / (double) 100000000;
+  duration = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
+  duration += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms
+
   cout << std::fixed << std::setprecision(2);
+  cout << "Duration (s) : " << (duration / 1000.0) << " ";
 
-  //cout<< elapsed_seconds.tv_sec <<":"<< elapsed_seconds.tv_nsec <<endl;
-  cout << "Duration(s) : " << duration << " ";
-
-  throughput = (double) num_txns / (double) duration;
-  cout << "Throughput  : " << throughput << endl;
+  throughput = (num_txns * 1000.0) / duration;
+  cout << "Throughput   : " << throughput << endl;
 }
 
 // RANDOM DIST

@@ -210,21 +210,21 @@ void aries_engine::runner() {
 void aries_engine::generator(const workload& load, bool stats) {
 
   undo_log.configure(conf.fs_path + "log");
-  timespec time1, time2;
 
   // Logger start
   std::thread gc(&aries_engine::group_commit, this);
   ready = true;
 
-  clock_gettime(CLOCK_REALTIME, &time1);
+  timeval t1, t2;
+  gettimeofday(&t1, NULL);
 
   for (const transaction& txn : load.txns)
     execute(txn);
 
-  clock_gettime(CLOCK_REALTIME, &time2);
+  gettimeofday(&t2, NULL);
 
   if (stats)
-    display_stats(time1, time2, load.txns.size());
+    display_stats(t1, t2, load.txns.size());
 
   // Logger end
   ready = false;
@@ -311,7 +311,8 @@ void aries_engine::recovery() {
 
           // Update entry in indices
           for (index_itr = 0; index_itr < num_indices; index_itr++) {
-            std::string key_str = get_data(before_rec, indices->at(index_itr)->sptr);
+            std::string key_str = get_data(before_rec,
+                                           indices->at(index_itr)->sptr);
             unsigned long key = hash_fn(key_str);
 
             indices->at(index_itr)->map->insert(key, after_rec);
