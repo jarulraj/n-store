@@ -339,7 +339,6 @@ static void pmemalloc_coalesce_free(void* pmp) {
  */
 bool new_file = 0;
 size_t orig_size = 0;
-int pmemalloc_looper;
 
 void *
 pmemalloc_init(const char *path, size_t size) {
@@ -348,7 +347,6 @@ pmemalloc_init(const char *path, size_t size) {
   int fd = -1;
   struct stat stbuf;
   orig_size = size;
-  pmemalloc_looper = 0;
 
   DEBUG("path=%s size=0x%lx", path, size);
 
@@ -605,7 +603,8 @@ pmemalloc_reserve(size_t size) {
   if (loop == 0) {
     loop = 1;
     clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
-    printf("loop back \n");
+    printf("allocator :: loop back and coalesce\n");
+    pmemalloc_coalesce_free(pmp);
     goto check;
   }
 
@@ -830,11 +829,6 @@ void pmemalloc_free(void *abs_ptr_) {
    *     get back to the clump below us.  for now, we just invoke
    *     the recovery code for coalescing.
    */
-
-  if (++pmemalloc_looper % (1024*1024*4) == 0){
-    printf("coalesce free looper : %d \n", pmemalloc_looper);
-    pmemalloc_coalesce_free(pmp);
-  }
 }
 
 /*

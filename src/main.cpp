@@ -52,7 +52,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.num_txns = 10;
   state.num_executors = 1;
 
-  state.sz_value = 4;
+  state.sz_value = 1024;
   state.verbose = false;
 
   state.gc_interval = 5;
@@ -137,10 +137,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 }
 
 int main(int argc, char **argv) {
-  //const char* path = "/mnt/pmfs/n-store/zfile";
-  const char* path = "./zfile";
+  const char* path = "/mnt/pmfs/n-store/zfile";
+  //const char* path = "./zfile";
 
-  size_t pmp_size = 4UL * 1024 * 1024 * 1024;
+  size_t pmp_size = 32UL * 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
