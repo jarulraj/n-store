@@ -45,7 +45,7 @@ do
 
     echo "LATENCY" $l
 
-    if [ "$LOCAL_ENABLE" = false ] && [ "$SDV_DISABLE" = false ]; 
+    if [ "$SDV_DISABLE" = false ]; 
     then
         cd $SDV_DIR
         $SDV_SCRIPT --enable --pm-latency=$l
