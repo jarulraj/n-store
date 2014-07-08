@@ -52,7 +52,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = nstore$(EXEEXT)
+bin_PROGRAMS = nstore$(EXEEXT) pmem_check$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -80,6 +80,9 @@ am_nstore_OBJECTS = main.$(OBJEXT) wal_engine.$(OBJEXT) \
 	ycsb_benchmark.$(OBJEXT) utils.$(OBJEXT)
 nstore_OBJECTS = $(am_nstore_OBJECTS)
 nstore_DEPENDENCIES = libpm.a
+am_pmem_check_OBJECTS = pmem_check.$(OBJEXT)
+pmem_check_OBJECTS = $(am_pmem_check_OBJECTS)
+pmem_check_DEPENDENCIES = libpm.a
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -93,8 +96,9 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libpm_a_SOURCES) $(nstore_SOURCES)
-DIST_SOURCES = $(libpm_a_SOURCES) $(nstore_SOURCES)
+SOURCES = $(libpm_a_SOURCES) $(nstore_SOURCES) $(pmem_check_SOURCES)
+DIST_SOURCES = $(libpm_a_SOURCES) $(nstore_SOURCES) \
+	$(pmem_check_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -242,6 +246,8 @@ nstore_SOURCES = main.cpp \
 					utils.cpp
 
 nstore_LDADD = libpm.a
+pmem_check_SOURCES = pmem_check.cpp
+pmem_check_LDADD = libpm.a
 all: all-am
 
 .SUFFIXES:
@@ -332,6 +338,9 @@ clean-binPROGRAMS:
 nstore$(EXEEXT): $(nstore_OBJECTS) $(nstore_DEPENDENCIES) $(EXTRA_nstore_DEPENDENCIES) 
 	@rm -f nstore$(EXEEXT)
 	$(CXXLINK) $(nstore_OBJECTS) $(nstore_LDADD) $(LIBS)
+pmem_check$(EXEEXT): $(pmem_check_OBJECTS) $(pmem_check_DEPENDENCIES) $(EXTRA_pmem_check_DEPENDENCIES) 
+	@rm -f pmem_check$(EXEEXT)
+	$(CXXLINK) $(pmem_check_OBJECTS) $(pmem_check_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -342,6 +351,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aries_engine.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libpm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pmem_check.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sp_engine.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wal_engine.Po@am__quote@

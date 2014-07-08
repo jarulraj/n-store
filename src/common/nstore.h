@@ -38,7 +38,6 @@ class config {
   int num_executors;
 
   int sz_value;
-  int sz_tuple;
 
   double per_writes;
 

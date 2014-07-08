@@ -1,6 +1,6 @@
 ## Makefile.am -- Process this file with automake to produce Makefile.in
 
-bin_PROGRAMS = nstore
+bin_PROGRAMS = nstore pmem_check
 
 AM_CPPFLAGS = -I$(srcdir)/common -Wno-pointer-arith 
 AM_LDFLAGS  = $(PTHREAD_CFLAGS)
@@ -21,5 +21,9 @@ nstore_SOURCES  =  	main.cpp \
 					utils.cpp
 
 nstore_LDADD  = libpm.a
+
+pmem_check_SOURCES = pmem_check.cpp
+
+pmem_check_LDADD  = libpm.a
 
 

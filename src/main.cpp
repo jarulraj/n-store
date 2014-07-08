@@ -17,8 +17,6 @@ using namespace std;
 extern struct static_info *sp;  // global persistent memory structure
 int level = 2;  // verbosity level
 
-extern int pmp_cnt;
-
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
           "   -x --num-txns        :  Number of transactions \n"
@@ -30,6 +28,7 @@ static void usage_exit(FILE *out) {
           "   -l --log-enable      :  WAL enable \n"
           "   -s --sp-enable       :  SP enable \n"
           "   -m --lsm-enable      :  LSM enable \n"
+          "   -q --skew            :  Skew \n"
           "   -h --help            :  Print help message \n");
   exit(-1);
 }
@@ -49,25 +48,24 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Default Values
   state.fs_path = std::string("./");
 
-  state.num_keys = 20;
+  state.num_keys = 10;
   state.num_txns = 10;
   state.num_executors = 1;
 
   state.sz_value = 4;
   state.verbose = false;
 
-  state.sz_tuple = 4 + 4 + state.sz_value + 10;
-
   state.gc_interval = 5;
+  state.per_writes = 0.1;
+
   state.lsm_size = 1000;
-  state.per_writes = 0.2;
 
   state.sp_enable = false;
   state.aries_enable = false;
   state.log_enable = false;
   state.lsm_enable = false;
 
-  state.skew = 0.1;
+  state.skew = 1;
 
   // Parse args
   while (1) {
@@ -188,7 +186,7 @@ int main(int argc, char **argv) {
      sp.generator(ycsb.get_workload(), true);
    }
 
-  cout<<"PMP CNT ::"<<pmp_cnt<<endl;
+  //cout<<"PMP CNT ::"<<pmp_cnt<<endl;
 
   return 0;
 }

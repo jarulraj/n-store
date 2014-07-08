@@ -7,12 +7,12 @@ pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct static_info *sp;
 
-int pmp_cnt;
+//int pmp_cnt;
 
 // Global new and delete
 
 void* operator new(size_t sz) throw (bad_alloc) {
-  pmp_cnt++;
+  //pmp_cnt++;
   pthread_mutex_lock(&pmp_mutex);
   void* ret = pmemalloc_reserve(sz);
   pthread_mutex_unlock(&pmp_mutex);
@@ -938,7 +938,8 @@ void pmemalloc_check(const char *path) {
     size_t sz = clp->size & ~PMEM_STATE_MASK;
     int state = clp->size & PMEM_STATE_MASK;
 
-    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state);DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
+    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state);
+    DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
         clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
         clp->on[2].ptr_);
 
