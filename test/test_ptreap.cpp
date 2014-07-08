@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include "libpm.h"
 #include "ptreap.h"
@@ -25,7 +26,7 @@ void lookup(ptreap<int, int*> *tree, unsigned int version,
 
 int main(int argc, char **argv) {
 
-  const char* path = "./testfile";
+  const char* path = "./zfile";
 
   long pmp_size = 10 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
@@ -86,6 +87,9 @@ int main(int argc, char **argv) {
   cout << "nodes ::" << tree->nnodes << endl;
 
   delete[] nums;
+
+  // cleanup
+  unlink(path);
 
   return 0;
 }

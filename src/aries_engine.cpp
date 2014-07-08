@@ -177,6 +177,9 @@ void aries_engine::execute(const transaction& txn) {
     }
   }
 
+  if(++looper % 10000 == 0)
+    cout<< ((double)looper/conf.num_txns)<<endl;
+
 }
 
 void aries_engine::runner() {
@@ -218,15 +221,9 @@ void aries_engine::generator(const workload& load, bool stats) {
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
+  looper = 0;
   for (const transaction& txn : load.txns)
     execute(txn);
-
-  gettimeofday(&t2, NULL);
-
-  if (stats){
-    cout<<"ARIES :: ";
-    display_stats(t1, t2, load.txns.size());
-  }
 
   // Logger end
   ready = false;
@@ -234,6 +231,13 @@ void aries_engine::generator(const workload& load, bool stats) {
 
   undo_log.write();
   undo_log.close();
+
+  gettimeofday(&t2, NULL);
+
+  if (stats){
+    cout<<"ARIES :: ";
+    display_stats(t1, t2, conf.num_txns);
+  }
 }
 
 void aries_engine::recovery() {

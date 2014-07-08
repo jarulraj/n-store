@@ -2,19 +2,18 @@
 
 #include "libpm.h"
 #include "pthread.h"
+#include "assert.h"
 
 pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct static_info *sp;
 
-//int pmp_cnt;
-
 // Global new and delete
 
 void* operator new(size_t sz) throw (bad_alloc) {
-  //pmp_cnt++;
   pthread_mutex_lock(&pmp_mutex);
   void* ret = pmemalloc_reserve(sz);
+  assert(ret != NULL);
   pthread_mutex_unlock(&pmp_mutex);
   return ret;
 }
@@ -340,6 +339,7 @@ static void pmemalloc_coalesce_free(void* pmp) {
  */
 bool new_file = 0;
 size_t orig_size = 0;
+int pmemalloc_looper;
 
 void *
 pmemalloc_init(const char *path, size_t size) {
@@ -348,6 +348,7 @@ pmemalloc_init(const char *path, size_t size) {
   int fd = -1;
   struct stat stbuf;
   orig_size = size;
+  pmemalloc_looper = 0;
 
   DEBUG("path=%s size=0x%lx", path, size);
 
@@ -521,6 +522,7 @@ pmemalloc_reserve(size_t size) {
   struct clump *clp;
   size_t sz;
   int state;
+  int loop = 0;
 
   DEBUG("pmp=0x%lx, size=0x%lx -> 0x%lx", pmp, size, nsize);
 
@@ -533,6 +535,7 @@ pmemalloc_reserve(size_t size) {
   if (clp->size == 0)
     FATAL("no clumps found");
 
+  check:
   /* first fit */
   while (clp->size) {
     sz = clp->size & PMEM_STATE_MASK_TOG;
@@ -599,7 +602,14 @@ pmemalloc_reserve(size_t size) {
     DEBUG("[0x%lx] next clump", OFF(pmp, clp));
   }
 
-  DEBUG("no free memory of size %lu available", nsize);
+  if (loop == 0) {
+    loop = 1;
+    clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
+    printf("loop back \n");
+    goto check;
+  }
+
+  printf("no free memory of size %lu available \n", nsize);
   errno = ENOMEM;
   return NULL;
 }
@@ -778,9 +788,10 @@ void pmemalloc_free(void *abs_ptr_) {
   state = clp->size & PMEM_STATE_MASK;
 
   if (state != PMEM_STATE_RESERVED && state != PMEM_STATE_ACTIVE) {
-    if (state == PMEM_STATE_FREE)
+    if (state == PMEM_STATE_FREE) {
+      printf("state : free size :: %lu \n", sz);
       return;
-    else
+    } else
       FATAL("freeing clumb in bad state: %d", state);
   }
 
@@ -820,10 +831,10 @@ void pmemalloc_free(void *abs_ptr_) {
    *     the recovery code for coalescing.
    */
 
-  /*
-   * Disable this call for every free ; do it during init.
-   */
-  //pmemalloc_coalesce_free(pmp);
+  if (++pmemalloc_looper % (1024*1024*4) == 0){
+    printf("coalesce free looper : %d \n", pmemalloc_looper);
+    pmemalloc_coalesce_free(pmp);
+  }
 }
 
 /*
@@ -938,8 +949,7 @@ void pmemalloc_check(const char *path) {
     size_t sz = clp->size & ~PMEM_STATE_MASK;
     int state = clp->size & PMEM_STATE_MASK;
 
-    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state);
-    DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
+    DEBUG("[%u]clump size 0x%lx state %d", OFF(pmp, clp), sz, state); DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
         clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
         clp->on[2].ptr_);
 

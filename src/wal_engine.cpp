@@ -208,7 +208,6 @@ void wal_engine::update(const statement& st) {
 }
 
 // RUNNER + LOADER
-
 void wal_engine::execute(const transaction& txn) {
 
   for (const statement& st : txn.stmts) {
@@ -222,6 +221,9 @@ void wal_engine::execute(const transaction& txn) {
       remove(st);
     }
   }
+
+  if(++looper % 10000 == 0)
+    cout<< ((double)looper/conf.num_txns)<<endl;
 
 }
 
@@ -258,6 +260,7 @@ void wal_engine::generator(const workload& load, bool stats) {
 
   gettimeofday(&t1, NULL);
 
+  looper = 0;
   for (const transaction& txn : load.txns)
     execute(txn);
 
@@ -265,7 +268,7 @@ void wal_engine::generator(const workload& load, bool stats) {
 
   if (stats){
     cout<<"WAL :: ";
-    display_stats(t1, t2, load.txns.size());
+    display_stats(t1, t2, conf.num_txns);
   }
 }
 

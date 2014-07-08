@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cassert>
+#include <unistd.h>
 
 #include "libpm.h"
 #include "ptree.h"
@@ -9,7 +10,7 @@ using namespace std;
 extern struct static_info* sp;
 
 int main() {
-  const char* path = "./testfile";
+  const char* path = "./zfile";
 
   long pmp_size = 10 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
@@ -36,6 +37,9 @@ int main() {
   assert(ret == 0);
 
   delete tree;
+
+  // cleanup
+  unlink(path);
 
 }
 

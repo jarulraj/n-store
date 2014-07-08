@@ -51,7 +51,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 check_PROGRAMS = test_plist$(EXEEXT) test_ptree$(EXEEXT) \
-	test_ptreap$(EXEEXT) test_wal$(EXEEXT)
+	test_ptreap$(EXEEXT) test_pmem$(EXEEXT) test_wal$(EXEEXT)
 subdir = test
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -69,6 +69,9 @@ CONFIG_CLEAN_VPATH_FILES =
 am_test_plist_OBJECTS = test_plist.$(OBJEXT)
 test_plist_OBJECTS = $(am_test_plist_OBJECTS)
 test_plist_DEPENDENCIES = $(top_builddir)/src/libpm.a
+am_test_pmem_OBJECTS = test_pmem.$(OBJEXT)
+test_pmem_OBJECTS = $(am_test_pmem_OBJECTS)
+test_pmem_DEPENDENCIES = $(top_builddir)/src/libpm.a
 am_test_ptreap_OBJECTS = test_ptreap.$(OBJEXT)
 test_ptreap_OBJECTS = $(am_test_ptreap_OBJECTS)
 test_ptreap_DEPENDENCIES = $(top_builddir)/src/libpm.a
@@ -92,10 +95,12 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(test_plist_SOURCES) $(test_ptreap_SOURCES) \
-	$(test_ptree_SOURCES) $(test_wal_SOURCES)
-DIST_SOURCES = $(test_plist_SOURCES) $(test_ptreap_SOURCES) \
-	$(test_ptree_SOURCES) $(test_wal_SOURCES)
+SOURCES = $(test_plist_SOURCES) $(test_pmem_SOURCES) \
+	$(test_ptreap_SOURCES) $(test_ptree_SOURCES) \
+	$(test_wal_SOURCES)
+DIST_SOURCES = $(test_plist_SOURCES) $(test_pmem_SOURCES) \
+	$(test_ptreap_SOURCES) $(test_ptree_SOURCES) \
+	$(test_wal_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -237,6 +242,8 @@ test_plist_SOURCES = test_plist.cpp
 test_plist_LDADD = $(top_builddir)/src/libpm.a
 test_ptreap_SOURCES = test_ptreap.cpp 
 test_ptreap_LDADD = $(top_builddir)/src/libpm.a
+test_pmem_SOURCES = test_pmem.cpp 
+test_pmem_LDADD = $(top_builddir)/src/libpm.a
 test_wal_SOURCES = test_wal.cpp \
 				$(top_builddir)/src/wal_engine.cpp \
 				$(top_builddir)/src/ycsb_benchmark.cpp \
@@ -290,6 +297,9 @@ clean-checkPROGRAMS:
 test_plist$(EXEEXT): $(test_plist_OBJECTS) $(test_plist_DEPENDENCIES) $(EXTRA_test_plist_DEPENDENCIES) 
 	@rm -f test_plist$(EXEEXT)
 	$(CXXLINK) $(test_plist_OBJECTS) $(test_plist_LDADD) $(LIBS)
+test_pmem$(EXEEXT): $(test_pmem_OBJECTS) $(test_pmem_DEPENDENCIES) $(EXTRA_test_pmem_DEPENDENCIES) 
+	@rm -f test_pmem$(EXEEXT)
+	$(CXXLINK) $(test_pmem_OBJECTS) $(test_pmem_LDADD) $(LIBS)
 test_ptreap$(EXEEXT): $(test_ptreap_OBJECTS) $(test_ptreap_DEPENDENCIES) $(EXTRA_test_ptreap_DEPENDENCIES) 
 	@rm -f test_ptreap$(EXEEXT)
 	$(CXXLINK) $(test_ptreap_OBJECTS) $(test_ptreap_LDADD) $(LIBS)
@@ -307,6 +317,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_plist.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_pmem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ptreap.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ptree.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_wal.Po@am__quote@
@@ -596,7 +607,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-checkPROGRAMS clean-generic clean-libtool clean-local \
+clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
@@ -668,8 +679,8 @@ uninstall-am:
 .MAKE: check-am install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-TESTS check-am clean \
-	clean-checkPROGRAMS clean-generic clean-libtool clean-local \
-	ctags distclean distclean-compile distclean-generic \
+	clean-checkPROGRAMS clean-generic clean-libtool ctags \
+	distclean distclean-compile distclean-generic \
 	distclean-libtool distclean-tags distdir dvi dvi-am html \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
@@ -681,9 +692,6 @@ uninstall-am:
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags uninstall uninstall-am
 
-
-clean-local:
-	rm -f testfile
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

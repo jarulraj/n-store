@@ -53,6 +53,7 @@ class aries_engine : public engine {
   std::atomic_bool done;
 
   std::atomic_bool ready;
+  int looper;
 };
 
 #endif /* ARIES_ENGINE_H_ */

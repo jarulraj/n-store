@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cassert>
+#include <unistd.h>
 
 #include "nstore.h"
 #include "wal_engine.h"
@@ -15,7 +16,7 @@ extern struct static_info* sp;
 int level = 0;
 
 int main(int argc, char **argv) {
-  const char* path = "./testfile";
+  const char* path = "./zfile";
 
   long pmp_size = 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
@@ -41,6 +42,9 @@ int main(int argc, char **argv) {
 
   int ret = std::remove(path);
   assert(ret == 0);
+
+  // cleanup
+  unlink(path);
 
   return 0;
 }

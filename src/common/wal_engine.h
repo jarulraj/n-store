@@ -54,6 +54,7 @@ class wal_engine : public engine {
   std::vector<void*> commit_free_list;
 
   std::atomic_bool ready;
+  int looper;
 };
 
 #endif /* WAL_ENGINE_H_ */

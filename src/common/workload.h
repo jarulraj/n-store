@@ -1,7 +1,7 @@
 #ifndef WORKLOAD_H_
 #define WORKLOAD_H_
 
-#include <vector>
+#include <list>
 #include <unordered_map>
 #include "transaction.h"
 
@@ -11,7 +11,7 @@ using namespace std;
 class workload {
 
 public:
-	vector<transaction> txns;
+	list<transaction> txns;
 };
 
 #endif /* WORKLOAD_H_ */

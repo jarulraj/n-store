@@ -2,8 +2,9 @@
 #include <cstring>
 #include <string>
 #include <cassert>
+#include <unistd.h>
 
-#include "../src/common/libpm.h"
+#include "libpm.h"
 #include "plist.h"
 
 using namespace std;
@@ -11,7 +12,7 @@ using namespace std;
 extern struct static_info *sp;
 
 int main(int argc, char *argv[]) {
-  const char* path = "./testfile";
+  const char* path = "./zfile";
 
   long pmp_size = 10 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
@@ -41,6 +42,7 @@ int main(int argc, char *argv[]) {
   strcpy(updated_val, "ab");
 
   list->update(2, updated_val);
+  list->display();
 
   assert(list->at(2) == updated_val);
 
@@ -56,6 +58,9 @@ int main(int argc, char *argv[]) {
 
   int ret = std::remove(path);
   assert(ret == 0);
+
+  // cleanup
+  unlink(path);
 
   return 0;
 }

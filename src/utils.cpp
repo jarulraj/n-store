@@ -35,7 +35,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
   double zipf_value;            // Computed exponential value to be returned
   int i, j;
 
-  double powers[n + 1];
+  double* powers = new double[n + 1];
   int seed = 0;
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> dis(0.001, 0.099);
@@ -69,6 +69,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
     zipf_dist.push_back(zipf_value);
   }
 
+  delete[] powers;
 }
 
 // Simple skew generator

@@ -137,8 +137,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 }
 
 int main(int argc, char **argv) {
-  const char* path = "/mnt/pmfs/n-store/zfile";
-  //const char* path = "./zfile";
+  //const char* path = "/mnt/pmfs/n-store/zfile";
+  const char* path = "./zfile";
 
   size_t pmp_size = 4UL * 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
     wal_engine wal(state);
 
     if (generate_dataset)
-      wal.generator(ycsb.get_dataset(), false);
+      wal.generator(ycsb.get_dataset(), true);
     wal.generator(ycsb.get_workload(), true);
   }
 
@@ -185,8 +185,6 @@ int main(int argc, char **argv) {
       sp.generator(ycsb.get_dataset(), false);
     sp.generator(ycsb.get_workload(), true);
   }
-
-  //cout<<"PMP CNT ::"<<pmp_cnt<<endl;
 
   return 0;
 }
