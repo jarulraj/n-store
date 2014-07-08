@@ -1,8 +1,21 @@
 // ARIES LOGGING
 
 #include "aries_engine.h"
+#include <fstream>
 
 using namespace std;
+
+void aries_engine::group_commit() {
+
+  while (ready) {
+    //std::cout << "Syncing log !" << endl;
+
+    // sync
+    undo_log.write();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
+  }
+}
 
 aries_engine::aries_engine(const config& _conf)
     : conf(_conf),
@@ -57,9 +70,11 @@ void aries_engine::insert(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << get_data(after_rec, after_rec->sptr);
+               << " " << serialize(after_rec, after_rec->sptr) << "\n";
   entry_str = entry_stream.str();
   undo_log.push_back(entry_str);
+
+  tab->data->push_back(after_rec);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -92,10 +107,12 @@ void aries_engine::remove(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << get_data(before_rec, before_rec->sptr);
+               << " " << serialize(before_rec, before_rec->sptr) << "\n";
 
   entry_str = entry_stream.str();
   undo_log.push_back(entry_str);
+
+  tab->data->erase(before_rec);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -121,27 +138,14 @@ void aries_engine::update(const statement& st) {
   if (before_rec == 0)
     return;
 
-  void *before_field, *after_field;
+  std::string after_data, before_data;
   int num_fields = st.field_ids.size();
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " ";
   // before image
-  entry_stream << get_data(before_rec, before_rec->sptr) << " ";
-
-  for (int field_itr : st.field_ids) {
-    // Pointer field
-    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
-      before_field = before_rec->get_pointer(field_itr);
-      after_field = rec_ptr->get_pointer(field_itr);
-    }
-    // Data field
-    else {
-      before_field = before_rec->get_pointer(field_itr);
-      std::string before_data = before_rec->get_data(field_itr);
-    }
-  }
+  entry_stream << serialize(before_rec, before_rec->sptr) << " ";
 
   for (int field_itr : st.field_ids) {
     // Update existing record
@@ -149,7 +153,7 @@ void aries_engine::update(const statement& st) {
   }
 
   // after image
-  entry_stream << get_data(before_rec, before_rec->sptr) << " ";
+  entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
 
   // Add log entry
   entry_str = entry_stream.str();
@@ -157,8 +161,6 @@ void aries_engine::update(const statement& st) {
 }
 
 // RUNNER + LOADER
-
-int looper = 0;
 
 void aries_engine::execute(const transaction& txn) {
 
@@ -172,11 +174,6 @@ void aries_engine::execute(const transaction& txn) {
     } else if (st.op_type == operation_type::Delete) {
       remove(st);
     }
-  }
-
-  // Sync log
-  if(++looper%4096 ==0){
-    undo_log.write();
   }
 
 }
@@ -213,6 +210,11 @@ void aries_engine::generator(const workload& load, bool stats) {
 
   undo_log.configure(conf.fs_path + "log");
   timespec time1, time2;
+
+  // Logger start
+  std::thread gc(&aries_engine::group_commit, this);
+  ready = true;
+
   clock_gettime(CLOCK_REALTIME, &time1);
 
   for (const transaction& txn : load.txns)
@@ -223,130 +225,107 @@ void aries_engine::generator(const workload& load, bool stats) {
   if (stats)
     display_stats(time1, time2, load.txns.size());
 
+  // Logger end
+  ready = false;
+  gc.join();
+
+  undo_log.write();
   undo_log.close();
 }
 
 void aries_engine::recovery() {
 
-  /*
-   int op_type, txn_id, table_id;
-   table *tab;
-   plist<table_index*>* indices;
-   unsigned int num_indices, index_itr;
-   record *before_rec, *after_rec;
-   field_info finfo;
+  int op_type, txn_id, table_id;
+  table *tab;
+  plist<table_index*>* indices;
+  unsigned int num_indices, index_itr;
 
-   for (char* ptr : undo_vec) {
-   LOG_INFO("entry : %s ", ptr);
+  field_info finfo;
+  std::string entry_str;
+  std::ifstream log_file(undo_log.log_file_name);
 
-   int offset = 0;
-   offset += std::sscanf(ptr + offset, "%d %d %d ", &txn_id, &op_type,
-   &table_id);
-   offset += 3;
+  while (std::getline(log_file, entry_str)) {
+    //LOG_INFO("entry : %s ", entry_str.c_str());
+    std::stringstream entry(entry_str);
 
-   switch (op_type) {
-   case operation_type::Insert:
-   LOG_INFO("Reverting Insert");
-   std::sscanf(ptr + offset, "%p", &after_rec);
+    entry >> txn_id >> op_type >> table_id;
 
-   tab = db->tables->at(table_id);
-   indices = tab->indices;
-   num_indices = tab->num_indices;
+    switch (op_type) {
+      case operation_type::Insert: {
+        LOG_INFO("Redo Insert");
 
-   // Remove entry in indices
-   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-   std::string key_str = get_data(after_rec,
-   indices->at(index_itr)->sptr);
-   unsigned long key = hash_fn(key_str);
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
+        record* after_rec = deserialize(entry, sptr);
 
-   indices->at(index_itr)->map->erase(key);
-   }
+        indices = tab->indices;
+        num_indices = tab->num_indices;
 
-   break;
+        tab->data->push_back(after_rec);
 
-   case operation_type::Delete:
-   LOG_INFO("Reverting Delete");
-   std::sscanf(ptr, "%p ", &before_rec);
+        // Add entry in indices
+        for (index_itr = 0; index_itr < num_indices; index_itr++) {
+          std::string key_str = get_data(after_rec,
+                                         indices->at(index_itr)->sptr);
+          unsigned long key = hash_fn(key_str);
 
-   tab = db->tables->at(table_id);
-   indices = tab->indices;
-   num_indices = tab->num_indices;
+          indices->at(index_itr)->map->insert(key, after_rec);
+        }
+      }
+        break;
 
-   // Fix entry in indices to point to before_rec
-   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-   std::string key_str = get_data(before_rec,
-   indices->at(index_itr)->sptr);
-   unsigned long key = hash_fn(key_str);
+      case operation_type::Delete: {
+        LOG_INFO("Redo Delete");
 
-   indices->at(index_itr)->map->insert(key, before_rec);
-   }
-   break;
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
+        record* before_rec = deserialize(entry, sptr);
 
-   case operation_type::Update:
-   LOG_INFO("Reverting Update");
-   int num_fields;
-   int field_itr;
-   offset += std::sscanf(ptr + offset, "%d ", &num_fields);
-   offset += 1;
+        indices = tab->indices;
+        num_indices = tab->num_indices;
 
-   for (field_itr = 0; field_itr < num_fields; field_itr++) {
+        tab->data->erase(before_rec);
 
-   offset += std::sscanf(ptr + offset, "%d %p", &field_itr, &before_rec);
-   offset += 1;
+        // Remove entry in indices
+        for (index_itr = 0; index_itr < num_indices; index_itr++) {
+          std::string key_str = get_data(before_rec,
+                                         indices->at(index_itr)->sptr);
+          unsigned long key = hash_fn(key_str);
 
-   tab = db->tables->at(table_id);
-   indices = tab->indices;
-   finfo = before_rec->sptr->columns[field_itr];
+          indices->at(index_itr)->map->erase(key);
+        }
+      }
+        break;
 
-   // Pointer
-   if (finfo.inlined == 0) {
-   LOG_INFO("Pointer ");
-   void *before_field, *after_field;
+      case operation_type::Update:
+        LOG_INFO("Redo Update");
+        {
+          int num_fields;
+          int field_itr;
 
-   offset += std::sscanf(ptr + offset, "%p %p", &before_field,
-   &after_field);
-   before_rec->set_pointer(field_itr, before_field);
+          tab = db->tables->at(table_id);
+          schema* sptr = tab->sptr;
+          record* before_rec = deserialize(entry, sptr);
+          record* after_rec = deserialize(entry, sptr);
 
-   }
-   // Data
-   else {
-   LOG_INFO("Inlined ");
+          // Update entry in indices
+          for (index_itr = 0; index_itr < num_indices; index_itr++) {
+            std::string key_str = get_data(before_rec, indices->at(index_itr)->sptr);
+            unsigned long key = hash_fn(key_str);
 
-   field_type type = finfo.type;
-   size_t field_offset = before_rec->sptr->columns[field_itr].offset;
+            indices->at(index_itr)->map->insert(key, after_rec);
+          }
 
-   switch (type) {
-   case field_type::INTEGER:
-   int ival;
-   offset += std::sscanf(ptr + offset, "%d", &ival);
-   offset += 1;
-   std::sprintf(&(before_rec->data[field_offset]), "%d", ival);
-   break;
+        }
 
-   case field_type::DOUBLE:
-   double dval;
-   offset += std::sscanf(ptr + offset, "%lf", &dval);
-   offset += 1;
-   std::sprintf(&(before_rec->data[field_offset]), "%lf", dval);
-   break;
+        break;
 
-   default:
-   cout << "Invalid field type : " << op_type << endl;
-   break;
-   }
-   }
-   }
+      default:
+        cout << "Invalid operation type" << op_type << endl;
+        break;
+    }
 
-   break;
-
-   default:
-   cout << "Invalid operation type" << op_type << endl;
-   break;
-   }
-
-   delete ptr;
-   }
-   */
+  }
 
 }
 

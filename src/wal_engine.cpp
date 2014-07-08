@@ -4,6 +4,26 @@
 
 using namespace std;
 
+void wal_engine::group_commit() {
+
+  while (ready) {
+
+    // Clear commit_free list
+    for (void* ptr : commit_free_list) {
+      pmemalloc_free(ptr);
+    }
+    commit_free_list.clear();
+
+    // Clear log
+    vector<char*> undo_log = db->log->get_data();
+    for (char* ptr : undo_log)
+      delete ptr;
+    db->log->clear();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
+  }
+}
+
 wal_engine::wal_engine(const config& _conf)
     : conf(_conf),
       db(conf.db),
@@ -203,17 +223,6 @@ void wal_engine::execute(const transaction& txn) {
     }
   }
 
-  // Clear commit_free list
-  for (void* ptr : commit_free_list) {
-    pmemalloc_free(ptr);
-  }
-  commit_free_list.clear();
-
-  // Clear log
-  vector<char*> undo_log = db->log->get_data();
-  for (char* ptr : undo_log)
-    delete ptr;
-  db->log->clear();
 }
 
 void wal_engine::runner() {
@@ -253,7 +262,7 @@ void wal_engine::generator(const workload& load, bool stats) {
 
   clock_gettime(CLOCK_REALTIME, &time2);
 
-  if(stats)
+  if (stats)
     display_stats(time1, time2, load.txns.size());
 }
 
@@ -261,24 +270,26 @@ void wal_engine::recovery() {
   vector<char*> undo_vec = db->log->get_data();
 
   int op_type, txn_id, table_id;
+  unsigned int num_indices, index_itr;
   table *tab;
   plist<table_index*>* indices;
-  unsigned int num_indices, index_itr;
+
+  std::string ptr_str;
+
   record *before_rec, *after_rec;
   field_info finfo;
 
   for (char* ptr : undo_vec) {
     LOG_INFO("entry : %s ", ptr);
+    std::stringstream entry(ptr);
 
-    int offset = 0;
-    offset += std::sscanf(ptr + offset, "%d %d %d ", &txn_id, &op_type,
-                          &table_id);
-    offset += 3;
+    entry >> txn_id >> op_type >> table_id;
 
     switch (op_type) {
       case operation_type::Insert:
         LOG_INFO("Reverting Insert");
-        std::sscanf(ptr + offset, "%p", &after_rec);
+        entry >> ptr_str;
+        std::sscanf(ptr_str.c_str(), "%p", &after_rec);
 
         tab = db->tables->at(table_id);
         indices = tab->indices;
@@ -301,7 +312,8 @@ void wal_engine::recovery() {
 
       case operation_type::Delete:
         LOG_INFO("Reverting Delete");
-        std::sscanf(ptr, "%p ", &before_rec);
+        entry >> ptr_str;
+        std::sscanf(ptr_str.c_str(), "%p", &before_rec);
 
         tab = db->tables->at(table_id);
         indices = tab->indices;
@@ -323,13 +335,12 @@ void wal_engine::recovery() {
         LOG_INFO("Reverting Update");
         int num_fields;
         int field_itr;
-        offset += std::sscanf(ptr + offset, "%d ", &num_fields);
-        offset += 1;
+
+        entry >> num_fields;
 
         for (field_itr = 0; field_itr < num_fields; field_itr++) {
-
-          offset += std::sscanf(ptr + offset, "%d %p", &field_itr, &before_rec);
-          offset += 1;
+          entry >> field_itr >> ptr_str;
+          std::sscanf(ptr_str.c_str(), "%p", &before_rec);
 
           tab = db->tables->at(table_id);
           indices = tab->indices;
@@ -340,8 +351,11 @@ void wal_engine::recovery() {
             LOG_INFO("Pointer ");
             void *before_field, *after_field;
 
-            offset += std::sscanf(ptr + offset, "%p %p", &before_field,
-                                  &after_field);
+            entry >> ptr_str;
+            std::sscanf(ptr_str.c_str(), "%p", &before_field);
+            entry >> ptr_str;
+            std::sscanf(ptr_str.c_str(), "%p", &after_field);
+
             before_rec->set_pointer(field_itr, before_field);
 
             // Free after_field
@@ -357,15 +371,13 @@ void wal_engine::recovery() {
             switch (type) {
               case field_type::INTEGER:
                 int ival;
-                offset += std::sscanf(ptr + offset, "%d", &ival);
-                offset += 1;
+                entry >> ival;
                 std::sprintf(&(before_rec->data[field_offset]), "%d", ival);
                 break;
 
               case field_type::DOUBLE:
                 double dval;
-                offset += std::sscanf(ptr + offset, "%lf", &dval);
-                offset += 1;
+                entry >> dval;
                 std::sprintf(&(before_rec->data[field_offset]), "%lf", dval);
                 break;
 
@@ -375,7 +387,6 @@ void wal_engine::recovery() {
             }
           }
         }
-
         break;
 
       default:

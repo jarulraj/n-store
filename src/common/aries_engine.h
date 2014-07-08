@@ -6,6 +6,7 @@
 #include <thread>
 #include <queue>
 #include <sstream>
+#include <atomic>
 
 #include "engine.h"
 #include "nstore.h"
@@ -33,6 +34,7 @@ class aries_engine : public engine {
   void runner();
   void execute(const transaction& t);
 
+  void group_commit();
   void recovery();
 
   //private:
@@ -48,8 +50,9 @@ class aries_engine : public engine {
 
   pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::queue<transaction> txn_queue;
-  std::atomic<bool> done;
+  std::atomic_bool done;
 
+  std::atomic_bool ready;
 };
 
 #endif /* ARIES_ENGINE_H_ */

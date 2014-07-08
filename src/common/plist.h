@@ -17,15 +17,24 @@ class plist {
 
   struct node** head;
   struct node** tail;
+  bool activate;
 
   plist()
       : head(NULL),
-        tail(NULL) {
+        tail(NULL),
+        activate(false) {
   }
 
   plist(void** _head, void** _tail) {
     head = (struct node**) _head;
     tail = (struct node**) _tail;
+    activate = true;
+  }
+
+  plist(void** _head, void** _tail, bool _activate) {
+    head = (struct node**) _head;
+    tail = (struct node**) _tail;
+    activate = _activate;
   }
 
   ~plist() {
@@ -43,9 +52,11 @@ class plist {
     np->next = (*head);
     np->val = val;
 
-    pmemalloc_onactive(np, (void **) head, np);
-    pmemalloc_onactive(np, (void **) tail, np);
-    pmemalloc_activate(np);
+    (*head) = np;
+    (*tail) = np;
+
+    if(activate)
+      pmemalloc_activate(np);
 
     return np;
   }
@@ -64,9 +75,10 @@ class plist {
     np->next = NULL;
 
     tailp = (*tail);
+    (*tail) = np;
 
-    pmemalloc_onactive(np, (void **) tail, np);
-    pmemalloc_activate(np);
+    if(activate)
+      pmemalloc_activate(np);
 
     tailp->next = np;
     pmem_persist(&tailp->next, sizeof(*np), 0);
@@ -149,9 +161,9 @@ class plist {
 
       // Update head and tail
       if (np == (*head)) {
-        pmemalloc_onfree(np, (void **) head, np->next);
+        (*head) = np->next;
       } else if (np == (*tail)) {
-        pmemalloc_onfree(np, (void **) tail, prev);
+        (*tail) = prev;
       }
     }
 

@@ -54,7 +54,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db->log = log;
     pmemalloc_activate(log);
 
-    ptreap<unsigned long, record*>* dirs = new ptreap<unsigned long, record*>(&conf.sp->ptrs[conf.sp->itr++]);
+    ptreap<unsigned long, record*>* dirs = new ptreap<unsigned long, record*>(
+        &conf.sp->ptrs[conf.sp->itr++]);
 
     db->dirs = dirs;
     pmemalloc_activate(dirs);
@@ -77,7 +78,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(usertable);
     tables->push_back(usertable);
 
-    plist<record*>* usertable_data = new plist<record*>(&conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
+    plist<record*>* usertable_data = new plist<record*>(
+        &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
     pmemalloc_activate(usertable_data);
     usertable->data = usertable_data;
 
@@ -99,7 +101,18 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(key_index_map);
     key_index->map = key_index_map;
 
-    cout<<"Dirs :: "<<db->dirs<<endl;
+    cout << "Dirs :: " << db->dirs << endl;
+
+    // Disable persistence in ARIES engine
+    if (conf.aries_enable == 1) {
+      vector<table*> tables = db->tables->get_data();
+      for (table* tab : tables) {
+        vector<table_index*> indices = tab->indices->get_data();
+        for (table_index* index : indices) {
+          index->map->activate = false;
+        }
+      }
+    }
 
     cout << "Initialization Mode" << endl;
     conf.sp->init = 1;
@@ -109,17 +122,19 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     conf.db = db;
 
     // Clear all indices
-    if(conf.aries_enable == 1){
+    if (conf.aries_enable == 1) {
       vector<table*> tables = db->tables->get_data();
-      for(table* tab : tables){
+      for (table* tab : tables) {
+        tab->data->clear();
+
         vector<table_index*> indices = tab->indices->get_data();
-        for(table_index* index : indices){
+        for (table_index* index : indices) {
           index->map->clear();
         }
       }
     }
 
-    cout<<"Dirs :: "<<conf.db->dirs<<endl;
+    cout << "Dirs :: " << conf.db->dirs << endl;
 
   }
 

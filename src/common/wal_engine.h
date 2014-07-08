@@ -34,6 +34,7 @@ class wal_engine : public engine {
   void execute(const transaction& t);
 
   void recovery();
+  void group_commit();
 
   //private:
   const config& conf;
@@ -51,6 +52,8 @@ class wal_engine : public engine {
   std::atomic<bool> done;
 
   std::vector<void*> commit_free_list;
+
+  std::atomic_bool ready;
 };
 
 #endif /* WAL_ENGINE_H_ */

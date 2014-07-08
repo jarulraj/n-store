@@ -855,7 +855,7 @@ void pmemalloc_check(const char *path) {
     size_t largest;
     size_t smallest;
     size_t bytes;
-    unsigned count;
+    unsigned long count;
   } stats[PMEM_STATE_UNUSED + 1] = { 0 };
   const char *names[] = { "Free", "Reserved", "Activating", "Active", "Freeing",
       "TOTAL", };

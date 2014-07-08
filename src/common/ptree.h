@@ -31,15 +31,24 @@ class ptree {
 
   node** root;
   int size;
+  bool activate;
 
   ptree()
       : root(NULL),
-        size(0) {
+        size(0),
+        activate(false) {
   }
 
   ptree(void** _root)
       : size(0) {
     root = (struct node**) _root;
+    activate = true;
+  }
+
+  ptree(void** _root, bool _activate)
+      : size(0) {
+    root = (struct node**) _root;
+    activate = _activate;
   }
 
   virtual ~ptree(void) {
@@ -212,7 +221,8 @@ class ptree {
       node* np = new node(key, val);
 
       (*root) = np;
-      pmemalloc_activate(np);
+      if (activate)
+        pmemalloc_activate(np);
 
       size++;
       return;
@@ -227,7 +237,8 @@ class ptree {
           node* np = new node(key, val);
           np->parent = current_node;
           current_node->left = np;
-          pmemalloc_activate(np);
+          if (activate)
+            pmemalloc_activate(np);
 
           size++;
           propagate_max_children_size(current_node, current_node->left, 0,
@@ -241,7 +252,8 @@ class ptree {
           node* np = new node(key, val);
           np->parent = current_node;
           current_node->right = np;
-          pmemalloc_activate(np);
+          if (activate)
+            pmemalloc_activate(np);
 
           size++;
           propagate_max_children_size(current_node, current_node->right, 0,
@@ -257,26 +269,24 @@ class ptree {
   node* find(const K& key) const {
     node* current_node = (*root);
 
-    if (current_node == NULL) {
-      return NULL;
-    }
-
-    for (;;) {
-      if (current_node->key > key) {
-        if (current_node->left) {
-          current_node = current_node->left;
+    if (current_node != NULL) {
+      while (1) {
+        if (current_node->key == key)
+          return current_node;
+        else if (current_node->key > key) {
+          if (current_node->left) {
+            current_node = current_node->left;
+          } else {
+            return NULL;
+          }
         } else {
-          return NULL;
+          if (current_node->right) {
+            current_node = current_node->right;
+          } else {
+            return NULL;
+          }
         }
-
-      } else if (current_node->key < key) {
-        if (current_node->right) {
-          current_node = current_node->right;
-        } else {
-          return NULL;
-        }
-      } else if (current_node->key == key)
-        return current_node;
+      }
     }
 
     return NULL;

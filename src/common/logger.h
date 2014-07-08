@@ -32,20 +32,19 @@ class logger {
     }
   }
 
-  void push_back(const char* entry, int len) {
-    fwrite(entry, sizeof(char), len, log_file);
-  }
-
   void push_back(std::string entry) {
-    buffer_stream << entry << "\n";
+    int ret;
+
+    ret = fwrite(entry.c_str(), sizeof(char), entry.size(), log_file);
+    if (ret < 0) {
+      perror("fwrite failed");
+      exit(EXIT_FAILURE);
+    }
+
   }
 
   int write() {
     int ret;
-
-    buffer = buffer_stream.str();
-
-    fwrite(buffer.c_str(), sizeof(char), buffer.size(), log_file);
 
     // sync log
     ret = fsync(log_file_fd);
@@ -54,10 +53,6 @@ class logger {
       exit(EXIT_FAILURE);
     }
 
-    // clear buffer
-    buffer_stream.str("");
-    buffer_stream.clear();
-
     return ret;
   }
 
@@ -65,15 +60,11 @@ class logger {
     fclose(log_file);
   }
 
+  //private:
   FILE* log_file;
-
- private:
-  std::stringstream buffer_stream;
-  std::string buffer;
 
   std::string log_file_name;
   int log_file_fd;
-
 };
 
 #endif
