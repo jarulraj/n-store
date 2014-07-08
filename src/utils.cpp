@@ -21,10 +21,10 @@ void display_stats(timeval t1, timeval t2, int num_txns) {
   duration += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms
 
   cout << std::fixed << std::setprecision(2);
-  cout << "Duration (s) : " << (duration / 1000.0) << " ";
+  cout << "Duration(s) : " << (duration / 1000.0) << " ";
 
   throughput = (num_txns * 1000.0) / duration;
-  cout << "Throughput   : " << throughput << endl;
+  cout << "Throughput  : " << throughput << endl;
 }
 
 // RANDOM DIST

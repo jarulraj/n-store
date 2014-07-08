@@ -223,8 +223,10 @@ void aries_engine::generator(const workload& load, bool stats) {
 
   gettimeofday(&t2, NULL);
 
-  if (stats)
+  if (stats){
+    cout<<"ARIES :: ";
     display_stats(t1, t2, load.txns.size());
+  }
 
   // Logger end
   ready = false;

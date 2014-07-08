@@ -27,16 +27,18 @@ NUMACTL=`which numactl`
 NUMACTL_FLAGS="--membind=2"
 
 # NSTORE FLAGS
-KEYS=100000 
-TXNS=100000
-#KEYS=100 
-#TXNS=100 
+#KEYS=100000 
+#TXNS=100000
+KEYS=100 
+TXNS=100 
 
 if [ "$LOCAL_ENABLE" = true ]; 
 then
     FS_PATH=./
+    CLEANUP="rm -f ./zfile ./log"
 else
     FS_PATH=/mnt/pmfs/n-store/
+    CLEANUP="rm -f /mnt/pmfs/n-store/*"
 fi
  
 if [ "$TRIALS_ENABLE" = true ]; 
@@ -48,12 +50,10 @@ fi
  
 echo "FS PATH:" $FS_PATH
 
+
 latency_factors=(2 8)
 rw_mix=(0 0.1 0.5)
-skew=(0.5)
-
-#rw_mix=(0 0.5)
-#skew=(0.5 1.5)
+skew=(0.1 1)
 
 for latency_factor in "${latency_factors[@]}"
 do
@@ -61,12 +61,12 @@ do
 
     echo "LATENCY" $l
 
-    if [ "$LOCAL_ENABLE" = false ] && [ "$SDV_DISABLE" = false ]; 
-    then
-        cd $SDV_DIR
-        $SDV_SCRIPT --enable --pm-latency=$l
-        cd -
-    fi
+    #if [ "$LOCAL_ENABLE" = false ] && [ "$SDV_DISABLE" = false ]; 
+    #then
+        #cd $SDV_DIR
+        #$SDV_SCRIPT --enable --pm-latency=$l
+        #cd -
+    #fi
 
     for (( trial_itr=0; trial_itr<$NUM_TRIALS ; trial_itr++ ))
     do
@@ -77,23 +77,16 @@ do
                 echo "---------------------------------------------------"
                 echo "TRIAL ::" $trial_itr " RW MIX ::" $rw_mix_itr  " SKEW ::" $skew_itr
 
-                if [ "$LOCAL_ENABLE" = true ]; 
-                then
-                    $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -l 
-                    $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -s 
-                    $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -m 
-                else
-                    $NUMACTL $NUMACTL_FLAGS $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -l
-                    $NUMACTL $NUMACTL_FLAGS $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -s
-                    $NUMACTL $NUMACTL_FLAGS $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -m
-                fi
+                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -l 
+                $CLEANUP
+                
+                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -f $FS_PATH -a 
+                $CLEANUP
 
             done
         done
-
-    #TRIALS
     done
-
-    # LATENCY
+    
+# LATENCY
 done
 

@@ -36,7 +36,7 @@ static void usage_exit(FILE *out) {
 static struct option opts[] = { { "fs-path", optional_argument, NULL, 'f' }, {
     "num-txns", optional_argument, NULL, 'x' }, { "num-keys", optional_argument,
 NULL, 'k' }, { "num-executors", optional_argument, NULL, 'e' }, { "per-writes",
-    optional_argument, NULL, 'w' }, { "gc-interval",
+optional_argument, NULL, 'w' }, { "gc-interval",
 optional_argument, NULL, 'g' }, { "log-enable", no_argument, NULL, 'l' }, {
     "sp-enable", no_argument, NULL, 's' }, { "aries-enable", no_argument, NULL,
     'a' }, { "lsm-enable", no_argument, NULL, 'm' }, { "verbose", no_argument,
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
   state.sp = sp;
 
   if (state.log_enable == true) {
-    LOG_WARN("WAL");
+    LOG_INFO("WAL");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
   }
 
   if (state.aries_enable == true) {
-    LOG_WARN("ARIES");
+    LOG_INFO("ARIES");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
@@ -175,16 +175,16 @@ int main(int argc, char **argv) {
   }
 
   if (state.sp_enable == true) {
-     LOG_WARN("SP");
+    LOG_INFO("SP");
 
-     bool generate_dataset = !sp->init;
-     ycsb_benchmark ycsb(state);
-     sp_engine sp(state);
+    bool generate_dataset = !sp->init;
+    ycsb_benchmark ycsb(state);
+    sp_engine sp(state);
 
-     if (generate_dataset)
-       sp.generator(ycsb.get_dataset(), false);
-     sp.generator(ycsb.get_workload(), true);
-   }
+    if (generate_dataset)
+      sp.generator(ycsb.get_dataset(), false);
+    sp.generator(ycsb.get_workload(), true);
+  }
 
   //cout<<"PMP CNT ::"<<pmp_cnt<<endl;
 

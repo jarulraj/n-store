@@ -117,9 +117,9 @@ class ptreap {
       r[0].version = 0;
       (*__tree) = this;
 
-      cout << "new tree :: " << (*__tree) << "\n";
+      //cout << "new tree :: " << (*__tree) << "\n";
     } else {
-      cout << "existing tree :: " << tree << "\n";
+      //cout << "existing tree :: " << tree << "\n";
     }
   }
 

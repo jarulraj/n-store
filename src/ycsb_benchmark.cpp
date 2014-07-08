@@ -101,8 +101,6 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(key_index_map);
     key_index->map = key_index_map;
 
-    cout << "Dirs :: " << db->dirs << endl;
-
     // Disable persistence in ARIES engine
     if (conf.aries_enable == 1) {
       vector<table*> tables = db->tables->get_data();
@@ -114,10 +112,10 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
       }
     }
 
-    cout << "Initialization Mode" << endl;
+    //cout << "Initialization Mode" << endl;
     conf.sp->init = 1;
   } else {
-    cout << "Recovery Mode " << endl;
+    //cout << "Recovery Mode " << endl;
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
 
@@ -133,8 +131,6 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
         }
       }
     }
-
-    cout << "Dirs :: " << conf.db->dirs << endl;
 
   }
 

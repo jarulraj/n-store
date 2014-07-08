@@ -263,8 +263,10 @@ void wal_engine::generator(const workload& load, bool stats) {
 
   gettimeofday(&t2, NULL);
 
-  if (stats)
+  if (stats){
+    cout<<"WAL :: ";
     display_stats(t1, t2, load.txns.size());
+  }
 }
 
 void wal_engine::recovery() {
