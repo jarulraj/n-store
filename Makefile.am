@@ -8,7 +8,4 @@ SUBDIRS = src test
 EXTRA_DIST = bootstrap
 
 clean-local:
-	rm -f usertable*
-	rm -f master snapshot log
-	rm -f perf.*
-	rm -f gmon.*
+	rm -f zfile log

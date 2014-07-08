@@ -3,7 +3,7 @@
 #include <string>
 #include <cassert>
 
-#include "libpm.h"
+#include "../src/common/libpm.h"
 #include "plist.h"
 
 using namespace std;

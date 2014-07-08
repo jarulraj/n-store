@@ -1,6 +1,6 @@
 ## Makefile.am -- Process this file with automake to produce Makefile.in
 
-AM_CPPFLAGS = -I$(top_builddir)/src/common -Wno-pointer-arith 
+AM_CPPFLAGS = -I$(top_srcdir)/src/common -Wno-pointer-arith 
 AM_LDFLAGS  = $(PTHREAD_CFLAGS)
 LIBS = -lrt 
 

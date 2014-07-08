@@ -39,11 +39,5 @@ perf.*
 # Editor
 .settings/*
 
-# WAL & SP
-*master
-*snapshot
-usertable*
-*nstore
-
+bin/*
 zfile
-test_*
