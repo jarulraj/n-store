@@ -39,8 +39,10 @@ class record {
       case field_type::VARCHAR:
         char* vcval;
         std::sscanf(&(data[offset]), "%p", &vcval);
-        if (vcval != NULL)
+        if (vcval != NULL){
+          //std::printf("vcval : %p \n", vcval);
           field = std::string(vcval) + " ";
+        }
         break;
 
       default:
@@ -75,7 +77,7 @@ class record {
         break;
 
       case field_type::VARCHAR:
-        memcpy(&(data[offset]), &(rec_ptr->data[offset]), len);
+        set_pointer(field_id, rec_ptr->get_pointer(field_id));
         break;
 
       default:
