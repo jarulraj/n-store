@@ -66,7 +66,8 @@ pmem_map(int fd, size_t len) {
   void *base;
 
   if ((base = mmap((caddr_t) LIBPM, len, PROT_READ | PROT_WRITE,
-                   MAP_SHARED | MAP_FIXED, fd, 0)) == MAP_FAILED)
+  MAP_SHARED,
+                   fd, 0)) == MAP_FAILED)
     return NULL;
 
   return base;

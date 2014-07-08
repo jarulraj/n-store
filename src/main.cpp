@@ -137,7 +137,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 }
 
 int main(int argc, char **argv) {
-  const char* path = "./zfile";
+  const char* path = "/mnt/pmfs/n-store/zfile";
 
   size_t pmp_size = 4UL * 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
