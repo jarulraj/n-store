@@ -36,12 +36,13 @@ aries_engine::~aries_engine() {
 
 std::string aries_engine::select(const statement& st) {
   LOG_INFO("Select");
+  std::string val;
+
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
   unsigned long key = hash_fn(st.key);
-  std::string val;
 
   rec_ptr = table_index->map->at(key);
   val = get_data(rec_ptr, st.projection);

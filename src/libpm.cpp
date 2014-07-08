@@ -7,9 +7,12 @@ pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct static_info *sp;
 
+int pmp_cnt;
+
 // Global new and delete
 
 void* operator new(size_t sz) throw (bad_alloc) {
+  pmp_cnt++;
   pthread_mutex_lock(&pmp_mutex);
   void* ret = pmemalloc_reserve(sz);
   pthread_mutex_unlock(&pmp_mutex);
