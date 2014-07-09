@@ -39,7 +39,8 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
   int seed = 0;
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> dis(0.001, 0.099);
-
+  int avg = n/2;
+ 
   for (i = 1; i <= n; i++)
     powers[i] = 1.0 / pow((double) i, alpha);
 
@@ -66,6 +67,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
       }
     }
 
+    zipf_value = ((int)zipf_value + avg)%n;
     zipf_dist.push_back(zipf_value);
   }
 

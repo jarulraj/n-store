@@ -48,7 +48,7 @@ do
     if [ "$SDV_DISABLE" = false ]; 
     then
         cd $SDV_DIR
-        $SDV_SCRIPT --enable --pm-latency=$l
+        sudo $SDV_SCRIPT --enable --pm-latency=$l
         cd -
     fi
 
@@ -61,11 +61,11 @@ do
                 echo "---------------------------------------------------"
                 echo "TRIAL ::" $trial_itr " RW MIX ::" $rw_mix_itr  " SKEW ::" $skew_itr
 
-                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -l 
                 $CLEANUP
+                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -f /mnt/pmfs/n-store/ -q $skew_itr -l 
                 
-                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -q $skew_itr -a 
                 $CLEANUP
+                $NSTORE -k $KEYS -x $TXNS -w $rw_mix_itr -f /mnt/pmfs/n-store/ -q $skew_itr -a 
 
             done
         done
