@@ -36,8 +36,8 @@ for line in file:
         arch = entry[0].split(' ');
         val = float(entry[4]);
         
-        if(arch[0] == "LSM"):
-            arch[0] = "3__LSM"
+        if(arch[0] == "ARIES"):
+            arch[0] = "3__ARIES"
         elif(arch[0] == "SP"):
             arch[0] = "2__SP"
         elif(arch[0] == "WAL"):
@@ -64,21 +64,21 @@ write_heavy = []
     
 for key in sorted(mean.keys()):
     if key[0] == '0':
-        read_only.append(str(mean[key]+"\t"+sdev[key]+"\t"+" \t ".join(map(str, tput[key]))))
+        read_only.append(str(mean[key]+"\t"+sdev[key]+"\t"))
     elif key[0] == '0.1':
-        read_heavy.append(str(mean[key]+"\t"+sdev[key]+"\t"+" \t ".join(map(str, tput[key]))))
+        read_heavy.append(str(mean[key]+"\t"+sdev[key]+"\t"))
     elif key[0] == '0.5':
-        write_heavy.append(str(mean[key]+"\t"+sdev[key]+"\t"+" \t ".join(map(str, tput[key]))))
-    
-ro_chunks = list(chunks(read_only, 6))
+        write_heavy.append(str(mean[key]+"\t"+sdev[key]+"\t"))
+
+ro_chunks = list(chunks(read_only, 4))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*ro_chunks)))
 print '\n'
     
-rh_chunks = list(chunks(read_heavy, 6))
+rh_chunks = list(chunks(read_heavy, 4))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*rh_chunks)))
 print '\n'
     
-wh_chunks = list(chunks(write_heavy, 6))
+wh_chunks = list(chunks(write_heavy, 4))
 print('\n'.join('\t'.join(map(str, row)) for row in zip(*wh_chunks)))
 print '\n'
 

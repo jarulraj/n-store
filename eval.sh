@@ -37,7 +37,7 @@ fi
 
 latency_factors=(2 8)
 rw_mix=(0 0.1 0.5)
-skew=(0.1 1)
+skew=(0.1 1 10)
 
 for latency_factor in "${latency_factors[@]}"
 do
