@@ -5,7 +5,6 @@
 #include <string>
 #include "schema.h"
 #include "field.h"
-#include "libpm.h"
 
 using namespace std;
 
@@ -14,24 +13,8 @@ class record {
   record(schema* _sptr)
       : sptr(_sptr),
         data(NULL),
-        data_len(_sptr->len) {
+        data_len(_sptr->len){
     data = new char[data_len];
-  }
-
-  void* operator new(size_t sz) throw (bad_alloc) {
-    if (persistent) {
-      void* ret = pmem_new(sz);
-      pmemalloc_activate(ret);
-      return ret;
-    } else
-      return ::operator new(sz);
-  }
-
-  void operator delete(void *p) throw () {
-    if (persistent)
-      pmem_delete(p);
-    else
-      ::operator delete(p);
   }
 
   inline std::string get_data(const int field_id) {
@@ -56,7 +39,7 @@ class record {
       case field_type::VARCHAR:
         char* vcval;
         std::sscanf(&(data[offset]), "%p", &vcval);
-        if (vcval != NULL) {
+        if (vcval != NULL){
           //std::printf("vcval : %p \n", vcval);
           field = std::string(vcval) + " ";
         }
@@ -124,7 +107,6 @@ class record {
   schema* sptr;
   char* data;
   size_t data_len;
-  static bool persistent;
 }
 ;
 

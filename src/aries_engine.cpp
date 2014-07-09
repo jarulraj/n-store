@@ -42,11 +42,9 @@ std::string aries_engine::select(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
-  cout<<"key_str ::"<<st.key<<endl;
   unsigned long key = hash_fn(st.key);
 
   rec_ptr = table_index->map->at(key);
-  cout<<"rec_ptr ::"<<rec_ptr<<endl;
   val = get_data(rec_ptr, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
@@ -67,7 +65,6 @@ void aries_engine::insert(const statement& st) {
 
   // Check if key exists
   if (indices->at(0)->map->contains(key) != 0) {
-    cout<<"Key exists"<<endl;
     return;
   }
 
@@ -84,8 +81,6 @@ void aries_engine::insert(const statement& st) {
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
-
-    cout<<"Inserting "<<endl;
 
     indices->at(index_itr)->map->insert(key, after_rec);
   }

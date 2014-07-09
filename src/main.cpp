@@ -154,6 +154,9 @@ int main(int argc, char **argv) {
   if (state.log_enable == true) {
     LOG_INFO("WAL");
 
+    // PERSIST
+    sp->persist = 1;
+
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
     wal_engine wal(state);
@@ -172,6 +175,9 @@ int main(int argc, char **argv) {
 
   if (state.aries_enable == true) {
     LOG_INFO("ARIES");
+
+    // DON'T PERSIST
+    sp->persist = 0;
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);

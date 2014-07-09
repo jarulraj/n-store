@@ -11,64 +11,34 @@ template<typename V>
 class plist {
  public:
   struct node {
-   public:
-    node(const V& _val)
-        : next(NULL),
-          val(_val) {
-    }
-
-    node* next;
+    struct node* next;
     V val;
-
-    void* operator new(size_t sz) throw (bad_alloc) {
-      if (persistent) {
-        void* ret = pmem_new(sz);
-        pmemalloc_activate(ret);
-        return ret;
-      } else
-        return ::operator new(sz);
-    }
-
-    void operator delete(void *p) throw () {
-      if (persistent)
-        pmem_delete(p);
-      else
-        ::operator delete(p);
-    }
   };
 
-  node** head;
-  node** tail;
-  static bool persistent;
+  struct node** head;
+  struct node** tail;
+  bool activate;
 
   plist()
       : head(NULL),
-        tail(NULL) {
+        tail(NULL),
+        activate(false) {
   }
 
   plist(void** _head, void** _tail) {
-    head = (node**) _head;
-    tail = (node**) _tail;
+    head = (struct node**) _head;
+    tail = (struct node**) _tail;
+    activate = true;
+  }
+
+  plist(void** _head, void** _tail, bool _activate) {
+    head = (struct node**) _head;
+    tail = (struct node**) _tail;
+    activate = _activate;
   }
 
   ~plist() {
     clear();
-  }
-
-  void* operator new(size_t sz) throw (bad_alloc) {
-    if (persistent) {
-      void* ret = pmem_new(sz);
-      pmemalloc_activate(ret);
-      return ret;
-    } else
-      return ::operator new(sz);
-  }
-
-  void operator delete(void *p) throw () {
-    if (persistent)
-      pmem_delete(p);
-    else
-      ::operator delete(p);
   }
 
   friend std::ostream& operator<<(std::ostream& os, const plist& list) {
@@ -76,14 +46,16 @@ class plist {
     return os;
   }
 
-  node* init(V val) {
-    node* np = new node(val);
+  struct node* init(V val) {
+    struct node* np = new struct node;
+
     np->next = (*head);
+    np->val = val;
 
     (*head) = np;
     (*tail) = np;
 
-    if (persistent)
+    if(activate)
       pmemalloc_activate(np);
 
     return np;
@@ -95,15 +67,17 @@ class plist {
       return;
     }
 
-    node* tailp = NULL;
-    node* np = new node(val);
+    struct node* tailp = NULL;
+    struct node* np = new struct node;
+
     // Link it in at the end of the list
+    np->val = val;
     np->next = NULL;
 
     tailp = (*tail);
     (*tail) = np;
 
-    if (persistent)
+    if(activate)
       pmemalloc_activate(np);
 
     tailp->next = np;
@@ -112,7 +86,7 @@ class plist {
 
   // Returns the absolute pointer value
   V at(const int index) const {
-    node * np = (*head);
+    struct node * np = (*head);
     unsigned int itr = 0;
 
     while (np != NULL) {
@@ -127,9 +101,9 @@ class plist {
     return NULL;
   }
 
-  node* find(V val, node** prev) {
-    node* np = (*head);
-    node* tmp = NULL;
+  struct node* find(V val, struct node** prev) {
+    struct node* np = (*head);
+    struct node* tmp = NULL;
     bool found = false;
 
     while (np != NULL) {
@@ -153,7 +127,7 @@ class plist {
   }
 
   void update(const int index, V val) {
-    node * np = (*head);
+    struct node * np = (*head);
     unsigned int itr = 0;
 
     while (np != NULL) {
@@ -168,8 +142,8 @@ class plist {
   }
 
   bool erase(V val) {
-    node* prev = NULL;
-    node* np = NULL;
+    struct node* prev = NULL;
+    struct node* np = NULL;
 
     if ((*head) == NULL) {
       return false;
@@ -199,7 +173,7 @@ class plist {
   }
 
   void display(void) {
-    node* np = (*head);
+    struct node* np = (*head);
 
     if (np == NULL) {
       cout << "empty list" << endl;
@@ -215,13 +189,13 @@ class plist {
   }
 
   void clear(void) {
-    node* np = (*head);
-    node* prev = NULL;
+    struct node* np = (*head);
+    struct node* prev = NULL;
 
     while (np) {
       prev = np;
       np = np->next;
-      delete prev;
+      pmemalloc_free(prev);
     }
 
     (*head) = NULL;
@@ -229,7 +203,7 @@ class plist {
   }
 
   vector<V> get_data(void) {
-    node* np = (*head);
+    struct node* np = (*head);
     vector<V> data;
 
     while (np) {
@@ -240,7 +214,5 @@ class plist {
     return data;
   }
 };
-
-//template<typename V> bool plist<V>::persistent;
 
 #endif /* PMEM_LIST_H_ */

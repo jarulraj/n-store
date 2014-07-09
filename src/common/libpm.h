@@ -1,8 +1,6 @@
 #ifndef LIBPM_H_
 #define LIBPM_H_
 
-#include "assert.h"
-
 /////////////////////////////////////////////////////////////////////
 // util.h -- global defines for util module
 /////////////////////////////////////////////////////////////////////
@@ -98,11 +96,6 @@ static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
     __builtin_ia32_clflush((void *) uptr);
 }
 
-static inline void pmem_persist(void *addr, size_t len, int flags) {
-  pmem_flush_cache(addr, len, flags);
-  __builtin_ia32_sfence();
-  //pmem_drain_pm_stores();
-}
 
 /////////////////////////////////////////////////////////////////////
 // pmemalloc.h -- example malloc library for Persistent Memory
@@ -126,10 +119,19 @@ extern void* pmp;
 struct static_info {
   unsigned int init;
   unsigned int itr;
+  unsigned int persist = 1;
   void* ptrs[MAX_PTRS];
 };
 
 extern struct static_info* sp;
+
+static inline void pmem_persist(void *addr, size_t len, int flags) {
+  if(sp->persist){
+    pmem_flush_cache(addr, len, flags);
+    __builtin_ia32_sfence();
+    //pmem_drain_pm_stores();
+  }
+}
 
 /*
  * given a relative pointer, add in the base associated
@@ -146,25 +148,5 @@ void pmemalloc_onfree(void *abs_ptr_, void **parentp_, void *nptr_);
 void pmemalloc_activate(void *abs_ptr_);
 void pmemalloc_free(void *abs_ptr_);
 void pmemalloc_check(const char *path);
-
-
-// pmem new and delete
-
-extern pthread_mutex_t pmp_mutex;
-
-static inline void* pmem_new(size_t sz) {
-  pthread_mutex_lock(&pmp_mutex);
-  void* ret = pmemalloc_reserve(sz);
-  assert(ret != NULL);
-  pthread_mutex_unlock(&pmp_mutex);
-  return ret;
-}
-
-static inline void pmem_delete(void *p) {
-  pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(p);
-  pthread_mutex_unlock(&pmp_mutex);
-}
-
 
 #endif /* LIBPM_H_ */

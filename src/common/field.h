@@ -15,8 +15,7 @@ enum field_type {
   VARCHAR
 };
 
-class field_info {
- public:
+struct field_info {
   field_info()
       : offset(0),
         len(0),
@@ -26,7 +25,7 @@ class field_info {
   }
 
   field_info(unsigned int _offset, unsigned int _len, field_type _type,
-             bool _inlined, bool _enabled)
+              bool _inlined, bool _enabled)
       : offset(_offset),
         len(_len + 1),
         type(_type),
@@ -35,29 +34,11 @@ class field_info {
 
   }
 
-  static void* operator new(size_t sz) throw (bad_alloc) {
-    if (persistent) {
-      void* ret = pmem_new(sz);
-      pmemalloc_activate(ret);
-      return ret;
-    } else
-      return ::operator new(sz);
-  }
-
-  static void operator delete(void *p) throw () {
-    if (persistent)
-      pmem_delete(p);
-    else
-      ::operator delete(p);
-  }
-
   unsigned int offset;
   unsigned int len;
   field_type type;
   bool inlined;
   bool enabled;
-  static bool persistent;
-
 };
 
 #endif /* FIELD_H_ */

@@ -14,7 +14,7 @@ class table {
         sptr(_sptr),
         num_indices(_num_indices),
         indices(NULL),
-        data(NULL) {
+        data(NULL){
 
     size_t len = name.size();
     char* table_name = new char[len + 1];
@@ -37,29 +37,11 @@ class table {
     }
   }
 
-  void* operator new(size_t sz) throw (bad_alloc) {
-    if (persistent){
-      void* ret = pmem_new(sz);
-      pmemalloc_activate(ret);
-      return ret;
-    }
-    else
-      return ::operator new(sz);
-  }
-
-  void operator delete(void *p) throw () {
-    if (persistent)
-      pmem_delete(p);
-    else
-      ::operator delete(p);
-  }
-
   //private:
   char* table_name;
   schema* sptr;
   unsigned int num_indices;
   plist<table_index*>* indices;
-  static bool persistent;
 
   plist<record*>* data;
 };
