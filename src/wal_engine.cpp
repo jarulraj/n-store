@@ -222,9 +222,6 @@ void wal_engine::execute(const transaction& txn) {
     }
   }
 
-  if(++looper % 10000 == 0)
-    cout<< ((double)looper/conf.num_txns)<<endl;
-
 }
 
 void wal_engine::runner() {

@@ -788,7 +788,6 @@ void pmemalloc_free(void *abs_ptr_) {
 
   if (state != PMEM_STATE_RESERVED && state != PMEM_STATE_ACTIVE) {
     if (state == PMEM_STATE_FREE) {
-      printf("state : free size :: %lu \n", sz);
       return;
     } else
       FATAL("freeing clumb in bad state: %d", state);

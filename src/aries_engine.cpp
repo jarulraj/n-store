@@ -146,7 +146,7 @@ void aries_engine::update(const statement& st) {
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " ";
   // before image
-  entry_stream << serialize(before_rec, before_rec->sptr) << " ";
+  //entry_stream << serialize(before_rec, before_rec->sptr) << " ";
 
   for (int field_itr : st.field_ids) {
     // Update existing record
@@ -176,9 +176,6 @@ void aries_engine::execute(const transaction& txn) {
       remove(st);
     }
   }
-
-  if(++looper % 10000 == 0)
-    cout<< ((double)looper/conf.num_txns)<<endl;
 
 }
 

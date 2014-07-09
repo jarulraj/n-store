@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
     wal_engine wal(state);
 
     if (generate_dataset)
-      wal.generator(ycsb.get_dataset(), true);
+      wal.generator(ycsb.get_dataset(), false);
     wal.generator(ycsb.get_workload(), true);
   }
 
