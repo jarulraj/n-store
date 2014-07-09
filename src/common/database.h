@@ -13,7 +13,7 @@ class database {
       : tables(NULL),
         log(NULL),
         dirs(NULL),
-        version(0){
+        version(0) {
   }
 
   ~database() {
@@ -25,6 +25,24 @@ class database {
     delete tables;
     delete log;
   }
+
+  void* operator new(size_t sz) throw (bad_alloc) {
+    if (persistent) {
+      void* ret = pmem_new(sz);
+      pmemalloc_activate(ret);
+      return ret;
+    } else
+      return ::operator new(sz);
+  }
+
+  void operator delete(void *p) throw () {
+    if (persistent)
+      pmem_delete(p);
+    else
+      ::operator delete(p);
+  }
+
+  static bool persistent;
 
   // WAL
   plist<table*>* tables;

@@ -9,6 +9,11 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([1.0 foreign])
 
 AC_PROG_CC
+
+if test -z $CXXFLAGS; then
+    CXXFLAGS='-g -O0'
+fi
+
 AC_PROG_CXX
 AC_PROG_LIBTOOL
 
@@ -29,7 +34,7 @@ AX_CXX_COMPILE_STDCXX_11(noext)
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  test/Makefile])                  
-                
-#[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h.in])
+
+                 #[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h.in])
 AC_OUTPUT
 # @end 2

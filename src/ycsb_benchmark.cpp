@@ -31,6 +31,14 @@ class usertable_record : public record {
   char* vc;
 };
 
+template<typename V> bool plist<V>::persistent = false;
+template<typename K, typename V> bool ptree<K, V>::persistent = false;
+bool database::persistent = false;
+bool table::persistent = false;
+bool table_index::persistent = false;
+bool schema::persistent = false;
+bool record::persistent = false;
+
 ycsb_benchmark::ycsb_benchmark(config& _conf)
     : conf(_conf),
       txn_id(0) {
@@ -39,26 +47,25 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
 
   // Initialization mode
   if (conf.sp->init == 0) {
+
     db = new database();
     conf.sp->ptrs[conf.sp->itr++] = db;
-    pmemalloc_activate(db);
     conf.db = db;
 
     plist<table*>* tables = new plist<table*>(&conf.sp->ptrs[conf.sp->itr++],
                                               &conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(tables);
     db->tables = tables;
 
     plist<char*>* log = new plist<char*>(&conf.sp->ptrs[conf.sp->itr++],
                                          &conf.sp->ptrs[conf.sp->itr++]);
     db->log = log;
-    pmemalloc_activate(log);
 
-    ptreap<unsigned long, record*>* dirs = new ptreap<unsigned long, record*>(
-        &conf.sp->ptrs[conf.sp->itr++]);
-
-    db->dirs = dirs;
-    pmemalloc_activate(dirs);
+    /*
+     ptreap<unsigned long, record*>* dirs = new ptreap<unsigned long, record*>(
+     &conf.sp->ptrs[conf.sp->itr++]);
+     db->dirs = dirs;
+     pmemalloc_activate(dirs);
+     */
 
     // USERTABLE
     size_t offset = 0, len = 0;
@@ -72,45 +79,28 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     cols.push_back(col1);
     cols.push_back(col2);
     schema* usertable_schema = new schema(cols, len);
-    pmemalloc_activate(usertable_schema);
+    //pmemalloc_activate(usertable_schema);
 
     table* usertable = new table("usertable", usertable_schema, 1);
-    pmemalloc_activate(usertable);
     tables->push_back(usertable);
 
     plist<record*>* usertable_data = new plist<record*>(
         &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(usertable_data);
     usertable->data = usertable_data;
 
     plist<table_index*>* indices = new plist<table_index*>(
         &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(indices);
     usertable->indices = indices;
 
     cols[1].enabled = 0;
     schema* usertable_index_schema = new schema(cols, len);
-    pmemalloc_activate(usertable_index_schema);
 
     table_index* key_index = new table_index(usertable_index_schema, 2);
-    pmemalloc_activate(key_index);
     indices->push_back(key_index);
 
     ptree<unsigned long, record*>* key_index_map = new ptree<unsigned long,
         record*>(&conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(key_index_map);
     key_index->map = key_index_map;
-
-    // Disable persistence in ARIES engine
-    if (conf.aries_enable == 1) {
-      vector<table*> tables = db->tables->get_data();
-      for (table* tab : tables) {
-        vector<table_index*> indices = tab->indices->get_data();
-        for (table_index* index : indices) {
-          index->map->activate = false;
-        }
-      }
-    }
 
     //cout << "Initialization Mode" << endl;
     conf.sp->init = 1;

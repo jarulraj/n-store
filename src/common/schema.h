@@ -23,11 +23,27 @@ class schema {
       columns[itr] = _columns[itr];
     }
 
-    pmemalloc_activate(columns);
+    // XXX Activate columns new []
   }
 
   ~schema() {
     delete[] columns;
+  }
+
+  static void* operator new(size_t sz) throw (bad_alloc) {
+    if (persistent) {
+      void* ret = pmem_new(sz);
+      pmemalloc_activate(ret);
+      return ret;
+    } else
+      return ::operator new(sz);
+  }
+
+  static void operator delete(void *p) throw () {
+    if (persistent)
+      pmem_delete(p);
+    else
+      ::operator delete(p);
   }
 
   void display() {
@@ -47,6 +63,8 @@ class schema {
   size_t len;
   unsigned int num_columns;
   field_info* columns;
+  static bool persistent;
+
 };
 
 #endif /* SCHEMA_H_ */

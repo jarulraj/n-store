@@ -2,27 +2,9 @@
 
 #include "libpm.h"
 #include "pthread.h"
-#include "assert.h"
 
 pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 struct static_info *sp;
-
-// Global new and delete
-
-void* operator new(size_t sz) throw (bad_alloc) {
-  pthread_mutex_lock(&pmp_mutex);
-  void* ret = pmemalloc_reserve(sz);
-  assert(ret != NULL);
-  pthread_mutex_unlock(&pmp_mutex);
-  return ret;
-}
-
-void operator delete(void *p) throw () {
-  pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(p);
-  pthread_mutex_unlock(&pmp_mutex);
-}
 
 /////////////////////////////////////////////////////////////////////
 // util.c -- some simple utility routines

@@ -21,8 +21,25 @@ class table_index {
     delete map;
   }
 
+  void* operator new(size_t sz) throw (bad_alloc) {
+    if (persistent) {
+      void* ret = pmem_new(sz);
+      pmemalloc_activate(ret);
+      return ret;
+    } else
+      return ::operator new(sz);
+  }
+
+  void operator delete(void *p) throw () {
+    if (persistent)
+      pmem_delete(p);
+    else
+      ::operator delete(p);
+  }
+
   schema* sptr;
   unsigned int num_fields;
+  static bool persistent;
 
   ptree<unsigned long, record*>* map;
 };

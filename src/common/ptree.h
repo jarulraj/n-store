@@ -10,6 +10,7 @@ class ptree {
  public:
 
   struct node {
+   public:
     node(const K& _key, const V& _val)
         : parent(NULL),
           left(NULL),
@@ -27,28 +28,53 @@ class ptree {
     int right_max_depth;
     K key;
     V val;
+
+    void* operator new(size_t sz) throw (bad_alloc) {
+      if (persistent) {
+        void* ret = pmem_new(sz);
+        pmemalloc_activate(ret);
+        return ret;
+      } else
+        return ::operator new(sz);
+    }
+
+    void operator delete(void *p) throw () {
+      if (persistent)
+        pmem_delete(p);
+      else
+        ::operator delete(p);
+    }
+
   };
 
   node** root;
   int size;
-  bool activate;
+  static bool persistent;
 
   ptree()
       : root(NULL),
-        size(0),
-        activate(false) {
+        size(0) {
   }
 
   ptree(void** _root)
       : size(0) {
-    root = (struct node**) _root;
-    activate = true;
+    root = (node**) _root;
   }
 
-  ptree(void** _root, bool _activate)
-      : size(0) {
-    root = (struct node**) _root;
-    activate = _activate;
+  void* operator new(size_t sz) throw (bad_alloc) {
+    if (persistent) {
+      void* ret = pmem_new(sz);
+      pmemalloc_activate(ret);
+      return ret;
+    } else
+      return ::operator new(sz);
+  }
+
+  void operator delete(void *p) throw () {
+    if (persistent)
+      pmem_delete(p);
+    else
+      ::operator delete(p);
   }
 
   virtual ~ptree(void) {
@@ -217,11 +243,14 @@ class ptree {
   void insert(const K& key, const V& val) {
     node* current_node = (*root);
 
+    cout<<"insert "<<key<<" "<<val<<" \n";
+    cout<<"size ::"<<size<<endl;
+
     if (current_node == NULL) {
       node* np = new node(key, val);
 
       (*root) = np;
-      if (activate)
+      if (persistent)
         pmemalloc_activate(np);
 
       size++;
@@ -237,7 +266,7 @@ class ptree {
           node* np = new node(key, val);
           np->parent = current_node;
           current_node->left = np;
-          if (activate)
+          if (persistent)
             pmemalloc_activate(np);
 
           size++;
@@ -252,7 +281,7 @@ class ptree {
           node* np = new node(key, val);
           np->parent = current_node;
           current_node->right = np;
-          if (activate)
+          if (persistent)
             pmemalloc_activate(np);
 
           size++;
@@ -269,8 +298,12 @@ class ptree {
   node* find(const K& key) const {
     node* current_node = (*root);
 
+    cout<<"find "<<key<<"\n";
+    cout<<"size ::"<<size<<endl;
+
     if (current_node != NULL) {
       while (1) {
+        cout<<"find loop :: "<<current_node->key<<" "<<key<<" \n";
         if (current_node->key == key)
           return current_node;
         else if (current_node->key > key) {
