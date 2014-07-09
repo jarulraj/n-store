@@ -137,8 +137,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 }
 
 int main(int argc, char **argv) {
-  const char* path = "/mnt/pmfs/n-store/zfile";
-  //const char* path = "./zfile";
+  //const char* path = "/mnt/pmfs/n-store/zfile";
+  const char* path = "./zfile";
 
   size_t pmp_size = 32UL * 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
@@ -153,6 +153,9 @@ int main(int argc, char **argv) {
 
   if (state.log_enable == true) {
     LOG_INFO("WAL");
+
+    // PERSIST
+    sp->persist = 1;
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
@@ -172,6 +175,9 @@ int main(int argc, char **argv) {
 
   if (state.aries_enable == true) {
     LOG_INFO("ARIES");
+
+    // DON'T PERSIST
+    sp->persist = 0;
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
