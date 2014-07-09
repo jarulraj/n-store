@@ -215,8 +215,6 @@ void aries_engine::generator(const workload& load, bool stats) {
   std::thread gc(&aries_engine::group_commit, this);
   ready = true;
 
-  timeval t1, t2;
-  gettimeofday(&t1, NULL);
 
   looper = 0;
   for (const transaction& txn : load.txns)
@@ -229,12 +227,6 @@ void aries_engine::generator(const workload& load, bool stats) {
   undo_log.write();
   undo_log.close();
 
-  gettimeofday(&t2, NULL);
-
-  if (stats){
-    cout<<"ARIES :: ";
-    display_stats(t1, t2, conf.num_txns);
-  }
 }
 
 void aries_engine::recovery() {

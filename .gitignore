@@ -1,5 +1,6 @@
 # Autotools
 Makefile
+Makefile.in
 configure
 *.o
 *~
