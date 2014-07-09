@@ -312,6 +312,59 @@ static void pmemalloc_coalesce_free(void* pmp) {
   }
 }
 
+// Local coalesce
+static void pmemalloc_coalesce_local(void *abs_ptr_) {
+    struct clump *clp, *prev_clp;
+    void *ptr_ = OFF(abs_ptr_);
+
+    prev_clp = (struct clump *) ((uintptr_t) clp - clp->prevsize);
+
+    struct clump *firstfree;
+    struct clump *lastfree;
+    size_t csize;
+
+    DEBUG("pmp=0x%lx", pmp);
+
+    firstfree = lastfree = NULL;
+    csize = 0;
+    clp = prev_clp;
+    int itr = 0;
+
+    while (clp->size && ++itr<4) {
+        size_t sz = clp->size & ~PMEM_STATE_MASK;
+        int state = clp->size & PMEM_STATE_MASK;
+
+        DEBUG("[0x%lx]clump size %lx state %d", OFF(pmp, clp), sz, state);
+
+        if (state == PMEM_STATE_FREE) {
+            if (firstfree == NULL)
+                firstfree = clp;
+            else
+                lastfree = clp;
+            csize += sz;
+        } else if (firstfree != NULL && lastfree != NULL) {
+            DEBUG("coalesced size 0x%lx", csize);
+            firstfree->size = csize | PMEM_STATE_FREE;
+            pmem_persist(firstfree, sizeof(*firstfree), 0);
+            firstfree = lastfree = NULL;
+            csize = 0;
+        } else {
+            firstfree = lastfree = NULL;
+            csize = 0;
+        }
+
+        clp = (struct clump *) ((uintptr_t) clp + sz);
+        DEBUG("next clp %lx, offset 0x%lx", clp, OFF(pmp, clp));
+    }
+    if (firstfree != NULL && lastfree != NULL) {
+        DEBUG("coalesced size 0x%lx", csize);DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
+                (uintptr_t )firstfree + csize);
+        firstfree->size = csize | PMEM_STATE_FREE;
+        pmem_persist(firstfree, sizeof(*firstfree), 0);
+    }
+
+}
+
 /*
  * pmemalloc_init -- setup a Persistent Memory pool for use
  *
