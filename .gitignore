@@ -30,6 +30,7 @@ build/*
 *.a
 *.la
 *.out
+*.pyc
 
 # Log/Tmp files
 log*
