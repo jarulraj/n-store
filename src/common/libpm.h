@@ -96,11 +96,6 @@ static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
     __builtin_ia32_clflush((void *) uptr);
 }
 
-static inline void pmem_persist(void *addr, size_t len, int flags) {
-  pmem_flush_cache(addr, len, flags);
-  __builtin_ia32_sfence();
-  pmem_drain_pm_stores();
-}
 
 /////////////////////////////////////////////////////////////////////
 // pmemalloc.h -- example malloc library for Persistent Memory
@@ -124,8 +119,20 @@ extern void* pmp;
 struct static_info {
   unsigned int init;
   unsigned int itr;
+  unsigned int persist = 1;
   void* ptrs[MAX_PTRS];
 };
+
+extern struct static_info* sp;
+
+static inline void pmem_persist(void *addr, size_t len, int flags) {
+  if(sp->persist){
+    pmem_flush_cache(addr, len, flags);
+    __builtin_ia32_sfence();
+    //pmem_drain_pm_stores();
+  }
+}
+
 /*
  * given a relative pointer, add in the base associated
  * with the given Persistent Memory Pool (pmp).
