@@ -59,7 +59,7 @@ std::string wal_engine::select(const statement& st) {
 }
 
 void wal_engine::insert(const statement& st) {
-  LOG_INFO("Insert");
+  //LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;

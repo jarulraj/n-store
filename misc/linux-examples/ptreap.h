@@ -923,14 +923,6 @@ class ptreap {
 
     removed = remove_internal(key, true);
 
-#ifdef P_TREE_DEBUG
-    {
-      unsigned int i;
-      for (i = 0; i <= version; ++i)
-      node_check (root_find_version ( i)->root, i);
-    }
-#endif
-
     return removed;
   }
 

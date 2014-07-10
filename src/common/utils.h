@@ -37,71 +37,15 @@ inline std::string get_data(record* rptr, schema* sptr) {
   return rec_str;
 }
 
-inline std::string serialize(record* rptr, schema* sptr) {
-  unsigned int num_columns = sptr->num_columns;
-  unsigned int itr;
-  std::string rec_str;
+std::string serialize(record* rptr, schema* sptr);
 
-  rec_str += std::to_string(num_columns) + " ";
+record* deserialize(std::stringstream& entry, schema* sptr);
 
-  if (rptr == NULL || sptr == NULL)
-    return rec_str;
-
-  for (itr = 0; itr < num_columns; itr++) {
-    if (sptr->columns[itr].enabled) {
-      rec_str += std::to_string(itr) + " ";
-      rec_str += rptr->get_data(itr);
-    }
-  }
-
-  return rec_str;
-}
-
-inline record* deserialize(std::stringstream& entry, schema* sptr) {
-  unsigned int num_columns;
-  unsigned int itr, field_id;
-  std::string rec_str;
-
-  record* rec_ptr = new record(sptr);
-
-  entry >> num_columns;
-
-  for (itr = 0; itr < num_columns; itr++) {
-    entry >> field_id;
-
-    char type = sptr->columns[field_id].type;
-    size_t offset = sptr->columns[field_id].offset;
-    size_t len = sptr->columns[field_id].len;
-
-    switch (type) {
-      case field_type::INTEGER: {
-        int ival;
-        entry >> ival;
-        std::sprintf(&(rec_ptr->data[offset]), "%d", ival);
-      }
-        break;
-
-      case field_type::DOUBLE: {
-        double dval;
-        entry >> dval;
-        std::sprintf(&(rec_ptr->data[offset]), "%lf", dval);
-      }
-        break;
-
-      case field_type::VARCHAR: {
-        char* vc = new char[sptr->columns[field_id].len];
-        entry >> vc;
-        std::sprintf(&(rec_ptr->data[offset]), "%p", vc);
-      }
-        break;
-
-      default:
-        cout << "Invalid field type : " << type << endl;
-        break;
-    }
-  }
-
-  return rec_ptr;
+// szudzik hasher
+inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {
+  unsigned long a_sq = a * a;
+  unsigned long ret = (a_sq + b) * (a_sq + b) + c;
+  return ret;
 }
 
 void simple_skew(vector<int>& zipf_dist, int n, int num_values);

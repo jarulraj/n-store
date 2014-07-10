@@ -62,9 +62,8 @@ class ptreap {
     std::atomic_int ref_count;
     short unsigned int stolen; /* true if the node is stolen instead of removed */
 
-
     // Clean up when all references are gone
-    ~ptreap_node_data(){
+    ~ptreap_node_data() {
       delete value;
     }
 
@@ -180,7 +179,7 @@ class ptreap {
     /* free the node's data if it's the last node which is using it. just
      because the version of the node was created in the latest version
      of the  doesn't mean there aren't older versions around still */
-    if ((--node->data->ref_count) == 0) {
+    if ((--node->data->ref_count) <= 0) {
       delete node->data;
       return true;
     }
@@ -189,6 +188,8 @@ class ptreap {
 
   bool node_free(ptreap_node *node) {
     bool data_free;
+
+    cout<<"free node"<<endl;
 
     if (node->data)
       data_free = node_data_unref(node);
@@ -214,7 +215,7 @@ class ptreap {
 
     if (r[0].version < version) {
       /* add a new version of the root */
-      nr = (nr+1) % MAX_ROOTS;
+      nr = (nr + 1) % MAX_ROOTS;
       /* copy the latest version from r[0] */
       r[nr - 1] = r[0];
       r[0].version = version;
@@ -225,12 +226,17 @@ class ptreap {
   inline ptreap_root_version *
   root_find_version(unsigned int version) {
     ptreap_root_version * const v = r;
-    const unsigned int nv = nr;
-    ptreap_root_version *l, *r;
 
     if (v[0].version <= version) {
       return v; /* fast when looking for the current version */
     }
+
+    if (v[1].version <= version) {
+      return v+1; /* fast when looking for the previous version */
+    }
+
+    const unsigned int nv = nr;
+    ptreap_root_version *l, *r;
 
     l = v + 1;
     r = v + (nv - 1);
@@ -246,10 +252,10 @@ class ptreap {
     }
     /* If searching earlier than the first root in the  r will be off
      the start of the list (in the first position in the array) */
-    assert(r == v || r->version < version);
+    //assert(r == v || r->version < version);
     /* When searching for the second last root (the last position in the array),
      l will be off the end of the list */
-    assert(l == v + nv || l->version > version);
+    //assert(l == v + nv || l->version > version);
     if (r == v) {
       return &none;
     } else {
@@ -440,23 +446,25 @@ class ptreap {
     (i)-1)); /* it was somewhere else in the array, return the previous */
 
   unsigned int node_delete_versions(ptreap_node *node, unsigned int pnext,
-                                    unsigned int version) {
+                                    unsigned int _version) {
     unsigned int rm, i, nv, next, nextv, lnext, rnext, ret;
 
     if (!node)
       return 0;
 
+    //cout<<"::: delete versions : "<<node->data->key<<" "<<_version<<"\n";
+
     nv = node->nv;
 
     ret = 0;
     rm = 0;
-    for (i = first_v(nv); i < nv && node->v[i].version <= version; i = next) {
+    for (i = first_v(nv); i < nv && node->v[i].version <= _version; i = next) {
       next = next_v(i, nv);
 
       if (next < nv)
         nextv = node->v[next].version - 1;
       else
-        nextv = version;
+        nextv = _version;
 
       if (next < nv && node->v[i].left && node->v[next].left == node->v[i].left
           && (!pnext || node->v[next].version <= pnext))
@@ -502,6 +510,9 @@ class ptreap {
       node_free(node);
       node = NULL;
     }
+    else{
+      //cout<<"::: can't remove : "<<node->nv<<"\n";
+    }
 
     /* if we saved a version here, then it's because a child still needs it
      or the parent still needs it.  if the child needs it, then we will
@@ -535,23 +546,25 @@ class ptreap {
    * freed using these functions (unless it was removed from the #PTreap by
    * steal(), in which case the key and value is not freed).
    **/
-  void delete_versions(unsigned int version) {
+  void delete_versions(unsigned int _version) {
     unsigned int rm, i, l, keep, next;
 
-    g_return_if_fail(version < version);
+    g_return_if_fail(_version < version);
 
-    if (version < r[first_v(nr)].version) {
+    if (_version < r[first_v(nr)].version) {
       return;
     }
+
+    //cout<<"DELETE VERSION "<<_version<<endl;
 
     rm = 0;
     keep = i = first_v(nr);
     next = next_v(i, nr);
-    while (i < nr && r[i].version < version + 1) {
+    while (i < nr && r[i].version < _version + 1) {
       unsigned int nextv, v;
 
-      if (next == nr || r[next].version > version + 1)
-        nextv = version + 1;
+      if (next == nr || r[next].version > _version + 1)
+        nextv = _version + 1;
       else if (next < nr && r[next].root == r[i].root)
         nextv = r[next].version;
       else
@@ -560,7 +573,7 @@ class ptreap {
       if (next < nr && r[next].version <= version)
         v = r[next].version - 1;
       else
-        v = version;
+        v = _version;
 
       l = node_delete_versions(r[i].root, nextv, v);
       assert(l == 0 || l > v);
@@ -586,14 +599,6 @@ class ptreap {
 
     nr -= rm;
     //r = new PTreapRootVersion[nr];
-
-#ifdef P_TREE_DEBUG
-    {
-      unsigned int i;
-      for (i = 0; i <= version; ++i)
-      node_check (root_find_version ( i)->root, i);
-    }
-#endif
   }
 
   /* add a new version of pointers to a node.  return true if ok, and false
@@ -1279,31 +1284,27 @@ class ptreap {
 
     rv = root_find_version(version);
     node = rv->root;
-    //cout<<"root ::"<<rv->root<<endl;
     if (!node) {
       return NULL;
     }
 
     remember = NULL;
     while (1) {
-      if (key == node->data->key) {
+      K nkey = node->data->key;
+      if (key == nkey) {
         return node;
-      } else if (key < node->data->key) {
+      } else if (key < nkey) {
         ptreap_node_version *nodev = node_find_version(node, version);
-        if (search_type == P_TREE_SEARCH_SUCCESSOR)
-          remember = node;
-        if (!nodev->left)
+        if (nodev->left) {
+          node = nodev->left;
+        } else
           return remember;
-
-        node = nodev->left;
       } else {
         ptreap_node_version *nodev = node_find_version(node, version);
-        if (search_type == P_TREE_SEARCH_PREDECESSOR)
-          remember = node;
-        if (!nodev->right)
+        if (nodev->right) {
+          node = nodev->right;
+        } else
           return remember;
-
-        node = nodev->right;
       }
     }
 

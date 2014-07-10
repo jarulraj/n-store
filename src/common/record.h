@@ -13,8 +13,21 @@ class record {
   record(schema* _sptr)
       : sptr(_sptr),
         data(NULL),
-        data_len(_sptr->len){
+        data_len(_sptr->len) {
     data = new char[data_len];
+  }
+
+  ~record() {
+    // Free non-inlined data
+    unsigned int field_itr;
+    for (field_itr = 0; field_itr < sptr->num_columns; field_itr++) {
+      if (sptr->columns[field_itr].inlined == 0) {
+        void* ptr = get_pointer(field_itr);
+        pmemalloc_free(ptr);
+      }
+    }
+
+    delete data;
   }
 
   inline std::string get_data(const int field_id) {
@@ -39,7 +52,7 @@ class record {
       case field_type::VARCHAR:
         char* vcval;
         std::sscanf(&(data[offset]), "%p", &vcval);
-        if (vcval != NULL){
+        if (vcval != NULL) {
           //std::printf("vcval : %p \n", vcval);
           field = std::string(vcval) + " ";
         }

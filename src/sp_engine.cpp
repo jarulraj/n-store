@@ -11,12 +11,13 @@ void sp_engine::group_commit() {
 
     wrlock(&ptreap_rwlock);
     db->dirs->next_version();
-    version = db->dirs->version;
-    unlock(&ptreap_rwlock);
 
-    db->version = (version-1);
-    if(version > 1)
-      db->dirs->delete_versions(version-2);
+    version = db->dirs->version;
+    db->version = version-1;
+
+    if (version > 1)
+      db->dirs->delete_versions(version - 2);
+    unlock(&ptreap_rwlock);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
@@ -40,18 +41,15 @@ sp_engine::~sp_engine() {
 }
 
 std::string sp_engine::select(const statement& st) {
-  LOG_INFO("Select");
+  //LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
-  std::string table_id_str = std::to_string(st.table_id);
-  std::string table_index_id_str = std::to_string(st.table_index_id);
-  unsigned int version = db->version;
 
-  unsigned long key = hash_fn(table_id_str + table_index_id_str + st.key);
+  unsigned long key = hasher(hash_fn(st.key), st.table_id, st.table_index_id);
   std::string val;
+  //cout<<"select key :: -"<<st.key<<"-  --"<<key<<endl;
 
   // Read from latest clean version
-  rec_ptr = db->dirs->at(key, version);
-
+  rec_ptr = db->dirs->at(key, db->version);
   val = get_data(rec_ptr, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
@@ -59,19 +57,17 @@ std::string sp_engine::select(const statement& st) {
 }
 
 void sp_engine::insert(const statement& st) {
-  LOG_INFO("Insert");
+  //LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
-
-  std::string table_id_str = std::to_string(st.table_id);
-  std::string table_index_id_str = std::to_string(0);
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
-  unsigned long key = hash_fn(table_id_str + table_index_id_str + key_str);
+  unsigned long key = hasher(hash_fn(key_str), st.table_id, 0);
+  //cout<<"insert key :: -"<<key_str<<"-  --"<<key<<endl;
 
   // Check if key exists in current version
   if (db->dirs->at(key) != 0) {
@@ -84,9 +80,8 @@ void sp_engine::insert(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    table_index_id_str = std::to_string(index_itr);
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
-    key = hash_fn(table_id_str + table_index_id_str + key_str);
+    key = hasher(hash_fn(key_str), st.table_id, index_itr);
 
     wrlock(&ptreap_rwlock);
     db->dirs->insert(key, after_rec);
@@ -100,28 +95,25 @@ void sp_engine::remove(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
 
-  std::string table_id_str = std::to_string(st.table_id);
-  std::string table_index_id_str = std::to_string(0);
-
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
-  unsigned long key = hash_fn(table_id_str + table_index_id_str + key_str);
+  unsigned long key = hasher(hash_fn(key_str), st.table_id, 0);
 
   // Check if key does not exist in current version
   if (db->dirs->at(key) == 0) {
     return;
   }
 
-  // Record will be freed when all references are gone
-  //record* before_rec = db->dirs->at(key);
+  // Free record
+  record* before_rec = db->dirs->at(key);
+  delete before_rec;
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    table_index_id_str = std::to_string(index_itr);
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
-    key = hash_fn(table_id_str + table_index_id_str + key_str);
+    key = hasher(hash_fn(key_str), st.table_id, index_itr);
 
     wrlock(&ptreap_rwlock);
     db->dirs->remove(key);
@@ -136,14 +128,11 @@ void sp_engine::update(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
 
-  std::string table_id_str = std::to_string(st.table_id);
-  std::string table_index_id_str = std::to_string(0);
-
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
-  unsigned long key = hash_fn(table_id_str + table_index_id_str + key_str);
+  unsigned long key = hasher(hash_fn(key_str), st.table_id, 0);
 
   // Read from current version
   record* before_rec = db->dirs->at(key);
@@ -169,9 +158,8 @@ void sp_engine::update(const statement& st) {
 
   // Update entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    table_index_id_str = std::to_string(index_itr);
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
-    key = hash_fn(table_id_str + table_index_id_str + key_str);
+    key = hasher(hash_fn(key_str), st.table_id, index_itr);
 
     wrlock(&ptreap_rwlock);
     db->dirs->insert(key, after_rec);
@@ -194,8 +182,6 @@ void sp_engine::execute(const transaction& txn) {
       remove(st);
     }
   }
-
-  // Sync what ?
 
 }
 
