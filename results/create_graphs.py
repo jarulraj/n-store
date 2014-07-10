@@ -19,7 +19,6 @@ import csv
 import brewer2mpl
 
 from options import *
-
 from functools import wraps
 
 ## ==============================================
@@ -199,5 +198,3 @@ if __name__ == '__main__':
             saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
             graph_id += 1
     
-
-# # MAIN
