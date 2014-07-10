@@ -61,12 +61,6 @@ class ptreap {
     V value; /* value stored at this node */
     std::atomic_int ref_count;
     short unsigned int stolen; /* true if the node is stolen instead of removed */
-
-    // Clean up when all references are gone
-    ~ptreap_node_data() {
-      delete value;
-    }
-
   };
 
   class ptreap_node {
@@ -229,10 +223,6 @@ class ptreap {
 
     if (v[0].version <= version) {
       return v; /* fast when looking for the current version */
-    }
-
-    if (v[1].version <= version) {
-      return v+1; /* fast when looking for the previous version */
     }
 
     const unsigned int nv = nr;
