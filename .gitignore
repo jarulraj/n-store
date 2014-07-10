@@ -30,6 +30,7 @@ build/*
 *.a
 *.la
 *.out
+*.pyc
 
 # Log/Tmp files
 log*
@@ -42,3 +43,6 @@ perf.*
 
 bin/*
 zfile
+
+# Plots
+results/*.pdf
