@@ -43,8 +43,8 @@ def parse_ycsb(log_name):
         if "RW MIX" in line:
             entry = line.strip().split(' ');
             trial = entry[2]
-            rw_mix = entry[6]
-            skew = entry[9]
+            rw_mix = entry[7]
+            skew = entry[11]
             
             if skew not in skew_factors:
                 skew_factors.append(skew)
@@ -86,7 +86,7 @@ def parse_ycsb(log_name):
         # LOG TO RESULT FILE
         engine_type =  str(key[3]);
         
-        if(key[0] == '0.0'):
+        if(key[0] == '0'):
             workload_type = 'read-only'
         elif(key[0] == '0.1'):
             workload_type = 'read-heavy'
@@ -108,7 +108,7 @@ def parse_ycsb(log_name):
     read_heavy = []
     write_heavy = []
     
-    pprint.pprint(tput)
+    #pprint.pprint(tput)
     
     # ARRANGE DATA INTO TABLES    
     for key in sorted(mean.keys()):
@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
     log_name = "data.log"
     
-    # eval(enable_sdv, enable_trials, log_name)
+    #eval(enable_sdv, enable_trials, log_name)
     
     parse_ycsb(log_name)
 
