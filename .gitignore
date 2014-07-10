@@ -43,3 +43,6 @@ perf.*
 
 bin/*
 zfile
+
+# Plots
+results/*.pdf
