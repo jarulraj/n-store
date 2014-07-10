@@ -4,6 +4,24 @@
 
 using namespace std;
 
+void sp_engine::group_commit() {
+
+  while (ready) {
+    unsigned int version;
+
+    wrlock(&ptreap_rwlock);
+    db->dirs->next_version();
+    version = db->dirs->version;
+    unlock(&ptreap_rwlock);
+
+    db->version = (version-1);
+    if(version > 1)
+      db->dirs->delete_versions(version-2);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
+  }
+}
+
 sp_engine::sp_engine(const config& _conf)
     : conf(_conf),
       db(conf.db) {
@@ -31,7 +49,9 @@ std::string sp_engine::select(const statement& st) {
   unsigned long key = hash_fn(table_id_str + table_index_id_str + st.key);
   std::string val;
 
+  // Read from latest clean version
   rec_ptr = db->dirs->at(key, version);
+
   val = get_data(rec_ptr, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
@@ -53,7 +73,7 @@ void sp_engine::insert(const statement& st) {
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(table_id_str + table_index_id_str + key_str);
 
-  // Check if key exists
+  // Check if key exists in current version
   if (db->dirs->at(key) != 0) {
     return;
   }
@@ -68,7 +88,9 @@ void sp_engine::insert(const statement& st) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(table_id_str + table_index_id_str + key_str);
 
+    wrlock(&ptreap_rwlock);
     db->dirs->insert(key, after_rec);
+    unlock(&ptreap_rwlock);
   }
 }
 
@@ -87,12 +109,13 @@ void sp_engine::remove(const statement& st) {
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(table_id_str + table_index_id_str + key_str);
 
-  // Check if key does not exist
-  if (indices->at(0)->map->contains(key) == 0) {
+  // Check if key does not exist in current version
+  if (db->dirs->at(key) == 0) {
     return;
   }
 
-  record* before_rec = indices->at(0)->map->at(key);
+  // Record will be freed when all references are gone
+  //record* before_rec = db->dirs->at(key);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -100,7 +123,9 @@ void sp_engine::remove(const statement& st) {
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(table_id_str + table_index_id_str + key_str);
 
+    wrlock(&ptreap_rwlock);
     db->dirs->remove(key);
+    unlock(&ptreap_rwlock);
   }
 
 }
@@ -108,38 +133,50 @@ void sp_engine::remove(const statement& st) {
 void sp_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
-  plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
+  table* tab = db->tables->at(st.table_id);
+  plist<table_index*>* indices = tab->indices;
+
+  std::string table_id_str = std::to_string(st.table_id);
+  std::string table_index_id_str = std::to_string(0);
+
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
-  unsigned long key = hash_fn(key_str);
+  unsigned long key = hash_fn(table_id_str + table_index_id_str + key_str);
 
-  record* before_rec = indices->at(0)->map->at(key);
+  // Read from current version
+  record* before_rec = db->dirs->at(key);
 
-  // Check if key does not exist
+  // Check if key does not exist in current version
   if (before_rec == 0)
     return;
+
+  record* after_rec = new record(before_rec->sptr);
+  memcpy(after_rec->data, before_rec->data, before_rec->data_len);
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();
 
   for (int field_itr : st.field_ids) {
-    // Pointer field
-    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
-      before_field = before_rec->get_pointer(field_itr);
-      after_field = rec_ptr->get_pointer(field_itr);
-    }
-    // Data field
-    else {
-      before_field = before_rec->get_pointer(field_itr);
-      std::string before_data = before_rec->get_data(field_itr);
-    }
+    // Update new record
+    after_rec->set_data(field_itr, rec_ptr);
   }
 
-  for (int field_itr : st.field_ids) {
-    // Update existing record
-    before_rec->set_data(field_itr, rec_ptr);
-  }
+  // Activate new record
+  pmemalloc_activate(after_rec);
+  after_rec->persist_data();
 
+  // Update entry in indices
+  for (index_itr = 0; index_itr < num_indices; index_itr++) {
+    table_index_id_str = std::to_string(index_itr);
+    key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+    key = hash_fn(table_id_str + table_index_id_str + key_str);
+
+    wrlock(&ptreap_rwlock);
+    db->dirs->insert(key, after_rec);
+    unlock(&ptreap_rwlock);
+  }
 }
 
 // RUNNER + LOADER
@@ -192,17 +229,14 @@ void sp_engine::runner() {
 
 void sp_engine::generator(const workload& load, bool stats) {
 
-  timeval t1, t2;
-
-  gettimeofday(&t1, NULL);
+  std::thread gc(&sp_engine::group_commit, this);
+  ready = true;
 
   for (const transaction& txn : load.txns)
     execute(txn);
 
-  gettimeofday(&t2, NULL);
-
-  if (stats)
-    display_stats(t1, t2, load.txns.size());
+  ready = false;
+  gc.join();
 
 }
 

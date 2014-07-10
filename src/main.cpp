@@ -52,7 +52,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.num_txns = 10;
   state.num_executors = 1;
 
-  state.sz_value = 1024;
+  state.sz_value = 4;
   state.verbose = false;
 
   state.gc_interval = 5;
@@ -196,7 +196,14 @@ int main(int argc, char **argv) {
 
     if (generate_dataset)
       sp.generator(ycsb.get_dataset(), false);
+
+    timeval t1, t2;
+    gettimeofday(&t1, NULL);
     sp.generator(ycsb.get_workload(), true);
+    gettimeofday(&t2, NULL);
+
+    cout<<"SP :: ";
+    display_stats(t1, t2, state.num_txns);
   }
 
   return 0;

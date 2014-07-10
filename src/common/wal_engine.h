@@ -52,9 +52,9 @@ class wal_engine : public engine {
   std::atomic<bool> done;
 
   std::vector<void*> commit_free_list;
+  pthread_rwlock_t log_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
   std::atomic_bool ready;
-  int looper;
 };
 
 #endif /* WAL_ENGINE_H_ */

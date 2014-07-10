@@ -215,8 +215,6 @@ void aries_engine::generator(const workload& load, bool stats) {
   std::thread gc(&aries_engine::group_commit, this);
   ready = true;
 
-
-  looper = 0;
   for (const transaction& txn : load.txns)
     execute(txn);
 

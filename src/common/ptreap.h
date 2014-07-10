@@ -61,6 +61,13 @@ class ptreap {
     V value; /* value stored at this node */
     std::atomic_int ref_count;
     short unsigned int stolen; /* true if the node is stolen instead of removed */
+
+
+    // Clean up when all references are gone
+    ~ptreap_node_data(){
+      delete value;
+    }
+
   };
 
   class ptreap_node {

@@ -108,11 +108,11 @@ def createYCSBGraphs(aries_fast, aries_slow, wal_fast, wal_slow, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 200)
+        axes.set_ylim(0, 100000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 150)
+        axes.set_ylim(0, 100000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 50)
+        axes.set_ylim(0, 100000)
         
     makeGrid(ax1)
     axes.set_xlim(.4, 1.6)
@@ -187,14 +187,12 @@ if __name__ == '__main__':
                          help='PowerPoint Formatted Graphs')
     args = vars(aparser.parse_args())
         
-    graph_id = 1
     for workload in WORKLOAD_MIX:
             aries_fast = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/aries/" + workload + "/" + "/200/results.csv")))
             aries_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/aries/" + workload + "/" + "/800/results.csv")))
             wal_fast = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/wal/" + workload + "/" + "/200/results.csv")))
             wal_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/wal/" + workload + "/" + "/800/results.csv")))
             fig = createYCSBGraphs(aries_fast, aries_slow, wal_fast, wal_slow, workload)
-            fileName = "ycsb-%d.pdf" % (graph_id)
+            fileName = "ycsb-%s.pdf" % (workload)
             saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
-            graph_id += 1
     

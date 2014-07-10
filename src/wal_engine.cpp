@@ -222,6 +222,17 @@ void wal_engine::execute(const transaction& txn) {
     }
   }
 
+  // Clear commit_free list
+  for (void* ptr : commit_free_list) {
+    pmemalloc_free(ptr);
+  }
+  commit_free_list.clear();
+
+  // Clear log
+  vector<char*> undo_log = db->log->get_data();
+  for (char* ptr : undo_log)
+    delete ptr;
+  db->log->clear();
 }
 
 void wal_engine::runner() {
@@ -254,7 +265,6 @@ void wal_engine::runner() {
 
 void wal_engine::generator(const workload& load, bool stats) {
 
-  looper = 0;
   for (const transaction& txn : load.txns)
     execute(txn);
 
