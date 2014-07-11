@@ -43,8 +43,8 @@ def parse_ycsb(log_name):
         if "RW MIX" in line:
             entry = line.strip().split(' ');
             trial = entry[2]
-            rw_mix = entry[7]
-            skew = entry[11]
+            rw_mix = entry[6]
+            skew = entry[9]
             
             if skew not in skew_factors:
                 skew_factors.append(skew)
@@ -86,7 +86,7 @@ def parse_ycsb(log_name):
         # LOG TO RESULT FILE
         engine_type =  str(key[3]);
         
-        if(key[0] == '0'):
+        if(key[0] == '0.0'):
             workload_type = 'read-only'
         elif(key[0] == '0.1'):
             workload_type = 'read-heavy'
@@ -148,8 +148,8 @@ def eval(enable_sdv, enable_trials, log_name):
     fs_path = "/mnt/pmfs/n-store/"
     
     # NSTORE FLAGS
-    keys = 100 
-    txns = 100
+    keys = 1000000 
+    txns = 1000000
     # KEYS=100 
     # TXNS=100 
     
@@ -166,6 +166,10 @@ def eval(enable_sdv, enable_trials, log_name):
     latency_factors = [2, 8]
     rw_mixes = [0, 0.1, 0.5]
     skew_factors = [0.1, 1]
+ 
+    #latency_factors = [2]
+    #rw_mixes = [0, 0.5]
+    #skew_factors = [0.1, 1]
     
     # LOG RESULTS
     log_file = open(log_name, 'w')
@@ -177,7 +181,8 @@ def eval(enable_sdv, enable_trials, log_name):
         ostr = ("LATENCY %d \n" % nvm_latency)    
         print (ostr, end="")
         log_file.write(ostr)
-    
+        log_file.flush()
+        
         if enable_sdv :
             cwd = os.getcwd()
             os.chdir(sdv_dir)
@@ -204,6 +209,8 @@ def eval(enable_sdv, enable_trials, log_name):
                     cleanup()
                     subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-w', str(rw_mix), '-f', fs_path, 'q', str(skew_factor), '-a'], stdout=log_file)
 
+                    cleanup()
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-w', str(rw_mix), '-f', fs_path, 'q', str(skew_factor), '-s'], stdout=log_file)
 
 if __name__ == '__main__':
     enable_sdv = False
@@ -222,7 +229,7 @@ if __name__ == '__main__':
 
     log_name = "data.log"
     
-    eval(enable_sdv, enable_trials, log_name)
+    #eval(enable_sdv, enable_trials, log_name)
     
     parse_ycsb(log_name)
 
