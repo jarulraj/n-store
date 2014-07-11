@@ -292,6 +292,20 @@ class ptree {
     return NULL;
   }
 
+  K find_hops(unsigned int hops) const {
+    node* current_node = (*root);
+    unsigned int hop_itr = 0;
+
+    while (current_node != NULL && ++hop_itr < hops) {
+      current_node = current_node->right;
+    }
+
+    if (current_node != NULL)
+      return current_node->key;
+
+    return hops;
+  }
+
   V at(const K& key) const {
     node* ret = find(key);
     return ret ? ret->val : 0;

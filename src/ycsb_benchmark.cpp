@@ -9,6 +9,7 @@
 
 #include "libpm.h"
 #include "plist.h"
+#include "ptree.h"
 
 using namespace std;
 
@@ -161,8 +162,8 @@ workload& ycsb_benchmark::get_dataset() {
     vector<statement> stmts = { st };
     transaction txn(txn_itr, stmts);
     load.txns.push_back(txn);
-
   }
+
 
   //cout << load.txns.size() << " dataset transactions " << endl;
 
@@ -179,10 +180,18 @@ workload& ycsb_benchmark::get_workload() {
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   std::string empty;
 
+  key_tree = new ptree<int,int*>(&conf.sp->ptrs[conf.sp->itr++]);
+
+  for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++)
+    key_tree->insert(txn_itr, NULL);
+
   for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++, txn_id++) {
 
     int key = zipf_dist[txn_itr];
     double u = uniform_dist[txn_itr];
+
+    // Transform hops to key in index
+    key = key_tree->find_hops(key);
 
     if (u < conf.per_writes) {
       // UPDATE
@@ -216,6 +225,8 @@ workload& ycsb_benchmark::get_workload() {
       load.txns.push_back(txn);
     }
   }
+
+  delete key_tree;
 
   //cout << load.txns.size() << " workload transactions " << endl;
 
