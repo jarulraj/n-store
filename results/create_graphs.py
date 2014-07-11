@@ -89,13 +89,11 @@ def makeGrid(ax):
 ## ==============================================
 # # CREATE WORKLOAD SKEW THROUGHPUT GRAPH
 ## ==============================================
-def createYCSBGraphs(aries_fast, aries_slow, wal_fast, wal_slow, workload_mix):
+def createYCSBGraphs(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    datasets = (aries_fast, aries_slow, wal_fast, wal_slow)
-
-    labels = ("aries-2X", "aries-8X", "wal-2X", "wal-8X")
+    labels = ("aries-2X", "aries-8X", "wal-2X", "wal-8X", "sp-2X", "sp-8X")
 
     x_values = [0.1, 1.0, 10.0]
     x_labels = ["0.1", "1.0", "10.0"]
@@ -108,11 +106,11 @@ def createYCSBGraphs(aries_fast, aries_slow, wal_fast, wal_slow, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 100000)
+        axes.set_ylim(0, 60000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 100000)
+        axes.set_ylim(0, 60000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 100000)
+        axes.set_ylim(0, 60000)
         
     makeGrid(ax1)
     axes.set_xlim(.4, 1.6)
@@ -192,7 +190,12 @@ if __name__ == '__main__':
             aries_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/aries/" + workload + "/" + "/800/results.csv")))
             wal_fast = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/wal/" + workload + "/" + "/200/results.csv")))
             wal_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/wal/" + workload + "/" + "/800/results.csv")))
-            fig = createYCSBGraphs(aries_fast, aries_slow, wal_fast, wal_slow, workload)
+            sp_fast = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/sp/" + workload + "/" + "/200/results.csv")))
+            sp_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/sp/" + workload + "/" + "/800/results.csv")))
+            
+            datasets = (aries_fast, aries_slow, wal_fast, wal_slow, sp_fast, sp_slow)
+            
+            fig = createYCSBGraphs(datasets, workload)
             fileName = "ycsb-%s.pdf" % (workload)
             saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
     

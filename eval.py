@@ -165,7 +165,7 @@ def eval(enable_sdv, enable_trials, log_name):
     
     latency_factors = [2, 8]
     rw_mixes = [0, 0.1, 0.5]
-    skew_factors = [0.1, 1]
+    skew_factors = [0.1, 1.0, 10.0]
  
     #latency_factors = [2]
     #rw_mixes = [0, 0.5]
