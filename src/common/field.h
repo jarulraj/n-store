@@ -27,7 +27,7 @@ struct field_info {
   field_info(unsigned int _offset, unsigned int _len, field_type _type,
               bool _inlined, bool _enabled)
       : offset(_offset),
-        len(_len + 2),
+        len(_len+1),
         type(_type),
         inlined(_inlined),
         enabled(_enabled) {

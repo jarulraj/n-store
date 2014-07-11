@@ -11,12 +11,10 @@ void sp_engine::group_commit() {
 
     wrlock(&ptreap_rwlock);
     db->dirs->next_version();
-
     version = db->dirs->version;
     db->version = version-1;
 
-    if (version > 1)
-      db->dirs->delete_versions(version - 2);
+    //db->dirs->delete_versions(version-2);
     unlock(&ptreap_rwlock);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
@@ -183,6 +181,13 @@ void sp_engine::execute(const transaction& txn) {
     }
   }
 
+  /*
+  if(++looper%10000 == 0){
+    cout<<"version ::"<<db->dirs->version <<" ";
+    cout<<"looper ::"<<looper<<endl;
+  }
+  */
+
 }
 
 void sp_engine::runner() {
@@ -214,6 +219,8 @@ void sp_engine::runner() {
 }
 
 void sp_engine::generator(const workload& load, bool stats) {
+
+  looper = 0;
 
   std::thread gc(&sp_engine::group_commit, this);
   ready = true;

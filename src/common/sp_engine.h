@@ -49,6 +49,8 @@ class sp_engine : public engine {
 
   pthread_rwlock_t ptreap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::atomic_bool ready;
+
+  int looper = 0;
 };
 
 #endif /* SP_ENGINE_H_ */

@@ -183,7 +183,7 @@ class ptreap {
   bool node_free(ptreap_node *node) {
     bool data_free;
 
-    cout<<"free node"<<endl;
+    cout << "free node" << endl;
 
     if (node->data)
       data_free = node_data_unref(node);
@@ -499,8 +499,7 @@ class ptreap {
     if (node->nv == 0) {
       node_free(node);
       node = NULL;
-    }
-    else{
+    } else {
       //cout<<"::: can't remove : "<<node->nv<<"\n";
     }
 

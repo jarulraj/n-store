@@ -62,8 +62,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
 
     // USERTABLE
     size_t offset = 0, len = 0;
-    field_info col1(offset, sizeof(int), field_type::INTEGER, 1, 1);
-    offset += col1.len;
+    field_info col1(offset, 10, field_type::INTEGER, 1, 1);
+    offset += col1.len; // ULONG_MAX
     field_info col2(offset, sizeof(void*), field_type::VARCHAR, 0, 1);
     offset += col2.len;
     len = offset;
