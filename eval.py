@@ -181,7 +181,7 @@ def eval(enable_sdv, enable_trials, log_name):
         if enable_sdv :
             cwd = os.getcwd()
             os.chdir(sdv_dir)
-            subprocess.call(['sudo', sdv_script, '--enable', '--pm-latency', nvm_latency], stdout=log_file)
+            subprocess.call(['sudo', sdv_script, '--enable', '--pm-latency', str(nvm_latency)], stdout=log_file)
             os.chdir(cwd)
                    
         for trial in (0, num_trials):
@@ -210,8 +210,8 @@ if __name__ == '__main__':
     enable_trials = False
     
     parser = argparse.ArgumentParser(description='Run experiments')
-    parser.add_argument("-s", "--enable-sdv", help='enable sdv')
-    parser.add_argument("-t", "--enable-trials", help='enable trials')
+    parser.add_argument("-s", "--enable-sdv", help='enable sdv', action='store_true')
+    parser.add_argument("-t", "--enable-trials", help='enable trials', action='store_true')
     
     args = parser.parse_args()
     
@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
     log_name = "data.log"
     
-    #eval(enable_sdv, enable_trials, log_name)
+    eval(enable_sdv, enable_trials, log_name)
     
     parse_ycsb(log_name)
 
