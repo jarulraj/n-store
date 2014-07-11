@@ -233,6 +233,11 @@ void wal_engine::execute(const transaction& txn) {
   for (char* ptr : undo_log)
     delete ptr;
   db->log->clear();
+
+
+  if(++looper%10000 == 0){
+    cout<<"looper ::"<<looper<<endl;
+  }
 }
 
 void wal_engine::runner() {
@@ -265,8 +270,19 @@ void wal_engine::runner() {
 
 void wal_engine::generator(const workload& load, bool stats) {
 
+  timeval t1, t2;
+  gettimeofday(&t1, NULL);
+
+  looper = 0;
   for (const transaction& txn : load.txns)
     execute(txn);
+
+  gettimeofday(&t2, NULL);
+
+  if(stats){
+    cout<<"WAL :: ";
+    display_stats(t1, t2, conf.num_txns);
+  }
 
 }
 

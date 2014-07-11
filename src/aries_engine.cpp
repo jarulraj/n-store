@@ -211,6 +211,9 @@ void aries_engine::generator(const workload& load, bool stats) {
 
   undo_log.configure(conf.fs_path + "log");
 
+  timeval t1, t2;
+  gettimeofday(&t1, NULL);
+
   // Logger start
   std::thread gc(&aries_engine::group_commit, this);
   ready = true;
@@ -225,6 +228,12 @@ void aries_engine::generator(const workload& load, bool stats) {
   undo_log.write();
   undo_log.close();
 
+  gettimeofday(&t2, NULL);
+
+  if(stats){
+    cout<<"ARIES :: ";
+    display_stats(t1, t2, conf.num_txns);
+  }
 }
 
 void aries_engine::recovery() {

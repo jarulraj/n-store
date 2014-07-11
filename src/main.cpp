@@ -160,13 +160,7 @@ int main(int argc, char **argv) {
     if (generate_dataset)
       wal.generator(ycsb.get_dataset(), false);
 
-    timeval t1, t2;
-    gettimeofday(&t1, NULL);
     wal.generator(ycsb.get_workload(), true);
-    gettimeofday(&t2, NULL);
-
-    cout<<"WAL :: ";
-    display_stats(t1, t2, state.num_txns);
   }
 
   if (state.aries_enable == true) {
@@ -178,13 +172,7 @@ int main(int argc, char **argv) {
 
     aries.generator(ycsb.get_dataset(), false);
 
-    timeval t1, t2;
-    gettimeofday(&t1, NULL);
     aries.generator(ycsb.get_workload(), true);
-    gettimeofday(&t2, NULL);
-
-    cout<<"ARIES :: ";
-    display_stats(t1, t2, state.num_txns);
   }
 
   if (state.sp_enable == true) {
@@ -197,13 +185,7 @@ int main(int argc, char **argv) {
     if (generate_dataset)
       sp.generator(ycsb.get_dataset(), false);
 
-    timeval t1, t2;
-    gettimeofday(&t1, NULL);
     sp.generator(ycsb.get_workload(), true);
-    gettimeofday(&t2, NULL);
-
-    cout<<"SP :: ";
-    display_stats(t1, t2, state.num_txns);
   }
 
   return 0;

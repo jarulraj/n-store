@@ -55,6 +55,7 @@ class wal_engine : public engine {
   pthread_rwlock_t log_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
   std::atomic_bool ready;
+  int looper = 0;
 };
 
 #endif /* WAL_ENGINE_H_ */
