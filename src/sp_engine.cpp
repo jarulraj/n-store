@@ -181,11 +181,6 @@ void sp_engine::execute(const transaction& txn) {
     }
   }
 
-  if(++looper%10000 == 0){
-    cout<<"version ::"<<db->dirs->version <<" ";
-    cout<<"looper ::"<<looper<<endl;
-  }
-
 }
 
 void sp_engine::runner() {
@@ -221,10 +216,9 @@ void sp_engine::generator(const workload& load, bool stats) {
   std::thread gc(&sp_engine::group_commit, this);
   ready = true;
 
-  timeval t1, t2;
+  struct timeval t1, t2;
   gettimeofday(&t1, NULL);
 
-  looper = 0;
   for (const transaction& txn : load.txns)
     execute(txn);
 
