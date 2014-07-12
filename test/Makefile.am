@@ -5,13 +5,13 @@ AM_LDFLAGS  = $(PTHREAD_CFLAGS)
 LIBS = -lrt 
 
 check_PROGRAMS = test_plist \
-				 test_ptree \
+				 test_pbtree \
 				 test_ptreap \
                  test_pmem  \
 				 test_wal
 
-test_ptree_SOURCES = test_ptree.cpp 
-test_ptree_LDADD = $(top_builddir)/src/libpm.a
+test_pbtree_SOURCES = test_pbtree.cpp 
+test_pbtree_LDADD = $(top_builddir)/src/libpm.a
 
 test_plist_SOURCES = test_plist.cpp 
 test_plist_LDADD = $(top_builddir)/src/libpm.a

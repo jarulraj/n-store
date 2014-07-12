@@ -14,6 +14,9 @@ extern struct static_info *sp;
 int main(int argc, char *argv[]) {
   const char* path = "./zfile";
 
+  // cleanup
+  unlink(path);
+
   long pmp_size = 10 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
@@ -58,9 +61,6 @@ int main(int argc, char *argv[]) {
 
   int ret = std::remove(path);
   assert(ret == 0);
-
-  // cleanup
-  unlink(path);
 
   return 0;
 }

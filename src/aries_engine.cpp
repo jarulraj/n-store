@@ -64,7 +64,7 @@ void aries_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  if (indices->at(0)->map->contains(key) != 0) {
+  if (indices->at(0)->map->exists(key) != 0) {
     return;
   }
 
@@ -99,7 +99,7 @@ void aries_engine::remove(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
-  if (indices->at(0)->map->contains(key) == 0) {
+  if (indices->at(0)->map->exists(key) == 0) {
     return;
   }
 

@@ -8,7 +8,6 @@
 #include "nstore.h"
 #include "benchmark.h"
 #include "database.h"
-#include "ptree.h"
 
 using namespace std;
 
@@ -28,7 +27,6 @@ class ycsb_benchmark : public benchmark {
 
   unsigned int txn_id;
 
-  ptree<int,int*>* key_tree;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */

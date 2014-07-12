@@ -3,7 +3,7 @@
 
 #include "schema.h"
 #include "record.h"
-#include "ptree.h"
+#include "pbtree.h"
 
 using namespace std;
 
@@ -24,7 +24,7 @@ class table_index {
   schema* sptr;
   unsigned int num_fields;
 
-  ptree<unsigned long, record*>* map;
+  pbtree<unsigned long, record*>* map;
 };
 
 #endif /* TABLE_INDEX_H_ */

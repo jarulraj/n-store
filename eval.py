@@ -189,7 +189,7 @@ def eval(enable_sdv, enable_trials, log_name):
             subprocess.call(['sudo', sdv_script, '--enable', '--pm-latency', str(nvm_latency)], stdout=log_file)
             os.chdir(cwd)
                    
-        for trial in (0, num_trials):
+        for trial in range(num_trials):
             # RW MIX
             for rw_mix  in rw_mixes:
                 # SKEW FACTOR

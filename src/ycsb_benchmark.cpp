@@ -9,7 +9,6 @@
 
 #include "libpm.h"
 #include "plist.h"
-#include "ptree.h"
 
 using namespace std;
 
@@ -64,7 +63,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     // USERTABLE
     size_t offset = 0, len = 0;
     field_info col1(offset, 10, field_type::INTEGER, 1, 1);
-    offset += col1.len; // ULONG_MAX
+    offset += col1.len;  // ULONG_MAX
     field_info col2(offset, sizeof(void*), field_type::VARCHAR, 0, 1);
     offset += col2.len;
     len = offset;
@@ -97,18 +96,18 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(key_index);
     indices->push_back(key_index);
 
-    ptree<unsigned long, record*>* key_index_map = new ptree<unsigned long,
+    pbtree<unsigned long, record*>* key_index_map = new pbtree<unsigned long,
         record*>(&conf.sp->ptrs[conf.sp->itr++]);
     pmemalloc_activate(key_index_map);
     key_index->map = key_index_map;
 
-    // Disable persistence in ARIES engine
+    // XXX Disable persistence in ARIES engine
     if (conf.aries_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();
         for (table_index* index : indices) {
-          index->map->activate = false;
+          index->map->disable_persistence();
         }
       }
     }
@@ -164,7 +163,6 @@ workload& ycsb_benchmark::get_dataset() {
     load.txns.push_back(txn);
   }
 
-
   //cout << load.txns.size() << " dataset transactions " << endl;
 
   return load;
@@ -180,18 +178,10 @@ workload& ycsb_benchmark::get_workload() {
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   std::string empty;
 
-  key_tree = new ptree<int,int*>(&conf.sp->ptrs[conf.sp->itr++]);
-
-  for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++)
-    key_tree->insert(txn_itr, NULL);
-
   for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++, txn_id++) {
 
     int key = zipf_dist[txn_itr];
     double u = uniform_dist[txn_itr];
-
-    // Transform hops to key in index
-    key = key_tree->find_hops(key);
 
     if (u < conf.per_writes) {
       // UPDATE
@@ -225,8 +215,6 @@ workload& ycsb_benchmark::get_workload() {
       load.txns.push_back(txn);
     }
   }
-
-  delete key_tree;
 
   //cout << load.txns.size() << " workload transactions " << endl;
 
