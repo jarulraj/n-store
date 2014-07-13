@@ -1186,7 +1186,7 @@ class btree {
     if (m_stats == NULL) {
       m_stats = new tree_stats;
 
-      if(persist)
+      if (persist)
         pmemalloc_activate(m_stats);
     }
   }
@@ -1336,7 +1336,7 @@ class btree {
   /// Allocate and initialize a leaf node
   inline leaf_node* allocate_leaf() {
     leaf_node *n = new (leaf_node_allocator().allocate(1)) leaf_node();
-    if(persist)
+    if (persist)
       pmemalloc_activate(n);
 
     n->initialize();
@@ -1347,7 +1347,7 @@ class btree {
   /// Allocate and initialize an inner node
   inline inner_node* allocate_inner(unsigned short level) {
     inner_node *n = new (inner_node_allocator().allocate(1)) inner_node();
-    if(persist)
+    if (persist)
       pmemalloc_activate(n);
 
     n->initialize(level);
@@ -1678,7 +1678,7 @@ class btree {
   }
 
   // Disable persistence
-  void disable_persistence(){
+  void disable_persistence() {
     persist = false;
   }
 
@@ -2293,7 +2293,7 @@ class btree {
     // save inner nodes and maxkey for next level.
     typedef std::pair<inner_node*, const key_type*> nextlevel_type;
     nextlevel_type* nextlevel = new nextlevel_type[num_parents];
-    if(persist)
+    if (persist)
       pmemalloc_activate(nextlevel);
 
     leaf_node* leaf = m_headleaf;
@@ -3965,7 +3965,7 @@ class pbtree {
   }
 
   // Disable persistence
-  void disable_persistence(){
+  void disable_persistence() {
     tree.disable_persistence();
   }
 
