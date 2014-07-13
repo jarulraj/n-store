@@ -1,23 +1,56 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <assert.h>
 
 #include "btree.h"
 
+int compare_cb(const bp_key_t* a, const bp_key_t* b) {
+  uint32_t i, len = a->length < b->length ? a->length : b->length;
+
+  for (i = 0; i < len; i++) {
+    if (a->value[i] != b->value[i]) {
+      return a->value[i] > b->value[i] ? 1 : -1;
+    }
+  }
+
+  return a->length - b->length;
+}
+
 int main(void) {
-  bp_db_t db;
+  bp_tree_t tree;
 
-  /* Open database */
-  bp_open(&db, "/tmp/1.bp");
+  int r;
+  r = bp_open(&tree, "./test.db");
+  assert(r == 0);
 
-  /* Set some value */
-  bp_sets(&db, "key", "value");
+  bp_set_compare_cb(&tree, compare_cb);
 
-  /* Get some value */
-  bp_value_t value;
-  bp_gets(&db, "key", &value.value);
-  fprintf(stdout, "%s\n", value.value);
-  free(value.value);
+  const int n = 10;
+  int i;
 
-  /* Close database */
-  bp_close(&db);
+  for (i = 0; i < n; i++) {
+    char key[1000];
+    char val[1000];
+    sprintf(key, "some key %d", i);
+    sprintf(val, "some value %d", i);
+    bp_sets(&tree, key, val);
+  }
+
+  printf("Checking \n");
+
+  for (i = 0; i < n; i++) {
+    char key[1000];
+    char expected[1000];
+    sprintf(key, "some key %d", i);
+    sprintf(expected, "some value %d", i);
+
+    char* value;
+    bp_gets(&tree, key, &value);
+    printf("val : %s \n", value);
+    assert(strcmp(value, expected) == 0);
+  }
+
+  r = bp_close(&tree);
+  assert(r == 0);
 }
