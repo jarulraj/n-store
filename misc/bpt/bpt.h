@@ -20,11 +20,46 @@ using std::upper_bound;
 
 namespace bpt {
 
-#ifndef UNIT_TEST
-#include "predefined.h"
+/* predefined B+ info */
+#ifdef UNIT_TEST
+#define BP_ORDER 4
 #else
-#include "unit_test_predefined.h"
+#define BP_ORDER 20
 #endif
+
+/* key/value type */
+typedef int value_t;
+struct key_t {
+  char k[16];
+
+  key_t(const char *str = "") {
+    bzero(k, sizeof(k));
+    strcpy(k, str);
+  }
+};
+
+inline int keycmp(const key_t &a, const key_t &b) {
+#ifdef UNIT_TEST
+  return strcmp(a.k, b.k);
+#else
+  int x = strlen(a.k) - strlen(b.k);
+  return x == 0 ? strcmp(a.k, b.k) : x;
+#endif
+}
+
+#define OPERATOR_KEYCMP(type) \
+bool operator< (const key_t &l, const type &r) {\
+return keycmp(l, r.key) < 0;\
+}\
+bool operator< (const type &l, const key_t &r) {\
+return keycmp(l.key, r) < 0;\
+}\
+bool operator== (const key_t &l, const type &r) {\
+return keycmp(l, r.key) == 0;\
+}\
+bool operator== (const type &l, const key_t &r) {\
+return keycmp(l.key, r) == 0;\
+}
 
 /* offsets */
 #define OFFSET_META 0
@@ -98,7 +133,7 @@ class bplus_tree {
 
     if (!force_empty)
       // read tree from file
-      if (map(&meta, OFFSET_META) != 0)
+      if (read_block(&meta, OFFSET_META) != 0)
         force_empty = true;
 
     if (force_empty) {
@@ -123,23 +158,24 @@ class bplus_tree {
     // init root node
     internal_node_t root;
     root.next = root.prev = root.parent = 0;
-    meta.root_offset = alloc(&root);
+    meta.root_offset = allocate(&root);
 
     // init empty leaf
     leaf_node_t leaf;
     leaf.next = leaf.prev = 0;
     leaf.parent = meta.root_offset;
-    meta.leaf_offset = root.children[0].child = alloc(&leaf);
+    meta.leaf_offset = root.children[0].child = allocate(&leaf);
 
     // save
-    unmap(&meta, OFFSET_META);
-    unmap(&root, meta.root_offset);
-    unmap(&leaf, root.children[0].child);
+    write_block(&meta, OFFSET_META);
+    write_block(&root, meta.root_offset);
+    write_block(&leaf, root.children[0].child);
   }
 
   /* multi-level file open/close */
   mutable FILE *fp;
   mutable int fp_level;
+
   void open_file(const char *mode = "rb+") const {
     // `rb+` will make sure we can write everywhere without truncating file
     if (fp_level == 0)
@@ -156,29 +192,29 @@ class bplus_tree {
   }
 
   /* alloc from disk */
-  off_t alloc(size_t size) {
+  off_t allocate(size_t size) {
     off_t slot = meta.slot;
     meta.slot += size;
     return slot;
   }
 
-  off_t alloc(leaf_node_t *leaf) {
+  off_t allocate(leaf_node_t *leaf) {
     leaf->n = 0;
     meta.leaf_node_num++;
-    return alloc(sizeof(leaf_node_t));
+    return allocate(sizeof(leaf_node_t));
   }
 
-  off_t alloc(internal_node_t *node) {
+  off_t allocate(internal_node_t *node) {
     node->n = 1;
     meta.internal_node_num++;
-    return alloc(sizeof(internal_node_t));
+    return allocate(sizeof(internal_node_t));
   }
 
-  void unalloc(leaf_node_t *leaf, off_t offset) {
+  void release(leaf_node_t *leaf, off_t offset) {
     --meta.leaf_node_num;
   }
 
-  void unalloc(internal_node_t *node, off_t offset) {
+  void release(internal_node_t *node, off_t offset) {
     --meta.internal_node_num;
   }
 
@@ -203,33 +239,59 @@ class bplus_tree {
   }
 
   /* read block from disk */
-  int map(void *block, off_t offset, size_t size) const {
+  int read_block(void *block, off_t offset, size_t size) const {
     open_file();
     fseek(fp, offset, SEEK_SET);
     size_t rd = fread(block, size, 1, fp);
     close_file();
 
+    // 0 on success
     return rd - 1;
   }
 
   template<class T>
-  int map(T *block, off_t offset) const {
-    return map(block, offset, sizeof(T));
+  int read_block(T *block, off_t offset) const {
+    return read_block(block, offset, sizeof(T));
   }
 
   template<class T>
-  int unmap(T *block, off_t offset) const {
-    return unmap(block, offset, sizeof(T));
+  int write_block(T *block, off_t offset) const {
+    return write_block(block, offset, sizeof(T));
   }
 
   /* write block to disk */
-  int unmap(void *block, off_t offset, size_t size) const {
+  int write_block(void *block, off_t offset, size_t size) const {
     open_file();
     fseek(fp, offset, SEEK_SET);
     size_t wd = fwrite(block, size, 1, fp);
     close_file();
 
     return wd - 1;
+  }
+
+  /* find index */
+  off_t search_index(const key_t &key) const {
+    off_t cur = meta.root_offset;
+    int height = meta.height;
+
+    while (height > 1) {
+      internal_node_t node;
+      read_block(&node, cur);
+
+      index_t *i = upper_bound(begin(node), end(node) - 1, key);
+      cur = i->child;
+      --height;
+    }
+
+    return cur;
+  }
+
+  off_t search_leaf(off_t index, const key_t &key) const {
+    internal_node_t node;
+    read_block(&node, index);
+
+    index_t *i = upper_bound(begin(node), end(node) - 1, key);
+    return i->child;
   }
 
   /* find leaf */
@@ -239,7 +301,7 @@ class bplus_tree {
 
   int search(const key_t& key, value_t *value) const {
     leaf_node_t leaf;
-    map(&leaf, search_leaf(key));
+    read_block(&leaf, search_leaf(key));
 
     // finding the record
     record_t *record = find(leaf, key);
@@ -266,7 +328,7 @@ class bplus_tree {
 
     leaf_node_t leaf;
     while (off != off_right && off != 0 && i < max) {
-      map(&leaf, off);
+      read_block(&leaf, off);
 
       // start point
       if (off_left == off)
@@ -284,7 +346,7 @@ class bplus_tree {
 
     // the last leaf
     if (i < max) {
-      map(&leaf, off_right);
+      read_block(&leaf, off_right);
 
       b = find(leaf, *left);
       e = upper_bound(begin(leaf), end(leaf), right);
@@ -305,18 +367,202 @@ class bplus_tree {
     return i;
   }
 
+  template<class T>
+  void node_create(off_t offset, T *node, T *next) {
+    // new sibling node
+    next->parent = node->parent;
+    next->next = node->next;
+    next->prev = offset;
+    node->next = allocate(next);
+
+    // update next node's prev
+    if (next->next != 0) {
+      T old_next;
+      read_block(&old_next, next->next, SIZE_NO_CHILDREN);
+      old_next.prev = node->next;
+      write_block(&old_next, next->next, SIZE_NO_CHILDREN);
+    }
+    write_block(&meta, OFFSET_META);
+  }
+
+  template<class T>
+  void node_remove(T *prev, T *node) {
+    release(node, prev->next);
+    prev->next = node->next;
+
+    if (node->next != 0) {
+      T next;
+      read_block(&next, node->next, SIZE_NO_CHILDREN);
+      next.prev = node->prev;
+      write_block(&next, node->next, SIZE_NO_CHILDREN);
+    }
+    write_block(&meta, OFFSET_META);
+  }
+
+  // INSERT
+
+  int insert(const key_t& key, value_t value) {
+    off_t parent = search_index(key);
+    off_t offset = search_leaf(parent, key);
+    leaf_node_t leaf;
+    read_block(&leaf, offset);
+
+    // check if we have the same key
+    if (binary_search(begin(leaf), end(leaf), key))
+      return 1;
+
+    if (leaf.n == meta.order) {
+      // split when full
+
+      // new sibling leaf
+      leaf_node_t new_leaf;
+      node_create(offset, &leaf, &new_leaf);
+
+      // find even split point
+      size_t point = leaf.n / 2;
+      bool place_right = keycmp(key, leaf.children[point].key) > 0;
+      if (place_right)
+        ++point;
+
+      // split
+      std::copy(leaf.children + point, leaf.children + leaf.n,
+                new_leaf.children);
+      new_leaf.n = leaf.n - point;
+      leaf.n = point;
+
+      // which part do we put the key
+      if (place_right)
+        insert_record_no_split(&new_leaf, key, value);
+      else
+        insert_record_no_split(&leaf, key, value);
+
+      // save leafs
+      write_block(&leaf, offset);
+      write_block(&new_leaf, leaf.next);
+
+      // insert new index key
+      insert_key_to_index(parent, new_leaf.children[0].key, offset, leaf.next);
+    } else {
+      insert_record_no_split(&leaf, key, value);
+      write_block(&leaf, offset);
+    }
+
+    return 0;
+  }
+
+  /* insert into leaf without split */
+  void insert_record_no_split(leaf_node_t *leaf, const key_t &key,
+                              const value_t &value) {
+    record_t *where = upper_bound(begin(*leaf), end(*leaf), key);
+    std::copy_backward(where, end(*leaf), end(*leaf) + 1);
+
+    where->key = key;
+    where->value = value;
+    leaf->n++;
+  }
+
+  /* add key to the internal node */
+  void insert_key_to_index(off_t offset, const key_t &key, off_t old,
+                           off_t after) {
+    if (offset == 0) {
+      // create new root node
+      internal_node_t root;
+      root.next = root.prev = root.parent = 0;
+      meta.root_offset = allocate(&root);
+      meta.height++;
+
+      // insert `old` and `after`
+      root.n = 2;
+      root.children[0].key = key;
+      root.children[0].child = old;
+      root.children[1].child = after;
+
+      write_block(&meta, OFFSET_META);
+      write_block(&root, meta.root_offset);
+
+      // update children's parent
+      reset_index_children_parent(begin(root), end(root), meta.root_offset);
+      return;
+    }
+
+    internal_node_t node;
+    read_block(&node, offset);
+    assert(node.n <= meta.order);
+
+    if (node.n == meta.order) {
+      // split when full
+
+      internal_node_t new_node;
+      node_create(offset, &node, &new_node);
+
+      // find even split point
+      size_t point = (node.n - 1) / 2;
+      bool place_right = keycmp(key, node.children[point].key) > 0;
+      if (place_right)
+        ++point;
+
+      // prevent the `key` being the right `middle_key`
+      // example: insert 48 into |42|45| 6|  |
+      if (place_right && keycmp(key, node.children[point].key) < 0)
+        point--;
+
+      key_t middle_key = node.children[point].key;
+
+      // split
+      std::copy(begin(node) + point + 1, end(node), begin(new_node));
+      new_node.n = node.n - point - 1;
+      node.n = point + 1;
+
+      // put the new key
+      if (place_right)
+        insert_key_to_index_no_split(new_node, key, after);
+      else
+        insert_key_to_index_no_split(node, key, after);
+
+      write_block(&node, offset);
+      write_block(&new_node, node.next);
+
+      // update children's parent
+      reset_index_children_parent(begin(new_node), end(new_node), node.next);
+
+      // give the middle key to the parent
+      // note: middle key's child is reserved
+      insert_key_to_index(node.parent, middle_key, offset, node.next);
+    } else {
+      insert_key_to_index_no_split(node, key, after);
+      write_block(&node, offset);
+    }
+  }
+
+  void insert_key_to_index_no_split(internal_node_t &node, const key_t &key,
+                                    off_t value) {
+    index_t *where = upper_bound(begin(node), end(node) - 1, key);
+
+    // move later index forward
+    std::copy_backward(where, end(node), end(node) + 1);
+
+    // insert this key
+    where->key = key;
+    where->child = (where + 1)->child;
+    (where + 1)->child = value;
+
+    node.n++;
+  }
+
+  // REMOVE
+
   int remove(const key_t& key) {
     internal_node_t parent;
     leaf_node_t leaf;
 
     // find parent node
     off_t parent_off = search_index(key);
-    map(&parent, parent_off);
+    read_block(&parent, parent_off);
 
     // find current node
     index_t *where = find(parent, key);
     off_t offset = where->child;
-    map(&leaf, offset);
+    read_block(&leaf, offset);
 
     // verify
     if (!binary_search(begin(leaf), end(leaf), key))
@@ -351,102 +597,49 @@ class bplus_tree {
           // if leaf is last element then merge | prev | leaf |
           assert(leaf.prev != 0);
           leaf_node_t prev;
-          map(&prev, leaf.prev);
+          read_block(&prev, leaf.prev);
           index_key = begin(prev)->key;
 
           merge_leafs(&prev, &leaf);
           node_remove(&prev, &leaf);
-          unmap(&prev, leaf.prev);
+          write_block(&prev, leaf.prev);
         } else {
           // else merge | leaf | next |
           assert(leaf.next != 0);
           leaf_node_t next;
-          map(&next, leaf.next);
+          read_block(&next, leaf.next);
           index_key = begin(leaf)->key;
 
           merge_leafs(&leaf, &next);
           node_remove(&leaf, &next);
-          unmap(&leaf, offset);
+          write_block(&leaf, offset);
         }
 
         // remove parent's key
         remove_from_index(parent_off, parent, index_key);
       } else {
-        unmap(&leaf, offset);
+        write_block(&leaf, offset);
       }
     } else {
-      unmap(&leaf, offset);
+      write_block(&leaf, offset);
     }
 
     return 0;
   }
 
-  int insert(const key_t& key, value_t value) {
-    off_t parent = search_index(key);
-    off_t offset = search_leaf(parent, key);
-    leaf_node_t leaf;
-    map(&leaf, offset);
-
-    // check if we have the same key
-    if (binary_search(begin(leaf), end(leaf), key))
-      return 1;
-
-    if (leaf.n == meta.order) {
-      // split when full
-
-      // new sibling leaf
-      leaf_node_t new_leaf;
-      node_create(offset, &leaf, &new_leaf);
-
-      // find even split point
-      size_t point = leaf.n / 2;
-      bool place_right = keycmp(key, leaf.children[point].key) > 0;
-      if (place_right)
-        ++point;
-
-      // split
-      std::copy(leaf.children + point, leaf.children + leaf.n,
-                new_leaf.children);
-      new_leaf.n = leaf.n - point;
-      leaf.n = point;
-
-      // which part do we put the key
-      if (place_right)
-        insert_record_no_split(&new_leaf, key, value);
-      else
-        insert_record_no_split(&leaf, key, value);
-
-      // save leafs
-      unmap(&leaf, offset);
-      unmap(&new_leaf, leaf.next);
-
-      // insert new index key
-      insert_key_to_index(parent, new_leaf.children[0].key, offset, leaf.next);
-    } else {
-      insert_record_no_split(&leaf, key, value);
-      unmap(&leaf, offset);
-    }
-
-    return 0;
+  /* merge right leaf to left leaf */
+  void merge_leafs(leaf_node_t *left, leaf_node_t *right) {
+    std::copy(begin(*right), end(*right), end(*left));
+    left->n += right->n;
   }
 
-  int update(const key_t& key, value_t value) {
-    off_t offset = search_leaf(key);
-    leaf_node_t leaf;
-    map(&leaf, offset);
-
-    record_t *record = find(leaf, key);
-    if (record != leaf.children + leaf.n)
-      if (keycmp(key, record->key) == 0) {
-        record->value = value;
-        unmap(&leaf, offset);
-
-        return 0;
-      } else {
-        return 1;
-      }
-    else
-      return -1;
+  void merge_keys(index_t *where, internal_node_t &node,
+                  internal_node_t &next) {
+    //(end(node) - 1)->key = where->key;
+    //where->key = (end(next) - 1)->key;
+    std::copy(begin(next), end(next), end(node));
+    node.n += next.n;
+    node_remove(&node, &next);
   }
 
   /* remove internal node */
@@ -467,17 +660,17 @@ class bplus_tree {
     // remove to only one key
     if (node.n == 1 && meta.root_offset == offset
         && meta.internal_node_num != 1) {
-      unalloc(&node, meta.root_offset);
+      release(&node, meta.root_offset);
       meta.height--;
       meta.root_offset = node.children[0].child;
-      unmap(&meta, OFFSET_META);
+      write_block(&meta, OFFSET_META);
       return;
     }
 
     // merge or borrow
     if (node.n < min_n) {
       internal_node_t parent;
-      map(&parent, node.parent);
+      read_block(&parent, node.parent);
 
       // first borrow from left
       bool borrowed = false;
@@ -496,33 +689,33 @@ class bplus_tree {
           // if leaf is last element then merge | prev | leaf |
           assert(node.prev != 0);
           internal_node_t prev;
-          map(&prev, node.prev);
+          read_block(&prev, node.prev);
 
           // merge
           index_t *where = find(parent, begin(prev)->key);
           reset_index_children_parent(begin(node), end(node), node.prev);
           merge_keys(where, prev, node);
-          unmap(&prev, node.prev);
+          write_block(&prev, node.prev);
         } else {
           // else merge | leaf | next |
           assert(node.next != 0);
           internal_node_t next;
-          map(&next, node.next);
+          read_block(&next, node.next);
 
           // merge
           index_t *where = find(parent, index_key);
           reset_index_children_parent(begin(next), end(next), offset);
           merge_keys(where, node, next);
-          unmap(&node, offset);
+          write_block(&node, offset);
         }
 
         // remove parent's key
         remove_from_index(node.parent, parent, index_key);
       } else {
-        unmap(&node, offset);
+        write_block(&node, offset);
       }
     } else {
-      unmap(&node, offset);
+      write_block(&node, offset);
     }
   }
 
@@ -532,7 +725,7 @@ class bplus_tree {
 
     off_t lender_off = from_right ? borrower.next : borrower.prev;
     internal_node_t lender;
-    map(&lender, lender_off);
+    read_block(&lender, lender_off);
 
     assert(lender.n >= meta.order / 2);
     if (lender.n != meta.order / 2) {
@@ -545,20 +738,20 @@ class bplus_tree {
         where_to_lend = begin(lender);
         where_to_put = end(borrower);
 
-        map(&parent, borrower.parent);
+        read_block(&parent, borrower.parent);
         child_t where = lower_bound(begin(parent), end(parent) - 1,
                                     (end(borrower) - 1)->key);
         where->key = where_to_lend->key;
-        unmap(&parent, borrower.parent);
+        write_block(&parent, borrower.parent);
       } else {
         where_to_lend = end(lender) - 1;
         where_to_put = begin(borrower);
 
-        map(&parent, lender.parent);
+        read_block(&parent, lender.parent);
         child_t where = find(parent, begin(lender)->key);
         where_to_put->key = where->key;
         where->key = (where_to_lend - 1)->key;
-        unmap(&parent, lender.parent);
+        write_block(&parent, lender.parent);
       }
 
       // store
@@ -570,7 +763,7 @@ class bplus_tree {
       reset_index_children_parent(where_to_lend, where_to_lend + 1, offset);
       std::copy(where_to_lend + 1, end(lender), where_to_lend);
       lender.n--;
-      unmap(&lender, lender_off);
+      write_block(&lender, lender_off);
       return true;
     }
 
@@ -581,7 +774,7 @@ class bplus_tree {
   bool borrow_key(bool from_right, leaf_node_t &borrower) {
     off_t lender_off = from_right ? borrower.next : borrower.prev;
     leaf_node_t lender;
-    map(&lender, lender_off);
+    read_block(&lender, lender_off);
 
     assert(lender.n >= meta.order / 2);
     if (lender.n != meta.order / 2) {
@@ -608,7 +801,7 @@ class bplus_tree {
       // erase
       std::copy(where_to_lend + 1, end(lender), where_to_lend);
       lender.n--;
-      unmap(&lender, lender_off);
+      write_block(&lender, lender_off);
       return true;
     }
 
@@ -618,130 +811,35 @@ class bplus_tree {
   /* change one's parent key to another key */
   void change_parent_child(off_t parent, const key_t &o, const key_t &n) {
     internal_node_t node;
-    map(&node, parent);
+    read_block(&node, parent);
 
     index_t *w = find(node, o);
     assert(w != node.children + node.n);
 
     w->key = n;
-    unmap(&node, parent);
+    write_block(&node, parent);
     if (w == node.children + node.n - 1) {
       change_parent_child(node.parent, o, n);
     }
   }
 
-  /* merge right leaf to left leaf */
-  void merge_leafs(leaf_node_t *left, leaf_node_t *right) {
-    std::copy(begin(*right), end(*right), end(*left));
-    left->n += right->n;
-  }
+  int update(const key_t& key, value_t value) {
+    off_t offset = search_leaf(key);
+    leaf_node_t leaf;
+    read_block(&leaf, offset);
 
-  void merge_keys(index_t *where, internal_node_t &node,
-                  internal_node_t &next) {
-    //(end(node) - 1)->key = where->key;
-    //where->key = (end(next) - 1)->key;
-    std::copy(begin(next), end(next), end(node));
-    node.n += next.n;
-    node_remove(&node, &next);
-  }
+    record_t *record = find(leaf, key);
+    if (record != leaf.children + leaf.n)
+      if (keycmp(key, record->key) == 0) {
+        record->value = value;
+        write_block(&leaf, offset);
 
-  /* insert into leaf without split */
-  void insert_record_no_split(leaf_node_t *leaf, const key_t &key,
-                              const value_t &value) {
-    record_t *where = upper_bound(begin(*leaf), end(*leaf), key);
-    std::copy_backward(where, end(*leaf), end(*leaf) + 1);
-
-    where->key = key;
-    where->value = value;
-    leaf->n++;
-  }
-
-  /* add key to the internal node */
-  void insert_key_to_index(off_t offset, const key_t &key, off_t old,
-                           off_t after) {
-    if (offset == 0) {
-      // create new root node
-      internal_node_t root;
-      root.next = root.prev = root.parent = 0;
-      meta.root_offset = alloc(&root);
-      meta.height++;
-
-      // insert `old` and `after`
-      root.n = 2;
-      root.children[0].key = key;
-      root.children[0].child = old;
-      root.children[1].child = after;
-
-      unmap(&meta, OFFSET_META);
-      unmap(&root, meta.root_offset);
-
-      // update children's parent
-      reset_index_children_parent(begin(root), end(root), meta.root_offset);
-      return;
-    }
-
-    internal_node_t node;
-    map(&node, offset);
-    assert(node.n <= meta.order);
-
-    if (node.n == meta.order) {
-      // split when full
-
-      internal_node_t new_node;
-      node_create(offset, &node, &new_node);
-
-      // find even split point
-      size_t point = (node.n - 1) / 2;
-      bool place_right = keycmp(key, node.children[point].key) > 0;
-      if (place_right)
-        ++point;
-
-      // prevent the `key` being the right `middle_key`
-      // example: insert 48 into |42|45| 6|  |
-      if (place_right && keycmp(key, node.children[point].key) < 0)
-        point--;
-
-      key_t middle_key = node.children[point].key;
-
-      // split
-      std::copy(begin(node) + point + 1, end(node), begin(new_node));
-      new_node.n = node.n - point - 1;
-      node.n = point + 1;
-
-      // put the new key
-      if (place_right)
-        insert_key_to_index_no_split(new_node, key, after);
-      else
-        insert_key_to_index_no_split(node, key, after);
-
-      unmap(&node, offset);
-      unmap(&new_node, node.next);
-
-      // update children's parent
-      reset_index_children_parent(begin(new_node), end(new_node), node.next);
-
-      // give the middle key to the parent
-      // note: middle key's child is reserved
-      insert_key_to_index(node.parent, middle_key, offset, node.next);
-    } else {
-      insert_key_to_index_no_split(node, key, after);
-      unmap(&node, offset);
-    }
-  }
-
-  void insert_key_to_index_no_split(internal_node_t &node, const key_t &key,
-                                    off_t value) {
-    index_t *where = upper_bound(begin(node), end(node) - 1, key);
-
-    // move later index forward
-    std::copy_backward(where, end(node), end(node) + 1);
-
-    // insert this key
-    where->key = key;
-    where->child = (where + 1)->child;
-    (where + 1)->child = value;
-
-    node.n++;
+        return 0;
+      } else {
+        return 1;
+      }
+    else
+      return -1;
   }
 
   /* change children's parent */
@@ -752,65 +850,11 @@ class bplus_tree {
     // 2. parent field is placed in the beginning and have same size
     internal_node_t node;
     while (begin != end) {
-      map(&node, begin->child);
+      read_block(&node, begin->child);
       node.parent = parent;
-      unmap(&node, begin->child, SIZE_NO_CHILDREN);
+      write_block(&node, begin->child, SIZE_NO_CHILDREN);
       ++begin;
     }
-  }
-
-  /* find index */
-  off_t search_index(const key_t &key) const {
-    off_t org = meta.root_offset;
-    int height = meta.height;
-    while (height > 1) {
-      internal_node_t node;
-      map(&node, org);
-
-      index_t *i = upper_bound(begin(node), end(node) - 1, key);
-      org = i->child;
-      --height;
-    }
-
-    return org;
-  }
-
-  off_t search_leaf(off_t index, const key_t &key) const {
-    internal_node_t node;
-    map(&node, index);
-
-    index_t *i = upper_bound(begin(node), end(node) - 1, key);
-    return i->child;
-  }
-
-  template<class T>
-  void node_create(off_t offset, T *node, T *next) {
-    // new sibling node
-    next->parent = node->parent;
-    next->next = node->next;
-    next->prev = offset;
-    node->next = alloc(next);
-    // update next node's prev
-    if (next->next != 0) {
-      T old_next;
-      map(&old_next, next->next, SIZE_NO_CHILDREN);
-      old_next.prev = node->next;
-      unmap(&old_next, next->next, SIZE_NO_CHILDREN);
-    }
-    unmap(&meta, OFFSET_META);
-  }
-
-  template<class T>
-  void node_remove(T *prev, T *node) {
-    unalloc(node, prev->next);
-    prev->next = node->next;
-    if (node->next != 0) {
-      T next;
-      map(&next, node->next, SIZE_NO_CHILDREN);
-      next.prev = node->prev;
-      unmap(&next, node->next, SIZE_NO_CHILDREN);
-    }
-    unmap(&meta, OFFSET_META);
   }
 
   meta_t get_meta() const {

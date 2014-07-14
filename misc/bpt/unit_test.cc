@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 1);
 
     bpt::leaf_node_t leaf;
-    tree.map(&leaf, tree.search_leaf("t1"));
+    tree.read_block(&leaf, tree.search_leaf("t1"));
     assert(leaf.n == 4);
     assert(bpt::keycmp(leaf.children[0].key, "t1") == 0);
     assert(bpt::keycmp(leaf.children[1].key, "t2") == 0);
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 
     bpt::internal_node_t index;
     off_t index_off = tree.search_index("t1");
-    tree.map(&index, index_off);
+    tree.read_block(&index, index_off);
     assert(index.n == 2);
     assert(index.parent == 0);
     assert(bpt::keycmp(index.children[0].key, "t4") == 0);
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     bpt::leaf_node_t leaf1, leaf2;
     off_t leaf1_off = tree.search_leaf("t1");
     assert(leaf1_off == index.children[0].child);
-    tree.map(&leaf1, leaf1_off);
+    tree.read_block(&leaf1, leaf1_off);
     assert(leaf1.n == 3);
     assert(bpt::keycmp(leaf1.children[0].key, "t1") == 0);
     assert(bpt::keycmp(leaf1.children[1].key, "t2") == 0);
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
     off_t leaf2_off = tree.search_leaf("t4");
     assert(leaf1.next == leaf2_off);
     assert(leaf2_off == index.children[1].child);
-    tree.map(&leaf2, leaf2_off);
+    tree.read_block(&leaf2, leaf2_off);
     assert(leaf2.n == 2);
     assert(bpt::keycmp(leaf2.children[0].key, "t4") == 0);
     assert(bpt::keycmp(leaf2.children[1].key, "t5") == 0);
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 
     bpt::internal_node_t index;
     off_t index_off = tree.search_index("t8");
-    tree.map(&index, index_off);
+    tree.read_block(&index, index_off);
     assert(index.n == 3);
     assert(index.parent == 0);
     assert(bpt::keycmp(index.children[0].key, "t4") == 0);
@@ -157,9 +157,9 @@ int main(int argc, char *argv[])
     off_t leaf1_off = tree.search_leaf("t3");
     off_t leaf2_off = tree.search_leaf("t5");
     off_t leaf3_off = tree.search_leaf("ta");
-    tree.map(&leaf1, leaf1_off);
-    tree.map(&leaf2, leaf2_off);
-    tree.map(&leaf3, leaf3_off);
+    tree.read_block(&leaf1, leaf1_off);
+    tree.read_block(&leaf2, leaf2_off);
+    tree.read_block(&leaf3, leaf3_off);
     assert(index.children[0].child == leaf1_off);
     assert(index.children[1].child == leaf2_off);
     assert(index.children[2].child == leaf3_off);
@@ -197,11 +197,11 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 2);
 
     bpt::internal_node_t node1, node2, root;
-    tree.map(&root, tree.meta.root_offset);
+    tree.read_block(&root, tree.meta.root_offset);
     off_t node1_off = tree.search_index("t03");
     off_t node2_off = tree.search_index("t14");
-    tree.map(&node1, node1_off);
-    tree.map(&node2, node2_off);
+    tree.read_block(&node1, node1_off);
+    tree.read_block(&node2, node2_off);
     assert(root.n == 2);
     assert(root.children[0].child == node1_off);
     assert(root.children[1].child == node2_off);
@@ -247,7 +247,7 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 1);
 
     bpt::internal_node_t node;
-    tree.map(&node, tree.meta.root_offset);
+    tree.read_block(&node, tree.meta.root_offset);
     assert(node.n == 4);
     assert(bpt::keycmp(node.children[0].key, "11") == 0);
     assert(bpt::keycmp(node.children[1].key, "3") == 0);
@@ -262,10 +262,10 @@ int main(int argc, char *argv[])
     assert(node.children[2].child == off3);
     assert(node.children[3].child == off4);
     bpt::leaf_node_t node1, node2, node3, node4;
-    tree.map(&node1, off1);
-    tree.map(&node2, off2);
-    tree.map(&node3, off3);
-    tree.map(&node4, off4);
+    tree.read_block(&node1, off1);
+    tree.read_block(&node2, off2);
+    tree.read_block(&node3, off3);
+    tree.read_block(&node4, off4);
     assert(node1.n == 3);
     assert(node2.n == 2);
     assert(node3.n == 3);
@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 1);
 
     bpt::internal_node_t node;
-    tree.map(&node, tree.meta.root_offset);
+    tree.read_block(&node, tree.meta.root_offset);
     assert(node.n == 4);
     assert(bpt::keycmp(node.children[0].key, "3") == 0);
     assert(bpt::keycmp(node.children[1].key, "51") == 0);
@@ -314,10 +314,10 @@ int main(int argc, char *argv[])
     assert(node.children[2].child == off3);
     assert(node.children[3].child == off4);
     bpt::leaf_node_t node1, node2, node3, node4;
-    tree.map(&node1, off1);
-    tree.map(&node2, off2);
-    tree.map(&node3, off3);
-    tree.map(&node4, off4);
+    tree.read_block(&node1, off1);
+    tree.read_block(&node2, off2);
+    tree.read_block(&node3, off3);
+    tree.read_block(&node4, off4);
     assert(node1.n == 3);
     assert(node2.n == 3);
     assert(node3.n == 2);
@@ -351,11 +351,11 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 2);
 
     bpt::internal_node_t node1, node2, root;
-    tree.map(&root, tree.meta.root_offset);
+    tree.read_block(&root, tree.meta.root_offset);
     off_t node1_off = tree.search_index("0");
     off_t node2_off = tree.search_index("6");
-    tree.map(&node1, node1_off);
-    tree.map(&node2, node2_off);
+    tree.read_block(&node1, node1_off);
+    tree.read_block(&node2, node2_off);
     assert(root.n == 2);
     assert(bpt::keycmp(root.children[0].key, "3") == 0);
     assert(root.children[0].child == node1_off);
@@ -391,15 +391,15 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 2);
 
     bpt::internal_node_t node1, node2, node3, node4, root;
-    tree.map(&root, tree.meta.root_offset);
+    tree.read_block(&root, tree.meta.root_offset);
     off_t node1_off = tree.search_index("11");
     off_t node2_off = tree.search_index("22");
     off_t node3_off = tree.search_index("28");
     off_t node4_off = tree.search_index("6");
-    tree.map(&node1, node1_off);
-    tree.map(&node2, node2_off);
-    tree.map(&node3, node3_off);
-    tree.map(&node4, node4_off);
+    tree.read_block(&node1, node1_off);
+    tree.read_block(&node2, node2_off);
+    tree.read_block(&node3, node3_off);
+    tree.read_block(&node4, node4_off);
     assert(root.prev == 0);
     assert(root.next == 0);
     assert(node1.prev == 0);
@@ -455,13 +455,13 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 3);
 
     bpt::internal_node_t root;
-    tree.map(&root, tree.meta.root_offset);
+    tree.read_block(&root, tree.meta.root_offset);
     assert(root.n == 2);
     assert(bpt::keycmp(root.children[0].key, "3") == 0);
 
     bpt::internal_node_t node1, node2;
-    tree.map(&node1, root.children[0].child);
-    tree.map(&node2, root.children[1].child);
+    tree.read_block(&node1, root.children[0].child);
+    tree.read_block(&node2, root.children[1].child);
     assert(node1.n == 3);
     assert(bpt::keycmp(node1.children[0].key, "17") == 0);
     assert(bpt::keycmp(node1.children[1].key, "25") == 0);
@@ -470,15 +470,15 @@ int main(int argc, char *argv[])
     assert(bpt::keycmp(node2.children[1].key, "45") == 0);
 
     bpt::internal_node_t node3, node4, node5;
-    tree.map(&node3, node2.children[0].child);
+    tree.read_block(&node3, node2.children[0].child);
     assert(node3.n == 4);
     assert(bpt::keycmp(node3.children[0].key, "32") == 0);
     assert(bpt::keycmp(node3.children[1].key, "35") == 0);
     assert(bpt::keycmp(node3.children[2].key, "38") == 0);
-    tree.map(&node4, node2.children[1].child);
+    tree.read_block(&node4, node2.children[1].child);
     assert(node4.n == 2);
     assert(bpt::keycmp(node4.children[0].key, "42") == 0);
-    tree.map(&node5, node2.children[2].child);
+    tree.read_block(&node5, node2.children[2].child);
     assert(node5.n == 3);
     assert(bpt::keycmp(node5.children[0].key, "48") == 0);
     assert(bpt::keycmp(node5.children[1].key, "6") == 0);
@@ -668,7 +668,7 @@ int main(int argc, char *argv[])
     off_t last = 0;
     size_t counter = 0;
     while (offset != 0) {
-        tree.map(&leaf, offset);
+        tree.read_block(&leaf, offset);
         ++counter;
         assert(last == leaf.prev);
         last = offset;
@@ -694,22 +694,22 @@ int main(int argc, char *argv[])
     assert(tree.remove("t3") != 0);
 
     bpt::leaf_node_t leaf;
-    tree.map(&leaf, tree.meta.leaf_offset);
+    tree.read_block(&leaf, tree.meta.leaf_offset);
     assert(leaf.n == 3);
     assert(bpt::keycmp(leaf.children[0].key, "t1") == 0);
     assert(bpt::keycmp(leaf.children[1].key, "t2") == 0);
     assert(bpt::keycmp(leaf.children[2].key, "t4") == 0);
     assert(tree.remove("t1") == 0);
-    tree.map(&leaf, tree.meta.leaf_offset);
+    tree.read_block(&leaf, tree.meta.leaf_offset);
     assert(leaf.n == 2);
     assert(bpt::keycmp(leaf.children[0].key, "t2") == 0);
     assert(bpt::keycmp(leaf.children[1].key, "t4") == 0);
     assert(tree.remove("t2") == 0);
-    tree.map(&leaf, tree.meta.leaf_offset);
+    tree.read_block(&leaf, tree.meta.leaf_offset);
     assert(leaf.n == 1);
     assert(bpt::keycmp(leaf.children[0].key, "t4") == 0);
     assert(tree.remove("t4") == 0);
-    tree.map(&leaf, tree.meta.leaf_offset);
+    tree.read_block(&leaf, tree.meta.leaf_offset);
     assert(leaf.n == 0);
     assert(tree.remove("t4") != 0);
 
@@ -734,22 +734,22 @@ int main(int argc, char *argv[])
 
     // | 3 6  |
     // | 0 1 2 | 3 4 5 | 6 7 8 9 |
-    tree.map(&node, tree.meta.root_offset);
+    tree.read_block(&node, tree.meta.root_offset);
     assert(bpt::keycmp(node.children[0].key, "03") == 0);
     assert(bpt::keycmp(node.children[1].key, "06") == 0);
     assert(tree.remove("03") == 0);
     assert(tree.remove("04") == 0);
     // | 2 6  |
     // | 0 1 | 2 5 | 6 7 8 9 |
-    tree.map(&node, tree.meta.root_offset);
+    tree.read_block(&node, tree.meta.root_offset);
     assert(bpt::keycmp(node.children[0].key, "02") == 0);
     assert(bpt::keycmp(node.children[1].key, "06") == 0);
-    tree.map(&leaf, tree.search_leaf("00"));
+    tree.read_block(&leaf, tree.search_leaf("00"));
     assert(leaf.parent == tree.meta.root_offset);
     assert(leaf.n == 2);
     assert(bpt::keycmp(leaf.children[0].key, "00") == 0);
     assert(bpt::keycmp(leaf.children[1].key, "01") == 0);
-    tree.map(&leaf, tree.search_leaf("05"));
+    tree.read_block(&leaf, tree.search_leaf("05"));
     assert(leaf.parent == tree.meta.root_offset);
     assert(leaf.n == 2);
     assert(bpt::keycmp(leaf.children[0].key, "02") == 0);
@@ -757,16 +757,16 @@ int main(int argc, char *argv[])
     assert(tree.remove("05") == 0);
     // | 2 7  |
     // | 0 1 | 2 6 | 7 8 9 |
-    tree.map(&node, tree.meta.root_offset);
+    tree.read_block(&node, tree.meta.root_offset);
     assert(node.n == 3);
     assert(bpt::keycmp(node.children[0].key, "02") == 0);
     assert(bpt::keycmp(node.children[1].key, "07") == 0);
-    tree.map(&leaf, tree.search_leaf("04"));
+    tree.read_block(&leaf, tree.search_leaf("04"));
     assert(leaf.parent == tree.meta.root_offset);
     assert(leaf.n == 2);
     assert(bpt::keycmp(leaf.children[0].key, "02") == 0);
     assert(bpt::keycmp(leaf.children[1].key, "06") == 0);
-    tree.map(&leaf, tree.search_leaf("07"));
+    tree.read_block(&leaf, tree.search_leaf("07"));
     assert(leaf.parent == tree.meta.root_offset);
     assert(leaf.n == 3);
     assert(bpt::keycmp(leaf.children[0].key, "07") == 0);
@@ -808,7 +808,7 @@ int main(int argc, char *argv[])
     // | 1 2 6 | 7 8 9 |
     assert(tree.meta.leaf_node_num == 2);
     assert(tree.meta.internal_node_num == 1);
-    tree.map(&node, tree.meta.root_offset);
+    tree.read_block(&node, tree.meta.root_offset);
     assert(node.n == 2);
     assert(bpt::keycmp(node.children[0].key, "07") == 0);
     off_t leaf1_off, leaf2_off;
@@ -817,8 +817,8 @@ int main(int argc, char *argv[])
     assert(leaf1_off == node.children[0].child);
     assert(leaf2_off == node.children[1].child);
     bpt::leaf_node_t leaf1, leaf2;
-    tree.map(&leaf1, leaf1_off);
-    tree.map(&leaf2, leaf2_off);
+    tree.read_block(&leaf1, leaf1_off);
+    tree.read_block(&leaf2, leaf2_off);
     assert(leaf1.n == 3);
     assert(leaf1.next == leaf2_off);
     assert(bpt::keycmp(leaf1.children[0].key, "01") == 0);
@@ -827,7 +827,7 @@ int main(int argc, char *argv[])
     assert(leaf2.n == 3);
     assert(leaf2.next == 0);
     assert(tree.remove("09") == 0);
-    tree.map(&leaf2, leaf2_off);
+    tree.read_block(&leaf2, leaf2_off);
     assert(leaf2.n == 2);
     assert(leaf2.next == 0);
     assert(bpt::keycmp(leaf2.children[0].key, "07") == 0);
@@ -838,13 +838,13 @@ int main(int argc, char *argv[])
     // | 2 6 7 |
     assert(tree.meta.leaf_node_num == 1);
     assert(tree.meta.internal_node_num == 1);
-    tree.map(&node, tree.meta.root_offset);
+    tree.read_block(&node, tree.meta.root_offset);
     assert(node.n == 1);
     off_t offset;
     offset = tree.search_leaf("02");
     assert(offset == node.children[0].child);
     bpt::leaf_node_t leaf;
-    tree.map(&leaf, offset);
+    tree.read_block(&leaf, offset);
     assert(leaf.n == 3);
     assert(leaf.next == 0);
     assert(leaf.prev == 0);
@@ -885,11 +885,11 @@ int main(int argc, char *argv[])
     assert(tree.meta.height == 2);
 
     bpt::internal_node_t node1, node2, root;
-    tree.map(&root, tree.meta.root_offset);
+    tree.read_block(&root, tree.meta.root_offset);
     off_t node1_off = tree.search_index("0");
     off_t node2_off = tree.search_index("6");
-    tree.map(&node1, node1_off);
-    tree.map(&node2, node2_off);
+    tree.read_block(&node1, node1_off);
+    tree.read_block(&node2, node2_off);
     assert(root.n == 2);
     assert(bpt::keycmp(root.children[0].key, "14") == 0);
     assert(root.children[0].child == node1_off);
@@ -931,11 +931,11 @@ int main(int argc, char *argv[])
     assert(tree.remove("0") == 0);
     assert(tree.remove("11") == 0);
     bpt::internal_node_t node1, node2, root;
-    tree.map(&root, tree.meta.root_offset);
+    tree.read_block(&root, tree.meta.root_offset);
     off_t node1_off = tree.search_index("0");
     off_t node2_off = tree.search_index("6");
-    tree.map(&node1, node1_off);
-    tree.map(&node2, node2_off);
+    tree.read_block(&node1, node1_off);
+    tree.read_block(&node2, node2_off);
     assert(root.n == 2);
     assert(bpt::keycmp(root.children[0].key, "14") == 0);
     assert(root.children[0].child == node1_off);
@@ -959,7 +959,7 @@ int main(int argc, char *argv[])
     assert(tree.meta.leaf_node_num == 3);
     assert(tree.meta.height == 1);
     bpt::internal_node_t root;
-    tree.map(&root, tree.meta.root_offset);
+    tree.read_block(&root, tree.meta.root_offset);
     assert(root.n == 3);
     assert(bpt::keycmp(root.children[0].key, "14") == 0);
     assert(bpt::keycmp(root.children[1].key, "3") == 0);
@@ -1015,11 +1015,11 @@ int main(int argc, char *argv[])
     node2_off = tree.search_index("22");
     node3_off = tree.search_index("28");
     node4_off = tree.search_index("6");
-    tree.map(&root, tree.meta.root_offset);
-    tree.map(&node1, node1_off);
-    tree.map(&node2, node2_off);
-    tree.map(&node3, node3_off);
-    tree.map(&node4, node4_off);
+    tree.read_block(&root, tree.meta.root_offset);
+    tree.read_block(&node1, node1_off);
+    tree.read_block(&node2, node2_off);
+    tree.read_block(&node3, node3_off);
+    tree.read_block(&node4, node4_off);
     assert(root.prev == 0);
     assert(root.next == 0);
     assert(node1.prev == 0);
