@@ -7,17 +7,17 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "btree.h"
+#include "cow_btree.h"
 
 using namespace std;
 
 int main(int argc, char **argv) {
   int c, rc = BT_FAIL;
   unsigned int flags = 0;
-  struct btree *bt;
+  cow_btree *bt;
   struct cursor *cursor;
   const char *filename = "test.db";
-  struct btval key, data, maxkey;
+  struct cow_btval key, val, maxkey;
 
   /*
    while ((c = getopt(argc, argv, "rf:")) != -1) {
@@ -38,52 +38,50 @@ int main(int argc, char **argv) {
    errx(1, "missing command");
    */
 
-  bt = new btree(filename, flags | BT_NOSYNC, 0644);
-  if (bt == NULL)
-    err(1, filename);
+  bt = new cow_btree(filename);
 
   bzero(&key, sizeof(key));
-  bzero(&data, sizeof(data));
+  bzero(&val, sizeof(val));
   bzero(&maxkey, sizeof(maxkey));
 
   int i, count = 20000;
 
   key.data = malloc(sizeof(char) * 100);
-  data.data = malloc(sizeof(char) * 100);
+  val.data = malloc(sizeof(char) * 100);
 
-  struct btree_txn *t = bt->btree_txn_begin( 0);
+  struct cow_btree_txn *t = bt->txn_begin(0);
   for (i = 0; i < count; i++) {
-    sprintf((char*)key.data, "%d", i);
-    sprintf((char*)data.data, "%d-val", i);
-    key.size = strlen((char*)key.data);
-    data.size = strlen((char*)data.data);
+    sprintf((char*) key.data, "%d", i);
+    sprintf((char*) val.data, "%d-val", i);
+    key.size = strlen((char*) key.data);
+    val.size = strlen((char*) val.data);
 
-    rc = bt->btree_txn_put( t, &key, &data, 0);
+    rc = bt->insert(t, &key, &val);
     assert(rc == BT_SUCCESS);
   }
-  bt->btree_txn_commit(t);
+  bt->txn_commit(t);
 
-  rc = bt->btree_get(&key, &data);
+  rc = bt->at(&key, &val);
   if (rc == BT_SUCCESS) {
-    printf("OK %.*s\n", (int) data.size, (char*) data.data);
+    printf("OK %.*s\n", (int) val.size, (char*) val.data);
   } else {
     printf("FAIL\n");
   }
 
-  t = bt->btree_txn_begin( 0);
+  t = bt->txn_begin(0);
   for (i = 0; i < count; i++) {
-    sprintf((char*)key.data, "%d", i);
-    key.size = strlen((char*)key.data);
-    rc = bt->btree_txn_del( t, &key, NULL);
+    sprintf((char*) key.data, "%d", i);
+    key.size = strlen((char*) key.data);
+    rc = bt->remove(t, &key, NULL);
     assert(rc == BT_SUCCESS);
-    rc = bt->btree_txn_get( t, &key, &data);
+    rc = bt->at(t, &key, &val);
     assert(rc == BT_FAIL);
   }
-  bt->btree_txn_commit(t);
+  bt->txn_commit(t);
 
-  cout<<"size :: "<<bt->size<<endl;
+  cout << "size :: " << bt->size << endl;
 
-  bt->btree_compact();
+  bt->compact();
 
   /*
    if (strcmp(argv[0], "put") == 0) {
@@ -93,7 +91,7 @@ int main(int argc, char **argv) {
    key.size = strlen(key.data);
    data.data = argv[2];
    data.size = strlen(data.data);
-   rc = bt->btree_put( &key, &data, 0);
+   rc = bt->cow_btree_put( &key, &data, 0);
    if (rc == BT_SUCCESS)
    printf("OK\n");
    else
@@ -103,7 +101,7 @@ int main(int argc, char **argv) {
    errx(1, "missing argument");
    key.data = argv[1];
    key.size = strlen(key.data);
-   rc = bt->btree_del( &key, NULL);
+   rc = bt->cow_btree_del( &key, NULL);
    if (rc == BT_SUCCESS)
    printf("OK\n");
    else
@@ -113,7 +111,7 @@ int main(int argc, char **argv) {
    errx(1, "missing arguments");
    key.data = argv[1];
    key.size = strlen(key.data);
-   rc = bt->btree_get( &key, &data);
+   rc = bt->cow_btree_get( &key, &data);
    if (rc == BT_SUCCESS) {
    printf("OK %.*s\n", (int) data.size, (char *) data.data);
    } else {
@@ -131,25 +129,25 @@ int main(int argc, char **argv) {
    maxkey.size = strlen(key.data);
    }
 
-   cursor = bt->btree_cursor_open(bt);
-   while ((rc = bt->btree_cursor_get(cursor, &key, &data, flags)) == BT_SUCCESS) {
-   if (argc > 2 && bt->btree_cmp( &key, &maxkey) > 0)
+   cursor = bt->cow_btree_cursor_open(bt);
+   while ((rc = bt->cow_btree_cursor_get(cursor, &key, &data, flags)) == BT_SUCCESS) {
+   if (argc > 2 && bt->cow_btree_cmp( &key, &maxkey) > 0)
    break;
    printf("OK %zi %.*s\n", key.size, (int) key.size, (char *) key.data);
    flags = BT_NEXT;
    }
-   bt->btree_cursor_close(cursor);
+   bt->cow_btree_cursor_close(cursor);
    } else if (strcmp(argv[0], "compact") == 0) {
-   if ((rc = bt->btree_compact(bt)) != BT_SUCCESS)
+   if ((rc = bt->cow_btree_compact(bt)) != BT_SUCCESS)
    warn("compact");
    } else if (strcmp(argv[0], "revert") == 0) {
-   if ((rc = bt->btree_revert(bt)) != BT_SUCCESS)
+   if ((rc = bt->cow_btree_revert(bt)) != BT_SUCCESS)
    warn("revert");
    } else
    errx(1, "%s: invalid command", argv[0]);
    */
 
-  bt->btree_close();
+  delete bt;
 
   return rc;
 }
