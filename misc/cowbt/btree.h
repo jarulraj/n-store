@@ -15,9 +15,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <time.h>
 #include <unistd.h>
+#include <cstring>
 
 #include "btree_ds.h"
 
@@ -32,7 +33,7 @@ struct btree_txn;
 struct btval {
   void *data;
   size_t size;
-  int free_data; /* true if data malloc'd */
+  int release_data; /* true if data allocated */
   struct mpage *mp; /* ref'd memory page */
 };
 
@@ -348,13 +349,12 @@ class btree {
     ref = 1;
     meta.root = P_INVALID;
 
-    if ((page_cache = (struct page_cache*) calloc(1, sizeof(*page_cache)))
-        == NULL)
+    if ((page_cache = new struct page_cache()) == NULL)
       goto fail;
     stat.max_cache = BT_MAXCACHE_DEF;
     RB_INIT(page_cache);
 
-    if ((lru_queue = (struct lru_queue*) calloc(1, sizeof(*lru_queue))) == NULL)
+    if ((lru_queue = new struct lru_queue()) == NULL)
       goto fail;
     TAILQ_INIT(lru_queue);
 
@@ -369,8 +369,8 @@ class btree {
 
     return BT_SUCCESS;
 
-    fail: free(lru_queue);
-    free(page_cache);
+    fail: delete lru_queue;
+    delete page_cache;
     return BT_FAIL;
   }
 
@@ -480,8 +480,8 @@ class btree {
     if (btv) {
       if (btv->mp)
         btv->mp->ref--;
-      if (btv->free_data)
-        free(btv->data);
+      if (btv->release_data)
+        delete (char*)btv->data;
       bzero(btv, sizeof(*btv));
     }
   }
@@ -506,10 +506,10 @@ class btree {
     TAILQ_INSERT_TAIL(lru_queue, mp, lru_next);
   }
 
-  void mpage_free(struct mpage *mp) {
+  void mpage_release(struct mpage *mp) {
     if (mp != NULL) {
-      free(mp->page);
-      free(mp);
+      delete mp->page;
+      delete mp;
     }
   }
 
@@ -525,17 +525,17 @@ class btree {
 
     while ((mp = RB_MIN(page_cache, page_cache)) != NULL) {
       mpage_del(mp);
-      mpage_free(mp);
+      mpage_release(mp);
     }
   }
 
   struct mpage* mpage_copy(struct mpage *mp) {
     struct mpage *copy;
 
-    if ((copy = (mpage*) calloc(1, sizeof(*copy))) == NULL)
+    if ((copy = new mpage()) == NULL)
       return NULL;
-    if ((copy->page = (page*) malloc(head.psize)) == NULL) {
-      free(copy);
+    if ((copy->page = (page*) new char[head.psize]) == NULL) {
+      delete copy;
       return NULL;
     }
     bcopy(mp->page, copy->page, head.psize);
@@ -560,7 +560,7 @@ class btree {
       next = TAILQ_NEXT(mp, lru_next);
       if (!mp->dirty && mp->ref <= 0) {
         mpage_del(mp);
-        mpage_free(mp);
+        mpage_release(mp);
       }
     }
   }
@@ -645,17 +645,17 @@ class btree {
       return NULL;
     }
 
-    if ((_txn = (btree_txn*) calloc(1, sizeof(*_txn))) == NULL) {
-      DPRINTF("calloc: %s", strerror(errno));
+    if ((_txn = new btree_txn()) == NULL) {
+      DPRINTF("new: %s", strerror(errno));
       return NULL;
     }
 
     if (rdonly) {
       _txn->flags |= BT_TXN_RDONLY;
     } else {
-      _txn->dirty_queue = (dirty_queue*) calloc(1, sizeof(*_txn->dirty_queue));
+      _txn->dirty_queue = new dirty_queue();
       if (_txn->dirty_queue == NULL) {
-        free(_txn);
+        delete _txn;
         return NULL;
       }
       SIMPLEQ_INIT(_txn->dirty_queue);
@@ -664,8 +664,8 @@ class btree {
       if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
         DPRINTF("flock: %s", strerror(errno));
         errno = EBUSY;
-        free(_txn->dirty_queue);
-        free(_txn);
+        delete _txn->dirty_queue;
+        delete _txn;
         return NULL;
       }
       txn = _txn;
@@ -700,7 +700,7 @@ class btree {
         assert(mp->ref == 0); /* cursors should be closed */
         mpage_del(mp);
         SIMPLEQ_REMOVE_HEAD(_txn->dirty_queue, next);
-        mpage_free(mp);
+        mpage_release(mp);
       }
 
       DPRINTF("releasing write lock on txn %p", _txn);
@@ -709,11 +709,11 @@ class btree {
         DPRINTF("failed to unlock fd %d: %s",
             _txn->bt->fd, strerror(errno));
       }
-      free(_txn->dirty_queue);
+      delete _txn->dirty_queue;
     }
 
     btree_close();
-    free(_txn);
+    delete _txn;
   }
 
   int btree_txn_commit(struct btree_txn *_txn) {
@@ -826,7 +826,7 @@ class btree {
     else
       psize = PAGESIZE;
 
-    if ((p = (page*) calloc(1, psize)) == NULL)
+    if ((p = (page*) new char[psize]()) == NULL)
       return -1;
     p->flags = P_HEAD;
 
@@ -837,7 +837,7 @@ class btree {
     bcopy(h, &head, sizeof(*h));
 
     rc = write(fd, p, head.psize);
-    free(p);
+    delete p;
     if (rc != (ssize_t) head.psize) {
       if (rc > 0)
         DPRINTF("short write, filesystem full?");
@@ -1039,7 +1039,7 @@ class btree {
       DPRINTF("ref is zero, closing btree");
       close(fd);
       mpage_flush();
-      free(page_cache);
+      delete page_cache;
     } else
       DPRINTF("ref is now %d ", ref);
   }
@@ -1121,7 +1121,7 @@ class btree {
 
     DPRINTF("popped page %u off cursor %p", top->mpage->pgno, cursor);
 
-    free(top);
+    delete top;
   }
 
   struct ppage *
@@ -1130,7 +1130,7 @@ class btree {
 
     DPRINTF("pushing page %u on cursor %p", mp->pgno, cursor);
 
-    if ((ppage = (struct ppage*) calloc(1, sizeof(*ppage))) == NULL)
+    if ((ppage = new struct ppage()) == NULL)
       return NULL;
     ppage->mpage = mp;
     mp->ref++;
@@ -1143,14 +1143,14 @@ class btree {
 
     mp = mpage_lookup(pgno);
     if (mp == NULL) {
-      if ((mp = (mpage*) calloc(1, sizeof(*mp))) == NULL)
+      if ((mp = new mpage()) == NULL)
         return NULL;
-      if ((mp->page = (page*) malloc(head.psize)) == NULL) {
-        free(mp);
+      if ((mp->page = (page*) new char[head.psize]) == NULL) {
+        delete mp;
         return NULL;
       }
       if (btree_read_page(pgno, mp->page) != BT_SUCCESS) {
-        mpage_free(mp);
+        mpage_release(mp);
         return NULL;
       }
       mp->pgno = pgno;
@@ -1347,14 +1347,14 @@ class btree {
       data->size = leaf->n_dsize;
       if (data->size > 0) {
         if (mp == NULL) {
-          if ((data->data = malloc(data->size)) == NULL)
+          if ((data->data = new char[data->size]) == NULL)
             return BT_FAIL;
           bcopy(NODEDATA(leaf), data->data, data->size);
-          data->free_data = 1;
+          data->release_data = 1;
           data->mp = NULL;
         } else {
           data->data = NODEDATA(leaf);
-          data->free_data = 0;
+          data->release_data = 0;
           data->mp = mp;
           mp->ref++;
         }
@@ -1365,18 +1365,18 @@ class btree {
     /* Read overflow data.
      */
     DPRINTF("allocating %u byte for overflow data", leaf->n_dsize);
-    if ((data->data = malloc(leaf->n_dsize)) == NULL)
+    if ((data->data = new char[leaf->n_dsize]) == NULL)
       return BT_FAIL;
     data->size = leaf->n_dsize;
-    data->free_data = 1;
+    data->release_data = 1;
     data->mp = NULL;
     bcopy(NODEDATA(leaf), &pgno, sizeof(pgno));
     for (sz = 0; sz < data->size;) {
       if ((omp = btree_get_mpage(pgno)) == NULL
           || !F_ISSET(omp->page->flags, P_OVERFLOW)) {
         DPRINTF("read overflow page %u failed", pgno);
-        free(data->data);
-        mpage_free(omp);
+        delete (char*) data->data;
+        mpage_release(omp);
         return BT_FAIL;
       }
       psz = data->size - sz;
@@ -1470,16 +1470,16 @@ class btree {
 
     if (mp->prefix.len > 0) {
       key->size = node->ksize + mp->prefix.len;
-      key->data = malloc(key->size);
+      key->data = new char[key->size];
       if (key->data == NULL)
         return -1;
       concat_prefix(mp->prefix.str, mp->prefix.len, (char*) NODEKEY(node),
                     node->ksize, (char*) key->data, &key->size);
-      key->free_data = 1;
+      key->release_data = 1;
     } else {
       key->size = node->ksize;
       key->data = NODEKEY(node);
-      key->free_data = 0;
+      key->release_data = 0;
       key->mp = mp;
       mp->ref++;
     }
@@ -1653,10 +1653,10 @@ class btree {
 
     DPRINTF("allocating new mpage %u, page size %u",
         txn->next_pgno, head.psize);
-    if ((mp = (struct mpage*) calloc(1, sizeof(*mp))) == NULL)
+    if ((mp = new mpage()) == NULL)
       return NULL;
-    if ((mp->page = (page*) malloc(head.psize)) == NULL) {
-      free(mp);
+    if ((mp->page = (page*) new char[head.psize]) == NULL) {
+      delete mp;
       return NULL;
     }
     mp->pgno = mp->page->pgno = txn->next_pgno++;
@@ -1860,7 +1860,7 @@ class btree {
   struct cursor* btree_txn_cursor_open(struct btree_txn *txn) {
     struct cursor *cursor;
 
-    if ((cursor = (struct cursor*) calloc(1, sizeof(*cursor))) != NULL) {
+    if ((cursor = new struct cursor()) != NULL) {
       SLIST_INIT(&cursor->stack);
       cursor->txn = txn;
       btree_ref();
@@ -1875,7 +1875,7 @@ class btree {
         cursor_pop_page(cursor);
 
       btree_close();
-      free(cursor);
+      delete cursor;
     }
   }
 
@@ -2466,7 +2466,7 @@ class btree {
     DPRINTF("new right sibling: page %u", pright->pgno);
 
     /* Move half of the keys to the right sibling. */
-    if ((copy = (page*) malloc(head.psize)) == NULL)
+    if ((copy = (page*) new char[head.psize]) == NULL)
       return BT_FAIL;
     bcopy(mp->page, copy, head.psize);
     assert(mp->ref == 0); /* XXX */
@@ -2529,7 +2529,7 @@ class btree {
                           pright->pgno, 0);
     }
     if (rc != BT_SUCCESS) {
-      free(copy);
+      delete copy;
       return BT_FAIL;
     }
 
@@ -2599,7 +2599,7 @@ class btree {
       rc = btree_add_node(p, j, &rkey, &rdata, pgno, flags);
     }
 
-    free(copy);
+    delete copy;
     return rc;
   }
 
@@ -2667,7 +2667,7 @@ class btree {
         NUMKEYS(mp), ki);
 
     /* Copy the key pointer as it is modified by the prefix code. The
-     * caller might have malloc'ed the data.
+     * caller might have allocated the data.
      */
     xkey.data = key->data;
     xkey.size = key->size;
@@ -2707,7 +2707,7 @@ class btree {
      */
     if ((mp = btree_get_mpage(pgno)) == NULL)
       return P_INVALID;
-    if ((p = (page*) malloc(head.psize)) == NULL)
+    if ((p = (page*) new char[head.psize]) == NULL)
       return P_INVALID;
     bcopy(mp->page, p, head.psize);
 
@@ -2719,7 +2719,7 @@ class btree {
         node = NODEPTRP(p, i);
         node->n_pgno = btree_compact_tree(node->n_pgno, btc);
         if (node->n_pgno == P_INVALID) {
-          free(p);
+          delete p;
           return P_INVALID;
         }
       }
@@ -2730,7 +2730,7 @@ class btree {
           bcopy(NODEDATA(node), &next, sizeof(next));
           next = btree_compact_tree(next, btc);
           if (next == P_INVALID) {
-            free(p);
+            delete p;
             return P_INVALID;
           }
           bcopy(&next, NODEDATA(node), sizeof(next));
@@ -2741,7 +2741,7 @@ class btree {
       if (*pnext > 0) {
         *pnext = btree_compact_tree(*pnext, btc);
         if (*pnext == P_INVALID) {
-          free(p);
+          delete p;
           return P_INVALID;
         }
       }
@@ -2750,7 +2750,7 @@ class btree {
 
     pgno = p->pgno = btc->txn->next_pgno++;
     rc = write(btc->fd, p, head.psize);
-    free(p);
+    delete p;
     if (rc != (ssize_t) head.psize)
       return P_INVALID;
     mpage_prune();
@@ -2758,7 +2758,7 @@ class btree {
   }
 
   int btree_compact() {
-    char *compact_path = NULL;
+    std::string compact_path;
     struct btree *btc;
     struct btree_txn *txn, *txnc = NULL;
     int fd;
@@ -2774,10 +2774,9 @@ class btree {
     if ((txn = btree_txn_begin(0)) == NULL)
       return BT_FAIL;
 
-    asprintf(&compact_path, "%s.compact.XXXXXX", path);
-    fd = mkstemp(compact_path);
+    compact_path = std::string(path) + ".compact.XXXXXX";
+    fd = mkstemp((char*) compact_path.c_str());
     if (fd == -1) {
-      free(compact_path);
       btree_txn_abort(txn);
       return BT_FAIL;
     }
@@ -2800,7 +2799,7 @@ class btree {
     fsync(fd);
 
     DPRINTF("renaming %s to %s", compact_path, bt->path);
-    if (rename(compact_path, path) != 0)
+    if (rename(compact_path.c_str(), path) != 0)
       goto failed;
 
     /* Write a "tombstone" meta page so other processes can pick up
@@ -2811,15 +2810,13 @@ class btree {
 
     btree_txn_abort(txn);
     btree_txn_abort(txnc);
-    free(compact_path);
     btc->btree_close();
     mpage_prune();
     return 0;
 
     failed: btree_txn_abort(txn);
     btree_txn_abort(txnc);
-    unlink(compact_path);
-    free(compact_path);
+    unlink(compact_path.c_str());
     btc->btree_close();
     mpage_prune();
     return BT_FAIL;
