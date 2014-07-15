@@ -38,8 +38,7 @@ int main(int argc, char **argv) {
    errx(1, "missing command");
    */
 
-  bt = new btree;
-  bt = bt->btree_open(filename, flags | BT_NOSYNC, 0644);
+  bt = new btree(filename, flags | BT_NOSYNC, 0644);
   if (bt == NULL)
     err(1, filename);
 
@@ -52,39 +51,39 @@ int main(int argc, char **argv) {
   key.data = malloc(sizeof(char) * 100);
   data.data = malloc(sizeof(char) * 100);
 
-  struct btree_txn *t = bt->btree_txn_begin(bt, 0);
+  struct btree_txn *t = bt->btree_txn_begin( 0);
   for (i = 0; i < count; i++) {
     sprintf((char*)key.data, "%d", i);
     sprintf((char*)data.data, "%d-val", i);
     key.size = strlen((char*)key.data);
     data.size = strlen((char*)data.data);
 
-    rc = bt->btree_txn_put(bt, t, &key, &data, 0);
+    rc = bt->btree_txn_put( t, &key, &data, 0);
     assert(rc == BT_SUCCESS);
   }
   bt->btree_txn_commit(t);
 
-  rc = bt->btree_get(bt, &key, &data);
+  rc = bt->btree_get(&key, &data);
   if (rc == BT_SUCCESS) {
     printf("OK %.*s\n", (int) data.size, (char*) data.data);
   } else {
     printf("FAIL\n");
   }
 
-  t = bt->btree_txn_begin(bt, 0);
+  t = bt->btree_txn_begin( 0);
   for (i = 0; i < count; i++) {
     sprintf((char*)key.data, "%d", i);
     key.size = strlen((char*)key.data);
-    rc = bt->btree_txn_del(bt, t, &key, NULL);
+    rc = bt->btree_txn_del( t, &key, NULL);
     assert(rc == BT_SUCCESS);
-    rc = bt->btree_txn_get(bt, t, &key, &data);
+    rc = bt->btree_txn_get( t, &key, &data);
     assert(rc == BT_FAIL);
   }
   bt->btree_txn_commit(t);
 
   cout<<"size :: "<<bt->size<<endl;
 
-  bt->btree_compact(bt);
+  bt->btree_compact();
 
   /*
    if (strcmp(argv[0], "put") == 0) {
@@ -94,7 +93,7 @@ int main(int argc, char **argv) {
    key.size = strlen(key.data);
    data.data = argv[2];
    data.size = strlen(data.data);
-   rc = bt->btree_put(bt, &key, &data, 0);
+   rc = bt->btree_put( &key, &data, 0);
    if (rc == BT_SUCCESS)
    printf("OK\n");
    else
@@ -104,7 +103,7 @@ int main(int argc, char **argv) {
    errx(1, "missing argument");
    key.data = argv[1];
    key.size = strlen(key.data);
-   rc = bt->btree_del(bt, &key, NULL);
+   rc = bt->btree_del( &key, NULL);
    if (rc == BT_SUCCESS)
    printf("OK\n");
    else
@@ -114,7 +113,7 @@ int main(int argc, char **argv) {
    errx(1, "missing arguments");
    key.data = argv[1];
    key.size = strlen(key.data);
-   rc = bt->btree_get(bt, &key, &data);
+   rc = bt->btree_get( &key, &data);
    if (rc == BT_SUCCESS) {
    printf("OK %.*s\n", (int) data.size, (char *) data.data);
    } else {
@@ -134,7 +133,7 @@ int main(int argc, char **argv) {
 
    cursor = bt->btree_cursor_open(bt);
    while ((rc = bt->btree_cursor_get(cursor, &key, &data, flags)) == BT_SUCCESS) {
-   if (argc > 2 && bt->btree_cmp(bt, &key, &maxkey) > 0)
+   if (argc > 2 && bt->btree_cmp( &key, &maxkey) > 0)
    break;
    printf("OK %zi %.*s\n", key.size, (int) key.size, (char *) key.data);
    flags = BT_NEXT;
@@ -150,7 +149,7 @@ int main(int argc, char **argv) {
    errx(1, "%s: invalid command", argv[0]);
    */
 
-  bt->btree_close(bt);
+  bt->btree_close();
 
   return rc;
 }
