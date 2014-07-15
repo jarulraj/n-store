@@ -2,11 +2,14 @@
 
 #include <sys/types.h>
 
+#include <iostream>
 #include <getopt.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "btree.h"
+
+using namespace std;
 
 int main(int argc, char **argv) {
   int c, rc = BT_FAIL;
@@ -35,7 +38,8 @@ int main(int argc, char **argv) {
    errx(1, "missing command");
    */
 
-  bt = btree_open(filename, flags | BT_NOSYNC, 0644);
+  bt = new btree;
+  bt = bt->btree_open(filename, flags | BT_NOSYNC, 0644);
   if (bt == NULL)
     err(1, filename);
 
@@ -48,34 +52,39 @@ int main(int argc, char **argv) {
   key.data = malloc(sizeof(char) * 100);
   data.data = malloc(sizeof(char) * 100);
 
-  struct btree_txn *t = btree_txn_begin(bt, 0);
+  struct btree_txn *t = bt->btree_txn_begin(bt, 0);
   for (i = 0; i < count; i++) {
-    sprintf(key.data, "%d", i);
-    sprintf(data.data, "%d-val", i);
-    key.size = strlen(key.data);
-    data.size = strlen(data.data);
+    sprintf((char*)key.data, "%d", i);
+    sprintf((char*)data.data, "%d-val", i);
+    key.size = strlen((char*)key.data);
+    data.size = strlen((char*)data.data);
 
-    rc = btree_txn_put(bt, t, &key, &data, 0);
+    rc = bt->btree_txn_put(bt, t, &key, &data, 0);
     assert(rc == BT_SUCCESS);
   }
-  btree_txn_commit(t);
+  bt->btree_txn_commit(t);
 
-  rc = btree_get(bt, &key, &data);
+  rc = bt->btree_get(bt, &key, &data);
   if (rc == BT_SUCCESS) {
-    printf("OK %.*s\n", (int) data.size, (char *) data.data);
+    printf("OK %.*s\n", (int) data.size, (char*) data.data);
   } else {
     printf("FAIL\n");
   }
 
-  t = NULL;
-  t = btree_txn_begin(bt, 0);
+  t = bt->btree_txn_begin(bt, 0);
   for (i = 0; i < count; i++) {
-    sprintf(key.data, "%d", i);
-    key.size = strlen(key.data);
-    rc = btree_txn_del(bt, t, &key, NULL);
+    sprintf((char*)key.data, "%d", i);
+    key.size = strlen((char*)key.data);
+    rc = bt->btree_txn_del(bt, t, &key, NULL);
     assert(rc == BT_SUCCESS);
+    rc = bt->btree_txn_get(bt, t, &key, &data);
+    assert(rc == BT_FAIL);
   }
-  btree_txn_commit(t);
+  bt->btree_txn_commit(t);
+
+  cout<<"size :: "<<bt->size<<endl;
+
+  bt->btree_compact(bt);
 
   /*
    if (strcmp(argv[0], "put") == 0) {
@@ -85,7 +94,7 @@ int main(int argc, char **argv) {
    key.size = strlen(key.data);
    data.data = argv[2];
    data.size = strlen(data.data);
-   rc = btree_put(bt, &key, &data, 0);
+   rc = bt->btree_put(bt, &key, &data, 0);
    if (rc == BT_SUCCESS)
    printf("OK\n");
    else
@@ -95,7 +104,7 @@ int main(int argc, char **argv) {
    errx(1, "missing argument");
    key.data = argv[1];
    key.size = strlen(key.data);
-   rc = btree_del(bt, &key, NULL);
+   rc = bt->btree_del(bt, &key, NULL);
    if (rc == BT_SUCCESS)
    printf("OK\n");
    else
@@ -105,7 +114,7 @@ int main(int argc, char **argv) {
    errx(1, "missing arguments");
    key.data = argv[1];
    key.size = strlen(key.data);
-   rc = btree_get(bt, &key, &data);
+   rc = bt->btree_get(bt, &key, &data);
    if (rc == BT_SUCCESS) {
    printf("OK %.*s\n", (int) data.size, (char *) data.data);
    } else {
@@ -123,25 +132,25 @@ int main(int argc, char **argv) {
    maxkey.size = strlen(key.data);
    }
 
-   cursor = btree_cursor_open(bt);
-   while ((rc = btree_cursor_get(cursor, &key, &data, flags)) == BT_SUCCESS) {
-   if (argc > 2 && btree_cmp(bt, &key, &maxkey) > 0)
+   cursor = bt->btree_cursor_open(bt);
+   while ((rc = bt->btree_cursor_get(cursor, &key, &data, flags)) == BT_SUCCESS) {
+   if (argc > 2 && bt->btree_cmp(bt, &key, &maxkey) > 0)
    break;
    printf("OK %zi %.*s\n", key.size, (int) key.size, (char *) key.data);
    flags = BT_NEXT;
    }
-   btree_cursor_close(cursor);
+   bt->btree_cursor_close(cursor);
    } else if (strcmp(argv[0], "compact") == 0) {
-   if ((rc = btree_compact(bt)) != BT_SUCCESS)
+   if ((rc = bt->btree_compact(bt)) != BT_SUCCESS)
    warn("compact");
    } else if (strcmp(argv[0], "revert") == 0) {
-   if ((rc = btree_revert(bt)) != BT_SUCCESS)
+   if ((rc = bt->btree_revert(bt)) != BT_SUCCESS)
    warn("revert");
    } else
    errx(1, "%s: invalid command", argv[0]);
    */
 
-  btree_close(bt);
+  bt->btree_close(bt);
 
   return rc;
 }
