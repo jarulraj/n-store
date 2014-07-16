@@ -26,6 +26,8 @@ class plist {
         activate(false) {
     head = new (struct node*);
     tail = new (struct node*);
+    (*head) = NULL;
+    (*tail) = NULL;
   }
 
   plist(void** _head, void** _tail) {

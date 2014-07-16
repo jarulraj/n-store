@@ -296,6 +296,7 @@ class cow_btree {
   int cow_btree_open_fd(int _fd, unsigned int _flags) {
 
     pages = new plist<page*>();
+    pmemalloc_activate(pages);
     DPRINTF("pages : %p ", pages);
     DPRINTF("pages size : %d ", pages->size());
 
@@ -314,18 +315,20 @@ class cow_btree {
 
     if ((page_cache = new struct page_cache()) == NULL)
       goto fail;
+    pmemalloc_activate(page_cache);
     stat.max_cache = BT_MAXCACHE_DEF;
     RB_INIT(page_cache);
 
     if ((lru_queue = new struct lru_queue()) == NULL)
       goto fail;
+    pmemalloc_activate(lru_queue);
     TAILQ_INIT(lru_queue);
 
     if (cow_btree_read_header() != 0) {
       if (errno != ENOENT)
         goto fail;
       DPRINTF("new database");
-      cow_btree_write_header(fd);
+      cow_btree_write_header();
     }
 
     if (cow_btree_read_meta(NULL) != 0)
@@ -527,6 +530,9 @@ class cow_btree {
       delete copy;
       return NULL;
     }
+    pmemalloc_activate(copy);
+    pmemalloc_activate(copy->page);
+
     bcopy(mp->page, copy->page, head.psize);
     bcopy(&mp->prefix, &copy->prefix, sizeof(mp->prefix));
     copy->parent = mp->parent;
@@ -644,6 +650,7 @@ class cow_btree {
       DPRINTF("new: %s", strerror(errno));
       return NULL;
     }
+    pmemalloc_activate(_txn);
 
     if (rdonly) {
       _txn->flags |= BT_TXN_RDONLY;
@@ -653,6 +660,7 @@ class cow_btree {
         delete _txn;
         return NULL;
       }
+      pmemalloc_activate(_txn->dirty_queue);
       SIMPLEQ_INIT(_txn->dirty_queue);
 
       DPRINTF("taking write lock on txn %p", _txn);
@@ -817,7 +825,7 @@ class cow_btree {
     return BT_SUCCESS;
   }
 
-  int cow_btree_write_header(int fd) {
+  int cow_btree_write_header() {
     struct stat sb;
     struct bt_head *h;
     struct page *p;
@@ -828,13 +836,16 @@ class cow_btree {
 
     /* Ask stat for 'optimal blocksize for I/O'.
      */
+    /*
     if (fstat(fd, &sb) == 0)
       psize = sb.st_blksize;
     else
-      psize = PAGESIZE;
+    */
+    psize = PAGESIZE;
 
     if ((p = (page*) new char[psize]()) == NULL)
       return -1;
+    pmemalloc_activate(p);
     p->flags = P_HEAD;
 
     h = (bt_head*) METADATA(p);
@@ -921,6 +932,7 @@ class cow_btree {
 
     if ((mp = cow_btree_new_page(P_META)) == NULL)
       return -1;
+    pmemalloc_activate(mp);
 
     meta.prev_meta = meta.root;
     meta.root = root;
@@ -1163,6 +1175,7 @@ class cow_btree {
 
     if ((ppage = new struct ppage()) == NULL)
       return NULL;
+    pmemalloc_activate(ppage);
     ppage->mpage = mp;
     mp->ref++;
     CURSOR_PUSH(cursor, ppage);
@@ -1180,6 +1193,8 @@ class cow_btree {
         delete mp;
         return NULL;
       }
+      pmemalloc_activate(mp);
+      pmemalloc_activate(mp->page);
       if (cow_btree_read_page(pgno, mp->page) != BT_SUCCESS) {
         mpage_release(mp);
         return NULL;
@@ -1382,6 +1397,7 @@ class cow_btree {
         if (mp == NULL) {
           if ((data->data = new char[data->size]) == NULL)
             return BT_FAIL;
+          pmemalloc_activate(data->data);
           bcopy(NODEDATA(leaf), data->data, data->size);
           data->release_data = 1;
           data->mp = NULL;
@@ -1400,6 +1416,7 @@ class cow_btree {
     DPRINTF("allocating %u byte for overflow data", leaf->n_dsize);
     if ((data->data = new char[leaf->n_dsize]) == NULL)
       return BT_FAIL;
+    pmemalloc_activate(data->data);
     data->size = leaf->n_dsize;
     data->release_data = 1;
     data->mp = NULL;
@@ -1508,6 +1525,7 @@ class cow_btree {
       key->data = new char[key->size];
       if (key->data == NULL)
         return -1;
+      pmemalloc_activate(key->data);
       concat_prefix(mp->prefix.str, mp->prefix.len, (char*) NODEKEY(cow_node),
                     cow_node->ksize, (char*) key->data, &key->size);
       key->release_data = 1;
@@ -1695,6 +1713,9 @@ class cow_btree {
       delete mp;
       return NULL;
     }
+    pmemalloc_activate(mp);
+    pmemalloc_activate(mp->page);
+
     mp->pgno = mp->page->pgno = txn->next_pgno++;
     mp->page->flags = flags;
     mp->page->lower = PAGEHDRSZ;
@@ -1903,6 +1924,7 @@ class cow_btree {
       cursor->txn = txn;
       cow_btree_ref();
     }
+    pmemalloc_activate(cursor);
 
     return cursor;
   }
@@ -2510,6 +2532,7 @@ class cow_btree {
     /* Move half of the keys to the right sibling. */
     if ((copy = (page*) new char[head.psize]) == NULL)
       return BT_FAIL;
+    pmemalloc_activate(copy);
     bcopy(mp->page, copy, head.psize);
     assert(mp->ref == 0); /* XXX */
     bzero(&mp->page->ptrs, head.psize - PAGEHDRSZ);
@@ -2751,6 +2774,7 @@ class cow_btree {
       return P_INVALID;
     if ((p = (page*) new char[head.psize]) == NULL)
       return P_INVALID;
+    pmemalloc_activate(p);
     bcopy(mp->page, p, head.psize);
 
     /* Go through all nodes in the (copied) page and update the
@@ -2844,6 +2868,7 @@ class cow_btree {
     }
 
     btc = new cow_btree(fd, 0);
+    pmemalloc_activate(btc);
     bcopy(&meta, &btc->meta, sizeof(meta));
     btc->meta.revisions = 0;
 
@@ -2890,10 +2915,11 @@ class cow_btree {
     if (cow_btree_read_meta(NULL) != 0)
       return -1;
 
-    DPRINTF("truncating file at page %u", meta.root);
+    DPRINTF("truncating file at page %u to page %u", meta.root, meta.prev_meta);
     //int rc = ftruncate(fd, head.psize * meta.root);
-    int rc = 1;
-    return rc;
+    meta.root = meta.prev_meta;
+
+    return 0;
   }
 
   void cow_btree_set_cache_size(unsigned int cache_size) {
@@ -2920,8 +2946,27 @@ class cow_btree {
 
     return &stat;
   }
-
 };
+
+class cow_pbtree {
+ public:
+  cow_pbtree(void** _ptr) {
+    t_ptr = (cow_btree*) (*_ptr);
+    cout << "check tree :: " << t_ptr << endl;
+
+    if (t_ptr == NULL) {
+      t_ptr = new cow_btree("tmp.db");
+      pmemalloc_activate(t_ptr);
+      (*_ptr) = t_ptr;
+      cout << "init mode :: " << t_ptr << endl;
+    }
+
+    cout << "tree :: " << t_ptr << endl;
+  }
+
+  cow_btree* t_ptr;
+};
+
 
 #endif /* COW_BTREE_H_ */
 
