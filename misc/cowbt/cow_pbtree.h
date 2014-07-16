@@ -278,7 +278,10 @@ int memnrcmp(const void *s1, size_t n1, const void *s2, size_t n2) {
 
 class cow_btree {
  public:
+  // Persistence mode
   plist<page*>* pages;
+
+  // File mode
   int fd;
   char *path;
 #define BT_FIXPADDING    0x01   /* internal */
@@ -292,36 +295,40 @@ class cow_btree {
   int ref; /* increased by cursors & txn */
   struct cow_btree_stat stat;
   off_t size; /* current file size */
+  bool persist;
 
-  int cow_btree_open_fd(int _fd, unsigned int _flags) {
+  int cow_btree_open_fd(int _fd) {
 
     pages = new plist<page*>();
-    pmemalloc_activate(pages);
-    DPRINTF("pages : %p ", pages);
-    DPRINTF("pages size : %d ", pages->size());
+    if (persist)
+      pmemalloc_activate(pages);
 
-    int fl;
-
-    fl = fcntl(_fd, F_GETFL, 0);
-    if (fcntl(_fd, F_SETFL, fl | O_APPEND) == -1) {
-      perror("file open");
-      return BT_FAIL;
+    if (persist == false) {
+      int fl;
+      fl = fcntl(_fd, F_GETFL, 0);
+      if (fcntl(_fd, F_SETFL, fl | O_APPEND) == -1) {
+        perror("file open");
+        return BT_FAIL;
+      }
+      size = 0;
     }
 
-    flags = _flags;
+    flags = 0 | BT_NOSYNC;
     flags &= ~BT_FIXPADDING;
     ref = 1;
     meta.root = P_INVALID;
 
     if ((page_cache = new struct page_cache()) == NULL)
       goto fail;
-    pmemalloc_activate(page_cache);
+    if(persist)
+      pmemalloc_activate(page_cache);
     stat.max_cache = BT_MAXCACHE_DEF;
     RB_INIT(page_cache);
 
     if ((lru_queue = new struct lru_queue()) == NULL)
       goto fail;
-    pmemalloc_activate(lru_queue);
+    if(persist)
+      pmemalloc_activate(lru_queue);
     TAILQ_INIT(lru_queue);
 
     if (cow_btree_read_header() != 0) {
@@ -330,6 +337,8 @@ class cow_btree {
       DPRINTF("new database");
       cow_btree_write_header();
     }
+
+    DPRINTF("size :: %d", size);
 
     if (cow_btree_read_meta(NULL) != 0)
       goto fail;
@@ -341,53 +350,45 @@ class cow_btree {
     return BT_FAIL;
   }
 
-  cow_btree(int _fd, unsigned int _flags) {
-    if (cow_btree_open_fd(_fd, _flags) == BT_FAIL) {
-      perror("btree construction failed");
-    }
-  }
-
   ~cow_btree() {
     cow_btree_close();
   }
 
-  cow_btree(const char *_path, unsigned int _flags, mode_t _mode) {
-    int fd, oflags;
+  cow_btree(bool _persist, int _fd) {
+    persist = _persist;
 
-    if (F_ISSET(_flags, BT_RDONLY))
-      oflags = O_RDONLY;
-    else
-      oflags = O_RDWR | O_CREAT | O_APPEND;
-
-    if ((fd = open(_path, oflags, _mode)) == -1)
-      return;
-
-    if (cow_btree_open_fd(fd, _flags) == BT_FAIL)
-      close(fd);
-    else {
-      path = strdup(_path);
-      DPRINTF("opened btree");
+    if (cow_btree_open_fd(_fd) == BT_FAIL) {
+      perror("btree construction failed");
     }
   }
 
-  cow_btree(const char *_path) {
-    int fd, oflags;
+  cow_btree(bool _persist, const char *_path) {
+    int _fd, oflags;
     unsigned int _flags = 0 | BT_NOSYNC;
     mode_t _mode = 0644;
 
-    if (F_ISSET(_flags, BT_RDONLY))
-      oflags = O_RDONLY;
-    else
-      oflags = O_RDWR | O_CREAT | O_APPEND;
+    persist = _persist;
 
-    if ((fd = open(_path, oflags, _mode)) == -1)
-      return;
+    if (persist == false) {
+      if (F_ISSET(_flags, BT_RDONLY))
+        oflags = O_RDONLY;
+      else
+        oflags = O_RDWR | O_CREAT | O_APPEND;
 
-    if (cow_btree_open_fd(fd, _flags) == BT_FAIL)
-      close(fd);
-    else {
       path = strdup(_path);
-      DPRINTF("opened btree");
+      if ((_fd = open(path, oflags, _mode)) == -1)
+        return;
+      fd = _fd;
+    }
+
+    if (cow_btree_open_fd(fd) == BT_FAIL) {
+      if (persist == false)
+        close(fd);
+    } else {
+      if (persist == false) {
+        path = strdup(_path);
+        DPRINTF("opened btree %s", path);
+      }
     }
   }
 
@@ -530,8 +531,11 @@ class cow_btree {
       delete copy;
       return NULL;
     }
-    pmemalloc_activate(copy);
-    pmemalloc_activate(copy->page);
+
+    if (persist) {
+      pmemalloc_activate(copy);
+      pmemalloc_activate(copy->page);
+    }
 
     bcopy(mp->page, copy->page, head.psize);
     bcopy(&mp->prefix, &copy->prefix, sizeof(mp->prefix));
@@ -604,19 +608,20 @@ class cow_btree {
     DPRINTF("reading page %u", pgno);
     stat.reads++;
     // READ
-    page = pages->at(pgno);
-    /*
-     if ((rc = pread(fd, page, head.psize, (off_t) pgno * head.psize)) == 0) {
-     DPRINTF("page %u doesn't exist", pgno);
-     errno = ENOENT;
-     return BT_FAIL;
-     } else if (rc != (ssize_t) head.psize) {
-     if (rc > 0)
-     errno = EINVAL;
-     DPRINTF("read: %s", strerror(errno));
-     return BT_FAIL;
-     }
-     */
+    if (persist) {
+      page = pages->at(pgno);
+    } else {
+      if ((rc = pread(fd, page, head.psize, (off_t) pgno * head.psize)) == 0) {
+        DPRINTF("page %u doesn't exist", pgno);
+        errno = ENOENT;
+        return BT_FAIL;
+      } else if (rc != (ssize_t) head.psize) {
+        if (rc > 0)
+          errno = EINVAL;
+        DPRINTF("read: %s", strerror(errno));
+        return BT_FAIL;
+      }
+    }
 
     if (page->pgno != pgno) {
       DPRINTF("page numbers don't match: %u != %u", pgno, page->pgno);
@@ -630,10 +635,10 @@ class cow_btree {
   }
 
   int cow_btree_sync() {
-    /*
-     if (!F_ISSET(flags, BT_NOSYNC))
-     return fsync(fd);
-     */
+    if (persist == false) {
+      if (!F_ISSET(flags, BT_NOSYNC))
+        return fsync(fd);
+    }
     return 0;
   }
 
@@ -650,7 +655,9 @@ class cow_btree {
       DPRINTF("new: %s", strerror(errno));
       return NULL;
     }
-    pmemalloc_activate(_txn);
+
+    if (persist)
+      pmemalloc_activate(_txn);
 
     if (rdonly) {
       _txn->flags |= BT_TXN_RDONLY;
@@ -660,19 +667,21 @@ class cow_btree {
         delete _txn;
         return NULL;
       }
-      pmemalloc_activate(_txn->dirty_queue);
+      if (persist)
+        pmemalloc_activate(_txn->dirty_queue);
+
       SIMPLEQ_INIT(_txn->dirty_queue);
 
       DPRINTF("taking write lock on txn %p", _txn);
-      /*
-       if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-       DPRINTF("flock: %s", strerror(errno));
-       errno = EBUSY;
-       delete _txn->dirty_queue;
-       delete _txn;
-       return NULL;
-       }
-       */
+      if (persist == false) {
+        if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+          DPRINTF("flock: %s", strerror(errno));
+          errno = EBUSY;
+          delete _txn->dirty_queue;
+          delete _txn;
+          return NULL;
+        }
+      }
       txn = _txn;
     }
 
@@ -710,11 +719,11 @@ class cow_btree {
 
       DPRINTF("releasing write lock on txn %p", _txn);
       txn = NULL;
-      /*
-       if (flock(fd, LOCK_UN) != 0) {
-       DPRINTF("failed to unlock fd %d: %s", fd, strerror(errno));
-       }
-       */
+      if (persist == false) {
+        if (flock(fd, LOCK_UN) != 0) {
+          DPRINTF("failed to unlock fd %d: %s", fd, strerror(errno));
+        }
+      }
       delete _txn->dirty_queue;
     }
 
@@ -748,18 +757,18 @@ class cow_btree {
     if (SIMPLEQ_EMPTY(_txn->dirty_queue))
       goto done;
 
-    if (F_ISSET(flags, BT_FIXPADDING)) {
-      /*
-       size = lseek(fd, 0, SEEK_END);
-       size += head.psize - (size % head.psize);
-       DPRINTF("extending to multiple of page size: %ld", size);
-       if (ftruncate(fd, size) != 0) {
-       DPRINTF("ftruncate: %s", strerror(errno));
-       cow_btree_txn_abort(_txn);
-       return BT_FAIL;
-       }
-       flags &= ~BT_FIXPADDING;
-       */
+    if (persist == false) {
+      if (F_ISSET(flags, BT_FIXPADDING)) {
+        size = lseek(fd, 0, SEEK_END);
+        size += head.psize - (size % head.psize);
+        DPRINTF("extending to multiple of page size: %ld", size);
+        if (ftruncate(fd, size) != 0) {
+          DPRINTF("ftruncate: %s", strerror(errno));
+          cow_btree_txn_abort(_txn);
+          return BT_FAIL;
+        }
+        flags &= ~BT_FIXPADDING;
+      }
     }
 
     DPRINTF("committing transaction on btree, root page %u", _txn->root);
@@ -776,7 +785,8 @@ class cow_btree {
         iov[n].iov_base = mp->page;
 
         // WRITE
-        pages->push_back(mp->page);
+        if (persist)
+          pages->push_back(mp->page);
 
         if (++n >= BT_COMMIT_PAGES) {
           done = 0;
@@ -789,17 +799,17 @@ class cow_btree {
 
       DPRINTF("commiting %u dirty pages", n);
 
-      /*
-       rc = writev(fd, iov, n);
-       if (rc != (ssize_t) head.psize * n) {
-       if (rc > 0)
-       DPRINTF("short write, filesystem full?");
-       else
-       DPRINTF("writev: %s", strerror(errno));
-       cow_btree_txn_abort(_txn);
-       return BT_FAIL;
-       }
-       */
+      if (persist == false) {
+        rc = writev(fd, iov, n);
+        if (rc != (ssize_t) head.psize * n) {
+          if (rc > 0)
+            DPRINTF("short write, filesystem full?");
+          else
+            DPRINTF("writev: %s", strerror(errno));
+          cow_btree_txn_abort(_txn);
+          return BT_FAIL;
+        }
+      }
 
       /* Remove the dirty flag from the written pages.
        */
@@ -836,16 +846,17 @@ class cow_btree {
 
     /* Ask stat for 'optimal blocksize for I/O'.
      */
-    /*
-    if (fstat(fd, &sb) == 0)
-      psize = sb.st_blksize;
-    else
-    */
     psize = PAGESIZE;
+    if (persist == false) {
+      if (fstat(fd, &sb) == 0)
+        psize = sb.st_blksize;
+    }
 
     if ((p = (page*) new char[psize]()) == NULL)
       return -1;
-    pmemalloc_activate(p);
+    if (persist)
+      pmemalloc_activate(p);
+
     p->flags = P_HEAD;
 
     h = (bt_head*) METADATA(p);
@@ -855,16 +866,19 @@ class cow_btree {
     bcopy(h, &head, sizeof(*h));
 
     // WRITE
-    pages->push_back(p);
-    //rc = write(fd, p, head.psize);
-    //delete p;
-    /*
-     if (rc != (ssize_t) head.psize) {
-     if (rc > 0)
-     DPRINTF("short write, filesystem full?");
-     return BT_FAIL;
-     }
-     */
+    if (persist)
+      pages->push_back(p);
+    else {
+      rc = write(fd, p, head.psize);
+      delete p;
+
+      if (rc != (ssize_t) head.psize) {
+        if (rc > 0)
+          DPRINTF("short write, filesystem full?");
+        return BT_FAIL;
+      }
+
+    }
 
     return BT_SUCCESS;
   }
@@ -878,24 +892,27 @@ class cow_btree {
     /* We don't know the page size yet, so use a minimum value.
      */
     // READ
-    /*
-     if ((rc = pread(fd, page, PAGESIZE, 0)) == 0) {
-     errno = ENOENT;
-     return -1;
-     } else if (rc != PAGESIZE) {
-     if (rc > 0)
-     errno = EINVAL;
-     DPRINTF("read: %s", strerror(errno));
-     return -1;
-     }
-     */
+    if (persist == false) {
+      DPRINTF("fd :: %d path : %s ", fd, path);
+      if ((rc = pread(fd, page, PAGESIZE, 0)) == 0) {
+        errno = ENOENT;
+        return -1;
+      } else if (rc != PAGESIZE) {
+        if (rc > 0)
+          errno = EINVAL;
+        DPRINTF("read: %s", strerror(errno));
+        return -1;
+      }
 
-    if (pages->empty()) {
-      errno = ENOENT;
-      return -1;
+      p = (struct page *) page;
+    } else {
+      if (pages->empty()) {
+        errno = ENOENT;
+        return -1;
+      }
+
+      p = (struct page *) pages->at(0);
     }
-
-    p = (struct page *) pages->at(0);
 
     if (!F_ISSET(p->flags, P_HEAD)) {
       DPRINTF("page %d not a header page", p->pgno);
@@ -932,7 +949,8 @@ class cow_btree {
 
     if ((mp = cow_btree_new_page(P_META)) == NULL)
       return -1;
-    pmemalloc_activate(mp);
+    if (persist)
+      pmemalloc_activate(mp);
 
     meta.prev_meta = meta.root;
     meta.root = root;
@@ -945,23 +963,28 @@ class cow_btree {
     bcopy(&meta, _meta, sizeof(*_meta));
 
     // WRITE
-    pages->push_back(mp->page);
+    if (persist) {
+      pages->push_back(mp->page);
 
-    //rc = write(fd, mp->page, head.psize);
-    mp->dirty = 0;
-    SIMPLEQ_REMOVE_HEAD(txn->dirty_queue, next);
-    /*
-     if (rc != (ssize_t) head.psize) {
-     if (rc > 0)
-     DPRINTF("short write, filesystem full?");
-     return BT_FAIL;
-     }
+      mp->dirty = 0;
+      SIMPLEQ_REMOVE_HEAD(txn->dirty_queue, next);
+    } else {
+      rc = write(fd, mp->page, head.psize);
 
-     if ((size = lseek(fd, 0, SEEK_END)) == -1) {
-     DPRINTF("failed to update file size: %s", strerror(errno));
-     size = 0;
-     }
-     */
+      mp->dirty = 0;
+      SIMPLEQ_REMOVE_HEAD(txn->dirty_queue, next);
+
+      if (rc != (ssize_t) head.psize) {
+        if (rc > 0)
+          DPRINTF("short write, filesystem full?");
+        return BT_FAIL;
+      }
+
+      if ((size = lseek(fd, 0, SEEK_END)) == -1) {
+        DPRINTF("failed to update file size: %s", strerror(errno));
+        size = 0;
+      }
+    }
 
     return BT_SUCCESS;
   }
@@ -993,28 +1016,37 @@ class cow_btree {
     pgno_t meta_pgno, next_pgno;
     off_t _size;
 
-    /*
-     if ((_size = lseek(fd, 0, SEEK_END)) == -1)
-     goto fail;
-     */
+    if (persist == false) {
+      if ((_size = lseek(fd, 0, SEEK_END)) == -1)
+        goto fail;
 
-    DPRINTF("cow_btree_read_meta: size = %ld", _size);
+      DPRINTF("cow_btree_read_meta: size = %ld", _size);
 
-    if (_size < size) {
-      DPRINTF("file has shrunk!");
-      errno = EIO;
-      goto fail;
+      if (_size < size) {
+        DPRINTF("file has shrunk!");
+        errno = EIO;
+        goto fail;
+      }
+
+      if (_size == head.psize) { /* there is only the header */
+        if (p_next != NULL)
+          *p_next = 1;
+        return BT_SUCCESS; /* new file */
+      }
+
+      next_pgno = _size / head.psize;
+
+    } else {
+
+      if (pages->size() == 1) {
+        if (p_next != NULL)
+          *p_next = 1;
+        return BT_SUCCESS; /* new file */
+      }
+
+      next_pgno = pages->size();
     }
 
-    if (pages->size() == 1) {
-      //if (_size == head.psize) { /* there is only the header */
-      if (p_next != NULL)
-        *p_next = 1;
-      return BT_SUCCESS; /* new file */
-    }
-
-    next_pgno = pages->size();
-    //next_pgno = _size / head.psize;
     if (next_pgno == 0) {
       DPRINTF("corrupt file");
       errno = EIO;
@@ -1023,29 +1055,31 @@ class cow_btree {
 
     meta_pgno = next_pgno - 1;
 
-    /*
-     if (_size % head.psize != 0) {
-     DPRINTF("filesize not a multiple of the page size!");
-     flags |= BT_FIXPADDING;
-     next_pgno++;
-     }
-     */
+    if (persist == false) {
+      if (_size % head.psize != 0) {
+        DPRINTF("filesize not a multiple of the page size!");
+        flags |= BT_FIXPADDING;
+        next_pgno++;
+      }
+    }
 
     if (p_next != NULL)
       *p_next = next_pgno;
 
-    /*
-     if (_size == size) {
-     DPRINTF("size unchanged, keeping current meta page");
-     if (F_ISSET(meta.flags, BT_TOMBSTONE)) {
-     DPRINTF("file is dead");
-     errno = ESTALE;
-     return BT_FAIL;
-     } else
-     return BT_SUCCESS;
-     }
-     size = _size;
-     */
+    if (persist == false) {
+      if (_size == size) {
+        DPRINTF("size unchanged, keeping current meta page");
+        if (F_ISSET(meta.flags, BT_TOMBSTONE)) {
+          DPRINTF("file is dead");
+          errno = ESTALE;
+          return BT_FAIL;
+        } else
+          return BT_SUCCESS;
+      }
+      size = _size;
+    }
+
+    DPRINTF("Copying meta ");
 
     while (meta_pgno > 0) {
       if ((mp = cow_btree_get_mpage(meta_pgno)) == NULL)
@@ -1060,6 +1094,7 @@ class cow_btree {
         } else {
           /* Make copy of last meta page. */
           bcopy(_meta, &meta, sizeof(meta));
+          DPRINTF("Copying meta root :: ", meta.root);
           return BT_SUCCESS;
         }
       }
@@ -1080,7 +1115,8 @@ class cow_btree {
   void cow_btree_close() {
     if (--ref == 0) {
       DPRINTF("ref is zero, closing btree");
-      close(fd);
+      if (persist == false)
+        close(fd);
       mpage_flush();
       delete page_cache;
     } else
@@ -1175,7 +1211,8 @@ class cow_btree {
 
     if ((ppage = new struct ppage()) == NULL)
       return NULL;
-    pmemalloc_activate(ppage);
+    if (persist)
+      pmemalloc_activate(ppage);
     ppage->mpage = mp;
     mp->ref++;
     CURSOR_PUSH(cursor, ppage);
@@ -1193,8 +1230,11 @@ class cow_btree {
         delete mp;
         return NULL;
       }
-      pmemalloc_activate(mp);
-      pmemalloc_activate(mp->page);
+      if (persist) {
+        pmemalloc_activate(mp);
+        pmemalloc_activate(mp->page);
+      }
+
       if (cow_btree_read_page(pgno, mp->page) != BT_SUCCESS) {
         mpage_release(mp);
         return NULL;
@@ -1397,7 +1437,9 @@ class cow_btree {
         if (mp == NULL) {
           if ((data->data = new char[data->size]) == NULL)
             return BT_FAIL;
-          pmemalloc_activate(data->data);
+          if (persist)
+            pmemalloc_activate(data->data);
+
           bcopy(NODEDATA(leaf), data->data, data->size);
           data->release_data = 1;
           data->mp = NULL;
@@ -1416,7 +1458,9 @@ class cow_btree {
     DPRINTF("allocating %u byte for overflow data", leaf->n_dsize);
     if ((data->data = new char[leaf->n_dsize]) == NULL)
       return BT_FAIL;
-    pmemalloc_activate(data->data);
+    if (persist)
+      pmemalloc_activate(data->data);
+
     data->size = leaf->n_dsize;
     data->release_data = 1;
     data->mp = NULL;
@@ -1525,7 +1569,8 @@ class cow_btree {
       key->data = new char[key->size];
       if (key->data == NULL)
         return -1;
-      pmemalloc_activate(key->data);
+      if (persist)
+        pmemalloc_activate(key->data);
       concat_prefix(mp->prefix.str, mp->prefix.len, (char*) NODEKEY(cow_node),
                     cow_node->ksize, (char*) key->data, &key->size);
       key->release_data = 1;
@@ -1713,8 +1758,10 @@ class cow_btree {
       delete mp;
       return NULL;
     }
-    pmemalloc_activate(mp);
-    pmemalloc_activate(mp->page);
+    if (persist) {
+      pmemalloc_activate(mp);
+      pmemalloc_activate(mp->page);
+    }
 
     mp->pgno = mp->page->pgno = txn->next_pgno++;
     mp->page->flags = flags;
@@ -1924,7 +1971,8 @@ class cow_btree {
       cursor->txn = txn;
       cow_btree_ref();
     }
-    pmemalloc_activate(cursor);
+    if (persist)
+      pmemalloc_activate(cursor);
 
     return cursor;
   }
@@ -2532,7 +2580,8 @@ class cow_btree {
     /* Move half of the keys to the right sibling. */
     if ((copy = (page*) new char[head.psize]) == NULL)
       return BT_FAIL;
-    pmemalloc_activate(copy);
+    if (persist)
+      pmemalloc_activate(copy);
     bcopy(mp->page, copy, head.psize);
     assert(mp->ref == 0); /* XXX */
     bzero(&mp->page->ptrs, head.psize - PAGEHDRSZ);
@@ -2774,7 +2823,8 @@ class cow_btree {
       return P_INVALID;
     if ((p = (page*) new char[head.psize]) == NULL)
       return P_INVALID;
-    pmemalloc_activate(p);
+    if (persist)
+      pmemalloc_activate(p);
     bcopy(mp->page, p, head.psize);
 
     /* Go through all nodes in the (copied) page and update the
@@ -2816,9 +2866,12 @@ class cow_btree {
 
     pgno = p->pgno = btc->txn->next_pgno++;
     // WRITE
-    btc->pages->push_back(p);
-    //rc = write(btc->fd, p, head.psize);
-    delete p;
+    if (persist)
+      btc->pages->push_back(p);
+    else {
+      rc = write(btc->fd, p, head.psize);
+      delete p;
+    }
     if (rc != (ssize_t) head.psize)
       return P_INVALID;
     mpage_prune();
@@ -2867,8 +2920,9 @@ class cow_btree {
       return BT_FAIL;
     }
 
-    btc = new cow_btree(fd, 0);
-    pmemalloc_activate(btc);
+    btc = new cow_btree(persist, fd);
+    if (persist)
+      pmemalloc_activate(btc);
     bcopy(&meta, &btc->meta, sizeof(meta));
     btc->meta.revisions = 0;
 
@@ -2915,9 +2969,14 @@ class cow_btree {
     if (cow_btree_read_meta(NULL) != 0)
       return -1;
 
-    DPRINTF("truncating file at page %u to page %u", meta.root, meta.prev_meta);
-    //int rc = ftruncate(fd, head.psize * meta.root);
-    meta.root = meta.prev_meta;
+    if (persist) {
+      DPRINTF("truncating file at page %u to page %u", meta.root,
+              meta.prev_meta);
+      meta.root = meta.prev_meta;
+    } else {
+      int rc = ftruncate(fd, head.psize * meta.root);
+      DPRINTF("truncating file at page %u", meta.root);
+    }
 
     return 0;
   }
@@ -2950,23 +3009,30 @@ class cow_btree {
 
 class cow_pbtree {
  public:
-  cow_pbtree(void** _ptr) {
-    t_ptr = (cow_btree*) (*_ptr);
-    cout << "check tree :: " << t_ptr << endl;
+  cow_pbtree(bool _persist, const char* path, void** _ptr) {
+    // Persist mode
+    if (_persist) {
+      t_ptr = (cow_btree*) (*_ptr);
+      cout << "check tree :: " << t_ptr << endl;
 
-    if (t_ptr == NULL) {
-      t_ptr = new cow_btree("tmp.db");
-      pmemalloc_activate(t_ptr);
-      (*_ptr) = t_ptr;
-      cout << "init mode :: " << t_ptr << endl;
+      if (t_ptr == NULL) {
+        t_ptr = new cow_btree(_persist, (char*) NULL);
+        pmemalloc_activate(t_ptr);
+
+        (*_ptr) = t_ptr;
+        cout << "persistent :: init mode :: " << t_ptr << endl;
+      }
+    }
+    // File mode
+    else {
+      t_ptr = new cow_btree(_persist, path);
+      cout << "file :: init mode :: " << t_ptr << endl;
     }
 
-    cout << "tree :: " << t_ptr << endl;
   }
 
   cow_btree* t_ptr;
 };
-
 
 #endif /* COW_BTREE_H_ */
 

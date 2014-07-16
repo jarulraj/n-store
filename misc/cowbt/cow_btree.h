@@ -320,6 +320,8 @@ class cow_btree {
       cow_btree_write_header(fd);
     }
 
+    DPRINTF("size :: %d", size);
+
     if (cow_btree_read_meta(NULL) != 0)
       goto fail;
 
