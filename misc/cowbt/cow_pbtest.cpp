@@ -31,8 +31,8 @@ int main(int argc, char **argv) {
   const char *filename = "test.db";
   struct cow_btval key, val, maxkey;
 
-  //pbt = new cow_pbtree(true, NULL, &sp->ptrs[sp->itr]);
-  pbt = new cow_pbtree(false, filename, NULL);
+  pbt = new cow_pbtree(true, NULL, &sp->ptrs[sp->itr]);
+  //pbt = new cow_pbtree(false, filename, NULL);
 
   cow_btree* bt = pbt->t_ptr;
 

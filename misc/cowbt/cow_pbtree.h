@@ -310,24 +310,24 @@ class cow_btree {
         perror("file open");
         return BT_FAIL;
       }
-      size = 0;
     }
 
     flags = 0 | BT_NOSYNC;
     flags &= ~BT_FIXPADDING;
     ref = 1;
     meta.root = P_INVALID;
+    txn = NULL;
 
     if ((page_cache = new struct page_cache()) == NULL)
       goto fail;
-    if(persist)
+    if (persist)
       pmemalloc_activate(page_cache);
     stat.max_cache = BT_MAXCACHE_DEF;
     RB_INIT(page_cache);
 
     if ((lru_queue = new struct lru_queue()) == NULL)
       goto fail;
-    if(persist)
+    if (persist)
       pmemalloc_activate(lru_queue);
     TAILQ_INIT(lru_queue);
 
@@ -338,7 +338,7 @@ class cow_btree {
       cow_btree_write_header();
     }
 
-    DPRINTF("size :: %d", size);
+    DPRINTF("size :: %lu", size);
 
     if (cow_btree_read_meta(NULL) != 0)
       goto fail;
@@ -356,6 +356,8 @@ class cow_btree {
 
   cow_btree(bool _persist, int _fd) {
     persist = _persist;
+    size = 0;
+    fd = _fd;
 
     if (cow_btree_open_fd(_fd) == BT_FAIL) {
       perror("btree construction failed");
@@ -368,6 +370,7 @@ class cow_btree {
     mode_t _mode = 0644;
 
     persist = _persist;
+    size = 0;
 
     if (persist == false) {
       if (F_ISSET(_flags, BT_RDONLY))
@@ -1118,7 +1121,7 @@ class cow_btree {
       if (persist == false)
         close(fd);
       mpage_flush();
-      delete page_cache;
+      //delete page_cache;
     } else
       DPRINTF("ref is now %d ", ref);
   }
@@ -2866,14 +2869,19 @@ class cow_btree {
 
     pgno = p->pgno = btc->txn->next_pgno++;
     // WRITE
-    if (persist)
+    if (persist){
       btc->pages->push_back(p);
+      //delete p;
+
+      DPRINTF("btc pages :: %d", btc->pages->size());
+    }
     else {
       rc = write(btc->fd, p, head.psize);
       delete p;
+      if (rc != (ssize_t) head.psize)
+        return P_INVALID;
     }
-    if (rc != (ssize_t) head.psize)
-      return P_INVALID;
+
     mpage_prune();
     return pgno;
   }
@@ -2899,32 +2907,39 @@ class cow_btree {
   int compact() {
     std::string compact_path;
     cow_btree *btc;
-    struct cow_btree_txn *txn, *txnc = NULL;
+    struct cow_btree_txn *_txn, *txnc = NULL;
     int fd;
     pgno_t root;
 
-    DPRINTF("compacting btree with path %s", path);
+    if (persist == false) {
+      DPRINTF("compacting btree with path %s", path);
 
-    if (path == NULL) {
-      errno = EINVAL;
-      return BT_FAIL;
+      if (path == NULL) {
+        errno = EINVAL;
+        return BT_FAIL;
+      }
     }
 
-    if ((txn = txn_begin(0)) == NULL)
+    if ((_txn = txn_begin(0)) == NULL)
       return BT_FAIL;
 
-    compact_path = std::string(path) + ".compact.XXXXXX";
-    fd = mkstemp((char*) compact_path.c_str());
-    if (fd == -1) {
-      cow_btree_txn_abort(txn);
-      return BT_FAIL;
-    }
+    if (persist == false) {
+      compact_path = std::string(path) + ".compact.XXXXXX";
+      fd = mkstemp((char*) compact_path.c_str());
+      if (fd == -1) {
+        cow_btree_txn_abort(_txn);
+        return BT_FAIL;
+      }
 
-    btc = new cow_btree(persist, fd);
-    if (persist)
+      btc = new cow_btree(persist, fd);
+      bcopy(&meta, &btc->meta, sizeof(meta));
+      btc->meta.revisions = 0;
+    } else {
+      btc = new cow_btree(persist, fd);
       pmemalloc_activate(btc);
-    bcopy(&meta, &btc->meta, sizeof(meta));
-    btc->meta.revisions = 0;
+      bcopy(&meta, &btc->meta, sizeof(meta));
+      btc->meta.revisions = 0;
+    }
 
     if ((txnc = btc->txn_begin(0)) == NULL)
       goto failed;
@@ -2937,28 +2952,43 @@ class cow_btree {
         goto failed;
     }
 
-    fsync(fd);
+    if (persist == false) {
+      fsync(fd);
 
-    DPRINTF("renaming %s to %s", compact_path.c_str(), path);
-    if (rename(compact_path.c_str(), path) != 0)
-      goto failed;
+      DPRINTF("renaming %s to %s", compact_path.c_str(), path);
+      if (rename(compact_path.c_str(), path) != 0)
+        goto failed;
 
-    /* Write a "tombstone" meta page so other processes can pick up
-     * the change and re-open the file.
-     */
-    if (cow_btree_write_meta(P_INVALID, BT_TOMBSTONE) != BT_SUCCESS)
-      goto failed;
+      /* Write a "tombstone" meta page so other processes can pick up
+       * the change and re-open the file.
+       */
+      if (cow_btree_write_meta(P_INVALID, BT_TOMBSTONE) != BT_SUCCESS)
+        goto failed;
+    } else {
+      DPRINTF("renaming tree");
 
-    cow_btree_txn_abort(txn);
+      // XXX clear this pages
+      pages = btc->pages;
+      meta = btc->meta;
+      page_cache = btc->page_cache;
+      lru_queue = btc->lru_queue;
+    }
+
+    cow_btree_txn_abort(_txn);
     cow_btree_txn_abort(txnc);
-    btc->cow_btree_close();
+
+    if(persist == false)
+      btc->cow_btree_close();
+
     mpage_prune();
     return 0;
 
-    failed: cow_btree_txn_abort(txn);
+    failed: cow_btree_txn_abort(_txn);
     cow_btree_txn_abort(txnc);
-    unlink(compact_path.c_str());
-    btc->cow_btree_close();
+
+    if(persist == false)
+      unlink(compact_path.c_str());
+    //cow_btree_close();
     mpage_prune();
     return BT_FAIL;
   }
