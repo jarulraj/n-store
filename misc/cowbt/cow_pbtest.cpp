@@ -8,10 +8,22 @@
 #include <string.h>
 
 #include "cow_pbtree.h"
+#include "libpm.h"
 
 using namespace std;
 
+extern struct static_info *sp;
+
 int main(int argc, char **argv) {
+
+  const char* path = "./zfile";
+
+  long pmp_size = 10 * 1024 * 1024;
+  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
+    cout << "pmemalloc_init on :" << path << endl;
+
+  sp = (struct static_info *) pmemalloc_static_area();
+
   int c, rc = BT_FAIL;
   unsigned int flags = 0;
   cow_btree *bt;
@@ -27,15 +39,16 @@ int main(int argc, char **argv) {
 
   int i, count = 2;
 
-  key.data = malloc(sizeof(char) * 100);
-  val.data = malloc(sizeof(char) * 100);
+  key.data = new char[100];
+  val.data = new char[100];
 
   struct cow_btree_txn *t = bt->txn_begin(0);
   for (i = 0; i < count; i++) {
     sprintf((char*) key.data, "%d", i);
     sprintf((char*) val.data, "%d-val", i);
-    key.size = strlen((char*) key.data);
-    val.size = strlen((char*) val.data);
+    key.size = strlen((char*) key.data)+1;
+    val.size = strlen((char*) val.data)+1;
+    printf("insert :: key : %s val : %s \n", (char*) key.data, (char*) val.data);
 
     rc = bt->insert(t, &key, &val);
     assert(rc == BT_SUCCESS);
@@ -45,10 +58,10 @@ int main(int argc, char **argv) {
   t = bt->txn_begin(0);
   for (i = 0; i < count; i++) {
     sprintf((char*) key.data, "%d", i);
-    key.size = strlen((char*) key.data);
+    key.size = strlen((char*) key.data)+1;
     rc = bt->at(t, &key, &val);
     assert(rc == BT_SUCCESS);
-    printf("key : %s val : %s \n", (char*) key.data, (char*) val.data);
+    printf("at :: key : %s val : %s \n", (char*) key.data, (char*) val.data);
     rc = bt->remove(t, &key, NULL);
     assert(rc == BT_SUCCESS);
     rc = bt->at(t, &key, &val);
@@ -58,7 +71,9 @@ int main(int argc, char **argv) {
 
   cout << "size :: " << bt->size << endl;
 
-  bt->compact();
+  //bt->compact();
+
+  //delete bt;
 
   /*
    while ((c = getopt(argc, argv, "rf:")) != -1) {
@@ -148,7 +163,6 @@ int main(int argc, char **argv) {
    errx(1, "%s: invalid command", argv[0]);
    */
 
-  //delete bt;
   return rc;
 }
 

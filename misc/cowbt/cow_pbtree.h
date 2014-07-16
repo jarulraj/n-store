@@ -21,8 +21,7 @@
 #include <cstring>
 
 #include "cow_btree_ds.h"
-
-#include <vector>
+#include "plist.h"
 
 using namespace std;
 
@@ -279,7 +278,7 @@ int memnrcmp(const void *s1, size_t n1, const void *s2, size_t n2) {
 
 class cow_btree {
  public:
-  vector<page*> pages;
+  plist<page*>* pages;
   int fd;
   char *path;
 #define BT_FIXPADDING    0x01   /* internal */
@@ -295,6 +294,11 @@ class cow_btree {
   off_t size; /* current file size */
 
   int cow_btree_open_fd(int _fd, unsigned int _flags) {
+
+    pages = new plist<page*>();
+    DPRINTF("pages : %p ", pages);
+    DPRINTF("pages size : %d ", pages->size());
+
     int fl;
 
     fl = fcntl(_fd, F_GETFL, 0);
@@ -594,7 +598,7 @@ class cow_btree {
     DPRINTF("reading page %u", pgno);
     stat.reads++;
     // READ
-    page = pages[pgno];
+    page = pages->at(pgno);
     /*
      if ((rc = pread(fd, page, head.psize, (off_t) pgno * head.psize)) == 0) {
      DPRINTF("page %u doesn't exist", pgno);
@@ -764,7 +768,7 @@ class cow_btree {
         iov[n].iov_base = mp->page;
 
         // WRITE
-        pages.push_back(mp->page);
+        pages->push_back(mp->page);
 
         if (++n >= BT_COMMIT_PAGES) {
           done = 0;
@@ -840,16 +844,16 @@ class cow_btree {
     bcopy(h, &head, sizeof(*h));
 
     // WRITE
-    pages.push_back(p);
+    pages->push_back(p);
     //rc = write(fd, p, head.psize);
     //delete p;
     /*
-    if (rc != (ssize_t) head.psize) {
-      if (rc > 0)
-        DPRINTF("short write, filesystem full?");
-      return BT_FAIL;
-    }
-    */
+     if (rc != (ssize_t) head.psize) {
+     if (rc > 0)
+     DPRINTF("short write, filesystem full?");
+     return BT_FAIL;
+     }
+     */
 
     return BT_SUCCESS;
   }
@@ -875,12 +879,12 @@ class cow_btree {
      }
      */
 
-    if (pages.empty()) {
+    if (pages->empty()) {
       errno = ENOENT;
       return -1;
     }
 
-    p = (struct page *) pages[0];
+    p = (struct page *) pages->at(0);
 
     if (!F_ISSET(p->flags, P_HEAD)) {
       DPRINTF("page %d not a header page", p->pgno);
@@ -929,7 +933,7 @@ class cow_btree {
     bcopy(&meta, _meta, sizeof(*_meta));
 
     // WRITE
-    pages.push_back(mp->page);
+    pages->push_back(mp->page);
 
     //rc = write(fd, mp->page, head.psize);
     mp->dirty = 0;
@@ -990,14 +994,14 @@ class cow_btree {
       goto fail;
     }
 
-    if (pages.size() == 1) {
+    if (pages->size() == 1) {
       //if (_size == head.psize) { /* there is only the header */
       if (p_next != NULL)
         *p_next = 1;
       return BT_SUCCESS; /* new file */
     }
 
-    next_pgno = pages.size();
+    next_pgno = pages->size();
     //next_pgno = _size / head.psize;
     if (next_pgno == 0) {
       DPRINTF("corrupt file");
@@ -2788,7 +2792,7 @@ class cow_btree {
 
     pgno = p->pgno = btc->txn->next_pgno++;
     // WRITE
-    btc->pages.push_back(p);
+    btc->pages->push_back(p);
     //rc = write(btc->fd, p, head.psize);
     delete p;
     if (rc != (ssize_t) head.psize)
