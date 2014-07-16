@@ -20,10 +20,696 @@
 #include <unistd.h>
 #include <cstring>
 
-#include "cow_btree_ds.h"
 #include "plist.h"
 
 using namespace std;
+
+// DS MACROS
+/*
+ * Singly-linked List definitions.
+ */
+#define SLIST_HEAD(name, type)            \
+struct name {               \
+  struct type *slh_first; /* first element */     \
+}
+
+#define SLIST_HEAD_INITIALIZER(head)          \
+  { NULL }
+
+#define SLIST_ENTRY(type)           \
+struct {                \
+  struct type *sle_next;  /* next element */      \
+}
+
+/*
+ * Singly-linked List access methods.
+ */
+#define SLIST_FIRST(head) ((head)->slh_first)
+#define SLIST_END(head)   NULL
+#define SLIST_EMPTY(head) (SLIST_FIRST(head) == SLIST_END(head))
+#define SLIST_NEXT(elm, field)  ((elm)->field.sle_next)
+
+#define SLIST_FOREACH(var, head, field)         \
+  for((var) = SLIST_FIRST(head);          \
+      (var) != SLIST_END(head);         \
+      (var) = SLIST_NEXT(var, field))
+
+#define SLIST_FOREACH_PREVPTR(var, varp, head, field)     \
+  for ((varp) = &SLIST_FIRST((head));       \
+      ((var) = *(varp)) != SLIST_END(head);     \
+      (varp) = &SLIST_NEXT((var), field))
+
+/*
+ * Singly-linked List functions.
+ */
+#define SLIST_INIT(head) {            \
+  SLIST_FIRST(head) = SLIST_END(head);        \
+}
+
+#define SLIST_INSERT_AFTER(slistelm, elm, field) do {     \
+  (elm)->field.sle_next = (slistelm)->field.sle_next;   \
+  (slistelm)->field.sle_next = (elm);       \
+} while (0)
+
+#define SLIST_INSERT_HEAD(head, elm, field) do {      \
+  (elm)->field.sle_next = (head)->slh_first;      \
+  (head)->slh_first = (elm);          \
+} while (0)
+
+#define SLIST_REMOVE_NEXT(head, elm, field) do {      \
+  (elm)->field.sle_next = (elm)->field.sle_next->field.sle_next;  \
+} while (0)
+
+#define SLIST_REMOVE_HEAD(head, field) do {       \
+  (head)->slh_first = (head)->slh_first->field.sle_next;    \
+} while (0)
+
+#define SLIST_REMOVE(head, elm, type, field) do {     \
+  if ((head)->slh_first == (elm)) {       \
+    SLIST_REMOVE_HEAD((head), field);     \
+  } else {              \
+    struct type *curelm = (head)->slh_first;    \
+                  \
+    while (curelm->field.sle_next != (elm))     \
+      curelm = curelm->field.sle_next;    \
+    curelm->field.sle_next =        \
+        curelm->field.sle_next->field.sle_next;   \
+  }               \
+} while (0)
+
+/*
+ * Simple queue definitions.
+ */
+#define SIMPLEQ_HEAD(name, type)          \
+struct name {               \
+  struct type *sqh_first; /* first element */     \
+  struct type **sqh_last; /* addr of last next element */   \
+}
+
+#define SIMPLEQ_HEAD_INITIALIZER(head)          \
+  { NULL, &(head).sqh_first }
+
+#define SIMPLEQ_ENTRY(type)           \
+struct {                \
+  struct type *sqe_next;  /* next element */      \
+}
+
+/*
+ * Simple queue access methods.
+ */
+#define SIMPLEQ_FIRST(head)     ((head)->sqh_first)
+#define SIMPLEQ_END(head)     NULL
+#define SIMPLEQ_EMPTY(head)     (SIMPLEQ_FIRST(head) == SIMPLEQ_END(head))
+#define SIMPLEQ_NEXT(elm, field)    ((elm)->field.sqe_next)
+
+#define SIMPLEQ_FOREACH(var, head, field)       \
+  for((var) = SIMPLEQ_FIRST(head);        \
+      (var) != SIMPLEQ_END(head);         \
+      (var) = SIMPLEQ_NEXT(var, field))
+
+/*
+ * Simple queue functions.
+ */
+#define SIMPLEQ_INIT(head) do {           \
+  (head)->sqh_first = NULL;         \
+  (head)->sqh_last = &(head)->sqh_first;        \
+} while (0)
+
+#define SIMPLEQ_INSERT_HEAD(head, elm, field) do {      \
+  if (((elm)->field.sqe_next = (head)->sqh_first) == NULL)  \
+    (head)->sqh_last = &(elm)->field.sqe_next;    \
+  (head)->sqh_first = (elm);          \
+} while (0)
+
+#define SIMPLEQ_INSERT_TAIL(head, elm, field) do {      \
+  (elm)->field.sqe_next = NULL;         \
+  *(head)->sqh_last = (elm);          \
+  (head)->sqh_last = &(elm)->field.sqe_next;      \
+} while (0)
+
+#define SIMPLEQ_INSERT_AFTER(head, listelm, elm, field) do {    \
+  if (((elm)->field.sqe_next = (listelm)->field.sqe_next) == NULL)\
+    (head)->sqh_last = &(elm)->field.sqe_next;    \
+  (listelm)->field.sqe_next = (elm);        \
+} while (0)
+
+#define SIMPLEQ_REMOVE_HEAD(head, field) do {     \
+  if (((head)->sqh_first = (head)->sqh_first->field.sqe_next) == NULL) \
+    (head)->sqh_last = &(head)->sqh_first;      \
+} while (0)
+
+/*
+ * Tail queue definitions.
+ */
+#define TAILQ_HEAD(name, type)            \
+struct name {               \
+  struct type *tqh_first; /* first element */     \
+  struct type **tqh_last; /* addr of last next element */   \
+}
+
+#define TAILQ_HEAD_INITIALIZER(head)          \
+  { NULL, &(head).tqh_first }
+
+#define TAILQ_ENTRY(type)           \
+struct {                \
+  struct type *tqe_next;  /* next element */      \
+  struct type **tqe_prev; /* address of previous next element */  \
+}
+
+/*
+ * tail queue access methods
+ */
+#define TAILQ_FIRST(head)   ((head)->tqh_first)
+#define TAILQ_END(head)     NULL
+#define TAILQ_NEXT(elm, field)    ((elm)->field.tqe_next)
+#define TAILQ_LAST(head, headname)          \
+  (*(((struct headname *)((head)->tqh_last))->tqh_last))
+/* XXX */
+#define TAILQ_PREV(elm, headname, field)        \
+  (*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
+#define TAILQ_EMPTY(head)           \
+  (TAILQ_FIRST(head) == TAILQ_END(head))
+
+#define TAILQ_FOREACH(var, head, field)         \
+  for((var) = TAILQ_FIRST(head);          \
+      (var) != TAILQ_END(head);         \
+      (var) = TAILQ_NEXT(var, field))
+
+#define TAILQ_FOREACH_REVERSE(var, head, headname, field)   \
+  for((var) = TAILQ_LAST(head, headname);       \
+      (var) != TAILQ_END(head);         \
+      (var) = TAILQ_PREV(var, headname, field))
+
+/*
+ * Tail queue functions.
+ */
+#define TAILQ_INIT(head) do {           \
+  (head)->tqh_first = NULL;         \
+  (head)->tqh_last = &(head)->tqh_first;        \
+} while (0)
+
+#define TAILQ_INSERT_HEAD(head, elm, field) do {      \
+  if (((elm)->field.tqe_next = (head)->tqh_first) != NULL)  \
+    (head)->tqh_first->field.tqe_prev =     \
+        &(elm)->field.tqe_next;       \
+  else                \
+    (head)->tqh_last = &(elm)->field.tqe_next;    \
+  (head)->tqh_first = (elm);          \
+  (elm)->field.tqe_prev = &(head)->tqh_first;     \
+} while (0)
+
+#define TAILQ_INSERT_TAIL(head, elm, field) do {      \
+  (elm)->field.tqe_next = NULL;         \
+  (elm)->field.tqe_prev = (head)->tqh_last;     \
+  *(head)->tqh_last = (elm);          \
+  (head)->tqh_last = &(elm)->field.tqe_next;      \
+} while (0)
+
+#define TAILQ_INSERT_AFTER(head, listelm, elm, field) do {    \
+  if (((elm)->field.tqe_next = (listelm)->field.tqe_next) != NULL)\
+    (elm)->field.tqe_next->field.tqe_prev =     \
+        &(elm)->field.tqe_next;       \
+  else                \
+    (head)->tqh_last = &(elm)->field.tqe_next;    \
+  (listelm)->field.tqe_next = (elm);        \
+  (elm)->field.tqe_prev = &(listelm)->field.tqe_next;   \
+} while (0)
+
+#define TAILQ_INSERT_BEFORE(listelm, elm, field) do {     \
+  (elm)->field.tqe_prev = (listelm)->field.tqe_prev;    \
+  (elm)->field.tqe_next = (listelm);        \
+  *(listelm)->field.tqe_prev = (elm);       \
+  (listelm)->field.tqe_prev = &(elm)->field.tqe_next;   \
+} while (0)
+
+#define TAILQ_REMOVE(head, elm, field) do {       \
+  if (((elm)->field.tqe_next) != NULL)        \
+    (elm)->field.tqe_next->field.tqe_prev =     \
+        (elm)->field.tqe_prev;        \
+  else                \
+    (head)->tqh_last = (elm)->field.tqe_prev;   \
+  *(elm)->field.tqe_prev = (elm)->field.tqe_next;     \
+} while (0)
+
+#define TAILQ_REPLACE(head, elm, elm2, field) do {      \
+  if (((elm2)->field.tqe_next = (elm)->field.tqe_next) != NULL) \
+    (elm2)->field.tqe_next->field.tqe_prev =    \
+        &(elm2)->field.tqe_next;        \
+  else                \
+    (head)->tqh_last = &(elm2)->field.tqe_next;   \
+  (elm2)->field.tqe_prev = (elm)->field.tqe_prev;     \
+  *(elm2)->field.tqe_prev = (elm2);       \
+} while (0)
+
+// TREE
+
+/* Macros that define a red-black tree */
+#define RB_HEAD(name, type)           \
+ struct name {               \
+   struct type *rbh_root; /* root of the tree */     \
+ }
+
+#define RB_INITIALIZER(root)            \
+   { NULL }
+
+#define RB_INIT(root) do {            \
+   (root)->rbh_root = NULL;          \
+ } while (0)
+
+#define RB_BLACK  0
+#define RB_RED    1
+#define RB_ENTRY(type)              \
+ struct {                \
+   struct type *rbe_left;    /* left element */    \
+   struct type *rbe_right;   /* right element */   \
+   struct type *rbe_parent;  /* parent element */    \
+   int rbe_color;      /* node color */    \
+ }
+
+#define RB_LEFT(elm, field)   (elm)->field.rbe_left
+#define RB_RIGHT(elm, field)    (elm)->field.rbe_right
+#define RB_PARENT(elm, field)   (elm)->field.rbe_parent
+#define RB_COLOR(elm, field)    (elm)->field.rbe_color
+#define RB_ROOT(head)     (head)->rbh_root
+#define RB_EMPTY(head)      (RB_ROOT(head) == NULL)
+
+#define RB_SET(elm, parent, field) do {         \
+   RB_PARENT(elm, field) = parent;         \
+   RB_LEFT(elm, field) = RB_RIGHT(elm, field) = NULL;    \
+   RB_COLOR(elm, field) = RB_RED;          \
+ } while (0)
+
+#define RB_SET_BLACKRED(black, red, field) do {       \
+   RB_COLOR(black, field) = RB_BLACK;        \
+   RB_COLOR(red, field) = RB_RED;          \
+ } while (0)
+
+#ifndef RB_AUGMENT
+#define RB_AUGMENT(x) do {} while (0)
+#endif
+
+#define RB_ROTATE_LEFT(head, elm, tmp, field) do {      \
+   (tmp) = RB_RIGHT(elm, field);         \
+   if ((RB_RIGHT(elm, field) = RB_LEFT(tmp, field))) {   \
+     RB_PARENT(RB_LEFT(tmp, field), field) = (elm);    \
+   }               \
+   RB_AUGMENT(elm);            \
+   if ((RB_PARENT(tmp, field) = RB_PARENT(elm, field))) {    \
+     if ((elm) == RB_LEFT(RB_PARENT(elm, field), field)) \
+       RB_LEFT(RB_PARENT(elm, field), field) = (tmp);  \
+     else              \
+       RB_RIGHT(RB_PARENT(elm, field), field) = (tmp); \
+   } else                \
+     (head)->rbh_root = (tmp);       \
+   RB_LEFT(tmp, field) = (elm);          \
+   RB_PARENT(elm, field) = (tmp);          \
+   RB_AUGMENT(tmp);            \
+   if ((RB_PARENT(tmp, field)))          \
+     RB_AUGMENT(RB_PARENT(tmp, field));      \
+ } while (0)
+
+#define RB_ROTATE_RIGHT(head, elm, tmp, field) do {     \
+   (tmp) = RB_LEFT(elm, field);          \
+   if ((RB_LEFT(elm, field) = RB_RIGHT(tmp, field))) {   \
+     RB_PARENT(RB_RIGHT(tmp, field), field) = (elm);   \
+   }               \
+   RB_AUGMENT(elm);            \
+   if ((RB_PARENT(tmp, field) = RB_PARENT(elm, field))) {    \
+     if ((elm) == RB_LEFT(RB_PARENT(elm, field), field)) \
+       RB_LEFT(RB_PARENT(elm, field), field) = (tmp);  \
+     else              \
+       RB_RIGHT(RB_PARENT(elm, field), field) = (tmp); \
+   } else                \
+     (head)->rbh_root = (tmp);       \
+   RB_RIGHT(tmp, field) = (elm);         \
+   RB_PARENT(elm, field) = (tmp);          \
+   RB_AUGMENT(tmp);            \
+   if ((RB_PARENT(tmp, field)))          \
+     RB_AUGMENT(RB_PARENT(tmp, field));      \
+ } while (0)
+
+/* Generates prototypes and inline functions */
+#define RB_PROTOTYPE(name, type, field, cmp)        \
+   RB_PROTOTYPE_INTERNAL(name, type, field, cmp,)
+#define RB_PROTOTYPE_STATIC(name, type, field, cmp)     \
+   RB_PROTOTYPE_INTERNAL(name, type, field, cmp, __attribute__((__unused__)) static)
+#define RB_PROTOTYPE_INTERNAL(name, type, field, cmp, attr)   \
+ attr void name##_RB_INSERT_COLOR(struct name *, struct type *);   \
+ attr void name##_RB_REMOVE_COLOR(struct name *, struct type *, struct type *);\
+ attr struct type *name##_RB_REMOVE(struct name *, struct type *); \
+ attr struct type *name##_RB_INSERT(struct name *, struct type *); \
+ attr struct type *name##_RB_FIND(struct name *, struct type *);   \
+ attr struct type *name##_RB_NFIND(struct name *, struct type *);  \
+ attr struct type *name##_RB_NEXT(struct type *);      \
+ attr struct type *name##_RB_PREV(struct type *);      \
+ attr struct type *name##_RB_MINMAX(struct name *, int);     \
+                   \
+
+/* Main rb operation.
+ * Moves node close to the key of elm to top
+ */
+#define RB_GENERATE(name, type, field, cmp)       \
+   RB_GENERATE_INTERNAL(name, type, field, cmp,)
+#define RB_GENERATE_STATIC(name, type, field, cmp)      \
+   RB_GENERATE_INTERNAL(name, type, field, cmp, __attribute__((__unused__)) static)
+#define RB_GENERATE_INTERNAL(name, type, field, cmp, attr)    \
+ attr void               \
+ name##_RB_INSERT_COLOR(struct name *head, struct type *elm)   \
+ {                 \
+   struct type *parent, *gparent, *tmp;        \
+   while ((parent = RB_PARENT(elm, field)) &&      \
+       RB_COLOR(parent, field) == RB_RED) {      \
+     gparent = RB_PARENT(parent, field);     \
+     if (parent == RB_LEFT(gparent, field)) {    \
+       tmp = RB_RIGHT(gparent, field);     \
+       if (tmp && RB_COLOR(tmp, field) == RB_RED) {  \
+         RB_COLOR(tmp, field) = RB_BLACK;  \
+         RB_SET_BLACKRED(parent, gparent, field);\
+         elm = gparent;        \
+         continue;       \
+       }           \
+       if (RB_RIGHT(parent, field) == elm) {   \
+         RB_ROTATE_LEFT(head, parent, tmp, field);\
+         tmp = parent;       \
+         parent = elm;       \
+         elm = tmp;        \
+       }           \
+       RB_SET_BLACKRED(parent, gparent, field);  \
+       RB_ROTATE_RIGHT(head, gparent, tmp, field); \
+     } else {            \
+       tmp = RB_LEFT(gparent, field);      \
+       if (tmp && RB_COLOR(tmp, field) == RB_RED) {  \
+         RB_COLOR(tmp, field) = RB_BLACK;  \
+         RB_SET_BLACKRED(parent, gparent, field);\
+         elm = gparent;        \
+         continue;       \
+       }           \
+       if (RB_LEFT(parent, field) == elm) {    \
+         RB_ROTATE_RIGHT(head, parent, tmp, field);\
+         tmp = parent;       \
+         parent = elm;       \
+         elm = tmp;        \
+       }           \
+       RB_SET_BLACKRED(parent, gparent, field);  \
+       RB_ROTATE_LEFT(head, gparent, tmp, field);  \
+     }             \
+   }               \
+   RB_COLOR(head->rbh_root, field) = RB_BLACK;     \
+ }                 \
+                   \
+ attr void               \
+ name##_RB_REMOVE_COLOR(struct name *head, struct type *parent, struct type *elm) \
+ {                 \
+   struct type *tmp;           \
+   while ((elm == NULL || RB_COLOR(elm, field) == RB_BLACK) && \
+       elm != RB_ROOT(head)) {         \
+     if (RB_LEFT(parent, field) == elm) {      \
+       tmp = RB_RIGHT(parent, field);      \
+       if (RB_COLOR(tmp, field) == RB_RED) {   \
+         RB_SET_BLACKRED(tmp, parent, field);  \
+         RB_ROTATE_LEFT(head, parent, tmp, field);\
+         tmp = RB_RIGHT(parent, field);    \
+       }           \
+       if ((RB_LEFT(tmp, field) == NULL ||   \
+           RB_COLOR(RB_LEFT(tmp, field), field) == RB_BLACK) &&\
+           (RB_RIGHT(tmp, field) == NULL ||    \
+           RB_COLOR(RB_RIGHT(tmp, field), field) == RB_BLACK)) {\
+         RB_COLOR(tmp, field) = RB_RED;    \
+         elm = parent;       \
+         parent = RB_PARENT(elm, field);   \
+       } else {          \
+         if (RB_RIGHT(tmp, field) == NULL || \
+             RB_COLOR(RB_RIGHT(tmp, field), field) == RB_BLACK) {\
+           struct type *oleft;   \
+           if ((oleft = RB_LEFT(tmp, field)))\
+             RB_COLOR(oleft, field) = RB_BLACK;\
+           RB_COLOR(tmp, field) = RB_RED;  \
+           RB_ROTATE_RIGHT(head, tmp, oleft, field);\
+           tmp = RB_RIGHT(parent, field);  \
+         }         \
+         RB_COLOR(tmp, field) = RB_COLOR(parent, field);\
+         RB_COLOR(parent, field) = RB_BLACK; \
+         if (RB_RIGHT(tmp, field))   \
+           RB_COLOR(RB_RIGHT(tmp, field), field) = RB_BLACK;\
+         RB_ROTATE_LEFT(head, parent, tmp, field);\
+         elm = RB_ROOT(head);      \
+         break;          \
+       }           \
+     } else {            \
+       tmp = RB_LEFT(parent, field);     \
+       if (RB_COLOR(tmp, field) == RB_RED) {   \
+         RB_SET_BLACKRED(tmp, parent, field);  \
+         RB_ROTATE_RIGHT(head, parent, tmp, field);\
+         tmp = RB_LEFT(parent, field);   \
+       }           \
+       if ((RB_LEFT(tmp, field) == NULL ||   \
+           RB_COLOR(RB_LEFT(tmp, field), field) == RB_BLACK) &&\
+           (RB_RIGHT(tmp, field) == NULL ||    \
+           RB_COLOR(RB_RIGHT(tmp, field), field) == RB_BLACK)) {\
+         RB_COLOR(tmp, field) = RB_RED;    \
+         elm = parent;       \
+         parent = RB_PARENT(elm, field);   \
+       } else {          \
+         if (RB_LEFT(tmp, field) == NULL ||  \
+             RB_COLOR(RB_LEFT(tmp, field), field) == RB_BLACK) {\
+           struct type *oright;    \
+           if ((oright = RB_RIGHT(tmp, field)))\
+             RB_COLOR(oright, field) = RB_BLACK;\
+           RB_COLOR(tmp, field) = RB_RED;  \
+           RB_ROTATE_LEFT(head, tmp, oright, field);\
+           tmp = RB_LEFT(parent, field); \
+         }         \
+         RB_COLOR(tmp, field) = RB_COLOR(parent, field);\
+         RB_COLOR(parent, field) = RB_BLACK; \
+         if (RB_LEFT(tmp, field))    \
+           RB_COLOR(RB_LEFT(tmp, field), field) = RB_BLACK;\
+         RB_ROTATE_RIGHT(head, parent, tmp, field);\
+         elm = RB_ROOT(head);      \
+         break;          \
+       }           \
+     }             \
+   }               \
+   if (elm)              \
+     RB_COLOR(elm, field) = RB_BLACK;      \
+ }                 \
+                   \
+ attr struct type *              \
+ name##_RB_REMOVE(struct name *head, struct type *elm)     \
+ {                 \
+   struct type *child, *parent, *old = elm;      \
+   int color;              \
+   if (RB_LEFT(elm, field) == NULL)        \
+     child = RB_RIGHT(elm, field);       \
+   else if (RB_RIGHT(elm, field) == NULL)        \
+     child = RB_LEFT(elm, field);        \
+   else {                \
+     struct type *left;          \
+     elm = RB_RIGHT(elm, field);       \
+     while ((left = RB_LEFT(elm, field)))      \
+       elm = left;         \
+     child = RB_RIGHT(elm, field);       \
+     parent = RB_PARENT(elm, field);       \
+     color = RB_COLOR(elm, field);       \
+     if (child)            \
+       RB_PARENT(child, field) = parent;   \
+     if (parent) {           \
+       if (RB_LEFT(parent, field) == elm)    \
+         RB_LEFT(parent, field) = child;   \
+       else            \
+         RB_RIGHT(parent, field) = child;  \
+       RB_AUGMENT(parent);       \
+     } else              \
+       RB_ROOT(head) = child;        \
+     if (RB_PARENT(elm, field) == old)     \
+       parent = elm;         \
+     (elm)->field = (old)->field;        \
+     if (RB_PARENT(old, field)) {        \
+       if (RB_LEFT(RB_PARENT(old, field), field) == old)\
+         RB_LEFT(RB_PARENT(old, field), field) = elm;\
+       else            \
+         RB_RIGHT(RB_PARENT(old, field), field) = elm;\
+       RB_AUGMENT(RB_PARENT(old, field));    \
+     } else              \
+       RB_ROOT(head) = elm;        \
+     RB_PARENT(RB_LEFT(old, field), field) = elm;    \
+     if (RB_RIGHT(old, field))       \
+       RB_PARENT(RB_RIGHT(old, field), field) = elm; \
+     if (parent) {           \
+       left = parent;          \
+       do {            \
+         RB_AUGMENT(left);     \
+       } while ((left = RB_PARENT(left, field)));  \
+     }             \
+     goto color;           \
+   }               \
+   parent = RB_PARENT(elm, field);         \
+   color = RB_COLOR(elm, field);         \
+   if (child)              \
+     RB_PARENT(child, field) = parent;     \
+   if (parent) {             \
+     if (RB_LEFT(parent, field) == elm)      \
+       RB_LEFT(parent, field) = child;     \
+     else              \
+       RB_RIGHT(parent, field) = child;    \
+     RB_AUGMENT(parent);         \
+   } else                \
+     RB_ROOT(head) = child;          \
+ color:                  \
+   if (color == RB_BLACK)            \
+     name##_RB_REMOVE_COLOR(head, parent, child);    \
+   return (old);             \
+ }                 \
+                   \
+ /* Inserts a node into the RB tree */         \
+ attr struct type *              \
+ name##_RB_INSERT(struct name *head, struct type *elm)     \
+ {                 \
+   struct type *tmp;           \
+   struct type *parent = NULL;         \
+   int comp = 0;             \
+   tmp = RB_ROOT(head);            \
+   while (tmp) {             \
+     parent = tmp;           \
+     comp = (cmp)(elm, parent);        \
+     if (comp < 0)           \
+       tmp = RB_LEFT(tmp, field);      \
+     else if (comp > 0)          \
+       tmp = RB_RIGHT(tmp, field);     \
+     else              \
+       return (tmp);         \
+   }               \
+   RB_SET(elm, parent, field);         \
+   if (parent != NULL) {           \
+     if (comp < 0)           \
+       RB_LEFT(parent, field) = elm;     \
+     else              \
+       RB_RIGHT(parent, field) = elm;      \
+     RB_AUGMENT(parent);         \
+   } else                \
+     RB_ROOT(head) = elm;          \
+   name##_RB_INSERT_COLOR(head, elm);        \
+   return (NULL);              \
+ }                 \
+                   \
+ /* Finds the node with the same key as elm */       \
+ attr struct type *              \
+ name##_RB_FIND(struct name *head, struct type *elm)     \
+ {                 \
+   struct type *tmp = RB_ROOT(head);       \
+   int comp;             \
+   while (tmp) {             \
+     comp = cmp(elm, tmp);         \
+     if (comp < 0)           \
+       tmp = RB_LEFT(tmp, field);      \
+     else if (comp > 0)          \
+       tmp = RB_RIGHT(tmp, field);     \
+     else              \
+       return (tmp);         \
+   }               \
+   return (NULL);              \
+ }                 \
+                   \
+ /* Finds the first node greater than or equal to the search key */  \
+ attr struct type *              \
+ name##_RB_NFIND(struct name *head, struct type *elm)      \
+ {                 \
+   struct type *tmp = RB_ROOT(head);       \
+   struct type *res = NULL;          \
+   int comp;             \
+   while (tmp) {             \
+     comp = cmp(elm, tmp);         \
+     if (comp < 0) {           \
+       res = tmp;          \
+       tmp = RB_LEFT(tmp, field);      \
+     }             \
+     else if (comp > 0)          \
+       tmp = RB_RIGHT(tmp, field);     \
+     else              \
+       return (tmp);         \
+   }               \
+   return (res);             \
+ }                 \
+                   \
+ /* ARGSUSED */                \
+ attr struct type *              \
+ name##_RB_NEXT(struct type *elm)          \
+ {                 \
+   if (RB_RIGHT(elm, field)) {         \
+     elm = RB_RIGHT(elm, field);       \
+     while (RB_LEFT(elm, field))       \
+       elm = RB_LEFT(elm, field);      \
+   } else {              \
+     if (RB_PARENT(elm, field) &&        \
+         (elm == RB_LEFT(RB_PARENT(elm, field), field))) \
+       elm = RB_PARENT(elm, field);      \
+     else {              \
+       while (RB_PARENT(elm, field) &&     \
+           (elm == RB_RIGHT(RB_PARENT(elm, field), field)))\
+         elm = RB_PARENT(elm, field);    \
+       elm = RB_PARENT(elm, field);      \
+     }             \
+   }               \
+   return (elm);             \
+ }                 \
+                   \
+ /* ARGSUSED */                \
+ attr struct type *              \
+ name##_RB_PREV(struct type *elm)          \
+ {                 \
+   if (RB_LEFT(elm, field)) {          \
+     elm = RB_LEFT(elm, field);        \
+     while (RB_RIGHT(elm, field))        \
+       elm = RB_RIGHT(elm, field);     \
+   } else {              \
+     if (RB_PARENT(elm, field) &&        \
+         (elm == RB_RIGHT(RB_PARENT(elm, field), field)))  \
+       elm = RB_PARENT(elm, field);      \
+     else {              \
+       while (RB_PARENT(elm, field) &&     \
+           (elm == RB_LEFT(RB_PARENT(elm, field), field)))\
+         elm = RB_PARENT(elm, field);    \
+       elm = RB_PARENT(elm, field);      \
+     }             \
+   }               \
+   return (elm);             \
+ }                 \
+                   \
+ attr struct type *              \
+ name##_RB_MINMAX(struct name *head, int val)        \
+ {                 \
+   struct type *tmp = RB_ROOT(head);       \
+   struct type *parent = NULL;         \
+   while (tmp) {             \
+     parent = tmp;           \
+     if (val < 0)            \
+       tmp = RB_LEFT(tmp, field);      \
+     else              \
+       tmp = RB_RIGHT(tmp, field);     \
+   }               \
+   return (parent);            \
+ }
+
+#define RB_NEGINF -1
+#define RB_INF  1
+
+#define RB_INSERT(name, x, y) name##_RB_INSERT(x, y)
+#define RB_REMOVE(name, x, y) name##_RB_REMOVE(x, y)
+#define RB_FIND(name, x, y) name##_RB_FIND(x, y)
+#define RB_NFIND(name, x, y)  name##_RB_NFIND(x, y)
+#define RB_NEXT(name, x, y) name##_RB_NEXT(y)
+#define RB_PREV(name, x, y) name##_RB_PREV(y)
+#define RB_MIN(name, x)   name##_RB_MINMAX(x, RB_NEGINF)
+#define RB_MAX(name, x)   name##_RB_MINMAX(x, RB_INF)
+
+#define RB_FOREACH(x, name, head)         \
+   for ((x) = RB_MIN(name, head);          \
+        (x) != NULL;           \
+        (x) = name##_RB_NEXT(x))
+
+#define RB_FOREACH_REVERSE(x, name, head)       \
+   for ((x) = RB_MAX(name, head);          \
+        (x) != NULL;           \
+        (x) = name##_RB_PREV(x))
 
 // BTREE
 
@@ -75,9 +761,10 @@ struct cow_btree_stat {
   time_t created_at;
 };
 
-# define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
+//# define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
 fprintf(stderr, __VA_ARGS__); \
 fprintf(stderr, "\n"); } while(0)
+# define DPRINTF(...)
 
 #define PAGESIZE   4096
 #define BT_MINKEYS   4
@@ -333,8 +1020,7 @@ class cow_btree {
 
     if (cow_btree_read_header() != 0) {
       if (errno != ENOENT)
-        goto fail;
-      DPRINTF("new database");
+        goto fail; DPRINTF("new database");
       cow_btree_write_header();
     }
 
@@ -447,7 +1133,7 @@ class cow_btree {
       return;
 
     DPRINTF("removing %zu bytes of prefix from key [%.*s]", pfxlen,
-            (int )key->size, (char * )key->data);
+        (int )key->size, (char * )key->data);
     assert(pfxlen <= key->size);
     key->size -= pfxlen;
     if (!F_ISSET(flags, BT_REVERSEKEY))
@@ -932,7 +1618,7 @@ class cow_btree {
 
     if (h->version != BT_VERSION) {
       DPRINTF("database is version %u, expected version %u", head.version,
-              BT_VERSION);
+          BT_VERSION);
       errno = EINVAL;
       return -1;
     }
@@ -1143,8 +1829,8 @@ class cow_btree {
     struct cow_btval nodekey;
 
     DPRINTF("searching %lu keys in %s page %u with prefix [%.*s]", NUMKEYS(mp),
-            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )mp->prefix.len,
-            (char * )mp->prefix.str);
+        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )mp->prefix.len,
+        (char * )mp->prefix.str);
 
     assert(NUMKEYS(mp) > 0);
 
@@ -1166,11 +1852,11 @@ class cow_btree {
 
       if (IS_LEAF(mp))
         DPRINTF("found leaf index %u [%.*s], rc = %i", i, (int )nodekey.size,
-                (char * )nodekey.data, rc);
+            (char * )nodekey.data, rc);
       else
         DPRINTF("found branch index %u [%.*s -> %u], rc = %i", i,
-                (int )cow_node->ksize, (char *)NODEKEY(cow_node),
-                cow_node->n_pgno, rc);
+            (int )cow_node->ksize, (char *)NODEKEY(cow_node),
+            cow_node->n_pgno, rc);
 
       if (rc == 0)
         break;
@@ -1298,7 +1984,7 @@ class cow_btree {
       bcopy(&mp->parent->prefix, &mp->prefix, sizeof(mp->prefix));
 
     DPRINTF("found common prefix [%.*s] (len %zu) for page %u",
-            (int )mp->prefix.len, mp->prefix.str, mp->prefix.len, mp->pgno);
+        (int )mp->prefix.len, mp->prefix.str, mp->prefix.len, mp->pgno);
   }
 
   int cow_btree_search_page_root(struct mpage *root, struct cow_btval *key,
@@ -1315,8 +2001,7 @@ class cow_btree {
       struct cow_node *cow_node;
 
       DPRINTF("branch page %u has %lu keys", mp->pgno, NUMKEYS(mp));
-      assert(NUMKEYS(mp) > 1);
-      DPRINTF("found index 0 to page %u", NODEPGNO(NODEPTR(mp, 0)));
+      assert(NUMKEYS(mp) > 1);DPRINTF("found index 0 to page %u", NODEPGNO(NODEPTR(mp, 0)));
 
       if (key == NULL) /* Initialize cursor to first page. */
         i = 0;
@@ -1333,7 +2018,7 @@ class cow_btree {
 
       if (key)
         DPRINTF("following index %u for key %.*s", i, (int )key->size,
-                (char * )key->data);
+            (char * )key->data);
       assert(i >= 0 && i < NUMKEYS(mp));
       cow_node = NODEPTR(mp, i);
 
@@ -1360,7 +2045,7 @@ class cow_btree {
     }
 
     DPRINTF("found leaf page %u for key %.*s", mp->pgno,
-            key ? (int )key->size : 0, key ? (char *)key->data : NULL);
+        key ? (int )key->size : 0, key ? (char *)key->data : NULL);
 
     *mpp = mp;
     return BT_SUCCESS;
@@ -1494,8 +2179,7 @@ class cow_btree {
     struct mpage *mp;
 
     assert(key);
-    assert(data);
-    DPRINTF("===> get key [%.*s]", (int )key->size, (char * )key->data);
+    assert(data);DPRINTF("===> get key [%.*s]", (int )key->size, (char * )key->data);
 
     if (key->size == 0 || key->size > MAXKEYSIZE) {
       errno = EINVAL;
@@ -1530,13 +2214,13 @@ class cow_btree {
     }
 
     DPRINTF("parent page is page %u, index %u", parent->mpage->pgno,
-            parent->ki);
+        parent->ki);
 
     cursor_pop_page(cursor);
     if (move_right ?
         (parent->ki + 1 >= NUMKEYS(parent->mpage)) : (parent->ki == 0)) {
       DPRINTF("no more keys left, moving to %s sibling",
-              move_right ? "right" : "left");
+          move_right ? "right" : "left");
       if ((rc = cow_btree_sibling(cursor, move_right)) != BT_SUCCESS)
         return rc;
       parent = CURSOR_TOP(cursor);
@@ -1546,7 +2230,7 @@ class cow_btree {
       else
         parent->ki--;
       DPRINTF("just moving to %s index key %u", move_right ? "right" : "left",
-              parent->ki);
+          parent->ki);
     }
     assert(IS_BRANCH(parent->mpage));
 
@@ -1619,7 +2303,7 @@ class cow_btree {
       top->ki++;
 
     DPRINTF("==> cursor points to page %u with %lu keys, key index %u",
-            mp->pgno, NUMKEYS(mp), top->ki);
+        mp->pgno, NUMKEYS(mp), top->ki);
 
     assert(IS_LEAF(mp));
     leaf = NODEPTR(mp, top->ki);
@@ -1675,9 +2359,8 @@ class cow_btree {
       return BT_FAIL;
 
     if (bt_set_key(mp, leaf, key) != 0)
-      return BT_FAIL;
-    DPRINTF("==> cursor placed on key %.*s", (int )key->size,
-            (char * )key->data);
+      return BT_FAIL;DPRINTF("==> cursor placed on key %.*s", (int )key->size,
+        (char * )key->data);
 
     return BT_SUCCESS;
   }
@@ -1754,7 +2437,7 @@ class cow_btree {
     assert(txn != NULL);
 
     DPRINTF("allocating new mpage %u, page size %u", txn->next_pgno,
-            head.psize);
+        head.psize);
     if ((mp = new mpage()) == NULL)
       return NULL;
     if ((mp->page = (page*) new char[head.psize]) == NULL) {
@@ -1856,9 +2539,9 @@ class cow_btree {
     assert(p->upper >= p->lower);
 
     DPRINTF("add cow_node [%.*s] to %s page %u at index %i, key size %zu",
-            key ? (int )key->size : 0, key ? (char *)key->data : NULL,
-            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, indx,
-            key ? key->size : 0);
+        key ? (int )key->size : 0, key ? (char *)key->data : NULL,
+        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, indx,
+        key ? key->size : 0);
 
     if (key != NULL)
       node_size += key->size;
@@ -1874,18 +2557,15 @@ class cow_btree {
         DPRINTF("data size is %zu, put on overflow page", data->size);
         node_size -= data->size - sizeof(pgno_t);
         if ((ofp = cow_btree_new_page(P_OVERFLOW)) == NULL)
-          return BT_FAIL;
-        DPRINTF("allocated overflow page %u", ofp->pgno);
+          return BT_FAIL;DPRINTF("allocated overflow page %u", ofp->pgno);
         flags |= F_BIGDATA;
       }
     }
 
     if (node_size + sizeof(indx_t) > SIZELEFT(mp)) {
       DPRINTF("not enough room in page %u, got %lu ptrs", mp->pgno,
-              NUMKEYS(mp));
-      DPRINTF("upper - lower = %u - %u = %u", p->upper, p->lower,
-              p->upper - p->lower);
-      DPRINTF("cow_node size = %zu", node_size);
+          NUMKEYS(mp));DPRINTF("upper - lower = %u - %u = %u", p->upper, p->lower,
+          p->upper - p->lower);DPRINTF("cow_node size = %zu", node_size);
       return BT_FAIL;
     }
 
@@ -1936,7 +2616,7 @@ class cow_btree {
     char *base;
 
     DPRINTF("delete cow_node %u on %s page %u", indx,
-            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno);
+        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno);
     assert(indx < NUMKEYS(mp));
 
     cow_node = NODEPTR(mp, indx);
@@ -2001,8 +2681,8 @@ class cow_btree {
     cow_node = NODEPTR(mp, indx);
     ptr = mp->page->ptrs[indx];
     DPRINTF("update key %u (ofs %u) [%.*s] to [%.*s] on page %u", indx, ptr,
-            (int )cow_node->ksize, (char *)NODEKEY(cow_node), (int )key->size,
-            (char * )key->data, mp->pgno);
+        (int )cow_node->ksize, (char *)NODEKEY(cow_node), (int )key->size,
+        (char * )key->data, mp->pgno);
 
     if (key->size != cow_node->ksize) {
       delta = key->size - cow_node->ksize;
@@ -2038,7 +2718,7 @@ class cow_btree {
     struct cow_btval key;
 
     DPRINTF("adjusting prefix lengths on page %u with delta %d", src->pgno,
-            delta);
+        delta);
     assert(delta != 0);
 
     for (i = 0; i < NUMKEYS(src); i++) {
@@ -2083,8 +2763,8 @@ class cow_btree {
 
     srcnode = NODEPTR(src, srcindx);
     DPRINTF("moving %s cow_node %u [%.*s] on page %u to cow_node %u on page %u",
-            IS_LEAF(src) ? "leaf" : "branch", srcindx, (int )srcnode->ksize,
-            (char *)NODEKEY(srcnode), src->pgno, dstindx, dst->pgno);
+        IS_LEAF(src) ? "leaf" : "branch", srcindx, (int )srcnode->ksize,
+        (char *)NODEKEY(srcnode), src->pgno, dstindx, dst->pgno);
 
     find_common_prefix(src);
 
@@ -2128,7 +2808,7 @@ class cow_btree {
           cow_btree_search_page_root(src, NULL, NULL, 0, &low) == BT_SUCCESS);
       expand_prefix(low, 0, &srckey);
       DPRINTF("found lowest key [%.*s] on leaf page %u", (int )srckey.len,
-              srckey.str, low->pgno);
+          srckey.str, low->pgno);
     } else {
       srckey.len = srcnode->ksize;
       bcopy(NODEKEY(srcnode), srckey.str, srcnode->ksize);
@@ -2166,7 +2846,7 @@ class cow_btree {
       remove_prefix(&key, src->parent->prefix.len);
 
       DPRINTF("update separator for source page %u to [%.*s]", src->pgno,
-              (int )key.size, (char * )key.data);
+          (int )key.size, (char * )key.data);
       if (cow_btree_update_key(src->parent, src->parent_index,
                                &key) != BT_SUCCESS)
         return BT_FAIL;
@@ -2185,7 +2865,7 @@ class cow_btree {
       remove_prefix(&key, dst->parent->prefix.len);
 
       DPRINTF("update separator for destination page %u to [%.*s]", dst->pgno,
-              (int )key.size, (char * )key.data);
+          (int )key.size, (char * )key.data);
       if (cow_btree_update_key(dst->parent, dst->parent_index,
                                &key) != BT_SUCCESS)
         return BT_FAIL;
@@ -2280,7 +2960,7 @@ class cow_btree {
             cow_btree_search_page_root(src, NULL, NULL, 0, &low) == BT_SUCCESS);
         expand_prefix(low, 0, &tmpkey);
         DPRINTF("found lowest key [%.*s] on leaf page %u", (int )tmpkey.len,
-                tmpkey.str, low->pgno);
+            tmpkey.str, low->pgno);
       } else {
         expand_prefix(src, i, &tmpkey);
       }
@@ -2298,7 +2978,7 @@ class cow_btree {
     }
 
     DPRINTF("dst page %u now has %lu keys (%.1f%% filled)", dst->pgno,
-            NUMKEYS(dst), (float)PAGEFILL(dst) / 10);
+        NUMKEYS(dst), (float)PAGEFILL(dst) / 10);
 
     /* Unlink the src page from parent.
      */
@@ -2334,8 +3014,8 @@ class cow_btree {
     assert(mp != NULL);
 
     DPRINTF("rebalancing %s page %u (has %lu keys, %.1f%% full)",
-            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, NUMKEYS(mp),
-            (float)PAGEFILL(mp) / 10);
+        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, NUMKEYS(mp),
+        (float)PAGEFILL(mp) / 10);
 
     if (PAGEFILL(mp) >= FILL_THRESHOLD) {
       DPRINTF("no need to rebalance page %u, above fill threshold", mp->pgno);
@@ -2399,7 +3079,7 @@ class cow_btree {
     neighbor->parent = parent;
 
     DPRINTF("found neighbor page %u (%lu keys, %.1f%% full)", neighbor->pgno,
-            NUMKEYS(neighbor), (float)PAGEFILL(neighbor) / 10);
+        NUMKEYS(neighbor), (float)PAGEFILL(neighbor) / 10);
 
     /* If the neighbor page is above threshold and has at least two
      * keys, move one key from it.
@@ -2522,7 +3202,7 @@ class cow_btree {
     }
 
     DPRINTF("reduced separator to [%.*s] > [%.*s]", (int )sep->size,
-            (char * )sep->data, (int )min->ksize, (char *)NODEKEY(min));
+        (char * )sep->data, (int )min->ksize, (char *)NODEKEY(min));
   }
 
   /* Split page <*mpp>, and insert <key,(data|newpgno)> in either left or
@@ -2551,10 +3231,9 @@ class cow_btree {
     newindx = *newindxp;
 
     DPRINTF("-----> splitting %s page %u and adding [%.*s] at index %i",
-            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )newkey->size,
-            (char * )newkey->data, *newindxp);
-    DPRINTF("page %u has prefix [%.*s]", mp->pgno, (int )mp->prefix.len,
-            (char * )mp->prefix.str);
+        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )newkey->size,
+        (char * )newkey->data, *newindxp);DPRINTF("page %u has prefix [%.*s]", mp->pgno, (int )mp->prefix.len,
+        (char * )mp->prefix.str);
     orig_pfx_len = mp->prefix.len;
 
     if (mp->parent == NULL) {
@@ -2742,7 +3421,7 @@ class cow_btree {
     }
 
     DPRINTF("==> put key %.*s, size %zu, data size %zu", (int )key->size,
-            (char * )key->data, key->size, data->size);
+        (char * )key->data, key->size, data->size);
 
     if (txn == NULL) {
       close_txn = 1;
@@ -2779,9 +3458,8 @@ class cow_btree {
     } else
       goto done;
 
-    assert(IS_LEAF(mp));
-    DPRINTF("there are %lu keys, should insert new key at index %i",
-            NUMKEYS(mp), ki);
+    assert(IS_LEAF(mp));DPRINTF("there are %lu keys, should insert new key at index %i",
+        NUMKEYS(mp), ki);
 
     /* Copy the key pointer as it is modified by the prefix code. The
      * caller might have allocated the data.
@@ -2869,13 +3547,12 @@ class cow_btree {
 
     pgno = p->pgno = btc->txn->next_pgno++;
     // WRITE
-    if (persist){
+    if (persist) {
       btc->pages->push_back(p);
       //delete p;
 
       DPRINTF("btc pages :: %d", btc->pages->size());
-    }
-    else {
+    } else {
       rc = write(btc->fd, p, head.psize);
       delete p;
       if (rc != (ssize_t) head.psize)
@@ -2977,7 +3654,7 @@ class cow_btree {
     cow_btree_txn_abort(_txn);
     cow_btree_txn_abort(txnc);
 
-    if(persist == false)
+    if (persist == false)
       btc->cow_btree_close();
 
     mpage_prune();
@@ -2986,7 +3663,7 @@ class cow_btree {
     failed: cow_btree_txn_abort(_txn);
     cow_btree_txn_abort(txnc);
 
-    if(persist == false)
+    if (persist == false)
       unlink(compact_path.c_str());
     //cow_btree_close();
     mpage_prune();
@@ -3001,7 +3678,7 @@ class cow_btree {
 
     if (persist) {
       DPRINTF("truncating file at page %u to page %u", meta.root,
-              meta.prev_meta);
+          meta.prev_meta);
       meta.root = meta.prev_meta;
     } else {
       int rc = ftruncate(fd, head.psize * meta.root);
@@ -3043,20 +3720,20 @@ class cow_pbtree {
     // Persist mode
     if (_persist) {
       t_ptr = (cow_btree*) (*_ptr);
-      cout << "check tree :: " << t_ptr << endl;
+      DPRINTF("check tree ::  %p ",t_ptr);
 
       if (t_ptr == NULL) {
         t_ptr = new cow_btree(_persist, (char*) NULL);
         pmemalloc_activate(t_ptr);
 
         (*_ptr) = t_ptr;
-        cout << "persistent :: init mode :: " << t_ptr << endl;
+        DPRINTF("persistent :: init mode :: %p", t_ptr);
       }
     }
     // File mode
     else {
       t_ptr = new cow_btree(_persist, path);
-      cout << "file :: init mode :: " << t_ptr << endl;
+      DPRINTF("file :: init mode :: %p", t_ptr );
     }
 
   }
