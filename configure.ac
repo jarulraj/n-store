@@ -9,6 +9,12 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([1.0 foreign])
 
 AC_PROG_CC
+
+if test -z $CXXFLAGS; then
+    CXXFLAGS='-ggdb -O1'
+fi
+
+
 AC_PROG_CXX
 AC_PROG_LIBTOOL
 

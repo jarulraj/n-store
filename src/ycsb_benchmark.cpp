@@ -54,10 +54,17 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db->log = log;
     pmemalloc_activate(log);
 
-    cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
-    db->dirs = dirs;
-    // No activation
-    //pmemalloc_activate(dirs);
+    if(conf.sp_enable == true){
+      cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
+      db->dirs = dirs;
+      // No activation
+    }
+
+    if(conf.cow_enable == true){
+      cow_pbtree* dirs = new cow_pbtree(true, NULL, &conf.sp->ptrs[conf.sp->itr++]);
+      db->dirs = dirs;
+      pmemalloc_activate(dirs);
+    }
 
     // USERTABLE
     size_t offset = 0, len = 0;
@@ -118,8 +125,10 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
 
-    cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
-    db->dirs = dirs;
+    if(conf.sp_enable == true){
+      cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
+      db->dirs = dirs;
+    }
 
     // Clear all indices
     if (conf.aries_enable == 1) {

@@ -47,9 +47,10 @@ class config {
   double skew;
 
   bool verbose;
-  bool log_enable;
+  bool wal_enable;
   bool aries_enable;
   bool sp_enable;
+  bool cow_enable;
   bool lsm_enable;
 };
 

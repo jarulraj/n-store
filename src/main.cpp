@@ -6,6 +6,7 @@
 #include "wal_engine.h"
 #include "aries_engine.h"
 #include "sp_engine.h"
+#include "cow_engine.h"
 
 #include "ycsb_benchmark.h"
 #include "utils.h"
@@ -22,11 +23,13 @@ static void usage_exit(FILE *out) {
           "   -x --num-txns        :  Number of transactions \n"
           "   -k --num-keys        :  Number of keys \n"
           "   -e --num-executors   :  Number of executors \n"
-          "   -w --per-writes      :  Percent of writes \n"
+          "   -p --per-writes      :  Percent of writes \n"
           "   -f --fs-path         :  Path for FS \n"
           "   -g --gc-interval     :  Group commit interval \n"
-          "   -l --log-enable      :  WAL enable \n"
-          "   -s --sp-enable       :  SP enable \n"
+          "   -w --wal-enable      :  WAL enable \n"
+          "   -a --aries-enable    :  ARIES enable \n"
+          "   -s --sp-enable       :  SP enable (traditional) \n"
+          "   -c --cow-enable      :  COW enable \n"
           "   -m --lsm-enable      :  LSM enable \n"
           "   -q --skew            :  Skew \n"
           "   -h --help            :  Print help message \n");
@@ -62,15 +65,16 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.sp_enable = false;
   state.aries_enable = false;
-  state.log_enable = false;
+  state.wal_enable = false;
   state.lsm_enable = false;
+  state.cow_enable = false;
 
   state.skew = 1;
 
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:w:g:q:vlsmah", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmh", opts, &idx);
 
     if (c == -1)
       break;
@@ -96,7 +100,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         state.verbose = true;
         level = 3;
         break;
-      case 'w':
+      case 'p':
         state.per_writes = atof(optarg);
         cout << "per_writes: " << state.per_writes << endl;
         break;
@@ -104,13 +108,17 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         state.gc_interval = atoi(optarg);
         cout << "gc_interval: " << state.gc_interval << endl;
         break;
-      case 'l':
-        state.log_enable = true;
-        cout << "log_enable: " << state.log_enable << endl;
+      case 'w':
+        state.wal_enable = true;
+        cout << "log_enable: " << state.wal_enable << endl;
         break;
       case 's':
         state.sp_enable = true;
         cout << "sp_enable: " << state.sp_enable << endl;
+        break;
+      case 'c':
+        state.cow_enable = true;
+        cout << "cow_enable: " << state.cow_enable << endl;
         break;
       case 'm':
         state.lsm_enable = true;
@@ -150,7 +158,7 @@ int main(int argc, char **argv) {
   parse_arguments(argc, argv, state);
   state.sp = sp;
 
-  if (state.log_enable == true) {
+  if (state.wal_enable == true) {
     LOG_INFO("WAL");
 
     bool generate_dataset = !sp->init;
@@ -186,6 +194,19 @@ int main(int argc, char **argv) {
       sp.generator(ycsb.get_dataset(), false);
 
     sp.generator(ycsb.get_workload(), true);
+  }
+
+  if (state.cow_enable == true) {
+    LOG_INFO("COW");
+
+    bool generate_dataset = !sp->init;
+    ycsb_benchmark ycsb(state);
+    cow_engine cow(state);
+
+    if (generate_dataset)
+      cow.generator(ycsb.get_dataset(), false);
+
+    cow.generator(ycsb.get_workload(), true);
   }
 
   return 0;

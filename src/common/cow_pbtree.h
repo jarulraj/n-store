@@ -943,9 +943,15 @@ class cow_btree {
 
   int cow_btree_open_fd(int _fd) {
 
-    pages = new plist<page*>();
-    if (persist)
+    if(persist == false){
+      pages = new plist<page*>();
+    }
+    else{
+      pages = new plist<page*>(&sp->ptrs[sp->itr++],&sp->ptrs[sp->itr++]);
+      DPRINTF("pages : %p ", pages);
+
       pmemalloc_activate(pages);
+    }
 
     if (persist == false) {
       int fl;
@@ -1140,6 +1146,8 @@ class cow_btree {
   }
 
   void mpage_add(struct mpage *mp) {
+    DPRINTF("page_cache : %p ", page_cache);
+
     assert(RB_INSERT(page_cache, page_cache, mp) == NULL);
     stat.cache_size++;
     TAILQ_INSERT_TAIL(lru_queue, mp, lru_next);
@@ -1269,7 +1277,8 @@ class cow_btree {
       }
     }
 
-    if (page->pgno != pgno) {
+    // XXX Off by one :     if (page->pgno != pgno) {
+    if (page->pgno != pgno-1) {
       DPRINTF("page numbers don't match: %u != %u", pgno, page->pgno);
       errno = EINVAL;
       return BT_FAIL;
@@ -1614,6 +1623,8 @@ class cow_btree {
     if (persist) {
       pages->push_back(mp->page);
 
+      DPRINTF("pages size : %d ", pages->size());
+
       mp->dirty = 0;
       SIMPLEQ_REMOVE_HEAD(txn->dirty_queue, next);
     } else {
@@ -1678,6 +1689,7 @@ class cow_btree {
 
       next_pgno = _size / head.psize;
 
+      DPRINTF("size :: %lu %d next_pgno : %d ", _size, head.psize, next_pgno);
     } else {
 
       if (pages->size() == 1) {
@@ -1687,9 +1699,9 @@ class cow_btree {
       }
 
       next_pgno = pages->size();
+      DPRINTF("pages size : %d ", pages->size());
     }
 
-    DPRINTF("size :: %lu %d next_pgno : %d ", _size, head.psize, next_pgno);
 
     if (next_pgno == 0) {
       DPRINTF("corrupt file");
@@ -1698,6 +1710,7 @@ class cow_btree {
     }
 
     meta_pgno = next_pgno - 1;
+    DPRINTF("meta_pgno : %d ", meta_pgno);
 
     if (persist == false) {
       if (_size % head.psize != 0) {
@@ -3734,6 +3747,11 @@ class cow_pbtree {
         (*_ptr) = t_ptr;
         DPRINTF("persistent :: init mode :: %p", t_ptr);
       }
+      else{
+        // cleanup
+        DPRINTF("pages : %p ", t_ptr->pages);
+      }
+
     }
     // File mode
     else {
