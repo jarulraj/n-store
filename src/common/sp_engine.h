@@ -15,7 +15,7 @@
 #include "workload.h"
 #include "database.h"
 #include "pthread.h"
-#include "ptreap.h"
+#include "cow_pbtree.h"
 
 using namespace std;
 
@@ -47,8 +47,11 @@ class sp_engine : public engine {
   std::queue<transaction> txn_queue;
   std::atomic_bool done;
 
-  pthread_rwlock_t ptreap_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+  pthread_rwlock_t cow_pbtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::atomic_bool ready;
+
+  struct cow_btree* bt;
+  struct cow_btree_txn* txn_ptr;
 
   int looper = 0;
 };

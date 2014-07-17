@@ -46,9 +46,9 @@ no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
 static void parse_arguments(int argc, char* argv[], config& state) {
 
   // Default Values
-  state.fs_path = std::string("./");
+  state.fs_path = std::string("/mnt/pmfs/n-store/");
 
-  state.num_keys = 10;
+  state.num_keys = 2;
   state.num_txns = 10;
   state.num_executors = 1;
 

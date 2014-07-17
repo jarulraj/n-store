@@ -18,11 +18,16 @@ class plist {
   struct node** head;
   struct node** tail;
   bool activate;
+  int _size = 0;
 
   plist()
       : head(NULL),
         tail(NULL),
         activate(false) {
+    head = new (struct node*);
+    tail = new (struct node*);
+    (*head) = NULL;
+    (*tail) = NULL;
   }
 
   plist(void** _head, void** _tail) {
@@ -55,9 +60,10 @@ class plist {
     (*head) = np;
     (*tail) = np;
 
-    if(activate)
+    if (activate)
       pmemalloc_activate(np);
 
+    _size++;
     return np;
   }
 
@@ -77,11 +83,13 @@ class plist {
     tailp = (*tail);
     (*tail) = np;
 
-    if(activate)
+    if (activate)
       pmemalloc_activate(np);
 
     tailp->next = np;
     pmem_persist(&tailp->next, sizeof(*np), 0);
+
+    _size++;
   }
 
   // Returns the absolute pointer value
@@ -165,6 +173,8 @@ class plist {
       } else if (np == (*tail)) {
         (*tail) = prev;
       }
+
+      _size--;
     }
 
     delete np;
@@ -213,6 +223,16 @@ class plist {
 
     return data;
   }
+
+  bool empty(){
+    return (_size == 0);
+  }
+
+  int size(){
+    return _size;
+  }
+
+
 };
 
 #endif /* PMEM_LIST_H_ */

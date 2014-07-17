@@ -3,7 +3,7 @@
 
 #include "table.h"
 #include "plist.h"
-#include "ptreap.h"
+#include "cow_pbtree.h"
 
 using namespace std;
 
@@ -12,8 +12,7 @@ class database {
   database()
       : tables(NULL),
         log(NULL),
-        dirs(NULL),
-        version(0){
+        dirs(NULL) {
   }
 
   ~database() {
@@ -33,8 +32,7 @@ class database {
   plist<char*>* log;
 
   // SP
-  ptreap<unsigned long, record*>* dirs;
-  unsigned int version;
+  cow_pbtree* dirs;
 };
 
 #endif /* DATABASE_H_ */

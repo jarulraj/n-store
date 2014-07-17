@@ -54,11 +54,10 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db->log = log;
     pmemalloc_activate(log);
 
-    ptreap<unsigned long, record*>* dirs = new ptreap<unsigned long, record*>(
-        &conf.sp->ptrs[conf.sp->itr++]);
-
+    cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
     db->dirs = dirs;
-    pmemalloc_activate(dirs);
+    // No activation
+    //pmemalloc_activate(dirs);
 
     // USERTABLE
     size_t offset = 0, len = 0;
@@ -118,6 +117,9 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     //cout << "Recovery Mode " << endl;
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
+
+    cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
+    db->dirs = dirs;
 
     // Clear all indices
     if (conf.aries_enable == 1) {

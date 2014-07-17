@@ -7,15 +7,13 @@ using namespace std;
 void sp_engine::group_commit() {
 
   while (ready) {
-    unsigned int version;
 
-    wrlock(&ptreap_rwlock);
-    db->dirs->next_version();
-    version = db->dirs->version;
-    db->version = version-1;
-
-    //db->dirs->delete_versions(version-2);
-    unlock(&ptreap_rwlock);
+    if (txn_ptr != NULL) {
+      wrlock(&cow_pbtree_rwlock);
+      bt->txn_commit(txn_ptr);
+      txn_ptr = bt->txn_begin(0);
+      unlock(&cow_pbtree_rwlock);
+    }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
@@ -23,7 +21,9 @@ void sp_engine::group_commit() {
 
 sp_engine::sp_engine(const config& _conf)
     : conf(_conf),
-      db(conf.db) {
+      db(conf.db),
+      bt(NULL),
+      txn_ptr(NULL) {
 
   //for (int i = 0; i < conf.num_executors; i++)
   //  executors.push_back(std::thread(&wal_engine::runner, this));
@@ -39,36 +39,51 @@ sp_engine::~sp_engine() {
 }
 
 std::string sp_engine::select(const statement& st) {
-  //LOG_INFO("Select");
+  LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
+  struct cow_btval key, val;
 
-  unsigned long key = hasher(hash_fn(st.key), st.table_id, st.table_index_id);
-  std::string val;
-  //cout<<"select key :: -"<<st.key<<"-  --"<<key<<endl;
+  //cout << "select key :: -" << st.key << "-  -" << st.table_id << "-" << st.table_index_id << "-" << endl;
+  unsigned long key_id = hasher(hash_fn(st.key), st.table_id,
+                                st.table_index_id);
+  string key_str = std::to_string(key_id);
+  key.data = (void*) key_str.c_str();
+  key.size = key_str.size();
+  std::string value;
+  //cout << "select key :: -" << st.key << "-  -" << key_str << "-" << endl;
 
   // Read from latest clean version
-  rec_ptr = db->dirs->at(key, db->version);
-  val = get_data(rec_ptr, st.projection);
-  LOG_INFO("val : %s", val.c_str());
+  if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+    std::sscanf((char*) val.data, "%p", &rec_ptr);
+    value = get_data(rec_ptr, st.projection);
+    LOG_INFO("val : %s", value.c_str());
+  }
 
-  return val;
+  return value;
 }
 
 void sp_engine::insert(const statement& st) {
-  //LOG_INFO("Insert");
+  LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
+  struct cow_btval key, val;
+  val.data = new char[64];
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
-  unsigned long key = hasher(hash_fn(key_str), st.table_id, 0);
-  //cout<<"insert key :: -"<<key_str<<"-  --"<<key<<endl;
+  //cout << "insert key :: -" << key_str << "-  -" << st.table_id << "-0-"<< endl;
+  unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
+  key_str = std::to_string(key_id);
+  //cout << "insert key :: -" << key_str << "- " << endl;
+
+  key.data = (void*) key_str.c_str();
+  key.size = key_str.size();
 
   // Check if key exists in current version
-  if (db->dirs->at(key) != 0) {
+  if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     return;
   }
 
@@ -79,12 +94,16 @@ void sp_engine::insert(const statement& st) {
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
-    key = hasher(hash_fn(key_str), st.table_id, index_itr);
+    key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
+    key_str = std::to_string(key_id);
 
-    wrlock(&ptreap_rwlock);
-    db->dirs->insert(key, after_rec);
-    unlock(&ptreap_rwlock);
+    key.data = (void*) key_str.c_str();
+    key.size = key_str.size();
+    std::sprintf((char*) val.data, "%p", after_rec);
+    val.size = strlen((char*) val.data) + 1;
+    bt->insert(txn_ptr, &key, &val);
   }
+
 }
 
 void sp_engine::remove(const statement& st) {
@@ -95,27 +114,35 @@ void sp_engine::remove(const statement& st) {
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
+  struct cow_btval key, val;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
-  unsigned long key = hasher(hash_fn(key_str), st.table_id, 0);
+  unsigned long key_id = hasher(hash_fn(st.key), st.table_id, 0);
+  key_str = std::to_string(key_id);
 
-  // Check if key does not exist in current version
-  if (db->dirs->at(key) == 0) {
+  key.data = (void*) key_str.c_str();
+  key.size = key_str.size();
+
+  // Check if key does not exist
+  if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     return;
   }
 
   // Free record
-  record* before_rec = db->dirs->at(key);
+  record* before_rec = new record(rec_ptr->sptr);
+  std::sscanf((char*) val.data, "%p", &before_rec);
   delete before_rec;
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
-    key = hasher(hash_fn(key_str), st.table_id, index_itr);
+    key_id = hasher(hash_fn(st.key), st.table_id, index_itr);
+    key_str = std::to_string(key_id);
 
-    wrlock(&ptreap_rwlock);
-    db->dirs->remove(key);
-    unlock(&ptreap_rwlock);
+    key.data = (void*) key_str.c_str();
+    key.size = key_str.size();
+
+    bt->remove(txn_ptr, &key, NULL);
   }
 
 }
@@ -128,16 +155,26 @@ void sp_engine::update(const statement& st) {
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
+  struct cow_btval key, val, update_val;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
-  unsigned long key = hasher(hash_fn(key_str), st.table_id, 0);
+  unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
+  //cout << "update key :: -" << key_str << "-  -" << st.table_id << "-0-" << endl;
 
-  // Read from current version
-  record* before_rec = db->dirs->at(key);
+  key_str = std::to_string(key_id);
+
+  key.data = (void*) key_str.c_str();
+  key.size = key_str.size();
+  //cout << "update key :: -" << key_str << endl;
 
   // Check if key does not exist in current version
-  if (before_rec == 0)
+  if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     return;
+  }
+
+  // Read from current version
+  record* before_rec = new record(rec_ptr->sptr);
+  std::sscanf((char*) val.data, "%p", &before_rec);
 
   record* after_rec = new record(before_rec->sptr);
   memcpy(after_rec->data, before_rec->data, before_rec->data_len);
@@ -154,20 +191,28 @@ void sp_engine::update(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
+  update_val.data = new char[64];
   // Update entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
-    key = hasher(hash_fn(key_str), st.table_id, index_itr);
+    key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
+    key_str = std::to_string(key_id);
 
-    wrlock(&ptreap_rwlock);
-    db->dirs->insert(key, after_rec);
-    unlock(&ptreap_rwlock);
+    key.data = (void*) key_str.c_str();
+    key.size = key_str.size();
+
+    std::sprintf((char*) update_val.data, "%p", after_rec);
+    update_val.size = strlen((char*) val.data) + 1;
+    bt->insert(txn_ptr, &key, &update_val);
   }
+
 }
 
 // RUNNER + LOADER
 
 void sp_engine::execute(const transaction& txn) {
+
+  rdlock(&cow_pbtree_rwlock);
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -180,6 +225,8 @@ void sp_engine::execute(const transaction& txn) {
       remove(st);
     }
   }
+
+  unlock(&cow_pbtree_rwlock);
 
 }
 
@@ -216,6 +263,9 @@ void sp_engine::generator(const workload& load, bool stats) {
   std::thread gc(&sp_engine::group_commit, this);
   ready = true;
 
+  bt = db->dirs->t_ptr;
+  txn_ptr = bt->txn_begin(0);
+
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
 
@@ -225,10 +275,14 @@ void sp_engine::generator(const workload& load, bool stats) {
   ready = false;
   gc.join();
 
+  if (txn_ptr != NULL) {
+    bt->txn_commit(txn_ptr);
+  }
+
   gettimeofday(&t2, NULL);
 
-  if(stats){
-    cout<<"SP :: ";
+  if (stats) {
+    cout << "SP :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }
