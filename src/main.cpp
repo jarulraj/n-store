@@ -7,6 +7,7 @@
 #include "aries_engine.h"
 #include "sp_engine.h"
 #include "cow_engine.h"
+#include "lsm_engine.h"
 
 #include "ycsb_benchmark.h"
 #include "utils.h"
@@ -207,6 +208,16 @@ int main(int argc, char **argv) {
       cow.generator(ycsb.get_dataset(), false);
 
     cow.generator(ycsb.get_workload(), true);
+  }
+
+  if (state.lsm_enable == true) {
+    LOG_INFO("LSM");
+
+    ycsb_benchmark ycsb(state);
+    lsm_engine lsm(state);
+
+    lsm.generator(ycsb.get_dataset(), false);
+    lsm.generator(ycsb.get_workload(), true);
   }
 
   return 0;

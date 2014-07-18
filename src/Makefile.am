@@ -18,6 +18,7 @@ nstore_SOURCES  =  	main.cpp \
 					aries_engine.cpp  \
 					sp_engine.cpp  \
 					cow_engine.cpp  \
+					lsm_engine.cpp  \
 					ycsb_benchmark.cpp \
 					utils.cpp
 

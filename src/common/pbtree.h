@@ -1677,6 +1677,19 @@ class btree {
     return val;
   }
 
+  /// Tries to set value if key is found.
+  int update(const key_type &key, const data_type &val) {
+    iterator itr = find(key);
+    int ret = -1;
+
+    if (itr != end()) {
+      itr.data() = val;
+      ret = 0;
+    }
+
+    return ret;
+  }
+
   // Disable persistence
   void disable_persistence() {
     persist = false;
@@ -3962,6 +3975,11 @@ class pbtree {
   /// Tries to return value if key is found.
   data_type at(const key_type &key) const {
     return tree.at(key);
+  }
+
+  /// Tries to update value if key is found.
+  int update(const key_type &key, const data_type &val) {
+    return tree.update(key, val);
   }
 
   // Disable persistence

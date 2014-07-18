@@ -32,13 +32,17 @@ std::string serialize(record* rptr, schema* sptr) {
   return rec_str;
 }
 
-record* deserialize(std::stringstream& entry, schema* sptr) {
+record* deserialize(std::string entry_str, schema* sptr) {
   unsigned int num_columns;
   unsigned int itr, field_id;
   std::string rec_str;
+  std::stringstream entry(entry_str);
+
+  // prefix
+  int op_type, txn_id, table_id;
+  entry >> txn_id >> op_type >> table_id;
 
   record* rec_ptr = new record(sptr);
-
   entry >> num_columns;
 
   for (itr = 0; itr < num_columns; itr++) {
@@ -79,6 +83,57 @@ record* deserialize(std::stringstream& entry, schema* sptr) {
   return rec_ptr;
 }
 
+std::string deserialize_to_string(std::string entry_str, schema* sptr) {
+  unsigned int num_columns;
+  unsigned int itr, field_id;
+  std::string rec_str, field_str;
+  std::stringstream entry(entry_str);
+
+  // prefix
+  int op_type, txn_id, table_id;
+  entry >> txn_id >> op_type >> table_id;
+
+  entry >> num_columns;
+
+  for (itr = 0; itr < num_columns; itr++) {
+    entry >> field_id;
+
+    bool enabled = sptr->columns[field_id].enabled;
+    char type = sptr->columns[field_id].type;
+    size_t offset = sptr->columns[field_id].offset;
+    size_t len = sptr->columns[field_id].len;
+
+    switch (type) {
+      case field_type::INTEGER: {
+        int ival;
+        entry >> ival;
+        field_str = std::to_string(ival);
+      }
+        break;
+
+      case field_type::DOUBLE: {
+        double dval;
+        entry >> dval;
+        field_str = std::to_string(dval);
+      }
+        break;
+
+      case field_type::VARCHAR: {
+        entry >> field_str;
+      }
+        break;
+
+      default:
+        cout << "Invalid field type : " << type << endl;
+        break;
+    }
+
+    if(enabled)
+      rec_str += field_str + " ";
+  }
+
+  return rec_str;
+}
 
 // TIMER
 
@@ -108,7 +163,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
   int seed = 0;
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> dis(0.001, 0.099);
- 
+
   for (i = 1; i <= n; i++)
     powers[i] = 1.0 / pow((double) i, alpha);
 
@@ -173,7 +228,6 @@ void uniform(vector<double>& uniform_dist, int num_values) {
   for (i = 0; i < num_values; i++)
     uniform_dist.push_back(dis(gen));
 }
-
 
 // PTHREAD WRAPPERS
 

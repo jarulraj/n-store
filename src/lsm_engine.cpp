@@ -1,23 +1,23 @@
-// ARIES LOGGING
+// LSM FILE
 
-#include "aries_engine.h"
+#include "lsm_engine.h"
 #include <fstream>
 
 using namespace std;
 
-void aries_engine::group_commit() {
+void lsm_engine::group_commit() {
 
   while (ready) {
     //std::cout << "Syncing log !" << endl;
 
     // sync
-    undo_log.write();
+    lsm_log.write();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
 }
 
-aries_engine::aries_engine(const config& _conf)
+lsm_engine::lsm_engine(const config& _conf)
     : conf(_conf),
       db(conf.db) {
 
@@ -26,7 +26,7 @@ aries_engine::aries_engine(const config& _conf)
 
 }
 
-aries_engine::~aries_engine() {
+lsm_engine::~lsm_engine() {
 
   // done = true;
   //for (int i = 0; i < conf.num_executors; i++)
@@ -34,7 +34,7 @@ aries_engine::~aries_engine() {
 
 }
 
-std::string aries_engine::select(const statement& st) {
+std::string lsm_engine::select(const statement& st) {
   LOG_INFO("Select");
   std::string val;
 
@@ -43,28 +43,31 @@ std::string aries_engine::select(const statement& st) {
   table_index* table_index = tab->indices->at(st.table_index_id);
 
   unsigned long key = hash_fn(st.key);
+  off_t log_offset;
 
-  rec_ptr = table_index->map->at(key);
-  val = get_data(rec_ptr, st.projection);
+  log_offset = table_index->lsm_map->at(key);
+  val = lsm_log.read(log_offset);
+  val = deserialize_to_string(val, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
   return val;
 }
 
-void aries_engine::insert(const statement& st) {
-  //LOG_INFO("Insert");
+void lsm_engine::insert(const statement& st) {
+  LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
+  off_t log_offset;
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  if (indices->at(0)->map->exists(key) != 0) {
+  if (indices->at(0)->lsm_map->exists(key) != 0) {
     return;
   }
 
@@ -73,20 +76,19 @@ void aries_engine::insert(const statement& st) {
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " " << serialize(after_rec, after_rec->sptr) << "\n";
   entry_str = entry_stream.str();
-  undo_log.push_back(entry_str);
 
-  tab->data->push_back(after_rec);
+  log_offset = lsm_log.push_back(entry_str);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->map->insert(key, after_rec);
+    indices->at(index_itr)->lsm_map->insert(key, log_offset);
   }
 }
 
-void aries_engine::remove(const statement& st) {
+void lsm_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -94,76 +96,91 @@ void aries_engine::remove(const statement& st) {
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
+  off_t log_offset;
+  std::string val;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
-  if (indices->at(0)->map->exists(key) == 0) {
+  if (indices->at(0)->lsm_map->exists(key) == 0) {
     return;
   }
 
-  record* before_rec = indices->at(0)->map->at(key);
+  log_offset = indices->at(0)->lsm_map->at(key);
+  val = lsm_log.read(log_offset);
+  record* before_rec = deserialize(val, st.rec_ptr->sptr);
 
-  // Add log entry
+  // Add TOMBSTONE log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " " << serialize(before_rec, before_rec->sptr) << "\n";
 
   entry_str = entry_stream.str();
-  undo_log.push_back(entry_str);
-
-  tab->data->erase(before_rec);
+  lsm_log.push_back(entry_str);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->map->erase(key);
+    indices->at(index_itr)->lsm_map->erase(key);
   }
 
 }
 
-void aries_engine::update(const statement& st) {
+void lsm_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
+
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
-
-  record* before_rec = indices->at(0)->map->at(key);
+  off_t log_offset;
+  std::string val;
 
   // Check if key does not exist
-  if (before_rec == 0)
+  if (indices->at(0)->lsm_map->exists(key) == 0) {
     return;
+  }
+
+  log_offset = indices->at(0)->lsm_map->at(key);
+  val = lsm_log.read(log_offset);
+  record* before_rec = deserialize(val, st.rec_ptr->sptr);
 
   std::string after_data, before_data;
   int num_fields = st.field_ids.size();
-
-  entry_stream.str("");
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " ";
-  // before image
-  //entry_stream << serialize(before_rec, before_rec->sptr) << " ";
 
   for (int field_itr : st.field_ids) {
     // Update existing record
     before_rec->set_data(field_itr, rec_ptr);
   }
 
-  // after image
-  entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
-
   // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << serialize(before_rec, before_rec->sptr) << "\n";
   entry_str = entry_stream.str();
-  undo_log.push_back(entry_str);
+
+  log_offset = lsm_log.push_back(entry_str);
+
+  // Add entry in indices
+  for (index_itr = 0; index_itr < num_indices; index_itr++) {
+    key_str = get_data(before_rec, indices->at(index_itr)->sptr);
+    key = hash_fn(key_str);
+
+    indices->at(index_itr)->lsm_map->update(key, log_offset);
+  }
+
 }
 
 // RUNNER + LOADER
 
-void aries_engine::execute(const transaction& txn) {
+void lsm_engine::execute(const transaction& txn) {
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -179,7 +196,7 @@ void aries_engine::execute(const transaction& txn) {
 
 }
 
-void aries_engine::runner() {
+void lsm_engine::runner() {
   bool empty = true;
 
   while (!done) {
@@ -207,36 +224,36 @@ void aries_engine::runner() {
   }
 }
 
-void aries_engine::generator(const workload& load, bool stats) {
+void lsm_engine::generator(const workload& load, bool stats) {
 
-  undo_log.configure(conf.fs_path + "log");
+  lsm_log.configure(conf.fs_path + "lsm_log");
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
-  // Logger start
-  std::thread gc(&aries_engine::group_commit, this);
+// Logger start
+  std::thread gc(&lsm_engine::group_commit, this);
   ready = true;
 
   for (const transaction& txn : load.txns)
     execute(txn);
 
-  // Logger end
+// Logger end
   ready = false;
   gc.join();
 
-  undo_log.write();
-  undo_log.close();
+  lsm_log.write();
+  lsm_log.close();
 
   gettimeofday(&t2, NULL);
 
-  if(stats){
-    cout<<"ARIES :: ";
+  if (stats) {
+    cout << "LSM :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }
 
-void aries_engine::recovery() {
+void lsm_engine::recovery() {
 
   int op_type, txn_id, table_id;
   table *tab;
@@ -245,11 +262,13 @@ void aries_engine::recovery() {
 
   field_info finfo;
   std::string entry_str;
-  std::ifstream log_file(undo_log.log_file_name);
+  std::ifstream log_file(lsm_log.log_file_name);
+  off_t log_offset;
 
   while (std::getline(log_file, entry_str)) {
     //LOG_INFO("entry : %s ", entry_str.c_str());
     std::stringstream entry(entry_str);
+    log_offset = log_file.tellg();
 
     entry >> txn_id >> op_type >> table_id;
 
@@ -264,15 +283,13 @@ void aries_engine::recovery() {
         indices = tab->indices;
         num_indices = tab->num_indices;
 
-        tab->data->push_back(after_rec);
-
         // Add entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = get_data(after_rec,
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->map->insert(key, after_rec);
+          indices->at(index_itr)->lsm_map->insert(key, log_offset);
         }
       }
         break;
@@ -287,15 +304,13 @@ void aries_engine::recovery() {
         indices = tab->indices;
         num_indices = tab->num_indices;
 
-        tab->data->erase(before_rec);
-
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = get_data(before_rec,
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->map->erase(key);
+          indices->at(index_itr)->lsm_map->erase(key);
         }
       }
         break;
@@ -317,7 +332,7 @@ void aries_engine::recovery() {
                                            indices->at(index_itr)->sptr);
             unsigned long key = hash_fn(key_str);
 
-            indices->at(index_itr)->map->insert(key, after_rec);
+            indices->at(index_itr)->lsm_map->insert(key, log_offset);
           }
 
         }

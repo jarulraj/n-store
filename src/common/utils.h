@@ -37,9 +37,14 @@ inline std::string get_data(record* rptr, schema* sptr) {
   return rec_str;
 }
 
+// record* to string
 std::string serialize(record* rptr, schema* sptr);
 
-record* deserialize(std::stringstream& entry, schema* sptr);
+// string to record*
+record* deserialize(std::string entry, schema* sptr);
+
+// string to string
+std::string deserialize_to_string(std::string entry_str, schema* sptr);
 
 // szudzik hasher
 inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {

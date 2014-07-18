@@ -54,14 +54,17 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db->log = log;
     pmemalloc_activate(log);
 
-    if(conf.sp_enable == true){
-      cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
+    if (conf.sp_enable == true) {
+      cow_pbtree* dirs = new cow_pbtree(false,
+                                        (conf.fs_path + "cow.db").c_str(),
+                                        NULL);
       db->dirs = dirs;
       // No activation
     }
 
-    if(conf.cow_enable == true){
-      cow_pbtree* dirs = new cow_pbtree(true, NULL, &conf.sp->ptrs[conf.sp->itr++]);
+    if (conf.cow_enable == true) {
+      cow_pbtree* dirs = new cow_pbtree(true, NULL,
+                                        &conf.sp->ptrs[conf.sp->itr++]);
       db->dirs = dirs;
       pmemalloc_activate(dirs);
     }
@@ -107,6 +110,11 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(key_index_map);
     key_index->map = key_index_map;
 
+    pbtree<unsigned long, off_t>* key_index_lsm_map = new pbtree<unsigned long,
+        off_t>(&conf.sp->ptrs[conf.sp->itr++]);
+    pmemalloc_activate(key_index_lsm_map);
+    key_index->lsm_map = key_index_lsm_map;
+
     // XXX Disable persistence in ARIES engine
     if (conf.aries_enable == 1) {
       vector<table*> tables = db->tables->get_data();
@@ -118,6 +126,16 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
       }
     }
 
+    if (conf.lsm_enable == 1) {
+      vector<table*> tables = db->tables->get_data();
+      for (table* tab : tables) {
+        vector<table_index*> indices = tab->indices->get_data();
+        for (table_index* index : indices) {
+          index->lsm_map->disable_persistence();
+        }
+      }
+    }
+
     //cout << "Initialization Mode" << endl;
     conf.sp->init = 1;
   } else {
@@ -125,8 +143,10 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
 
-    if(conf.sp_enable == true){
-      cow_pbtree* dirs = new cow_pbtree(false, (conf.fs_path+"cow.db").c_str(), NULL);
+    if (conf.sp_enable == true) {
+      cow_pbtree* dirs = new cow_pbtree(false,
+                                        (conf.fs_path + "cow.db").c_str(),
+                                        NULL);
       db->dirs = dirs;
     }
 
@@ -139,6 +159,18 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
         vector<table_index*> indices = tab->indices->get_data();
         for (table_index* index : indices) {
           index->map->clear();
+        }
+      }
+    }
+
+    if (conf.lsm_enable == 1) {
+      vector<table*> tables = db->tables->get_data();
+      for (table* tab : tables) {
+        tab->data->clear();
+
+        vector<table_index*> indices = tab->indices->get_data();
+        for (table_index* index : indices) {
+          index->lsm_map->clear();
         }
       }
     }
