@@ -52,6 +52,8 @@ class config {
   bool sp_enable;
   bool cow_enable;
   bool lsm_enable;
+  bool ldb_enable;
+
 };
 
 #endif /* NSTORE_H_ */

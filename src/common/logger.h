@@ -52,7 +52,7 @@ class logger {
     return prev_offset;
   }
 
-  int write() {
+  int sync() {
     int ret;
 
     // sync log
@@ -65,7 +65,7 @@ class logger {
     return ret;
   }
 
-  std::string read(off_t log_offset) {
+  std::string at(off_t log_offset) {
     std::string entry_str;
     char* line = NULL;
     size_t len = 0;

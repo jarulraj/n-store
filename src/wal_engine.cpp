@@ -27,7 +27,7 @@ void wal_engine::group_commit() {
 wal_engine::wal_engine(const config& _conf)
     : conf(_conf),
       db(conf.db),
-      undo_log(db->log) {
+      pm_log(db->log) {
 
   //for (int i = 0; i < conf.num_executors; i++)
   //  executors.push_back(std::thread(&wal_engine::runner, this));
@@ -85,7 +85,7 @@ void wal_engine::insert(const statement& st) {
   strcpy(entry, entry_str.c_str());
 
   pmemalloc_activate(entry);
-  undo_log->push_back(entry);
+  pm_log->push_back(entry);
 
   // Activate new record
   pmemalloc_activate(after_rec);
@@ -132,7 +132,7 @@ void wal_engine::remove(const statement& st) {
   strcpy(entry, entry_str.c_str());
 
   pmemalloc_activate(entry);
-  undo_log->push_back(entry);
+  pm_log->push_back(entry);
 
   tab->data->erase(before_rec);
 
@@ -192,7 +192,7 @@ void wal_engine::update(const statement& st) {
   strcpy(entry, entry_str.c_str());
 
   pmemalloc_activate(entry);
-  undo_log->push_back(entry);
+  pm_log->push_back(entry);
 
   for (int field_itr : st.field_ids) {
     // Activate new field and garbage collect previous field

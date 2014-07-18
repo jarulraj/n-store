@@ -11,7 +11,7 @@ void aries_engine::group_commit() {
     //std::cout << "Syncing log !" << endl;
 
     // sync
-    undo_log.write();
+    undo_log.sync();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
@@ -225,7 +225,7 @@ void aries_engine::generator(const workload& load, bool stats) {
   ready = false;
   gc.join();
 
-  undo_log.write();
+  undo_log.sync();
   undo_log.close();
 
   gettimeofday(&t2, NULL);

@@ -1,32 +1,32 @@
-// LSM FILE
+// LDB PM
 
-#include "lsm_engine.h"
+#include "ldb_engine.h"
 #include <fstream>
 
 using namespace std;
 
-void lsm_engine::group_commit() {
+void ldb_engine::group_commit() {
 
   while (ready) {
     //std::cout << "Syncing log !" << endl;
 
-    // sync
-    lsm_log.sync();
+    // no need to sync log
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
 }
 
-lsm_engine::lsm_engine(const config& _conf)
+ldb_engine::ldb_engine(const config& _conf)
     : conf(_conf),
-      db(conf.db) {
+      db(conf.db),
+      pm_log(db->log) {
 
   //for (int i = 0; i < conf.num_executors; i++)
   //  executors.push_back(std::thread(&wal_engine::runner, this));
 
 }
 
-lsm_engine::~lsm_engine() {
+ldb_engine::~ldb_engine() {
 
   // done = true;
   //for (int i = 0; i < conf.num_executors; i++)
@@ -34,7 +34,7 @@ lsm_engine::~lsm_engine() {
 
 }
 
-std::string lsm_engine::select(const statement& st) {
+std::string ldb_engine::select(const statement& st) {
   LOG_INFO("Select");
   std::string val;
 
@@ -43,17 +43,18 @@ std::string lsm_engine::select(const statement& st) {
   table_index* table_index = tab->indices->at(st.table_index_id);
 
   unsigned long key = hash_fn(st.key);
+  //cout << "key :: " << st.key << endl;
   off_t log_offset;
 
   log_offset = table_index->off_map->at(key);
-  val = lsm_log.at(log_offset);
+  val = std::string(pm_log->at(log_offset));
   val = deserialize_to_string(val, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
   return val;
 }
 
-void lsm_engine::insert(const statement& st) {
+void ldb_engine::insert(const statement& st) {
   LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -64,6 +65,7 @@ void lsm_engine::insert(const statement& st) {
   off_t log_offset;
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
+  //cout << "key_str :: " << key_str << endl;
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
@@ -77,7 +79,11 @@ void lsm_engine::insert(const statement& st) {
                << " " << serialize(after_rec, after_rec->sptr) << "\n";
   entry_str = entry_stream.str();
 
-  log_offset = lsm_log.push_back(entry_str);
+  char* entry = new char[entry_str.size() + 1];
+  strcpy(entry, entry_str.c_str());
+  pmemalloc_activate(entry);
+  log_offset = pm_log->push_back(entry);
+  //cout << "offset :: " << log_offset << endl;
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -88,7 +94,7 @@ void lsm_engine::insert(const statement& st) {
   }
 }
 
-void lsm_engine::remove(const statement& st) {
+void ldb_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -108,7 +114,7 @@ void lsm_engine::remove(const statement& st) {
   }
 
   log_offset = indices->at(0)->off_map->at(key);
-  val = lsm_log.at(log_offset);
+  val = std::string(pm_log->at(log_offset));
   record* before_rec = deserialize(val, st.rec_ptr->sptr);
 
   // Add TOMBSTONE log entry
@@ -117,7 +123,12 @@ void lsm_engine::remove(const statement& st) {
                << " " << serialize(before_rec, before_rec->sptr) << "\n";
 
   entry_str = entry_stream.str();
-  lsm_log.push_back(entry_str);
+  char* entry = new char[entry_str.size() + 1];
+  strcpy(entry, entry_str.c_str());
+  log_offset = pm_log->push_back(entry);
+
+  pmemalloc_activate(entry);
+  pm_log->push_back(entry);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -129,7 +140,7 @@ void lsm_engine::remove(const statement& st) {
 
 }
 
-void lsm_engine::update(const statement& st) {
+void ldb_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -139,6 +150,7 @@ void lsm_engine::update(const statement& st) {
   unsigned int index_itr;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  //cout << "key_str :: " << key_str << endl;
   unsigned long key = hash_fn(key_str);
   off_t log_offset;
   std::string val;
@@ -149,7 +161,7 @@ void lsm_engine::update(const statement& st) {
   }
 
   log_offset = indices->at(0)->off_map->at(key);
-  val = lsm_log.at(log_offset);
+  val = std::string(pm_log->at(log_offset));
   record* before_rec = deserialize(val, st.rec_ptr->sptr);
 
   std::string after_data, before_data;
@@ -166,7 +178,11 @@ void lsm_engine::update(const statement& st) {
                << " " << serialize(before_rec, before_rec->sptr) << "\n";
   entry_str = entry_stream.str();
 
-  log_offset = lsm_log.push_back(entry_str);
+  char* entry = new char[entry_str.size() + 1];
+  strcpy(entry, entry_str.c_str());
+  pmemalloc_activate(entry);
+  log_offset = pm_log->push_back(entry);
+  //cout << "offset :: " << log_offset << endl;
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -180,7 +196,7 @@ void lsm_engine::update(const statement& st) {
 
 // RUNNER + LOADER
 
-void lsm_engine::execute(const transaction& txn) {
+void ldb_engine::execute(const transaction& txn) {
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -196,7 +212,7 @@ void lsm_engine::execute(const transaction& txn) {
 
 }
 
-void lsm_engine::runner() {
+void ldb_engine::runner() {
   bool empty = true;
 
   while (!done) {
@@ -224,15 +240,13 @@ void lsm_engine::runner() {
   }
 }
 
-void lsm_engine::generator(const workload& load, bool stats) {
-
-  lsm_log.configure(conf.fs_path + "lsm_log");
+void ldb_engine::generator(const workload& load, bool stats) {
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
 // Logger start
-  std::thread gc(&lsm_engine::group_commit, this);
+  std::thread gc(&ldb_engine::group_commit, this);
   ready = true;
 
   for (const transaction& txn : load.txns)
@@ -242,18 +256,15 @@ void lsm_engine::generator(const workload& load, bool stats) {
   ready = false;
   gc.join();
 
-  lsm_log.sync();
-  lsm_log.close();
-
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "LSM :: ";
+    cout << "LDB :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }
 
-void lsm_engine::recovery() {
+void ldb_engine::recovery() {
 
   int op_type, txn_id, table_id;
   table *tab;
@@ -262,13 +273,12 @@ void lsm_engine::recovery() {
 
   field_info finfo;
   std::string entry_str;
-  std::ifstream log_file(lsm_log.log_file_name);
   off_t log_offset;
 
-  while (std::getline(log_file, entry_str)) {
+  vector<char*> pm_log_data = pm_log->get_data();
+  for (char* ptr : pm_log_data) {
     //LOG_INFO("entry : %s ", entry_str.c_str());
-    std::stringstream entry(entry_str);
-    log_offset = log_file.tellg();
+    std::stringstream entry(ptr);
 
     entry >> txn_id >> op_type >> table_id;
 

@@ -8,6 +8,7 @@
 #include "sp_engine.h"
 #include "cow_engine.h"
 #include "lsm_engine.h"
+#include "ldb_engine.h"
 
 #include "ycsb_benchmark.h"
 #include "utils.h"
@@ -27,11 +28,12 @@ static void usage_exit(FILE *out) {
           "   -p --per-writes      :  Percent of writes \n"
           "   -f --fs-path         :  Path for FS \n"
           "   -g --gc-interval     :  Group commit interval \n"
+          "   -a --aries-enable    :  ARIES enable (traditional) \n"
           "   -w --wal-enable      :  WAL enable \n"
-          "   -a --aries-enable    :  ARIES enable \n"
           "   -s --sp-enable       :  SP enable (traditional) \n"
           "   -c --cow-enable      :  COW enable \n"
-          "   -m --lsm-enable      :  LSM enable \n"
+          "   -m --lsm-enable      :  LSM enable (traditional) \n"
+          "   -l --ldb-enable      :  LDB enable \n"
           "   -q --skew            :  Skew \n"
           "   -h --help            :  Print help message \n");
   exit(-1);
@@ -69,13 +71,14 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.wal_enable = false;
   state.lsm_enable = false;
   state.cow_enable = false;
+  state.ldb_enable = false;
 
   state.skew = 1;
 
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmh", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhl", opts, &idx);
 
     if (c == -1)
       break;
@@ -128,6 +131,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
       case 'a':
         state.aries_enable = true;
         cout << "aries_enable: " << state.aries_enable << endl;
+        break;
+      case 'l':
+        state.ldb_enable = true;
+        cout << "ldb_enable: " << state.ldb_enable << endl;
         break;
       case 'q':
         state.skew = atof(optarg);
@@ -220,5 +227,17 @@ int main(int argc, char **argv) {
     lsm.generator(ycsb.get_workload(), true);
   }
 
+  if (state.ldb_enable == true) {
+    LOG_INFO("LDB");
+
+    bool generate_dataset = !sp->init;
+    ycsb_benchmark ycsb(state);
+    ldb_engine ldb(state);
+
+    if (generate_dataset)
+      ldb.generator(ycsb.get_dataset(), false);
+
+    ldb.generator(ycsb.get_workload(), true);
+  }
   return 0;
 }

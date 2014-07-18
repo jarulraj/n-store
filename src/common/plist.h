@@ -18,7 +18,7 @@ class plist {
   struct node** head;
   struct node** tail;
   bool activate;
-  int _size = 0;
+  off_t _size = 0;
 
   plist()
       : head(NULL),
@@ -67,10 +67,13 @@ class plist {
     return np;
   }
 
-  void push_back(V val) {
+  off_t push_back(V val) {
+    off_t index = -1;
+
     if ((*head) == NULL) {
-      init(val);
-      return;
+      if(init(val) != NULL)
+        index = 0;
+        return index;
     }
 
     struct node* tailp = NULL;
@@ -89,7 +92,9 @@ class plist {
     tailp->next = np;
     pmem_persist(&tailp->next, sizeof(*np), 0);
 
+    index = _size;
     _size++;
+    return index;
   }
 
   // Returns the absolute pointer value
@@ -191,7 +196,7 @@ class plist {
     }
 
     while (np) {
-      cout << np->val;
+      printf("%p %s", np->val, np->val);
       np = np->next;
     }
     cout << endl;

@@ -75,7 +75,10 @@ record* deserialize(std::string entry_str, schema* sptr) {
         break;
 
       default:
-        cout << "Invalid field type : " << type << endl;
+        cout << "Invalid field type : --" << type <<"--"<< endl;
+        cout << "Entry : --" << entry_str <<"--"<< endl;
+        cout << "Field id : --" << itr <<"--"<< endl;
+        exit(EXIT_FAILURE);
         break;
     }
   }
@@ -124,7 +127,10 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr) {
         break;
 
       default:
-        cout << "Invalid field type : " << type << endl;
+        cout << "Invalid field type : --" << type <<"--"<< endl;
+        cout << "Entry : --" << entry_str <<"--"<< endl;
+        cout << "Field id : --" << itr <<"--"<< endl;
+        exit(EXIT_FAILURE);
         break;
     }
 

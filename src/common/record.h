@@ -60,6 +60,7 @@ class record {
 
       default:
         cout << "Invalid type : " << type << endl;
+        exit(EXIT_FAILURE);
         break;
     }
 

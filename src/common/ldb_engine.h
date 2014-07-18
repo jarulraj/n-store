@@ -1,11 +1,12 @@
-#ifndef WAL_ENGINE_H_
-#define WAL_ENGINE_H_
+#ifndef LDB_ENGINE_H_
+#define LDB_ENGINE_H_
 
 #include <vector>
 #include <string>
 #include <thread>
 #include <queue>
 #include <sstream>
+#include <atomic>
 
 #include "engine.h"
 #include "nstore.h"
@@ -15,14 +16,15 @@
 #include "workload.h"
 #include "database.h"
 #include "pthread.h"
+#include "logger.h"
 #include "plist.h"
 
 using namespace std;
 
-class wal_engine : public engine {
+class ldb_engine : public engine {
  public:
-  wal_engine(const config& _conf);
-  ~wal_engine();
+  ldb_engine(const config& _conf);
+  ~ldb_engine();
 
   std::string select(const statement& st);
   void update(const statement& st);
@@ -33,8 +35,8 @@ class wal_engine : public engine {
   void runner();
   void execute(const transaction& t);
 
-  void recovery();
   void group_commit();
+  void recovery();
 
   //private:
   const config& conf;
@@ -49,13 +51,9 @@ class wal_engine : public engine {
 
   pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::queue<transaction> txn_queue;
-  std::atomic<bool> done;
-
-  std::vector<void*> commit_free_list;
-  pthread_rwlock_t log_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+  std::atomic_bool done;
 
   std::atomic_bool ready;
-  int looper = 0;
 };
 
-#endif /* WAL_ENGINE_H_ */
+#endif /* LDB_ENGINE_H_ */

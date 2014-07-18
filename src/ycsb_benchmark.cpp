@@ -113,7 +113,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pbtree<unsigned long, off_t>* key_index_lsm_map = new pbtree<unsigned long,
         off_t>(&conf.sp->ptrs[conf.sp->itr++]);
     pmemalloc_activate(key_index_lsm_map);
-    key_index->lsm_map = key_index_lsm_map;
+    key_index->off_map = key_index_lsm_map;
 
     // XXX Disable persistence in ARIES engine
     if (conf.aries_enable == 1) {
@@ -131,7 +131,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();
         for (table_index* index : indices) {
-          index->lsm_map->disable_persistence();
+          index->off_map->disable_persistence();
         }
       }
     }
@@ -170,7 +170,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
 
         vector<table_index*> indices = tab->indices->get_data();
         for (table_index* index : indices) {
-          index->lsm_map->clear();
+          index->off_map->clear();
         }
       }
     }
