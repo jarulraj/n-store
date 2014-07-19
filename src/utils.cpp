@@ -12,19 +12,22 @@
 using namespace std;
 
 // SER + DESER
-std::string serialize(record* rptr, schema* sptr) {
+std::string serialize(record* rptr, schema* sptr, bool prefix) {
   unsigned int num_columns = sptr->num_columns;
   unsigned int itr;
   std::string rec_str;
 
-  rec_str += std::to_string(num_columns) + " ";
+  if (prefix)
+    rec_str += std::to_string(num_columns) + " ";
 
   if (rptr == NULL || sptr == NULL)
     return rec_str;
 
   for (itr = 0; itr < num_columns; itr++) {
     if (sptr->columns[itr].enabled) {
-      rec_str += std::to_string(itr) + " ";
+      if (prefix)
+        rec_str += std::to_string(itr) + " ";
+
       rec_str += rptr->get_data(itr);
     }
   }
@@ -32,25 +35,36 @@ std::string serialize(record* rptr, schema* sptr) {
   return rec_str;
 }
 
-record* deserialize(std::string entry_str, schema* sptr) {
+record* deserialize_to_record(std::string entry_str, schema* sptr, bool prefix) {
   unsigned int num_columns;
   unsigned int itr, field_id;
   std::string rec_str;
   std::stringstream entry(entry_str);
 
   // prefix
-  int op_type, txn_id, table_id;
-  entry >> txn_id >> op_type >> table_id;
+  if (prefix) {
+    int op_type, txn_id, table_id;
+    entry >> txn_id >> op_type >> table_id;
+  }
 
   record* rec_ptr = new record(sptr);
-  entry >> num_columns;
+  if (prefix)
+    entry >> num_columns;
+  else
+    num_columns = sptr->num_columns;
 
+  off_t idx;
   for (itr = 0; itr < num_columns; itr++) {
-    entry >> field_id;
+    if(prefix){
+      entry >> field_id;
+      idx = field_id;
+    }
+    else
+      idx = itr;
 
-    char type = sptr->columns[field_id].type;
-    size_t offset = sptr->columns[field_id].offset;
-    size_t len = sptr->columns[field_id].len;
+    char type = sptr->columns[idx].type;
+    size_t offset = sptr->columns[idx].offset;
+    size_t len = sptr->columns[idx].ser_len;
 
     switch (type) {
       case field_type::INTEGER: {
@@ -68,16 +82,16 @@ record* deserialize(std::string entry_str, schema* sptr) {
         break;
 
       case field_type::VARCHAR: {
-        char* vc = new char[sptr->columns[field_id].len];
+        char* vc = new char[sptr->columns[idx].ser_len];
         entry >> vc;
         std::sprintf(&(rec_ptr->data[offset]), "%p", vc);
       }
         break;
 
       default:
-        cout << "Invalid field type : --" << type <<"--"<< endl;
-        cout << "Entry : --" << entry_str <<"--"<< endl;
-        cout << "Field id : --" << itr <<"--"<< endl;
+        cout << "Invalid field type : --" << type << "--" << endl;
+        cout << "Entry : --" << entry_str << "--" << endl;
+        cout << "Field id : --" << itr << "--" << endl;
         exit(EXIT_FAILURE);
         break;
     }
@@ -86,7 +100,9 @@ record* deserialize(std::string entry_str, schema* sptr) {
   return rec_ptr;
 }
 
-std::string deserialize_to_string(std::string entry_str, schema* sptr) {
+// prefix -- only log entries, none for table storage
+std::string deserialize_to_string(std::string entry_str, schema* sptr,
+                                  bool prefix) {
   unsigned int num_columns;
   unsigned int itr, field_id;
   std::string rec_str, field_str;
@@ -94,17 +110,26 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr) {
 
   // prefix
   int op_type, txn_id, table_id;
-  entry >> txn_id >> op_type >> table_id;
 
-  entry >> num_columns;
+  if (prefix) {
+    entry >> txn_id >> op_type >> table_id;
+    entry >> num_columns;
+  }
+  else
+    num_columns = sptr->num_columns;
 
+  off_t idx;
   for (itr = 0; itr < num_columns; itr++) {
-    entry >> field_id;
+    if (prefix){
+      entry >> field_id;
+      idx = field_id;
+    }
+    else
+      idx = itr;
 
-    bool enabled = sptr->columns[field_id].enabled;
-    char type = sptr->columns[field_id].type;
-    size_t offset = sptr->columns[field_id].offset;
-    size_t len = sptr->columns[field_id].len;
+    bool enabled = sptr->columns[idx].enabled;
+    char type = sptr->columns[idx].type;
+    size_t offset = sptr->columns[idx].offset;
 
     switch (type) {
       case field_type::INTEGER: {
@@ -127,14 +152,14 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr) {
         break;
 
       default:
-        cout << "Invalid field type : --" << type <<"--"<< endl;
-        cout << "Entry : --" << entry_str <<"--"<< endl;
-        cout << "Field id : --" << itr <<"--"<< endl;
+        cout << "Invalid field type : --" << type << "--" << endl;
+        cout << "Entry : --" << entry_str << "--" << endl;
+        cout << "Field id : --" << itr << "--" << endl;
         exit(EXIT_FAILURE);
         break;
     }
 
-    if(enabled)
+    if (enabled)
       rec_str += field_str + " ";
   }
 
@@ -148,7 +173,7 @@ void display_stats(timeval t1, timeval t2, int num_txns) {
   double throughput;
 
   duration = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
-  duration += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms
+  duration += (t2.tv_usec - t1.tv_usec) / 1000.0;      // us to ms
 
   cout << std::fixed << std::setprecision(2);
   cout << "Duration(s) : " << (duration / 1000.0) << " ";
@@ -160,9 +185,9 @@ void display_stats(timeval t1, timeval t2, int num_txns) {
 // RANDOM DIST
 void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
   static double c = 0;          // Normalization constant
-  double z;                     // Uniform random number (0 < z < 1)
-  double sum_prob;              // Sum of probabilities
-  double zipf_value;            // Computed exponential value to be returned
+  double z;          // Uniform random number (0 < z < 1)
+  double sum_prob;          // Sum of probabilities
+  double zipf_value;          // Computed exponential value to be returned
   int i, j;
 
   double* powers = new double[n + 1];

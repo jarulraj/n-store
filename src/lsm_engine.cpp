@@ -47,7 +47,7 @@ std::string lsm_engine::select(const statement& st) {
 
   log_offset = table_index->off_map->at(key);
   val = lsm_log.at(log_offset);
-  val = deserialize_to_string(val, st.projection);
+  val = deserialize_to_string(val, st.projection, true);
   LOG_INFO("val : %s", val.c_str());
 
   return val;
@@ -74,7 +74,7 @@ void lsm_engine::insert(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(after_rec, after_rec->sptr) << "\n";
+               << " " << serialize(after_rec, after_rec->sptr, true) << "\n";
   entry_str = entry_stream.str();
 
   log_offset = lsm_log.push_back(entry_str);
@@ -109,12 +109,12 @@ void lsm_engine::remove(const statement& st) {
 
   log_offset = indices->at(0)->off_map->at(key);
   val = lsm_log.at(log_offset);
-  record* before_rec = deserialize(val, st.rec_ptr->sptr);
+  record* before_rec = deserialize_to_record(val, st.rec_ptr->sptr, true);
 
   // Add TOMBSTONE log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(before_rec, before_rec->sptr) << "\n";
+               << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
 
   entry_str = entry_stream.str();
   lsm_log.push_back(entry_str);
@@ -150,7 +150,7 @@ void lsm_engine::update(const statement& st) {
 
   log_offset = indices->at(0)->off_map->at(key);
   val = lsm_log.at(log_offset);
-  record* before_rec = deserialize(val, st.rec_ptr->sptr);
+  record* before_rec = deserialize_to_record(val, st.rec_ptr->sptr, true);
 
   std::string after_data, before_data;
   int num_fields = st.field_ids.size();
@@ -163,7 +163,7 @@ void lsm_engine::update(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(before_rec, before_rec->sptr) << "\n";
+               << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
   entry_str = entry_stream.str();
 
   log_offset = lsm_log.push_back(entry_str);
@@ -278,7 +278,7 @@ void lsm_engine::recovery() {
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
-        record* after_rec = deserialize(entry_str, sptr);
+        record* after_rec = deserialize_to_record(entry_str, sptr, true);
 
         indices = tab->indices;
         num_indices = tab->num_indices;
@@ -299,7 +299,7 @@ void lsm_engine::recovery() {
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
-        record* before_rec = deserialize(entry_str, sptr);
+        record* before_rec = deserialize_to_record(entry_str, sptr, true);
 
         indices = tab->indices;
         num_indices = tab->num_indices;
@@ -323,8 +323,8 @@ void lsm_engine::recovery() {
 
           tab = db->tables->at(table_id);
           schema* sptr = tab->sptr;
-          record* before_rec = deserialize(entry_str, sptr);
-          record* after_rec = deserialize(entry_str, sptr);
+          record* before_rec = deserialize_to_record(entry_str, sptr, true);
+          record* after_rec = deserialize_to_record(entry_str, sptr, true);
 
           // Update entry in indices
           for (index_itr = 0; index_itr < num_indices; index_itr++) {

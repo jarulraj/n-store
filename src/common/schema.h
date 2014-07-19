@@ -11,9 +11,10 @@ using namespace std;
 
 class schema {
  public:
-  schema(vector<field_info> _columns, size_t _len)
+  schema(vector<field_info> _columns)
       : columns(NULL),
-        len(_len) {
+        ser_len(0),
+        deser_len(0){
 
     num_columns = _columns.size();
     columns = new field_info[num_columns];
@@ -21,6 +22,8 @@ class schema {
 
     for (itr = 0; itr < num_columns; itr++) {
       columns[itr] = _columns[itr];
+      ser_len += columns[itr].ser_len;
+      deser_len += columns[itr].deser_len;
     }
 
     pmemalloc_activate(columns);
@@ -35,7 +38,8 @@ class schema {
 
     for (itr = 0; itr < num_columns; itr++) {
       cout << "offset : " << columns[itr].offset << " ";
-      cout << "len : " << columns[itr].len << " ";
+      cout << "ser_len : " << columns[itr].ser_len << " ";
+      cout << "deser_len : " << columns[itr].deser_len << " ";
       cout << "type : " << (int) columns[itr].type << " ";
       cout << "inlined : " << (int) columns[itr].inlined << " ";
       cout << endl;
@@ -44,7 +48,8 @@ class schema {
     cout << endl;
   }
 
-  size_t len;
+  size_t ser_len;
+  size_t deser_len;
   unsigned int num_columns;
   field_info* columns;
 };

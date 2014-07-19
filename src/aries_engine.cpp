@@ -21,6 +21,12 @@ aries_engine::aries_engine(const config& _conf)
     : conf(_conf),
       db(conf.db) {
 
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size);
+  }
+
   //for (int i = 0; i < conf.num_executors; i++)
   //  executors.push_back(std::thread(&wal_engine::runner, this));
 
@@ -43,16 +49,22 @@ std::string aries_engine::select(const statement& st) {
   table_index* table_index = tab->indices->at(st.table_index_id);
 
   unsigned long key = hash_fn(st.key);
+  off_t storage_offset;
 
-  rec_ptr = table_index->map->at(key);
-  val = get_data(rec_ptr, st.projection);
+  if (table_index->off_map->exists(key) == 0) {
+    return val;
+  }
+
+  storage_offset = table_index->off_map->at(key);
+  val = tab->fs_data.at(storage_offset, tab->max_tuple_size);
+  val = deserialize_to_string(val, st.projection, false);
   LOG_INFO("val : %s", val.c_str());
 
   return val;
 }
 
 void aries_engine::insert(const statement& st) {
-  //LOG_INFO("Insert");
+  LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -61,28 +73,32 @@ void aries_engine::insert(const statement& st) {
   unsigned int index_itr;
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
+  LOG_INFO("key_str :: %s", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  if (indices->at(0)->map->exists(key) != 0) {
+  if (indices->at(0)->off_map->exists(key) != 0) {
     return;
   }
 
   // Add log entry
+  std::string after_tuple = serialize(after_rec, after_rec->sptr, false);
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(after_rec, after_rec->sptr) << "\n";
+               << " " << after_tuple << "\n";
   entry_str = entry_stream.str();
   undo_log.push_back(entry_str);
+  off_t storage_offset;
 
-  tab->data->push_back(after_rec);
+  storage_offset = tab->fs_data.push_back(after_tuple);
+  LOG_INFO("Insert offset :: %lu ", storage_offset);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->map->insert(key, after_rec);
+    indices->at(index_itr)->off_map->insert(key, storage_offset);
   }
 }
 
@@ -97,30 +113,33 @@ void aries_engine::remove(const statement& st) {
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
+  off_t storage_offset;
+  std::string val;
 
   // Check if key does not exist
-  if (indices->at(0)->map->exists(key) == 0) {
+  if (indices->at(0)->off_map->exists(key) == 0) {
     return;
   }
 
-  record* before_rec = indices->at(0)->map->at(key);
+  storage_offset = indices->at(0)->off_map->at(key);
+  val = tab->fs_data.at(storage_offset, tab->max_tuple_size);
+  record* before_rec = deserialize_to_record(val, tab->sptr, false);
 
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(before_rec, before_rec->sptr) << "\n";
+               << " " << serialize(before_rec, before_rec->sptr, false) << "\n";
 
   entry_str = entry_stream.str();
   undo_log.push_back(entry_str);
-
-  tab->data->erase(before_rec);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->map->erase(key);
+    // Lazy deletion
+    indices->at(index_itr)->off_map->erase(key);
   }
 
 }
@@ -128,16 +147,25 @@ void aries_engine::remove(const statement& st) {
 void aries_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
-
-  record* before_rec = indices->at(0)->map->at(key);
+  off_t storage_offset;
+  std::string val;
 
   // Check if key does not exist
-  if (before_rec == 0)
+  if (indices->at(0)->off_map->exists(key) == 0) {
     return;
+  }
+
+  storage_offset = indices->at(0)->off_map->at(key);
+  val = tab->fs_data.at(storage_offset, tab->max_tuple_size);
+  LOG_INFO("val : %s", val.c_str());
+  record* before_rec = deserialize_to_record(val, tab->sptr, false);
+  //LOG_INFO("before tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
+
 
   std::string after_data, before_data;
   int num_fields = st.field_ids.size();
@@ -153,12 +181,20 @@ void aries_engine::update(const statement& st) {
     before_rec->set_data(field_itr, rec_ptr);
   }
 
+  //LOG_INFO("update tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
+
   // after image
-  entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
+  std::string before_tuple = serialize(before_rec, tab->sptr, false);
+  entry_stream << before_tuple << "\n";
 
   // Add log entry
   entry_str = entry_stream.str();
   undo_log.push_back(entry_str);
+
+  // In-place update
+
+  LOG_INFO("update offset : %lu", storage_offset);
+  tab->fs_data.update(storage_offset, before_tuple);
 }
 
 // RUNNER + LOADER
@@ -230,8 +266,8 @@ void aries_engine::generator(const workload& load, bool stats) {
 
   gettimeofday(&t2, NULL);
 
-  if(stats){
-    cout<<"ARIES :: ";
+  if (stats) {
+    cout << "ARIES :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }
@@ -247,6 +283,7 @@ void aries_engine::recovery() {
   std::string entry_str;
   std::ifstream log_file(undo_log.log_file_name);
 
+  /*
   while (std::getline(log_file, entry_str)) {
     //LOG_INFO("entry : %s ", entry_str.c_str());
     std::stringstream entry(entry_str);
@@ -264,7 +301,7 @@ void aries_engine::recovery() {
         indices = tab->indices;
         num_indices = tab->num_indices;
 
-        tab->data->push_back(after_rec);
+        tab->pm_data->push_back(after_rec);
 
         // Add entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -272,7 +309,7 @@ void aries_engine::recovery() {
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->map->insert(key, after_rec);
+          indices->at(index_itr)->off_map->insert(key, after_rec);
         }
       }
         break;
@@ -287,7 +324,7 @@ void aries_engine::recovery() {
         indices = tab->indices;
         num_indices = tab->num_indices;
 
-        tab->data->erase(before_rec);
+        tab->pm_data->erase(before_rec);
 
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -295,7 +332,7 @@ void aries_engine::recovery() {
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->map->erase(key);
+          indices->at(index_itr)->off_map->erase(key);
         }
       }
         break;
@@ -317,7 +354,7 @@ void aries_engine::recovery() {
                                            indices->at(index_itr)->sptr);
             unsigned long key = hash_fn(key_str);
 
-            indices->at(index_itr)->map->insert(key, after_rec);
+            indices->at(index_itr)->off_map->insert(key, after_rec);
           }
 
         }
@@ -330,6 +367,7 @@ void aries_engine::recovery() {
     }
 
   }
+  */
 
 }
 

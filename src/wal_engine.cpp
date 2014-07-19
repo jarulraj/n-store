@@ -51,7 +51,7 @@ std::string wal_engine::select(const statement& st) {
   unsigned long key = hash_fn(st.key);
   std::string val;
 
-  rec_ptr = table_index->map->at(key);
+  rec_ptr = table_index->pm_map->at(key);
   val = get_data(rec_ptr, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
@@ -71,7 +71,7 @@ void wal_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  if (indices->at(0)->map->exists(key) != 0) {
+  if (indices->at(0)->pm_map->exists(key) != 0) {
     return;
   }
 
@@ -91,14 +91,14 @@ void wal_engine::insert(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
-  tab->data->push_back(after_rec);
+  tab->pm_data->push_back(after_rec);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->map->insert(key, after_rec);
+    indices->at(index_itr)->pm_map->insert(key, after_rec);
   }
 }
 
@@ -115,11 +115,11 @@ void wal_engine::remove(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
-  if (indices->at(0)->map->exists(key) == 0) {
+  if (indices->at(0)->pm_map->exists(key) == 0) {
     return;
   }
 
-  record* before_rec = indices->at(0)->map->at(key);
+  record* before_rec = indices->at(0)->pm_map->at(key);
   commit_free_list.push_back(before_rec);
 
   // Add log entry
@@ -134,14 +134,14 @@ void wal_engine::remove(const statement& st) {
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
 
-  tab->data->erase(before_rec);
+  tab->pm_data->erase(before_rec);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->map->erase(key);
+    indices->at(index_itr)->pm_map->erase(key);
   }
 
 }
@@ -154,7 +154,7 @@ void wal_engine::update(const statement& st) {
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
-  record* before_rec = indices->at(0)->map->at(key);
+  record* before_rec = indices->at(0)->pm_map->at(key);
 
   // Check if key does not exist
   if (before_rec == 0)
@@ -274,8 +274,8 @@ void wal_engine::generator(const workload& load, bool stats) {
 
   gettimeofday(&t2, NULL);
 
-  if(stats){
-    cout<<"WAL :: ";
+  if (stats) {
+    cout << "WAL :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 
@@ -310,7 +310,7 @@ void wal_engine::recovery() {
         indices = tab->indices;
         num_indices = tab->num_indices;
 
-        tab->data->erase(after_rec);
+        tab->pm_data->erase(after_rec);
 
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -318,7 +318,7 @@ void wal_engine::recovery() {
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->map->erase(key);
+          indices->at(index_itr)->pm_map->erase(key);
         }
 
         // Free after_rec
@@ -334,7 +334,7 @@ void wal_engine::recovery() {
         indices = tab->indices;
         num_indices = tab->num_indices;
 
-        tab->data->push_back(after_rec);
+        tab->pm_data->push_back(after_rec);
 
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -342,7 +342,7 @@ void wal_engine::recovery() {
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->map->insert(key, before_rec);
+          indices->at(index_itr)->pm_map->insert(key, before_rec);
         }
         break;
 

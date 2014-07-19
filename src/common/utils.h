@@ -38,13 +38,13 @@ inline std::string get_data(record* rptr, schema* sptr) {
 }
 
 // record* to string
-std::string serialize(record* rptr, schema* sptr);
+std::string serialize(record* rptr, schema* sptr, bool prefix);
 
 // string to record*
-record* deserialize(std::string entry, schema* sptr);
+record* deserialize_to_record(std::string entry, schema* sptr, bool prefix);
 
 // string to string
-std::string deserialize_to_string(std::string entry_str, schema* sptr);
+std::string deserialize_to_string(std::string entry_str, schema* sptr, bool prefix);
 
 // szudzik hasher
 inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {

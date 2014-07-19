@@ -226,6 +226,7 @@ class plist {
       np = np->next;
     }
 
+    //printf("size : %lu \n", data.size());
     return data;
   }
 

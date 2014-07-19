@@ -17,7 +17,6 @@ class usertable_record : public record {
   usertable_record(schema* _sptr, int _key, const std::string& _val)
       : record(_sptr),
         vc(NULL) {
-
     if (!_val.empty()) {
       size_t _val_len = _val.size();
       vc = new char[_val_len + 1];
@@ -70,17 +69,18 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     }
 
     // USERTABLE
-    size_t offset = 0, len = 0;
-    field_info col1(offset, 10, field_type::INTEGER, 1, 1);
-    offset += col1.len;  // ULONG_MAX
-    field_info col2(offset, sizeof(void*), field_type::VARCHAR, 0, 1);
-    offset += col2.len;
-    len = offset;
+    off_t offset;
+
+    offset = 0;
+    field_info col1(offset, 10, 10, field_type::INTEGER, 1, 1);
+    offset += col1.ser_len;
+    field_info col2(offset, sizeof(void*), 100, field_type::VARCHAR, 0, 1);
+    offset += col2.ser_len;
 
     vector<field_info> cols;
     cols.push_back(col1);
     cols.push_back(col2);
-    schema* usertable_schema = new schema(cols, len);
+    schema* usertable_schema = new schema(cols);
     pmemalloc_activate(usertable_schema);
 
     table* usertable = new table("usertable", usertable_schema, 1);
@@ -90,7 +90,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     plist<record*>* usertable_data = new plist<record*>(
         &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
     pmemalloc_activate(usertable_data);
-    usertable->data = usertable_data;
+    usertable->pm_data = usertable_data;
 
     plist<table_index*>* indices = new plist<table_index*>(
         &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
@@ -98,7 +98,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     usertable->indices = indices;
 
     cols[1].enabled = 0;
-    schema* usertable_index_schema = new schema(cols, len);
+    schema* usertable_index_schema = new schema(cols);
     pmemalloc_activate(usertable_index_schema);
 
     table_index* key_index = new table_index(usertable_index_schema, 2);
@@ -108,25 +108,15 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pbtree<unsigned long, record*>* key_index_map = new pbtree<unsigned long,
         record*>(&conf.sp->ptrs[conf.sp->itr++]);
     pmemalloc_activate(key_index_map);
-    key_index->map = key_index_map;
+    key_index->pm_map = key_index_map;
 
     pbtree<unsigned long, off_t>* key_index_lsm_map = new pbtree<unsigned long,
         off_t>(&conf.sp->ptrs[conf.sp->itr++]);
     pmemalloc_activate(key_index_lsm_map);
     key_index->off_map = key_index_lsm_map;
 
-    // XXX Disable persistence in ARIES engine
-    if (conf.aries_enable == 1) {
-      vector<table*> tables = db->tables->get_data();
-      for (table* tab : tables) {
-        vector<table_index*> indices = tab->indices->get_data();
-        for (table_index* index : indices) {
-          index->map->disable_persistence();
-        }
-      }
-    }
-
-    if (conf.lsm_enable == 1) {
+    // XXX Disable persistence
+    if (conf.aries_enable == 1 || conf.lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();
@@ -151,14 +141,15 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     }
 
     // Clear all indices
-    if (conf.aries_enable == 1) {
+    if (conf.aries_enable == 1 || conf.lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
-        tab->data->clear();
+        tab->pm_data->clear();
 
         vector<table_index*> indices = tab->indices->get_data();
         for (table_index* index : indices) {
-          index->map->clear();
+          index->pm_map->clear();
+          index->off_map->clear();
         }
       }
     }
@@ -166,7 +157,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     if (conf.lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
-        tab->data->clear();
+        tab->pm_data->clear();
 
         vector<table_index*> indices = tab->indices->get_data();
         for (table_index* index : indices) {
@@ -182,7 +173,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
   uniform(uniform_dist, conf.num_txns);
 }
 
-workload& ycsb_benchmark::get_dataset() {
+workload & ycsb_benchmark::get_dataset() {
 
   load.txns.clear();
 
@@ -211,7 +202,7 @@ workload& ycsb_benchmark::get_dataset() {
   return load;
 }
 
-workload& ycsb_benchmark::get_workload() {
+workload & ycsb_benchmark::get_workload() {
 
   load.txns.clear();
 

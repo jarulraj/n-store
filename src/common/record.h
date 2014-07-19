@@ -13,7 +13,7 @@ class record {
   record(schema* _sptr)
       : sptr(_sptr),
         data(NULL),
-        data_len(_sptr->len) {
+        data_len(_sptr->ser_len) {
     data = new char[data_len];
   }
 
@@ -79,7 +79,7 @@ class record {
   inline void set_data(const int field_id, record* rec_ptr) {
     char type = sptr->columns[field_id].type;
     size_t offset = sptr->columns[field_id].offset;
-    size_t len = sptr->columns[field_id].len;
+    size_t len = sptr->columns[field_id].ser_len;
 
     switch (type) {
       case field_type::INTEGER:

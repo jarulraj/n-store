@@ -13,20 +13,20 @@ class table_index {
   table_index(schema* _sptr, unsigned int _num_fields)
       : sptr(_sptr),
         num_fields(_num_fields),
-        map(NULL),
+        pm_map(NULL),
         off_map(NULL){
   }
 
   ~table_index() {
     delete sptr;
-    delete map;
+    delete pm_map;
     delete off_map;
   }
 
   schema* sptr;
   unsigned int num_fields;
 
-  pbtree<unsigned long, record*>* map;
+  pbtree<unsigned long, record*>* pm_map;
 
   pbtree<unsigned long, off_t>* off_map;
 };
