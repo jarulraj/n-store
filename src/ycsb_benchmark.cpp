@@ -116,7 +116,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     key_index->off_map = key_index_lsm_map;
 
     // XXX Disable persistence
-    if (conf.aries_enable == 1 || conf.lsm_enable == 1) {
+    if (conf.aries_enable == 1 || conf.aries_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();

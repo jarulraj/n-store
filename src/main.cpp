@@ -64,7 +64,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.gc_interval = 5;
   state.per_writes = 0.1;
 
-  state.lsm_size = 1000;
+  state.merge_interval = 100;
 
   state.sp_enable = false;
   state.aries_enable = false;

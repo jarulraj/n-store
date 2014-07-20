@@ -35,6 +35,7 @@ class lsm_engine : public engine {
   void execute(const transaction& t);
 
   void group_commit();
+  void merge();
   void recovery();
 
   //private:
@@ -51,6 +52,8 @@ class lsm_engine : public engine {
   pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::queue<transaction> txn_queue;
   std::atomic_bool done;
+
+  pthread_rwlock_t merge_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
   std::atomic_bool ready;
 };

@@ -42,7 +42,7 @@ class config {
   double per_writes;
 
   int gc_interval;
-  int lsm_size;
+  int merge_interval;
 
   double skew;
 

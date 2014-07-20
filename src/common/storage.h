@@ -91,13 +91,13 @@ class storage {
     return ret;
   }
 
-  std::string at(off_t storage_offset, size_t tuple_size) {
+  std::string at(off_t storage_offset) {
     std::string entry_str;
     char* buf = new char[max_tuple_size];
     int rc;
 
     fseek(storage_file, storage_offset, SEEK_SET);
-    rc = fread(buf, 1, tuple_size, storage_file);
+    rc = fread(buf, 1, max_tuple_size, storage_file);
     if (rc == -1) {
       perror("fread");
       exit(EXIT_FAILURE);

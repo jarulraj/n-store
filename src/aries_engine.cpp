@@ -56,7 +56,7 @@ std::string aries_engine::select(const statement& st) {
   }
 
   storage_offset = table_index->off_map->at(key);
-  val = tab->fs_data.at(storage_offset, tab->max_tuple_size);
+  val = tab->fs_data.at(storage_offset);
   val = deserialize_to_string(val, st.projection, false);
   LOG_INFO("val : %s", val.c_str());
 
@@ -122,7 +122,7 @@ void aries_engine::remove(const statement& st) {
   }
 
   storage_offset = indices->at(0)->off_map->at(key);
-  val = tab->fs_data.at(storage_offset, tab->max_tuple_size);
+  val = tab->fs_data.at(storage_offset);
   record* before_rec = deserialize_to_record(val, tab->sptr, false);
 
   // Add log entry
@@ -161,7 +161,7 @@ void aries_engine::update(const statement& st) {
   }
 
   storage_offset = indices->at(0)->off_map->at(key);
-  val = tab->fs_data.at(storage_offset, tab->max_tuple_size);
+  val = tab->fs_data.at(storage_offset);
   LOG_INFO("val : %s", val.c_str());
   record* before_rec = deserialize_to_record(val, tab->sptr, false);
   //LOG_INFO("before tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
