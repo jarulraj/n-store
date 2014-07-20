@@ -11,56 +11,42 @@
 
 using namespace std;
 
-pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-int new_cnt = 0;
-
-void* operator new(size_t sz) throw (bad_alloc) {
-  new_cnt++;
-  pthread_mutex_lock(&pmp_mutex);
-  void* ret = pmemalloc_reserve(sz);
-  pthread_mutex_unlock(&pmp_mutex);
-  return ret;
-}
-
-void operator delete(void *p) throw () {
-  pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(p);
-  pthread_mutex_unlock(&pmp_mutex);
-}
-
-void work() {
-  int cnt = 16 * 1024;
+size_t work() {
+  int cnt = 16 * 8;
+  size_t tot_sz = 0;
+  size_t sz;
+  char* prev = NULL;
+  char* test = NULL;
+  char* glob = NULL;
 
   for (int i = 0; i < cnt; i++) {
+    sz = rand() % (1024 * 32);
+    tot_sz += sz;
+    //printf("sz :: %lu tot_sz :: %lu \n", sz, tot_sz);
 
-    int* test1 = new int(10);
-    pmemalloc_activate(test1);
+    prev = test;
+    test = new char[sz];
+    pmemalloc_activate(test);
 
-    vector<int> intvec;
-
-    delete test1;
+    if (sz % 5 ==0){
+      delete prev;
+      delete test;
+      delete glob;
+    }
   }
 
+  return tot_sz;
 }
 
 int main() {
-  const char* path = "./testfile";
+  const char* path = "./zfile";
 
-  long pmp_size = 10 * 1024 * 1024;
+  long pmp_size = 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
-  int num_thds = 2;
-  std::vector<std::thread> executors;
-
-  for (int i = 0; i < num_thds; i++)
-    executors.push_back(std::thread(work));
-
-  for (int i = 0; i < num_thds; i++)
-    executors[i].join();
-
-  cout << "new_cnt :" << new_cnt << endl;
+  size_t alloc = work();
+  cout << "mem :: " << alloc << endl;
 
   return 0;
 }
