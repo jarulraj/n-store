@@ -42,7 +42,7 @@ class aries_engine : public engine {
   database* db;
   std::vector<std::thread> executors;
 
-  logger undo_log;
+  logger fs_log;
   std::hash<std::string> hash_fn;
 
   std::stringstream entry_stream;

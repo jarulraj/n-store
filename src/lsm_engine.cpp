@@ -11,7 +11,7 @@ void lsm_engine::group_commit() {
     //std::cout << "Syncing log !" << endl;
 
     // sync
-    lsm_log.sync();
+    fs_log.sync();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
@@ -46,7 +46,7 @@ std::string lsm_engine::select(const statement& st) {
   off_t log_offset;
 
   log_offset = table_index->off_map->at(key);
-  val = lsm_log.at(log_offset);
+  val = fs_log.at(log_offset);
   val = deserialize_to_string(val, st.projection, true);
   LOG_INFO("val : %s", val.c_str());
 
@@ -77,7 +77,7 @@ void lsm_engine::insert(const statement& st) {
                << " " << serialize(after_rec, after_rec->sptr, true) << "\n";
   entry_str = entry_stream.str();
 
-  log_offset = lsm_log.push_back(entry_str);
+  log_offset = fs_log.push_back(entry_str);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -108,7 +108,7 @@ void lsm_engine::remove(const statement& st) {
   }
 
   log_offset = indices->at(0)->off_map->at(key);
-  val = lsm_log.at(log_offset);
+  val = fs_log.at(log_offset);
   record* before_rec = deserialize_to_record(val, st.rec_ptr->sptr, true);
 
   // Add TOMBSTONE log entry
@@ -117,7 +117,7 @@ void lsm_engine::remove(const statement& st) {
                << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
 
   entry_str = entry_stream.str();
-  lsm_log.push_back(entry_str);
+  fs_log.push_back(entry_str);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -149,7 +149,8 @@ void lsm_engine::update(const statement& st) {
   }
 
   log_offset = indices->at(0)->off_map->at(key);
-  val = lsm_log.at(log_offset);
+  val = fs_log.at(log_offset);
+
   record* before_rec = deserialize_to_record(val, st.rec_ptr->sptr, true);
 
   std::string after_data, before_data;
@@ -166,7 +167,7 @@ void lsm_engine::update(const statement& st) {
                << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
   entry_str = entry_stream.str();
 
-  log_offset = lsm_log.push_back(entry_str);
+  log_offset = fs_log.push_back(entry_str);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -226,7 +227,7 @@ void lsm_engine::runner() {
 
 void lsm_engine::generator(const workload& load, bool stats) {
 
-  lsm_log.configure(conf.fs_path + "lsm_log");
+  fs_log.configure(conf.fs_path + "lsm_log");
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -242,8 +243,8 @@ void lsm_engine::generator(const workload& load, bool stats) {
   ready = false;
   gc.join();
 
-  lsm_log.sync();
-  lsm_log.close();
+  fs_log.sync();
+  fs_log.close();
 
   gettimeofday(&t2, NULL);
 
@@ -262,7 +263,7 @@ void lsm_engine::recovery() {
 
   field_info finfo;
   std::string entry_str;
-  std::ifstream log_file(lsm_log.log_file_name);
+  std::ifstream log_file(fs_log.log_file_name);
   off_t log_offset;
 
   while (std::getline(log_file, entry_str)) {

@@ -154,18 +154,6 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
       }
     }
 
-    if (conf.lsm_enable == 1) {
-      vector<table*> tables = db->tables->get_data();
-      for (table* tab : tables) {
-        tab->pm_data->clear();
-
-        vector<table_index*> indices = tab->indices->get_data();
-        for (table_index* index : indices) {
-          index->off_map->clear();
-        }
-      }
-    }
-
   }
 
   // Generate Zipf dist

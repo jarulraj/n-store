@@ -11,7 +11,7 @@ void aries_engine::group_commit() {
     //std::cout << "Syncing log !" << endl;
 
     // sync
-    undo_log.sync();
+    fs_log.sync();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
@@ -87,7 +87,7 @@ void aries_engine::insert(const statement& st) {
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " " << after_tuple << "\n";
   entry_str = entry_stream.str();
-  undo_log.push_back(entry_str);
+  fs_log.push_back(entry_str);
   off_t storage_offset;
 
   storage_offset = tab->fs_data.push_back(after_tuple);
@@ -131,7 +131,7 @@ void aries_engine::remove(const statement& st) {
                << " " << serialize(before_rec, before_rec->sptr, false) << "\n";
 
   entry_str = entry_stream.str();
-  undo_log.push_back(entry_str);
+  fs_log.push_back(entry_str);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -189,7 +189,7 @@ void aries_engine::update(const statement& st) {
 
   // Add log entry
   entry_str = entry_stream.str();
-  undo_log.push_back(entry_str);
+  fs_log.push_back(entry_str);
 
   // In-place update
 
@@ -245,7 +245,7 @@ void aries_engine::runner() {
 
 void aries_engine::generator(const workload& load, bool stats) {
 
-  undo_log.configure(conf.fs_path + "log");
+  fs_log.configure(conf.fs_path + "log");
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -261,8 +261,8 @@ void aries_engine::generator(const workload& load, bool stats) {
   ready = false;
   gc.join();
 
-  undo_log.sync();
-  undo_log.close();
+  fs_log.sync();
+  fs_log.close();
 
   gettimeofday(&t2, NULL);
 
@@ -281,7 +281,7 @@ void aries_engine::recovery() {
 
   field_info finfo;
   std::string entry_str;
-  std::ifstream log_file(undo_log.log_file_name);
+  std::ifstream log_file(fs_log.log_file_name);
 
   /*
   while (std::getline(log_file, entry_str)) {

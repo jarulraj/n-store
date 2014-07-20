@@ -42,7 +42,7 @@ class lsm_engine : public engine {
   database* db;
   std::vector<std::thread> executors;
 
-  logger lsm_log;
+  logger fs_log;
   std::hash<std::string> hash_fn;
 
   std::stringstream entry_stream;
