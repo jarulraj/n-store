@@ -289,7 +289,7 @@ static void pmemalloc_coalesce_free(void* pmp) {
         lastfree = clp;
       csize += sz;
     } else if (firstfree != NULL && lastfree != NULL) {
-      DEBUG("coalesced size 0x%lx", csize);
+      DEBUG("CF :: coalesced size %lu \n", csize);
       firstfree->size = csize | PMEM_STATE_FREE;
       pmem_persist(firstfree, sizeof(*firstfree), 0);
       firstfree = lastfree = NULL;
@@ -303,7 +303,8 @@ static void pmemalloc_coalesce_free(void* pmp) {
     DEBUG("next clp %lx, offset 0x%lx", clp, OFF(clp));
   }
   if (firstfree != NULL && lastfree != NULL) {
-    DEBUG("coalesced size 0x%lx", csize); DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
+    DEBUG("CF :: coalesced size %lu \n", csize);
+    DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
         (uintptr_t )firstfree + csize);
     firstfree->size = csize | PMEM_STATE_FREE;
     pmem_persist(firstfree, sizeof(*firstfree), 0);
@@ -358,6 +359,86 @@ static void pmemalloc_coalesce_local(void *abs_ptr_) {
     DEBUG("Merge from cur :: [0x%lx] size :: %lu ", OFF(earlier_clp), tot_sz);
   }
 
+}
+
+// Rotating local coalesce
+struct clump* prev_free_clp = NULL;
+
+static void pmemalloc_coalesce_rotate() {
+  struct clump *clp;
+  struct clump *firstfree;
+  struct clump *lastfree;
+  size_t csize;
+  int flag = 0, itr = 0;
+
+  DEBUG("-------------------------------------------------------");
+
+  DEBUG("pmp=0x%lx", pmp);
+
+  firstfree = lastfree = NULL;
+  csize = 0;
+
+  if (prev_free_clp == NULL) {
+    clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
+  } else
+    clp = prev_free_clp;
+
+  size_t sz = clp->size & ~PMEM_STATE_MASK;
+  int state = clp->size & PMEM_STATE_MASK;
+
+  DEBUG("[0x%lx] prev_free_clump size %lu state %d", OFF(clp), sz, state);
+
+  while (clp->size && itr < 3) {
+    sz = clp->size & ~PMEM_STATE_MASK;
+    state = clp->size & PMEM_STATE_MASK;
+
+    DEBUG("[0x%lx]clump size %lu state %d", OFF(clp), sz, state);
+
+    if (state == PMEM_STATE_FREE) {
+      if (firstfree == NULL)
+        firstfree = clp;
+      else
+        lastfree = clp;
+
+      flag = 1;
+      csize += sz;
+    } else if (firstfree != NULL && lastfree != NULL) {
+      DEBUG("*** CR :: coalesced size %lu \n", csize);
+
+      DEBUG("coalesced size 0x%lx", csize);
+      firstfree->size = csize | PMEM_STATE_FREE;
+      pmem_persist(firstfree, sizeof(*firstfree), 0);
+      firstfree = lastfree = NULL;
+      csize = 0;
+    } else {
+      firstfree = lastfree = NULL;
+      csize = 0;
+    }
+
+    if(flag)
+      itr++;
+
+    clp = (struct clump *) ((uintptr_t) clp + sz);
+    DEBUG("next clp %lx, offset 0x%lx", clp, OFF(clp));
+  }
+
+  if (firstfree != NULL && lastfree != NULL) {
+    DEBUG("*** CR :: coalesced size %lu \n", csize);
+    DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
+        (uintptr_t )firstfree + csize);
+    firstfree->size = csize | PMEM_STATE_FREE;
+    pmem_persist(firstfree, sizeof(*firstfree), 0);
+  }
+
+  // Update prev
+  prev_free_clp = clp;
+
+  if(sz == 0){
+    clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
+    prev_free_clp = clp;
+  }
+
+  DEBUG("-------------------------------------------------------");
 }
 
 /*
@@ -417,7 +498,7 @@ pmemalloc_init(const char *path, size_t size) {
       goto out;
     }
 
-    ASSERTeq(sizeof(cl), PMEM_CHUNK_SIZE); ASSERTeq(sizeof(hdr), PMEM_PAGE_SIZE);
+    ASSERTeq(sizeof(cl), PMEM_CHUNK_SIZE);ASSERTeq(sizeof(hdr), PMEM_PAGE_SIZE);
 
     if ((fd = open(path, O_CREAT | O_RDWR, 0666)) < 0)
       goto out;
@@ -466,7 +547,7 @@ pmemalloc_init(const char *path, size_t size) {
    * map the file
    */
   if ((pmp = pmem_map(fd, size)) == NULL) {
-    printf("fd : %d size : %lu \n", fd, size);
+    DEBUG("fd : %d size : %lu \n", fd, size);
     perror("mapping failed ");
     goto out;
   }
@@ -648,6 +729,7 @@ pmemalloc_reserve(size_t size) {
           pmem_persist(clp, sizeof(*clp), 0);
         }
 
+        loop = 0;
         prev_clp = clp;
         return PMEM(ptr);
       }
@@ -660,7 +742,7 @@ pmemalloc_reserve(size_t size) {
   if (loop == 0) {
     loop = 1;
     clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
-    //printf("allocator :: loop back and NOT coalesce\n");
+    printf("allocator :: loop back \n");
     //pmemalloc_coalesce_free(pmp);
     goto check;
   }
@@ -890,7 +972,7 @@ void pmemalloc_free(void *abs_ptr_) {
    *     the recovery code for coalescing.
    */
 
-  pmemalloc_coalesce_local(abs_ptr_);
+  pmemalloc_coalesce_rotate();
 }
 
 /*
@@ -948,7 +1030,7 @@ void pmemalloc_check(const char *path) {
   if ((pmp = mmap((caddr_t) LIBPM, stbuf.st_size, PROT_READ,
   MAP_SHARED,
                   fd, 0)) == MAP_FAILED)
-    FATALSYS("mmap"); DEBUG("pmp %lx", pmp);
+    FATALSYS("mmap");DEBUG("pmp %lx", pmp);
 
   close(fd);
 
@@ -956,7 +1038,7 @@ void pmemalloc_check(const char *path) {
   DEBUG("   hdrp 0x%lx (off 0x%lx)", hdrp, OFF(hdrp));
 
   if (strcmp(hdrp->signature, PMEM_SIGNATURE))
-    FATAL("failed signature check"); DEBUG("signature check passed");
+    FATAL("failed signature check");DEBUG("signature check passed");
 
   clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
   /*
@@ -968,7 +1050,7 @@ void pmemalloc_check(const char *path) {
   lastclp = PMEM(
 
   (struct clump *) (stbuf.st_size & ~(PMEM_CHUNK_SIZE - 1)) - PMEM_CHUNK_SIZE);
-  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(clp)); DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(lastclp));
+  DEBUG("    clp 0x%lx (off 0x%lx)", clp, OFF(clp));DEBUG("lastclp 0x%lx (off 0x%lx)", lastclp, OFF(lastclp));
 
   clumptotal = (uintptr_t) lastclp - (uintptr_t) clp;
 
@@ -1005,9 +1087,10 @@ void pmemalloc_check(const char *path) {
     size_t sz = clp->size & ~PMEM_STATE_MASK;
     int state = clp->size & PMEM_STATE_MASK;
 
-    DEBUG("[%u]clump size %lu state %d", OFF(clp), sz, state); DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
-        clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
-        clp->on[2].ptr_);
+    DEBUG("[%u]clump size %lu state %d", OFF(clp), sz, state);
+    //DEBUG("on: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", clp->on[0].off,
+    //    clp->on[0].ptr_, clp->on[1].off, clp->on[1].ptr_, clp->on[2].off,
+    //    clp->on[2].ptr_);
 
     if (sz > stats[PMEM_STATE_UNUSED].largest)
       stats[PMEM_STATE_UNUSED].largest = sz;
@@ -1019,29 +1102,29 @@ void pmemalloc_check(const char *path) {
 
     switch (state) {
       case PMEM_STATE_FREE:
-        DEBUG("clump state: free");
+        //DEBUG("clump state: free");
         ASSERTeq(clp->on[0].off, 0);
         ASSERTeq(clp->on[1].off, 0);
         ASSERTeq(clp->on[2].off, 0);
         break;
 
       case PMEM_STATE_RESERVED:
-        DEBUG("clump state: reserved");
+        //DEBUG("clump state: reserved");
         break;
 
       case PMEM_STATE_ACTIVATING:
-        DEBUG("clump state: activating");
+        //DEBUG("clump state: activating");
         break;
 
       case PMEM_STATE_ACTIVE:
-        DEBUG("clump state: active");
+        //DEBUG("clump state: active");
         ASSERTeq(clp->on[0].off, 0);
         ASSERTeq(clp->on[1].off, 0);
         ASSERTeq(clp->on[2].off, 0);
         break;
 
       case PMEM_STATE_FREEING:
-        DEBUG("clump state: freeing");
+        //DEBUG("clump state: freeing");
         break;
 
       default:

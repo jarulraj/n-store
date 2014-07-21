@@ -78,6 +78,7 @@ void wal_engine::insert(const statement& st) {
 
   // Check if key exists
   if (indices->at(0)->off_map->exists(key) != 0) {
+    delete after_rec;
     return;
   }
 
@@ -100,6 +101,8 @@ void wal_engine::insert(const statement& st) {
 
     indices->at(index_itr)->off_map->insert(key, storage_offset);
   }
+
+  delete after_rec;
 }
 
 void wal_engine::remove(const statement& st) {
@@ -118,6 +121,7 @@ void wal_engine::remove(const statement& st) {
 
   // Check if key does not exist
   if (indices->at(0)->off_map->exists(key) == 0) {
+    delete rec_ptr;
     return;
   }
 
@@ -142,6 +146,8 @@ void wal_engine::remove(const statement& st) {
     indices->at(index_itr)->off_map->erase(key);
   }
 
+  delete rec_ptr;
+  delete before_rec;
 }
 
 void wal_engine::update(const statement& st) {
@@ -157,6 +163,7 @@ void wal_engine::update(const statement& st) {
 
   // Check if key does not exist
   if (indices->at(0)->off_map->exists(key) == 0) {
+    //delete rec_ptr;
     return;
   }
 
@@ -194,6 +201,9 @@ void wal_engine::update(const statement& st) {
 
   LOG_INFO("update offset : %lu", storage_offset);
   tab->fs_data.update(storage_offset, before_tuple);
+
+  delete rec_ptr;
+  delete before_rec;
 }
 
 // RUNNER + LOADER

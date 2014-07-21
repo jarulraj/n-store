@@ -28,7 +28,7 @@ size_t work() {
     test = new char[sz];
     pmemalloc_activate(test);
 
-    if (sz % 5 ==0){
+    if (sz % 2 ==0 || sz % 3 == 0){
       delete prev;
       delete test;
       delete glob;

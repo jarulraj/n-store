@@ -31,11 +31,14 @@ void lsm_engine::merge() {
 
     std::cout << "Merging !" << endl;
 
+    /*
     wrlock(&merge_rwlock);
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
       table_index *table_index = tab->indices->at(0);
+      printf("tab sptr %p \n", tab->sptr);
+      assert(tab->sptr != NULL);
 
       pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
       pbtree<unsigned long, record*>::const_iterator itr;
@@ -48,6 +51,12 @@ void lsm_engine::merge() {
       for (itr = pm_map->begin(); itr != pm_map->end(); itr++) {
         key = (*itr).first;
         pm_rec = (*itr).second;
+
+        if(key == 0 || pm_rec == NULL){
+          printf("key :: %lu pm_rec %p \n", key, pm_rec);
+          break;
+        }
+
         fs_rec = NULL;
 
         // Check if we need to merge
@@ -64,6 +73,8 @@ void lsm_engine::merge() {
 
           val = serialize(fs_rec, tab->sptr, false);
           tab->fs_data.update(storage_offset, val);
+
+          delete fs_rec;
         } else {
           // Insert tuple
           val = serialize(pm_rec, tab->sptr, false);
@@ -71,11 +82,13 @@ void lsm_engine::merge() {
           table_index->off_map->insert(key, storage_offset);
         }
       }
+
     }
 
     // Truncate log
 
     unlock(&merge_rwlock);
+    */
 
   }
 }
@@ -126,7 +139,7 @@ std::string lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    fs_rec = deserialize_to_record(val, tab->sptr, true);
+    fs_rec = deserialize_to_record(val, tab->sptr, false);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
@@ -135,6 +148,8 @@ std::string lsm_engine::select(const statement& st) {
   } else if (pm_rec == NULL && fs_rec != NULL) {
     // From SSTable
     val = serialize(fs_rec, st.projection, false);
+
+    delete fs_rec;
   } else if (pm_rec != NULL && fs_rec != NULL) {
     // Merge
     int num_cols = pm_rec->sptr->num_columns;
@@ -142,7 +157,9 @@ std::string lsm_engine::select(const statement& st) {
       if (pm_rec->sptr->columns[field_itr].enabled)
         fs_rec->set_data(field_itr, pm_rec);
     }
+
     val = serialize(fs_rec, st.projection, false);
+    delete fs_rec;
   }
 
   LOG_INFO("val : %s", val.c_str());
@@ -219,6 +236,7 @@ void lsm_engine::remove(const statement& st) {
     indices->at(index_itr)->pm_map->erase(key);
   }
 
+  delete before_rec;
 }
 
 void lsm_engine::update(const statement& st) {
@@ -244,7 +262,9 @@ void lsm_engine::update(const statement& st) {
 
   // Update existing record
   for (int field_itr : st.field_ids) {
+    void* field_ptr = rec_ptr->get_pointer(field_itr);
     before_rec->set_data(field_itr, rec_ptr);
+    delete ((char*)field_ptr);
   }
 
   // Add log entry
@@ -323,18 +343,18 @@ void lsm_engine::generator(const workload& load, bool stats) {
   gettimeofday(&t1, NULL);
 
   // Logger start
-  std::thread gc(&lsm_engine::group_commit, this);
+  //std::thread gc(&lsm_engine::group_commit, this);
   // Merger start
-  std::thread merger(&lsm_engine::merge, this);
-  ready = true;
+  //std::thread merger(&lsm_engine::merge, this);
+  //ready = true;
 
   for (const transaction& txn : load.txns)
     execute(txn);
 
 // Logger end
   ready = false;
-  gc.join();
-  merger.join();
+  //gc.join();
+  //merger.join();
 
   fs_log.sync();
   fs_log.close();

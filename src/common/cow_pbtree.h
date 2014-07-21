@@ -962,7 +962,8 @@ class cow_btree {
       }
     }
 
-    flags = 0 | BT_NOSYNC;
+    flags = 0;
+    //flags = 0 | BT_NOSYNC;
     flags &= ~BT_FIXPADDING;
     ref = 1;
     meta.root = P_INVALID;
@@ -1015,7 +1016,8 @@ class cow_btree {
 
   cow_btree(bool _persist, const char *_path) {
     int _fd, oflags;
-    unsigned int _flags = 0 | BT_NOSYNC;
+    //unsigned int _flags = 0 | BT_NOSYNC;
+    unsigned int _flags = 0;
     mode_t _mode = 0644;
 
     persist = _persist;
