@@ -14,8 +14,6 @@
 #define ASSERTeq(lhs, rhs)
 #define ASSERTne(lhs, rhs)
 
-//#define DEBUG(...)\
-  debug(__FILE__, __LINE__, __func__, __VA_ARGS__)
 #define FATALSYS(...)\
   fatal(errno, __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define FATAL(...)\
@@ -23,24 +21,29 @@
 #define USAGE(...)\
   usage(Usage, __VA_ARGS__)
 
-/* assert a condition is true */
-//#define ASSERT(cnd)\
+/*
+ #define DEBUG(...)\
+  debug(__FILE__, __LINE__, __func__, __VA_ARGS__)
+ // assert a condition is true
+ #define ASSERT(cnd)\
   ((void)((cnd) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s", #cnd), 0)))
-/* assertion with extra info printed if assertion fails */
-//#define ASSERTinfo(cnd, info) \
+ // assertion with extra info printed if assertion fails
+ #define ASSERTinfo(cnd, info) \
   ((void)((cnd) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%s = %s)", #cnd, #info, info), 0)))
-/* assert two integer values are equal */
-//#define ASSERTeq(lhs, rhs)\
+ // assert two integer values are equal
+ #define ASSERTeq(lhs, rhs)\
   ((void)(((lhs) == (rhs)) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%d) == %s (%d)", #lhs,\
   (lhs), #rhs, (rhs)), 0)))
-/* assert two integer values are not equal */
-//#define ASSERTne(lhs, rhs)\
+ // assert two integer values are not equal
+ #define ASSERTne(lhs, rhs)\
   ((void)(((lhs) != (rhs)) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%d) != %s (%d)", #lhs,\
   (lhs), #rhs, (rhs)), 0)))
+ */
+
 void debug(const char *file, int line, const char *func, const char *fmt, ...);
 void fatal(int err, const char *file, int line, const char *func,
            const char *fmt, ...);
