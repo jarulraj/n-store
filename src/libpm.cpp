@@ -372,7 +372,6 @@ static void pmemalloc_coalesce_rotate() {
   int flag = 0, itr = 0;
 
   DEBUG("-------------------------------------------------------");
-
   DEBUG("pmp=0x%lx", pmp);
 
   firstfree = lastfree = NULL;
@@ -407,7 +406,7 @@ static void pmemalloc_coalesce_rotate() {
 
       DEBUG("coalesced size 0x%lx", csize);
       firstfree->size = csize | PMEM_STATE_FREE;
-      pmem_persist(firstfree, sizeof(*firstfree), 0);
+      //pmem_persist(firstfree, sizeof(*firstfree), 0);
       firstfree = lastfree = NULL;
       csize = 0;
     } else {
@@ -427,7 +426,7 @@ static void pmemalloc_coalesce_rotate() {
     DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
         (uintptr_t )firstfree + csize);
     firstfree->size = csize | PMEM_STATE_FREE;
-    pmem_persist(firstfree, sizeof(*firstfree), 0);
+    //pmem_persist(firstfree, sizeof(*firstfree), 0);
   }
 
   // Update prev
@@ -646,7 +645,7 @@ struct clump* prev_clp = NULL;
 void *
 pmemalloc_reserve(size_t size) {
   size_t nsize = roundup(size + PMEM_CHUNK_SIZE, PMEM_CHUNK_SIZE);
-  struct clump *clp, *later_clp;
+  struct clump *clp;
   size_t sz;
   int state;
   int loop = 0;
@@ -698,35 +697,30 @@ pmemalloc_reserve(size_t size) {
            */
           memset(newclp, '\0', sizeof(*newclp));
           newclp->size = leftover | PMEM_STATE_FREE;
-          later_clp = (struct clump *) ((uintptr_t) newclp
-              + (leftover & ~PMEM_STATE_MASK));
-          later_clp->prevsize = leftover;
-
-          pmem_persist(newclp, sizeof(*newclp), 0);
+          //pmem_persist(newclp, sizeof(*newclp), 0);
+          /*
           for (i = 0; i < PMEM_NUM_ON; i++) {
             clp->on[i].off = 0;
             clp->on[i].ptr_ = 0;
           }
-          pmem_persist(clp, sizeof(*clp), 0);
+          */
+          //pmem_persist(clp, sizeof(*clp), 0);
           clp->size = nsize | PMEM_STATE_RESERVED;
-          later_clp = (struct clump *) ((uintptr_t) clp
-              + (clp->size & ~PMEM_STATE_MASK));
-          later_clp->prevsize = clp->size;
-          pmem_persist(clp, sizeof(*clp), 0);
+          //pmem_persist(clp, sizeof(*clp), 0);
         } else {
           int i;
 
           DEBUG("no split required");
 
+          /*
           for (i = 0; i < PMEM_NUM_ON; i++) {
             clp->on[i].off = 0;
             clp->on[i].ptr_ = 0;
           }
-          pmem_persist(clp, sizeof(*clp), 0);
+          */
+          //pmem_persist(clp, sizeof(*clp), 0);
           clp->size = sz | PMEM_STATE_RESERVED;
-          later_clp = (struct clump *) ((uintptr_t) clp + sz);
-          later_clp->prevsize = clp->size;
-          pmem_persist(clp, sizeof(*clp), 0);
+          //pmem_persist(clp, sizeof(*clp), 0);
         }
 
         loop = 0;
@@ -885,7 +879,8 @@ void pmemalloc_activate(void *abs_ptr_) {
    */
   pmem_persist(PMEM(ptr_), clp->size - PMEM_CHUNK_SIZE, 0);
   clp->size = sz | PMEM_STATE_ACTIVATING;
-  pmem_persist(clp, sizeof(*clp), 0);
+  //pmem_persist(clp, sizeof(*clp), 0);
+  /*
   for (i = 0; i < PMEM_NUM_ON; i++)
     if (clp->on[i].off) {
       uintptr_t *dest = PMEM((uintptr_t * )clp->on[i].off);
@@ -896,8 +891,9 @@ void pmemalloc_activate(void *abs_ptr_) {
   for (i = PMEM_NUM_ON - 1; i >= 0; i--)
     clp->on[i].off = 0;
   pmem_persist(clp, sizeof(*clp), 0);
+  */
   clp->size = sz | PMEM_STATE_ACTIVE;
-  pmem_persist(clp, sizeof(*clp), 0);
+  //pmem_persist(clp, sizeof(*clp), 0);
 }
 
 /*
@@ -929,13 +925,6 @@ void pmemalloc_free(void *abs_ptr_) {
   sz = clp->size & ~PMEM_STATE_MASK;
   state = clp->size & PMEM_STATE_MASK;
 
-  if (state != PMEM_STATE_RESERVED && state != PMEM_STATE_ACTIVE) {
-    if (state == PMEM_STATE_FREE) {
-      return;
-    } else
-      FATAL("freeing clumb in bad state: %d", state);
-  }
-
   if (state == PMEM_STATE_ACTIVE) {
     /*
      * order here is important:
@@ -946,7 +935,8 @@ void pmemalloc_free(void *abs_ptr_) {
      * 5. persist *clp
      */
     clp->size = sz | PMEM_STATE_FREEING;
-    pmem_persist(clp, sizeof(*clp), 0);
+    //pmem_persist(clp, sizeof(*clp), 0);
+    /*
     for (int i = 0; i < PMEM_NUM_ON; i++)
       if (clp->on[i].off) {
         uintptr_t *dest = PMEM((uintptr_t * )clp->on[i].off);
@@ -956,10 +946,18 @@ void pmemalloc_free(void *abs_ptr_) {
         break;
     for (int i = PMEM_NUM_ON - 1; i >= 0; i--)
       clp->on[i].off = 0;
-    pmem_persist(clp, sizeof(*clp), 0);
+    */
+    //pmem_persist(clp, sizeof(*clp), 0);
   }
+  else if (state != PMEM_STATE_RESERVED && state != PMEM_STATE_ACTIVE) {
+    if (state == PMEM_STATE_FREE) {
+      return;
+    } else
+      FATAL("freeing clumb in bad state: %d", state);
+  }
+
   clp->size = sz | PMEM_STATE_FREE;
-  pmem_persist(clp, sizeof(*clp), 0);
+  //pmem_persist(clp, sizeof(*clp), 0);
 
   /*
    * at this point we may have adjacent free clumps that need
