@@ -1,40 +1,38 @@
-// WRITE-AHEAD LOGGING
+// ARIES LOGGING
 
-#include "wal_engine.h"
+#include "aries_engine.h"
+#include <fstream>
 
 using namespace std;
 
-void wal_engine::group_commit() {
+void aries_engine::group_commit() {
 
   while (ready) {
+    //std::cout << "Syncing log !" << endl;
 
-    // Clear commit_free list
-    for (void* ptr : commit_free_list) {
-      pmemalloc_free(ptr);
-    }
-    commit_free_list.clear();
-
-    // Clear log
-    vector<char*> undo_log = db->log->get_data();
-    for (char* ptr : undo_log)
-      delete ptr;
-    db->log->clear();
+    // sync
+    fs_log.sync();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
 }
 
-wal_engine::wal_engine(const config& _conf)
+aries_engine::aries_engine(const config& _conf)
     : conf(_conf),
-      db(conf.db),
-      pm_log(db->log) {
+      db(conf.db) {
+
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size);
+  }
 
   //for (int i = 0; i < conf.num_executors; i++)
   //  executors.push_back(std::thread(&wal_engine::runner, this));
 
 }
 
-wal_engine::~wal_engine() {
+aries_engine::~aries_engine() {
 
   // done = true;
   //for (int i = 0; i < conf.num_executors; i++)
@@ -42,24 +40,31 @@ wal_engine::~wal_engine() {
 
 }
 
-std::string wal_engine::select(const statement& st) {
+std::string aries_engine::select(const statement& st) {
   LOG_INFO("Select");
+  std::string val;
+
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
   unsigned long key = hash_fn(st.key);
-  std::string val;
+  off_t storage_offset;
 
-  rec_ptr = table_index->pm_map->at(key);
-  val = get_data(rec_ptr, st.projection);
+  if (table_index->off_map->exists(key) == 0) {
+    return val;
+  }
+
+  storage_offset = table_index->off_map->at(key);
+  val = tab->fs_data.at(storage_offset);
+  val = deserialize_to_string(val, st.projection, false);
   LOG_INFO("val : %s", val.c_str());
 
   return val;
 }
 
-void wal_engine::insert(const statement& st) {
-  //LOG_INFO("Insert");
+void aries_engine::insert(const statement& st) {
+  LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -68,41 +73,36 @@ void wal_engine::insert(const statement& st) {
   unsigned int index_itr;
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
+  LOG_INFO("key_str :: %s", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  if (indices->at(0)->pm_map->exists(key) != 0) {
+  if (indices->at(0)->off_map->exists(key) != 0) {
     return;
   }
 
   // Add log entry
+  std::string after_tuple = serialize(after_rec, after_rec->sptr, false);
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << after_rec;
-
+               << " " << after_tuple << "\n";
   entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
+  fs_log.push_back(entry_str);
+  off_t storage_offset;
 
-  pmemalloc_activate(entry);
-  pm_log->push_back(entry);
-
-  // Activate new record
-  pmemalloc_activate(after_rec);
-  after_rec->persist_data();
-
-  tab->pm_data->push_back(after_rec);
+  storage_offset = tab->fs_data.push_back(after_tuple);
+  LOG_INFO("Insert offset :: %lu ", storage_offset);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->pm_map->insert(key, after_rec);
+    indices->at(index_itr)->off_map->insert(key, storage_offset);
   }
 }
 
-void wal_engine::remove(const statement& st) {
+void aries_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -113,102 +113,93 @@ void wal_engine::remove(const statement& st) {
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
+  off_t storage_offset;
+  std::string val;
 
   // Check if key does not exist
-  if (indices->at(0)->pm_map->exists(key) == 0) {
+  if (indices->at(0)->off_map->exists(key) == 0) {
     return;
   }
 
-  record* before_rec = indices->at(0)->pm_map->at(key);
-  commit_free_list.push_back(before_rec);
+  storage_offset = indices->at(0)->off_map->at(key);
+  val = tab->fs_data.at(storage_offset);
+  record* before_rec = deserialize_to_record(val, tab->sptr, false);
 
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << before_rec;
+               << " " << serialize(before_rec, before_rec->sptr, false) << "\n";
 
   entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
-
-  pmemalloc_activate(entry);
-  pm_log->push_back(entry);
-
-  tab->pm_data->erase(before_rec);
+  fs_log.push_back(entry_str);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->pm_map->erase(key);
+    // Lazy deletion
+    indices->at(index_itr)->off_map->erase(key);
   }
 
 }
 
-void wal_engine::update(const statement& st) {
+void aries_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
-
-  record* before_rec = indices->at(0)->pm_map->at(key);
+  off_t storage_offset;
+  std::string val;
 
   // Check if key does not exist
-  if (before_rec == 0)
+  if (indices->at(0)->off_map->exists(key) == 0) {
     return;
+  }
 
-  void *before_field, *after_field;
+  storage_offset = indices->at(0)->off_map->at(key);
+  val = tab->fs_data.at(storage_offset);
+  LOG_INFO("val : %s", val.c_str());
+  record* before_rec = deserialize_to_record(val, tab->sptr, false);
+  //LOG_INFO("before tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
+
+
+  std::string after_data, before_data;
   int num_fields = st.field_ids.size();
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << num_fields << " ";
+               << " ";
+  // before image
+  //entry_stream << serialize(before_rec, before_rec->sptr) << " ";
 
   for (int field_itr : st.field_ids) {
-    // Pointer field
-    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
-      before_field = before_rec->get_pointer(field_itr);
-      after_field = rec_ptr->get_pointer(field_itr);
-
-      entry_stream << field_itr << " " << before_rec << " " << before_field
-                   << " " << after_field << " ";
-    }
-    // Data field
-    else {
-      before_field = before_rec->get_pointer(field_itr);
-      std::string before_data = before_rec->get_data(field_itr);
-
-      entry_stream << field_itr << " " << before_rec << " " << before_data
-                   << " ";
-    }
-  }
-
-  // Add log entry
-  entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
-
-  pmemalloc_activate(entry);
-  pm_log->push_back(entry);
-
-  for (int field_itr : st.field_ids) {
-    // Activate new field and garbage collect previous field
-    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
-      commit_free_list.push_back(before_field);
-      pmemalloc_activate(after_field);
-    }
-
     // Update existing record
     before_rec->set_data(field_itr, rec_ptr);
   }
 
+  //LOG_INFO("update tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
+
+  // after image
+  std::string before_tuple = serialize(before_rec, tab->sptr, false);
+  entry_stream << before_tuple << "\n";
+
+  // Add log entry
+  entry_str = entry_stream.str();
+  fs_log.push_back(entry_str);
+
+  // In-place update
+
+  LOG_INFO("update offset : %lu", storage_offset);
+  tab->fs_data.update(storage_offset, before_tuple);
 }
 
 // RUNNER + LOADER
-void wal_engine::execute(const transaction& txn) {
+
+void aries_engine::execute(const transaction& txn) {
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -222,21 +213,9 @@ void wal_engine::execute(const transaction& txn) {
     }
   }
 
-  // Clear commit_free list
-  for (void* ptr : commit_free_list) {
-    pmemalloc_free(ptr);
-  }
-  commit_free_list.clear();
-
-  // Clear log
-  vector<char*> undo_log = db->log->get_data();
-  for (char* ptr : undo_log)
-    delete ptr;
-  db->log->clear();
-
 }
 
-void wal_engine::runner() {
+void aries_engine::runner() {
   bool empty = true;
 
   while (!done) {
@@ -264,144 +243,122 @@ void wal_engine::runner() {
   }
 }
 
-void wal_engine::generator(const workload& load, bool stats) {
+void aries_engine::generator(const workload& load, bool stats) {
+
+  fs_log.configure(conf.fs_path + "log");
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
+  // Logger start
+  std::thread gc(&aries_engine::group_commit, this);
+  ready = true;
+
   for (const transaction& txn : load.txns)
     execute(txn);
+
+  // Logger end
+  ready = false;
+  gc.join();
+
+  fs_log.sync();
+  fs_log.close();
 
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "WAL :: ";
+    cout << "ARIES :: ";
     display_stats(t1, t2, conf.num_txns);
   }
-
 }
 
-void wal_engine::recovery() {
-  vector<char*> undo_vec = db->log->get_data();
+void aries_engine::recovery() {
 
   int op_type, txn_id, table_id;
-  unsigned int num_indices, index_itr;
   table *tab;
   plist<table_index*>* indices;
+  unsigned int num_indices, index_itr;
 
-  std::string ptr_str;
-
-  record *before_rec, *after_rec;
   field_info finfo;
+  std::string entry_str;
+  std::ifstream log_file(fs_log.log_file_name);
 
-  for (char* ptr : undo_vec) {
-    LOG_INFO("entry : %s ", ptr);
-    std::stringstream entry(ptr);
+  /*
+  while (std::getline(log_file, entry_str)) {
+    //LOG_INFO("entry : %s ", entry_str.c_str());
+    std::stringstream entry(entry_str);
 
     entry >> txn_id >> op_type >> table_id;
 
     switch (op_type) {
-      case operation_type::Insert:
-        LOG_INFO("Reverting Insert");
-        entry >> ptr_str;
-        std::sscanf(ptr_str.c_str(), "%p", &after_rec);
+      case operation_type::Insert: {
+        LOG_INFO("Redo Insert");
 
         tab = db->tables->at(table_id);
-        indices = tab->indices;
-        num_indices = tab->num_indices;
+        schema* sptr = tab->sptr;
+        record* after_rec = deserialize(entry_str, sptr);
 
-        tab->pm_data->erase(after_rec);
-
-        // Remove entry in indices
-        for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = get_data(after_rec,
-                                         indices->at(index_itr)->sptr);
-          unsigned long key = hash_fn(key_str);
-
-          indices->at(index_itr)->pm_map->erase(key);
-        }
-
-        // Free after_rec
-        pmemalloc_free(after_rec);
-        break;
-
-      case operation_type::Delete:
-        LOG_INFO("Reverting Delete");
-        entry >> ptr_str;
-        std::sscanf(ptr_str.c_str(), "%p", &before_rec);
-
-        tab = db->tables->at(table_id);
         indices = tab->indices;
         num_indices = tab->num_indices;
 
         tab->pm_data->push_back(after_rec);
 
-        // Fix entry in indices to point to before_rec
+        // Add entry in indices
+        for (index_itr = 0; index_itr < num_indices; index_itr++) {
+          std::string key_str = get_data(after_rec,
+                                         indices->at(index_itr)->sptr);
+          unsigned long key = hash_fn(key_str);
+
+          indices->at(index_itr)->off_map->insert(key, after_rec);
+        }
+      }
+        break;
+
+      case operation_type::Delete: {
+        LOG_INFO("Redo Delete");
+
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
+        record* before_rec = deserialize(entry_str, sptr);
+
+        indices = tab->indices;
+        num_indices = tab->num_indices;
+
+        tab->pm_data->erase(before_rec);
+
+        // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = get_data(before_rec,
                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->pm_map->insert(key, before_rec);
+          indices->at(index_itr)->off_map->erase(key);
         }
+      }
         break;
 
       case operation_type::Update:
-        LOG_INFO("Reverting Update");
-        int num_fields;
-        int field_itr;
-
-        entry >> num_fields;
-
-        for (field_itr = 0; field_itr < num_fields; field_itr++) {
-          entry >> field_itr >> ptr_str;
-          std::sscanf(ptr_str.c_str(), "%p", &before_rec);
+        LOG_INFO("Redo Update");
+        {
+          int num_fields;
+          int field_itr;
 
           tab = db->tables->at(table_id);
-          indices = tab->indices;
-          finfo = before_rec->sptr->columns[field_itr];
+          schema* sptr = tab->sptr;
+          record* before_rec = deserialize(entry_str, sptr);
+          record* after_rec = deserialize(entry_str, sptr);
 
-          // Pointer
-          if (finfo.inlined == 0) {
-            LOG_INFO("Pointer ");
-            void *before_field, *after_field;
+          // Update entry in indices
+          for (index_itr = 0; index_itr < num_indices; index_itr++) {
+            std::string key_str = get_data(before_rec,
+                                           indices->at(index_itr)->sptr);
+            unsigned long key = hash_fn(key_str);
 
-            entry >> ptr_str;
-            std::sscanf(ptr_str.c_str(), "%p", &before_field);
-            entry >> ptr_str;
-            std::sscanf(ptr_str.c_str(), "%p", &after_field);
-
-            before_rec->set_pointer(field_itr, before_field);
-
-            // Free after_field
-            pmemalloc_free(after_field);
+            indices->at(index_itr)->off_map->insert(key, after_rec);
           }
-          // Data
-          else {
-            LOG_INFO("Inlined ");
 
-            field_type type = finfo.type;
-            size_t field_offset = before_rec->sptr->columns[field_itr].offset;
-
-            switch (type) {
-              case field_type::INTEGER:
-                int ival;
-                entry >> ival;
-                std::sprintf(&(before_rec->data[field_offset]), "%d", ival);
-                break;
-
-              case field_type::DOUBLE:
-                double dval;
-                entry >> dval;
-                std::sprintf(&(before_rec->data[field_offset]), "%lf", dval);
-                break;
-
-              default:
-                cout << "Invalid field type : " << op_type << endl;
-                break;
-            }
-          }
         }
+
         break;
 
       default:
@@ -409,10 +366,8 @@ void wal_engine::recovery() {
         break;
     }
 
-    delete ptr;
   }
-
-  db->log->clear();
+  */
 
 }
 
