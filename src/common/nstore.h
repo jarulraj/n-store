@@ -24,6 +24,24 @@ extern int level;
 #define LOG_INFO(M, ...) if(level > 2) fprintf(stderr, "[INFO] [%s :: %s:%d] " M "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 #endif
 
+static struct option opts[] = {
+    { "fs-path", optional_argument, NULL, 'f' },
+    { "num-txns", optional_argument, NULL, 'x' },
+    { "num-keys", optional_argument, NULL, 'k' },
+    { "num-executors", optional_argument, NULL, 'e' },
+    { "per-writes", optional_argument, NULL, 'w' },
+    { "gc-interval", optional_argument, NULL, 'g' },
+    { "log-enable", no_argument, NULL, 'a' },
+    { "opt-wal-enable", no_argument, NULL, 'w' },
+    { "sp-enable", no_argument, NULL, 's' },
+    { "opt-sp-enable", no_argument, NULL, 'c' },
+    { "lsm-enable", no_argument, NULL, 'm' },
+    { "opt-lsm-enable", no_argument, NULL, 'l' },
+    { "verbose", no_argument, NULL, 'v' },
+    { "skew", optional_argument, NULL, 'q' },
+    { "help", no_argument, NULL, 'h' },
+    { NULL, 0, NULL, 0 }
+};
 
 class config {
 
@@ -47,12 +65,12 @@ class config {
   double skew;
 
   bool verbose;
+  bool opt_wal_enable;
   bool wal_enable;
-  bool aries_enable;
   bool sp_enable;
-  bool cow_enable;
+  bool opt_sp_enable;
   bool lsm_enable;
-  bool ldb_enable;
+  bool opt_lsm_enable;
 
 };
 

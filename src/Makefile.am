@@ -15,11 +15,11 @@ libpm_a_SOURCES = libpm.cpp
 
 nstore_SOURCES  =  	main.cpp \
 					wal_engine.cpp  \
-					aries_engine.cpp  \
+					opt_wal_engine.cpp  \
 					sp_engine.cpp  \
-					cow_engine.cpp  \
+					opt_sp_engine.cpp  \
 					lsm_engine.cpp  \
-					ldb_engine.cpp  \
+					opt_lsm_engine.cpp  \
 					ycsb_benchmark.cpp \
 					utils.cpp
 

@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 #include "nstore.h"
-#include "wal_engine.h"
+#include "opt_wal_engine.h"
 #include "ycsb_benchmark.h"
 #include "utils.h"
 #include "libpm.h"
@@ -39,9 +39,9 @@ int main(int argc, char **argv) {
   state.sp = sp;
 
   ycsb_benchmark ycsb(state);
-  wal_engine wal(state);
-  wal.generator(ycsb.get_dataset(), false);
-  wal.generator(ycsb.get_workload(), true);
+  opt_wal_engine opt_wal(state);
+  opt_wal.generator(ycsb.get_dataset(), false);
+  opt_wal.generator(ycsb.get_workload(), true);
 
   int ret = std::remove(path);
   assert(ret == 0);

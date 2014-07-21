@@ -1,5 +1,5 @@
-#ifndef WAL_ENGINE_H_
-#define WAL_ENGINE_H_
+#ifndef OPT_WAL_ENGINE_H_
+#define OPT_WAL_ENGINE_H_
 
 #include <vector>
 #include <string>
@@ -19,10 +19,10 @@
 
 using namespace std;
 
-class wal_engine : public engine {
+class opt_wal_engine : public engine {
  public:
-  wal_engine(const config& _conf);
-  ~wal_engine();
+  opt_wal_engine(const config& _conf);
+  ~opt_wal_engine();
 
   std::string select(const statement& st);
   void update(const statement& st);
@@ -58,4 +58,4 @@ class wal_engine : public engine {
   int looper = 0;
 };
 
-#endif /* WAL_ENGINE_H_ */
+#endif /* OPT_WAL_ENGINE_H_ */

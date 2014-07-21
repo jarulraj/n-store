@@ -4,11 +4,11 @@
 
 #include "nstore.h"
 #include "wal_engine.h"
-#include "aries_engine.h"
 #include "sp_engine.h"
-#include "cow_engine.h"
 #include "lsm_engine.h"
-#include "ldb_engine.h"
+#include "opt_wal_engine.h"
+#include "opt_sp_engine.h"
+#include "opt_lsm_engine.h"
 
 #include "ycsb_benchmark.h"
 #include "utils.h"
@@ -28,26 +28,16 @@ static void usage_exit(FILE *out) {
           "   -p --per-writes      :  Percent of writes \n"
           "   -f --fs-path         :  Path for FS \n"
           "   -g --gc-interval     :  Group commit interval \n"
-          "   -a --aries-enable    :  ARIES enable (traditional) \n"
-          "   -w --wal-enable      :  WAL enable \n"
+          "   -a --wal-enable      :  WAL enable (traditional) \n"
+          "   -w --opt-wal-enable  :  OPT WAL enable \n"
           "   -s --sp-enable       :  SP enable (traditional) \n"
-          "   -c --cow-enable      :  COW enable \n"
+          "   -c --opt-sp-enable   :  OPT SP enable \n"
           "   -m --lsm-enable      :  LSM enable (traditional) \n"
-          "   -l --ldb-enable      :  LDB enable \n"
+          "   -l --opt-lsm-enable  :  OPT LSM enable \n"
           "   -q --skew            :  Skew \n"
           "   -h --help            :  Print help message \n");
   exit(-1);
 }
-
-static struct option opts[] = { { "fs-path", optional_argument, NULL, 'f' }, {
-    "num-txns", optional_argument, NULL, 'x' }, { "num-keys", optional_argument,
-NULL, 'k' }, { "num-executors", optional_argument, NULL, 'e' }, { "per-writes",
-optional_argument, NULL, 'w' }, { "gc-interval",
-optional_argument, NULL, 'g' }, { "log-enable", no_argument, NULL, 'l' }, {
-    "sp-enable", no_argument, NULL, 's' }, { "aries-enable", no_argument, NULL,
-    'a' }, { "lsm-enable", no_argument, NULL, 'm' }, { "verbose", no_argument,
-NULL, 'v' }, { "skew", optional_argument, NULL, 'q' }, { "help",
-no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 
@@ -67,11 +57,11 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.merge_interval = 100;
 
   state.sp_enable = false;
-  state.aries_enable = false;
   state.wal_enable = false;
+  state.opt_wal_enable = false;
   state.lsm_enable = false;
-  state.cow_enable = false;
-  state.ldb_enable = false;
+  state.opt_sp_enable = false;
+  state.opt_lsm_enable = false;
 
   state.skew = 1;
 
@@ -112,29 +102,29 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         state.gc_interval = atoi(optarg);
         cout << "gc_interval: " << state.gc_interval << endl;
         break;
-      case 'w':
+      case 'a':
         state.wal_enable = true;
-        cout << "log_enable: " << state.wal_enable << endl;
+        cout << "WAL enable: " << state.wal_enable << endl;
+        break;
+      case 'w':
+        state.opt_wal_enable = true;
+        cout << "OPT WAL enable: " << state.opt_wal_enable << endl;
         break;
       case 's':
         state.sp_enable = true;
-        cout << "sp_enable: " << state.sp_enable << endl;
+        cout << "SP enable: " << state.sp_enable << endl;
         break;
       case 'c':
-        state.cow_enable = true;
-        cout << "cow_enable: " << state.cow_enable << endl;
+        state.opt_sp_enable = true;
+        cout << "OPT SP enable: " << state.opt_sp_enable << endl;
         break;
       case 'm':
         state.lsm_enable = true;
-        cout << "lsm_enable: " << state.lsm_enable << endl;
-        break;
-      case 'a':
-        state.aries_enable = true;
-        cout << "aries_enable: " << state.aries_enable << endl;
+        cout << "LSM enable: " << state.lsm_enable << endl;
         break;
       case 'l':
-        state.ldb_enable = true;
-        cout << "ldb_enable: " << state.ldb_enable << endl;
+        state.opt_lsm_enable = true;
+        cout << "OPT LSM enable: " << state.opt_lsm_enable << endl;
         break;
       case 'q':
         state.skew = atof(optarg);
@@ -166,29 +156,29 @@ int main(int argc, char **argv) {
   parse_arguments(argc, argv, state);
   state.sp = sp;
 
-  if (state.wal_enable == true) {
+  if (state.opt_wal_enable == true) {
     LOG_INFO("WAL");
+
+    bool generate_dataset = !sp->init;
+    ycsb_benchmark ycsb(state);
+    opt_wal_engine opt_wal(state);
+
+    if (generate_dataset)
+      opt_wal.generator(ycsb.get_dataset(), false);
+
+    opt_wal.generator(ycsb.get_workload(), true);
+  }
+
+  if (state.wal_enable == true) {
+    LOG_INFO("ARIES");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
     wal_engine wal(state);
 
-    if (generate_dataset)
-      wal.generator(ycsb.get_dataset(), false);
+    wal.generator(ycsb.get_dataset(), false);
 
     wal.generator(ycsb.get_workload(), true);
-  }
-
-  if (state.aries_enable == true) {
-    LOG_INFO("ARIES");
-
-    bool generate_dataset = !sp->init;
-    ycsb_benchmark ycsb(state);
-    aries_engine aries(state);
-
-    aries.generator(ycsb.get_dataset(), false);
-
-    aries.generator(ycsb.get_workload(), true);
   }
 
   if (state.sp_enable == true) {
@@ -204,17 +194,17 @@ int main(int argc, char **argv) {
     sp.generator(ycsb.get_workload(), true);
   }
 
-  if (state.cow_enable == true) {
-    LOG_INFO("COW");
+  if (state.opt_sp_enable == true) {
+    LOG_INFO("OPT SP");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
-    cow_engine cow(state);
+    opt_sp_engine opt_sp(state);
 
     if (generate_dataset)
-      cow.generator(ycsb.get_dataset(), false);
+      opt_sp.generator(ycsb.get_dataset(), false);
 
-    cow.generator(ycsb.get_workload(), true);
+    opt_sp.generator(ycsb.get_workload(), true);
   }
 
   if (state.lsm_enable == true) {
@@ -227,17 +217,17 @@ int main(int argc, char **argv) {
     lsm.generator(ycsb.get_workload(), true);
   }
 
-  if (state.ldb_enable == true) {
-    LOG_INFO("LDB");
+  if (state.opt_lsm_enable == true) {
+    LOG_INFO("OPT LSM");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
-    ldb_engine ldb(state);
+    opt_lsm_engine opt_lsm(state);
 
     if (generate_dataset)
-      ldb.generator(ycsb.get_dataset(), false);
+      opt_lsm.generator(ycsb.get_dataset(), false);
 
-    ldb.generator(ycsb.get_workload(), true);
+    opt_lsm.generator(ycsb.get_workload(), true);
   }
   return 0;
 }

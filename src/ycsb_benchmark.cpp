@@ -61,7 +61,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
       // No activation
     }
 
-    if (conf.cow_enable == true) {
+    if (conf.opt_sp_enable == true) {
       cow_pbtree* dirs = new cow_pbtree(true, NULL,
                                         &conf.sp->ptrs[conf.sp->itr++]);
       db->dirs = dirs;
@@ -116,7 +116,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     key_index->off_map = key_index_lsm_map;
 
     // XXX Disable persistence
-    if (conf.aries_enable == 1 || conf.aries_enable == 1) {
+    if (conf.wal_enable == 1 || conf.wal_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();
@@ -141,7 +141,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     }
 
     // Clear all indices
-    if (conf.aries_enable == 1 || conf.lsm_enable == 1) {
+    if (conf.wal_enable == 1 || conf.lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         tab->pm_data->clear();

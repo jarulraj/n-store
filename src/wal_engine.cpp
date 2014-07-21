@@ -1,11 +1,11 @@
-// ARIES LOGGING
+// WAL LOGGING
 
-#include "aries_engine.h"
+#include "wal_engine.h"
 #include <fstream>
 
 using namespace std;
 
-void aries_engine::group_commit() {
+void wal_engine::group_commit() {
 
   while (ready) {
     //std::cout << "Syncing log !" << endl;
@@ -17,7 +17,7 @@ void aries_engine::group_commit() {
   }
 }
 
-aries_engine::aries_engine(const config& _conf)
+wal_engine::wal_engine(const config& _conf)
     : conf(_conf),
       db(conf.db) {
 
@@ -32,7 +32,7 @@ aries_engine::aries_engine(const config& _conf)
 
 }
 
-aries_engine::~aries_engine() {
+wal_engine::~wal_engine() {
 
   // done = true;
   //for (int i = 0; i < conf.num_executors; i++)
@@ -40,7 +40,7 @@ aries_engine::~aries_engine() {
 
 }
 
-std::string aries_engine::select(const statement& st) {
+std::string wal_engine::select(const statement& st) {
   LOG_INFO("Select");
   std::string val;
 
@@ -63,7 +63,7 @@ std::string aries_engine::select(const statement& st) {
   return val;
 }
 
-void aries_engine::insert(const statement& st) {
+void wal_engine::insert(const statement& st) {
   LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -102,7 +102,7 @@ void aries_engine::insert(const statement& st) {
   }
 }
 
-void aries_engine::remove(const statement& st) {
+void wal_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -144,7 +144,7 @@ void aries_engine::remove(const statement& st) {
 
 }
 
-void aries_engine::update(const statement& st) {
+void wal_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -165,7 +165,6 @@ void aries_engine::update(const statement& st) {
   LOG_INFO("val : %s", val.c_str());
   record* before_rec = deserialize_to_record(val, tab->sptr, false);
   //LOG_INFO("before tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
-
 
   std::string after_data, before_data;
   int num_fields = st.field_ids.size();
@@ -199,7 +198,7 @@ void aries_engine::update(const statement& st) {
 
 // RUNNER + LOADER
 
-void aries_engine::execute(const transaction& txn) {
+void wal_engine::execute(const transaction& txn) {
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -215,7 +214,7 @@ void aries_engine::execute(const transaction& txn) {
 
 }
 
-void aries_engine::runner() {
+void wal_engine::runner() {
   bool empty = true;
 
   while (!done) {
@@ -243,7 +242,7 @@ void aries_engine::runner() {
   }
 }
 
-void aries_engine::generator(const workload& load, bool stats) {
+void wal_engine::generator(const workload& load, bool stats) {
 
   fs_log.configure(conf.fs_path + "log");
 
@@ -251,7 +250,7 @@ void aries_engine::generator(const workload& load, bool stats) {
   gettimeofday(&t1, NULL);
 
   // Logger start
-  std::thread gc(&aries_engine::group_commit, this);
+  std::thread gc(&wal_engine::group_commit, this);
   ready = true;
 
   for (const transaction& txn : load.txns)
@@ -267,12 +266,12 @@ void aries_engine::generator(const workload& load, bool stats) {
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "ARIES :: ";
+    cout << "WAL :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }
 
-void aries_engine::recovery() {
+void wal_engine::recovery() {
 
   int op_type, txn_id, table_id;
   table *tab;
@@ -284,90 +283,90 @@ void aries_engine::recovery() {
   std::ifstream log_file(fs_log.log_file_name);
 
   /*
-  while (std::getline(log_file, entry_str)) {
-    //LOG_INFO("entry : %s ", entry_str.c_str());
-    std::stringstream entry(entry_str);
+   while (std::getline(log_file, entry_str)) {
+   //LOG_INFO("entry : %s ", entry_str.c_str());
+   std::stringstream entry(entry_str);
 
-    entry >> txn_id >> op_type >> table_id;
+   entry >> txn_id >> op_type >> table_id;
 
-    switch (op_type) {
-      case operation_type::Insert: {
-        LOG_INFO("Redo Insert");
+   switch (op_type) {
+   case operation_type::Insert: {
+   LOG_INFO("Redo Insert");
 
-        tab = db->tables->at(table_id);
-        schema* sptr = tab->sptr;
-        record* after_rec = deserialize(entry_str, sptr);
+   tab = db->tables->at(table_id);
+   schema* sptr = tab->sptr;
+   record* after_rec = deserialize(entry_str, sptr);
 
-        indices = tab->indices;
-        num_indices = tab->num_indices;
+   indices = tab->indices;
+   num_indices = tab->num_indices;
 
-        tab->pm_data->push_back(after_rec);
+   tab->pm_data->push_back(after_rec);
 
-        // Add entry in indices
-        for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = get_data(after_rec,
-                                         indices->at(index_itr)->sptr);
-          unsigned long key = hash_fn(key_str);
+   // Add entry in indices
+   for (index_itr = 0; index_itr < num_indices; index_itr++) {
+   std::string key_str = get_data(after_rec,
+   indices->at(index_itr)->sptr);
+   unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->off_map->insert(key, after_rec);
-        }
-      }
-        break;
+   indices->at(index_itr)->off_map->insert(key, after_rec);
+   }
+   }
+   break;
 
-      case operation_type::Delete: {
-        LOG_INFO("Redo Delete");
+   case operation_type::Delete: {
+   LOG_INFO("Redo Delete");
 
-        tab = db->tables->at(table_id);
-        schema* sptr = tab->sptr;
-        record* before_rec = deserialize(entry_str, sptr);
+   tab = db->tables->at(table_id);
+   schema* sptr = tab->sptr;
+   record* before_rec = deserialize(entry_str, sptr);
 
-        indices = tab->indices;
-        num_indices = tab->num_indices;
+   indices = tab->indices;
+   num_indices = tab->num_indices;
 
-        tab->pm_data->erase(before_rec);
+   tab->pm_data->erase(before_rec);
 
-        // Remove entry in indices
-        for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = get_data(before_rec,
-                                         indices->at(index_itr)->sptr);
-          unsigned long key = hash_fn(key_str);
+   // Remove entry in indices
+   for (index_itr = 0; index_itr < num_indices; index_itr++) {
+   std::string key_str = get_data(before_rec,
+   indices->at(index_itr)->sptr);
+   unsigned long key = hash_fn(key_str);
 
-          indices->at(index_itr)->off_map->erase(key);
-        }
-      }
-        break;
+   indices->at(index_itr)->off_map->erase(key);
+   }
+   }
+   break;
 
-      case operation_type::Update:
-        LOG_INFO("Redo Update");
-        {
-          int num_fields;
-          int field_itr;
+   case operation_type::Update:
+   LOG_INFO("Redo Update");
+   {
+   int num_fields;
+   int field_itr;
 
-          tab = db->tables->at(table_id);
-          schema* sptr = tab->sptr;
-          record* before_rec = deserialize(entry_str, sptr);
-          record* after_rec = deserialize(entry_str, sptr);
+   tab = db->tables->at(table_id);
+   schema* sptr = tab->sptr;
+   record* before_rec = deserialize(entry_str, sptr);
+   record* after_rec = deserialize(entry_str, sptr);
 
-          // Update entry in indices
-          for (index_itr = 0; index_itr < num_indices; index_itr++) {
-            std::string key_str = get_data(before_rec,
-                                           indices->at(index_itr)->sptr);
-            unsigned long key = hash_fn(key_str);
+   // Update entry in indices
+   for (index_itr = 0; index_itr < num_indices; index_itr++) {
+   std::string key_str = get_data(before_rec,
+   indices->at(index_itr)->sptr);
+   unsigned long key = hash_fn(key_str);
 
-            indices->at(index_itr)->off_map->insert(key, after_rec);
-          }
+   indices->at(index_itr)->off_map->insert(key, after_rec);
+   }
 
-        }
+   }
 
-        break;
+   break;
 
-      default:
-        cout << "Invalid operation type" << op_type << endl;
-        break;
-    }
+   default:
+   cout << "Invalid operation type" << op_type << endl;
+   break;
+   }
 
-  }
-  */
+   }
+   */
 
 }
 

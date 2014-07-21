@@ -1,10 +1,10 @@
-// WRITE-AHEAD LOGGING
+// OPT WRITE-AHEAD LOGGING
 
-#include "wal_engine.h"
+#include "opt_wal_engine.h"
 
 using namespace std;
 
-void wal_engine::group_commit() {
+void opt_wal_engine::group_commit() {
 
   while (ready) {
 
@@ -24,17 +24,17 @@ void wal_engine::group_commit() {
   }
 }
 
-wal_engine::wal_engine(const config& _conf)
+opt_wal_engine::opt_wal_engine(const config& _conf)
     : conf(_conf),
       db(conf.db),
       pm_log(db->log) {
 
   //for (int i = 0; i < conf.num_executors; i++)
-  //  executors.push_back(std::thread(&wal_engine::runner, this));
+  //  executors.push_back(std::thread(&opt_wal_engine::runner, this));
 
 }
 
-wal_engine::~wal_engine() {
+opt_wal_engine::~opt_wal_engine() {
 
   // done = true;
   //for (int i = 0; i < conf.num_executors; i++)
@@ -42,7 +42,7 @@ wal_engine::~wal_engine() {
 
 }
 
-std::string wal_engine::select(const statement& st) {
+std::string opt_wal_engine::select(const statement& st) {
   LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -58,7 +58,7 @@ std::string wal_engine::select(const statement& st) {
   return val;
 }
 
-void wal_engine::insert(const statement& st) {
+void opt_wal_engine::insert(const statement& st) {
   //LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -102,7 +102,7 @@ void wal_engine::insert(const statement& st) {
   }
 }
 
-void wal_engine::remove(const statement& st) {
+void opt_wal_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -146,7 +146,7 @@ void wal_engine::remove(const statement& st) {
 
 }
 
-void wal_engine::update(const statement& st) {
+void opt_wal_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
@@ -208,7 +208,7 @@ void wal_engine::update(const statement& st) {
 }
 
 // RUNNER + LOADER
-void wal_engine::execute(const transaction& txn) {
+void opt_wal_engine::execute(const transaction& txn) {
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -236,7 +236,7 @@ void wal_engine::execute(const transaction& txn) {
 
 }
 
-void wal_engine::runner() {
+void opt_wal_engine::runner() {
   bool empty = true;
 
   while (!done) {
@@ -264,7 +264,7 @@ void wal_engine::runner() {
   }
 }
 
-void wal_engine::generator(const workload& load, bool stats) {
+void opt_wal_engine::generator(const workload& load, bool stats) {
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -275,13 +275,13 @@ void wal_engine::generator(const workload& load, bool stats) {
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "WAL :: ";
+    cout << "OPT_WAL :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 
 }
 
-void wal_engine::recovery() {
+void opt_wal_engine::recovery() {
   vector<char*> undo_vec = db->log->get_data();
 
   int op_type, txn_id, table_id;

@@ -2,7 +2,6 @@
 #include <cassert>
 #include <unistd.h>
 
-#include "libpm.h"
 #include "pbtree.h"
 
 using namespace std;

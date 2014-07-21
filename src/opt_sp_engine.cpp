@@ -1,25 +1,25 @@
 // OPT SP - does not use files
 
-#include "cow_engine.h"
+#include "opt_sp_engine.h"
 
 using namespace std;
 
-void cow_engine::group_commit() {
+void opt_sp_engine::group_commit() {
 
   while (ready) {
 
     if (txn_ptr != NULL) {
-      wrlock(&cow_pbtree_rwlock);
+      wrlock(&opt_sp_pbtree_rwlock);
       bt->txn_commit(txn_ptr);
       txn_ptr = bt->txn_begin(0);
-      unlock(&cow_pbtree_rwlock);
+      unlock(&opt_sp_pbtree_rwlock);
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
 }
 
-cow_engine::cow_engine(const config& _conf)
+opt_sp_engine::opt_sp_engine(const config& _conf)
     : conf(_conf),
       db(conf.db),
       bt(NULL),
@@ -30,7 +30,7 @@ cow_engine::cow_engine(const config& _conf)
 
 }
 
-cow_engine::~cow_engine() {
+opt_sp_engine::~opt_sp_engine() {
 
   // done = true;
   //for (int i = 0; i < conf.num_executors; i++)
@@ -38,7 +38,7 @@ cow_engine::~cow_engine() {
 
 }
 
-std::string cow_engine::select(const statement& st) {
+std::string opt_sp_engine::select(const statement& st) {
   LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
   struct cow_btval key, val;
@@ -62,7 +62,7 @@ std::string cow_engine::select(const statement& st) {
   return value;
 }
 
-void cow_engine::insert(const statement& st) {
+void opt_sp_engine::insert(const statement& st) {
   //LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -106,7 +106,7 @@ void cow_engine::insert(const statement& st) {
 
 }
 
-void cow_engine::remove(const statement& st) {
+void opt_sp_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -147,7 +147,7 @@ void cow_engine::remove(const statement& st) {
 
 }
 
-void cow_engine::update(const statement& st) {
+void opt_sp_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -210,9 +210,9 @@ void cow_engine::update(const statement& st) {
 
 // RUNNER + LOADER
 
-void cow_engine::execute(const transaction& txn) {
+void opt_sp_engine::execute(const transaction& txn) {
 
-  rdlock(&cow_pbtree_rwlock);
+  rdlock(&opt_sp_pbtree_rwlock);
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -226,11 +226,11 @@ void cow_engine::execute(const transaction& txn) {
     }
   }
 
-  unlock(&cow_pbtree_rwlock);
+  unlock(&opt_sp_pbtree_rwlock);
 
 }
 
-void cow_engine::runner() {
+void opt_sp_engine::runner() {
   bool empty = true;
 
   while (!done) {
@@ -258,9 +258,9 @@ void cow_engine::runner() {
   }
 }
 
-void cow_engine::generator(const workload& load, bool stats) {
+void opt_sp_engine::generator(const workload& load, bool stats) {
 
-  std::thread gc(&cow_engine::group_commit, this);
+  std::thread gc(&opt_sp_engine::group_commit, this);
   ready = true;
 
   bt = db->dirs->t_ptr;

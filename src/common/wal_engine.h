@@ -1,5 +1,5 @@
-#ifndef ARIES_ENGINE_H_
-#define ARIES_ENGINE_H_
+#ifndef WAL_ENGINE_H_
+#define WAL_ENGINE_H_
 
 #include <vector>
 #include <string>
@@ -20,10 +20,10 @@
 
 using namespace std;
 
-class aries_engine : public engine {
+class wal_engine : public engine {
  public:
-  aries_engine(const config& _conf);
-  ~aries_engine();
+  wal_engine(const config& _conf);
+  ~wal_engine();
 
   std::string select(const statement& st);
   void update(const statement& st);
@@ -55,4 +55,4 @@ class aries_engine : public engine {
   std::atomic_bool ready;
 };
 
-#endif /* ARIES_ENGINE_H_ */
+#endif /* WAL_ENGINE_H_ */

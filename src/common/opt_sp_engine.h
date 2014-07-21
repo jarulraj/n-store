@@ -20,10 +20,10 @@
 
 using namespace std;
 
-class cow_engine : public engine {
+class opt_sp_engine : public engine {
  public:
-  cow_engine(const config& _conf);
-  ~cow_engine();
+  opt_sp_engine(const config& _conf);
+  ~opt_sp_engine();
 
   std::string select(const statement& st);
   void update(const statement& st);
@@ -48,10 +48,10 @@ class cow_engine : public engine {
   std::queue<transaction> txn_queue;
   std::atomic_bool done;
 
-  pthread_rwlock_t cow_pbtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+  pthread_rwlock_t opt_sp_pbtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::atomic_bool ready;
 
-  struct cow_btree* bt;
+  cow_btree* bt;
   struct cow_btree_txn* txn_ptr;
 
   int looper = 0;

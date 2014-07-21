@@ -1,11 +1,11 @@
-// LDB PM
+// OPT LSM
 
-#include "ldb_engine.h"
+#include "opt_lsm_engine.h"
 #include <fstream>
 
 using namespace std;
 
-void ldb_engine::group_commit() {
+void opt_lsm_engine::group_commit() {
 
   while (ready) {
     //std::cout << "Syncing log !" << endl;
@@ -16,7 +16,7 @@ void ldb_engine::group_commit() {
   }
 }
 
-ldb_engine::ldb_engine(const config& _conf)
+opt_lsm_engine::opt_lsm_engine(const config& _conf)
     : conf(_conf),
       db(conf.db),
       pm_log(db->log) {
@@ -26,7 +26,7 @@ ldb_engine::ldb_engine(const config& _conf)
 
 }
 
-ldb_engine::~ldb_engine() {
+opt_lsm_engine::~opt_lsm_engine() {
 
   // done = true;
   //for (int i = 0; i < conf.num_executors; i++)
@@ -34,7 +34,7 @@ ldb_engine::~ldb_engine() {
 
 }
 
-std::string ldb_engine::select(const statement& st) {
+std::string opt_lsm_engine::select(const statement& st) {
   LOG_INFO("Select");
   std::string val;
 
@@ -54,7 +54,7 @@ std::string ldb_engine::select(const statement& st) {
   return val;
 }
 
-void ldb_engine::insert(const statement& st) {
+void opt_lsm_engine::insert(const statement& st) {
   LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -94,7 +94,7 @@ void ldb_engine::insert(const statement& st) {
   }
 }
 
-void ldb_engine::remove(const statement& st) {
+void opt_lsm_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -140,7 +140,7 @@ void ldb_engine::remove(const statement& st) {
 
 }
 
-void ldb_engine::update(const statement& st) {
+void opt_lsm_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -196,7 +196,7 @@ void ldb_engine::update(const statement& st) {
 
 // RUNNER + LOADER
 
-void ldb_engine::execute(const transaction& txn) {
+void opt_lsm_engine::execute(const transaction& txn) {
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -212,7 +212,7 @@ void ldb_engine::execute(const transaction& txn) {
 
 }
 
-void ldb_engine::runner() {
+void opt_lsm_engine::runner() {
   bool empty = true;
 
   while (!done) {
@@ -240,13 +240,13 @@ void ldb_engine::runner() {
   }
 }
 
-void ldb_engine::generator(const workload& load, bool stats) {
+void opt_lsm_engine::generator(const workload& load, bool stats) {
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
 // Logger start
-  std::thread gc(&ldb_engine::group_commit, this);
+  std::thread gc(&opt_lsm_engine::group_commit, this);
   ready = true;
 
   for (const transaction& txn : load.txns)
@@ -259,12 +259,12 @@ void ldb_engine::generator(const workload& load, bool stats) {
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "LDB :: ";
+    cout << "OPT LSM :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }
 
-void ldb_engine::recovery() {
+void opt_lsm_engine::recovery() {
 
   int op_type, txn_id, table_id;
   table *tab;

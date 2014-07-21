@@ -1,5 +1,5 @@
-#ifndef LDB_ENGINE_H_
-#define LDB_ENGINE_H_
+#ifndef OPT_LSM_ENGINE_H_
+#define OPT_LSM_ENGINE_H_
 
 #include <vector>
 #include <string>
@@ -21,10 +21,10 @@
 
 using namespace std;
 
-class ldb_engine : public engine {
+class opt_lsm_engine : public engine {
  public:
-  ldb_engine(const config& _conf);
-  ~ldb_engine();
+  opt_lsm_engine(const config& _conf);
+  ~opt_lsm_engine();
 
   std::string select(const statement& st);
   void update(const statement& st);
@@ -56,4 +56,4 @@ class ldb_engine : public engine {
   std::atomic_bool ready;
 };
 
-#endif /* LDB_ENGINE_H_ */
+#endif /* OPT_LSM_ENGINE_H_ */
