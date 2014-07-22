@@ -406,7 +406,7 @@ static void pmemalloc_coalesce_rotate() {
 
       DEBUG("coalesced size 0x%lx", csize);
       firstfree->size = csize | PMEM_STATE_FREE;
-      //pmem_persist(firstfree, sizeof(*firstfree), 0);
+      pmem_persist(firstfree, sizeof(*firstfree), 0);
       firstfree = lastfree = NULL;
       csize = 0;
     } else {
@@ -426,7 +426,7 @@ static void pmemalloc_coalesce_rotate() {
     DEBUG("firstfree 0x%lx next clp after firstfree will be 0x%lx", firstfree,
         (uintptr_t )firstfree + csize);
     firstfree->size = csize | PMEM_STATE_FREE;
-    //pmem_persist(firstfree, sizeof(*firstfree), 0);
+    pmem_persist(firstfree, sizeof(*firstfree), 0);
   }
 
   // Update prev
@@ -697,7 +697,7 @@ pmemalloc_reserve(size_t size) {
            */
           memset(newclp, '\0', sizeof(*newclp));
           newclp->size = leftover | PMEM_STATE_FREE;
-          //pmem_persist(newclp, sizeof(*newclp), 0);
+          pmem_persist(newclp, sizeof(*newclp), 0);
           /*
           for (i = 0; i < PMEM_NUM_ON; i++) {
             clp->on[i].off = 0;
@@ -706,7 +706,7 @@ pmemalloc_reserve(size_t size) {
           */
           //pmem_persist(clp, sizeof(*clp), 0);
           clp->size = nsize | PMEM_STATE_RESERVED;
-          //pmem_persist(clp, sizeof(*clp), 0);
+          pmem_persist(clp, sizeof(*clp), 0);
         } else {
           int i;
 
@@ -720,7 +720,7 @@ pmemalloc_reserve(size_t size) {
           */
           //pmem_persist(clp, sizeof(*clp), 0);
           clp->size = sz | PMEM_STATE_RESERVED;
-          //pmem_persist(clp, sizeof(*clp), 0);
+          pmem_persist(clp, sizeof(*clp), 0);
         }
 
         loop = 0;
@@ -893,7 +893,7 @@ void pmemalloc_activate(void *abs_ptr_) {
   pmem_persist(clp, sizeof(*clp), 0);
   */
   clp->size = sz | PMEM_STATE_ACTIVE;
-  //pmem_persist(clp, sizeof(*clp), 0);
+  pmem_persist(clp, sizeof(*clp), 0);
 }
 
 /*
@@ -957,7 +957,7 @@ void pmemalloc_free(void *abs_ptr_) {
   }
 
   clp->size = sz | PMEM_STATE_FREE;
-  //pmem_persist(clp, sizeof(*clp), 0);
+  pmem_persist(clp, sizeof(*clp), 0);
 
   /*
    * at this point we may have adjacent free clumps that need

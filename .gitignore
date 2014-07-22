@@ -31,6 +31,8 @@ build/*
 *.la
 *.out
 *.pyc
+*core
+*.db
 
 # Log/Tmp files
 log*

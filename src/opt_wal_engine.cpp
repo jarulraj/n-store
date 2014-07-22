@@ -116,6 +116,7 @@ void opt_wal_engine::remove(const statement& st) {
 
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
+    delete rec_ptr;
     return;
   }
 
@@ -144,6 +145,7 @@ void opt_wal_engine::remove(const statement& st) {
     indices->at(index_itr)->pm_map->erase(key);
   }
 
+  delete rec_ptr;
 }
 
 void opt_wal_engine::update(const statement& st) {
@@ -157,8 +159,10 @@ void opt_wal_engine::update(const statement& st) {
   record* before_rec = indices->at(0)->pm_map->at(key);
 
   // Check if key does not exist
-  if (before_rec == 0)
+  if (before_rec == 0){
+    delete rec_ptr;
     return;
+  }
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();
@@ -205,6 +209,7 @@ void opt_wal_engine::update(const statement& st) {
     before_rec->set_data(field_itr, rec_ptr);
   }
 
+  delete rec_ptr;
 }
 
 // RUNNER + LOADER
