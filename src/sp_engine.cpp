@@ -1,4 +1,4 @@
-// SP
+// SP - based on FS
 
 #include "sp_engine.h"
 
@@ -45,24 +45,25 @@ std::string sp_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   struct cow_btval key, val;
 
-  //cout << "select key :: -" << st.key << "-  -" << st.table_id << "-" << st.table_index_id << "-" << endl;
+  //cout << "Select :: Key : -" << st.key << "-  -" << st.table_id << "-" << st.table_index_id << "-" << endl;
   unsigned long key_id = hasher(hash_fn(st.key), st.table_id,
                                 st.table_index_id);
   string key_str = std::to_string(key_id);
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
-  std::string value;
-  //cout << "select key :: -" << st.key << "-  -" << key_str << "-" << endl;
+  std::string tuple;
+  //cout << "Select :: Key : -" << st.key << "-  -" << key_str << "-" << endl;
 
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
-    std::sscanf((char*) val.data, "%p", &rec_ptr);
-    //printf("rec_ptr :: %p \n", rec_ptr);
-    value = get_data(rec_ptr, st.projection);
-    LOG_INFO("val : %s", value.c_str());
+    tuple = std::string((char*) val.data);
+    tuple = deserialize_to_string(tuple, st.projection, false);
+    LOG_INFO("val : %s", tuple.c_str());
   }
 
-  return value;
+  delete rec_ptr;
+
+  return tuple;
 }
 
 void sp_engine::insert(const statement& st) {
@@ -74,25 +75,23 @@ void sp_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   struct cow_btval key, val;
-  val.data = new char[64];
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
-  //cout << "insert key :: -" << key_str << "-  -" << st.table_id << "-0-"<< endl;
+  //cout << "Insert :: Key : -" << key_str << "-  -" << st.table_id << "-0-"<< endl;
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   key_str = std::to_string(key_id);
-  //cout << "insert key :: -" << key_str << "- " << endl;
+  //cout << "Insert :: Key :: -" << key_str << "- " << endl;
 
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
 
   // Check if key exists in current version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+    delete after_rec;
     return;
   }
 
-  // Activate new record
-  pmemalloc_activate(after_rec);
-  after_rec->persist_data();
+  std::string after_tuple = serialize(after_rec, after_rec->sptr, false);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -102,11 +101,15 @@ void sp_engine::insert(const statement& st) {
 
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
-    std::sprintf((char*) val.data, "%p", after_rec);
-    val.size = strlen((char*) val.data) + 1;
+    val.data = (void*) after_tuple.c_str();
+
+    //printf("Val :: %s \n", (char*) val.data);
+
+    val.size = after_tuple.size()+1;
     bt->insert(txn_ptr, &key, &val);
   }
 
+  delete after_rec;
 }
 
 void sp_engine::remove(const statement& st) {
@@ -128,13 +131,9 @@ void sp_engine::remove(const statement& st) {
 
   // Check if key does not exist
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+    delete rec_ptr;
     return;
   }
-
-  // Free record
-  record* before_rec = new record(rec_ptr->sptr);
-  std::sscanf((char*) val.data, "%p", &before_rec);
-  delete before_rec;
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -148,6 +147,7 @@ void sp_engine::remove(const statement& st) {
     bt->remove(txn_ptr, &key, NULL);
   }
 
+  delete rec_ptr;
 }
 
 void sp_engine::update(const statement& st) {
@@ -162,53 +162,54 @@ void sp_engine::update(const statement& st) {
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
-  //cout << "update key :: -" << key_str << "-  -" << st.table_id << "-0-" << endl;
+  //cout << "Update :: Key : -" << key_str << "-  -" << st.table_id << "-0-" << endl;
 
   key_str = std::to_string(key_id);
 
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
-  //cout << "update key :: -" << key_str << endl;
+  //cout << "Update :: Key : -" << key_str << endl;
 
   // Check if key does not exist in current version
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+    delete rec_ptr;
     return;
   }
 
   // Read from current version
-  record* before_rec = new record(rec_ptr->sptr);
-  std::sscanf((char*) val.data, "%p", &before_rec);
+  std::string before_tuple, after_tuple;
 
-  record* after_rec = new record(before_rec->sptr);
-  memcpy(after_rec->data, before_rec->data, before_rec->data_len);
+  before_tuple = std::string((char*) val.data);
+  record* before_rec = deserialize_to_record(before_tuple, tab->sptr, false);
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();
 
+  // Update record
   for (int field_itr : st.field_ids) {
-    // Update new record
-    after_rec->set_data(field_itr, rec_ptr);
+    before_rec->set_data(field_itr, rec_ptr);
   }
 
-  // Activate new record
-  pmemalloc_activate(after_rec);
-  after_rec->persist_data();
+  after_tuple = serialize(before_rec, tab->sptr, false);
 
-  update_val.data = new char[64];
   // Update entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+    key_str = get_data(before_rec, indices->at(index_itr)->sptr);
     key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
     key_str = std::to_string(key_id);
 
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    std::sprintf((char*) update_val.data, "%p", after_rec);
-    update_val.size = strlen((char*) val.data) + 1;
+    update_val.data = (void*) after_tuple.c_str();
+    //printf("Update_val :: %s \n", (char*) update_val.data);
+
+    update_val.size = after_tuple.size()+1;
     bt->insert(txn_ptr, &key, &update_val);
   }
 
+  delete rec_ptr;
+  delete before_rec;
 }
 
 // RUNNER + LOADER

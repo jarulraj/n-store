@@ -1,4 +1,4 @@
-// OPT SP - does not use files
+// OPT SP - based on PM
 
 #include "opt_sp_engine.h"
 
@@ -45,14 +45,12 @@ std::string opt_sp_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   struct cow_btval key, val;
 
-  //cout << "select key :: -" << st.key << "-  -" << st.table_id << "-" << st.table_index_id << "-" << endl;
   unsigned long key_id = hasher(hash_fn(st.key), st.table_id,
                                 st.table_index_id);
   string key_str = std::to_string(key_id);
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
   std::string value;
-  //cout << "select key :: -" << st.key << "-  -" << key_str << "-" << endl;
 
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
@@ -60,6 +58,8 @@ std::string opt_sp_engine::select(const statement& st) {
     value = get_data(rec_ptr, st.projection);
     LOG_INFO("val : %s", value.c_str());
   }
+
+  delete rec_ptr;
 
   return value;
 }
@@ -76,16 +76,15 @@ void opt_sp_engine::insert(const statement& st) {
   val.data = new char[64];
 
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
-  //cout << "insert key :: -" << key_str << "-  -" << st.table_id << "-0-"<< endl;
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   key_str = std::to_string(key_id);
-  //cout << "insert key :: -" << key_str << "- " << endl;
 
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
 
   // Check if key exists in current version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+    delete after_rec;
     return;
   }
 
@@ -127,13 +126,13 @@ void opt_sp_engine::remove(const statement& st) {
 
   // Check if key does not exist
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+    delete rec_ptr;
     return;
   }
 
   // Free record
-  record* before_rec = new record(rec_ptr->sptr);
+  record* before_rec;
   std::sscanf((char*) val.data, "%p", &before_rec);
-  delete before_rec;
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -147,6 +146,8 @@ void opt_sp_engine::remove(const statement& st) {
     bt->remove(txn_ptr, &key, NULL);
   }
 
+  delete rec_ptr;
+  delete before_rec;
 }
 
 void opt_sp_engine::update(const statement& st) {
@@ -161,32 +162,30 @@ void opt_sp_engine::update(const statement& st) {
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
-  //cout << "update key :: -" << key_str << "-  -" << st.table_id << "-0-" << endl;
 
   key_str = std::to_string(key_id);
 
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
-  //cout << "update key :: -" << key_str << endl;
 
   // Check if key does not exist in current version
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+    delete rec_ptr;
     return;
   }
 
   // Read from current version
-  record* before_rec = new record(rec_ptr->sptr);
+  record* before_rec;
   std::sscanf((char*) val.data, "%p", &before_rec);
 
   record* after_rec = new record(before_rec->sptr);
   memcpy(after_rec->data, before_rec->data, before_rec->data_len);
 
-  void *before_field, *after_field;
-  int num_fields = st.field_ids.size();
-
+  // Update record
   for (int field_itr : st.field_ids) {
-    // Update new record
+    void* before_field = after_rec->get_pointer(field_itr);
     after_rec->set_data(field_itr, rec_ptr);
+    //delete ((char*)before_field);
   }
 
   // Activate new record
@@ -194,6 +193,9 @@ void opt_sp_engine::update(const statement& st) {
   after_rec->persist_data();
 
   update_val.data = new char[64];
+  std::sprintf((char*) update_val.data, "%p", after_rec);
+  update_val.size = strlen((char*) val.data) + 1;
+
   // Update entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(after_rec, indices->at(index_itr)->sptr);
@@ -203,11 +205,11 @@ void opt_sp_engine::update(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    std::sprintf((char*) update_val.data, "%p", after_rec);
-    update_val.size = strlen((char*) val.data) + 1;
     bt->insert(txn_ptr, &key, &update_val);
   }
 
+  delete rec_ptr;
+  delete before_rec;
 }
 
 // RUNNER + LOADER
