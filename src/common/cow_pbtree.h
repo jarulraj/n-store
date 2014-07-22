@@ -24,6 +24,11 @@
 
 using namespace std;
 
+//# define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
+fprintf(stderr, __VA_ARGS__); \
+fprintf(stderr, "\n"); } while(0)
+# define DPRINTF(...)
+
 // DS MACROS
 /*
  * Singly-linked List definitions.
@@ -761,11 +766,6 @@ struct cow_btree_stat {
   time_t created_at;
 };
 
-//# define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
-fprintf(stderr, __VA_ARGS__); \
-fprintf(stderr, "\n"); } while(0)
-# define DPRINTF(...)
-
 #define PAGESIZE   4096
 #define BT_MINKEYS   4
 #define BT_MAGIC   0xB3DBB3DB
@@ -943,11 +943,10 @@ class cow_btree {
 
   int cow_btree_open_fd(int _fd) {
 
-    if(persist == false){
+    if (persist == false) {
       pages = new plist<page*>();
-    }
-    else{
-      pages = new plist<page*>(&sp->ptrs[sp->itr++],&sp->ptrs[sp->itr++]);
+    } else {
+      pages = new plist<page*>(&sp->ptrs[sp->itr++], &sp->ptrs[sp->itr++]);
       DPRINTF("pages : %p ", pages);
 
       pmemalloc_activate(pages);
@@ -984,7 +983,8 @@ class cow_btree {
 
     if (cow_btree_read_header() != 0) {
       if (errno != ENOENT)
-        goto fail; DPRINTF("new database");
+        goto fail;
+      DPRINTF("new database");
       cow_btree_write_header();
     }
 
@@ -1098,7 +1098,7 @@ class cow_btree {
       return;
 
     DPRINTF("removing %zu bytes of prefix from key [%.*s]", pfxlen,
-        (int )key->size, (char * )key->data);
+            (int )key->size, (char * )key->data);
     assert(pfxlen <= key->size);
     key->size -= pfxlen;
     if (!F_ISSET(flags, BT_REVERSEKEY))
@@ -1266,6 +1266,13 @@ class cow_btree {
     // READ
     if (persist) {
       page = pages->at(pgno);
+
+      // XXX Off by one
+      if (page->pgno != pgno - 1) {
+        DPRINTF("page numbers don't match: %u != %u", pgno, page->pgno);
+        errno = EINVAL;
+        return BT_FAIL;
+      }
     } else {
       if ((rc = pread(fd, page, head.psize, (off_t) pgno * head.psize)) == 0) {
         DPRINTF("page %u doesn't exist", pgno);
@@ -1277,13 +1284,12 @@ class cow_btree {
         DPRINTF("read: %s", strerror(errno));
         return BT_FAIL;
       }
-    }
 
-    // XXX Off by one :     if (page->pgno != pgno) {
-    if (page->pgno != pgno-1) {
-      DPRINTF("page numbers don't match: %u != %u", pgno, page->pgno);
-      errno = EINVAL;
-      return BT_FAIL;
+      if (page->pgno != pgno) {
+        DPRINTF("page numbers don't match: %u != %u", pgno, page->pgno);
+        errno = EINVAL;
+        return BT_FAIL;
+      }
     }
 
     DPRINTF("page %u has flags 0x%X", pgno, page->flags);
@@ -1588,7 +1594,7 @@ class cow_btree {
 
     if (h->version != BT_VERSION) {
       DPRINTF("database is version %u, expected version %u", head.version,
-          BT_VERSION);
+              BT_VERSION);
       errno = EINVAL;
       return -1;
     }
@@ -1704,7 +1710,6 @@ class cow_btree {
       DPRINTF("pages size : %d ", pages->size());
     }
 
-
     if (next_pgno == 0) {
       DPRINTF("corrupt file");
       errno = EIO;
@@ -1799,8 +1804,8 @@ class cow_btree {
     struct cow_btval nodekey;
 
     DPRINTF("searching %lu keys in %s page %u with prefix [%.*s]", NUMKEYS(mp),
-        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )mp->prefix.len,
-        (char * )mp->prefix.str);
+            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )mp->prefix.len,
+            (char * )mp->prefix.str);
 
     assert(NUMKEYS(mp) > 0);
 
@@ -1822,11 +1827,11 @@ class cow_btree {
 
       if (IS_LEAF(mp))
         DPRINTF("found leaf index %u [%.*s], rc = %i", i, (int )nodekey.size,
-            (char * )nodekey.data, rc);
+                (char * )nodekey.data, rc);
       else
         DPRINTF("found branch index %u [%.*s -> %u], rc = %i", i,
-            (int )cow_node->ksize, (char *)NODEKEY(cow_node),
-            cow_node->n_pgno, rc);
+                (int )cow_node->ksize, (char *)NODEKEY(cow_node),
+                cow_node->n_pgno, rc);
 
       if (rc == 0)
         break;
@@ -1954,7 +1959,7 @@ class cow_btree {
       bcopy(&mp->parent->prefix, &mp->prefix, sizeof(mp->prefix));
 
     DPRINTF("found common prefix [%.*s] (len %zu) for page %u",
-        (int )mp->prefix.len, mp->prefix.str, mp->prefix.len, mp->pgno);
+            (int )mp->prefix.len, mp->prefix.str, mp->prefix.len, mp->pgno);
   }
 
   int cow_btree_search_page_root(struct mpage *root, struct cow_btval *key,
@@ -1971,7 +1976,8 @@ class cow_btree {
       struct cow_node *cow_node;
 
       DPRINTF("branch page %u has %lu keys", mp->pgno, NUMKEYS(mp));
-      assert(NUMKEYS(mp) > 1);DPRINTF("found index 0 to page %u", NODEPGNO(NODEPTR(mp, 0)));
+      assert(NUMKEYS(mp) > 1);
+      DPRINTF("found index 0 to page %u", NODEPGNO(NODEPTR(mp, 0)));
 
       if (key == NULL) /* Initialize cursor to first page. */
         i = 0;
@@ -1988,7 +1994,7 @@ class cow_btree {
 
       if (key)
         DPRINTF("following index %u for key %.*s", i, (int )key->size,
-            (char * )key->data);
+                (char * )key->data);
       assert(i >= 0 && i < NUMKEYS(mp));
       cow_node = NODEPTR(mp, i);
 
@@ -2015,7 +2021,7 @@ class cow_btree {
     }
 
     DPRINTF("found leaf page %u for key %.*s", mp->pgno,
-        key ? (int )key->size : 0, key ? (char *)key->data : NULL);
+            key ? (int )key->size : 0, key ? (char *)key->data : NULL);
 
     *mpp = mp;
     return BT_SUCCESS;
@@ -2054,7 +2060,7 @@ class cow_btree {
       DPRINTF("transaction has failed, must abort");
       errno = EINVAL;
       return BT_FAIL;
-    } else{
+    } else {
       root = txn->root;
       DPRINTF("txn root :: %d", root);
     }
@@ -2189,13 +2195,13 @@ class cow_btree {
     }
 
     DPRINTF("parent page is page %u, index %u", parent->mpage->pgno,
-        parent->ki);
+            parent->ki);
 
     cursor_pop_page(cursor);
     if (move_right ?
         (parent->ki + 1 >= NUMKEYS(parent->mpage)) : (parent->ki == 0)) {
       DPRINTF("no more keys left, moving to %s sibling",
-          move_right ? "right" : "left");
+              move_right ? "right" : "left");
       if ((rc = cow_btree_sibling(cursor, move_right)) != BT_SUCCESS)
         return rc;
       parent = CURSOR_TOP(cursor);
@@ -2205,7 +2211,7 @@ class cow_btree {
       else
         parent->ki--;
       DPRINTF("just moving to %s index key %u", move_right ? "right" : "left",
-          parent->ki);
+              parent->ki);
     }
     assert(IS_BRANCH(parent->mpage));
 
@@ -2278,7 +2284,7 @@ class cow_btree {
       top->ki++;
 
     DPRINTF("==> cursor points to page %u with %lu keys, key index %u",
-        mp->pgno, NUMKEYS(mp), top->ki);
+            mp->pgno, NUMKEYS(mp), top->ki);
 
     assert(IS_LEAF(mp));
     leaf = NODEPTR(mp, top->ki);
@@ -2334,8 +2340,9 @@ class cow_btree {
       return BT_FAIL;
 
     if (bt_set_key(mp, leaf, key) != 0)
-      return BT_FAIL;DPRINTF("==> cursor placed on key %.*s", (int )key->size,
-        (char * )key->data);
+      return BT_FAIL;
+    DPRINTF("==> cursor placed on key %.*s", (int )key->size,
+            (char * )key->data);
 
     return BT_SUCCESS;
   }
@@ -2412,7 +2419,7 @@ class cow_btree {
     assert(txn != NULL);
 
     DPRINTF("allocating new mpage %u, page size %u", txn->next_pgno,
-        head.psize);
+            head.psize);
     if ((mp = new mpage()) == NULL)
       return NULL;
     if ((mp->page = (page*) new char[head.psize]) == NULL) {
@@ -2514,9 +2521,9 @@ class cow_btree {
     assert(p->upper >= p->lower);
 
     DPRINTF("add cow_node [%.*s] to %s page %u at index %i, key size %zu",
-        key ? (int )key->size : 0, key ? (char *)key->data : NULL,
-        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, indx,
-        key ? key->size : 0);
+            key ? (int )key->size : 0, key ? (char *)key->data : NULL,
+            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, indx,
+            key ? key->size : 0);
 
     if (key != NULL)
       node_size += key->size;
@@ -2532,15 +2539,18 @@ class cow_btree {
         DPRINTF("data size is %zu, put on overflow page", data->size);
         node_size -= data->size - sizeof(pgno_t);
         if ((ofp = cow_btree_new_page(P_OVERFLOW)) == NULL)
-          return BT_FAIL;DPRINTF("allocated overflow page %u", ofp->pgno);
+          return BT_FAIL;
+        DPRINTF("allocated overflow page %u", ofp->pgno);
         flags |= F_BIGDATA;
       }
     }
 
     if (node_size + sizeof(indx_t) > SIZELEFT(mp)) {
       DPRINTF("not enough room in page %u, got %lu ptrs", mp->pgno,
-          NUMKEYS(mp));DPRINTF("upper - lower = %u - %u = %u", p->upper, p->lower,
-          p->upper - p->lower);DPRINTF("cow_node size = %zu", node_size);
+              NUMKEYS(mp));
+      DPRINTF("upper - lower = %u - %u = %u", p->upper, p->lower,
+              p->upper - p->lower);
+      DPRINTF("cow_node size = %zu", node_size);
       return BT_FAIL;
     }
 
@@ -2591,7 +2601,7 @@ class cow_btree {
     char *base;
 
     DPRINTF("delete cow_node %u on %s page %u", indx,
-        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno);
+            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno);
     assert(indx < NUMKEYS(mp));
 
     cow_node = NODEPTR(mp, indx);
@@ -2656,8 +2666,8 @@ class cow_btree {
     cow_node = NODEPTR(mp, indx);
     ptr = mp->page->ptrs[indx];
     DPRINTF("update key %u (ofs %u) [%.*s] to [%.*s] on page %u", indx, ptr,
-        (int )cow_node->ksize, (char *)NODEKEY(cow_node), (int )key->size,
-        (char * )key->data, mp->pgno);
+            (int )cow_node->ksize, (char *)NODEKEY(cow_node), (int )key->size,
+            (char * )key->data, mp->pgno);
 
     if (key->size != cow_node->ksize) {
       delta = key->size - cow_node->ksize;
@@ -2693,7 +2703,7 @@ class cow_btree {
     struct cow_btval key;
 
     DPRINTF("adjusting prefix lengths on page %u with delta %d", src->pgno,
-        delta);
+            delta);
     assert(delta != 0);
 
     for (i = 0; i < NUMKEYS(src); i++) {
@@ -2738,8 +2748,8 @@ class cow_btree {
 
     srcnode = NODEPTR(src, srcindx);
     DPRINTF("moving %s cow_node %u [%.*s] on page %u to cow_node %u on page %u",
-        IS_LEAF(src) ? "leaf" : "branch", srcindx, (int )srcnode->ksize,
-        (char *)NODEKEY(srcnode), src->pgno, dstindx, dst->pgno);
+            IS_LEAF(src) ? "leaf" : "branch", srcindx, (int )srcnode->ksize,
+            (char *)NODEKEY(srcnode), src->pgno, dstindx, dst->pgno);
 
     find_common_prefix(src);
 
@@ -2783,7 +2793,7 @@ class cow_btree {
           cow_btree_search_page_root(src, NULL, NULL, 0, &low) == BT_SUCCESS);
       expand_prefix(low, 0, &srckey);
       DPRINTF("found lowest key [%.*s] on leaf page %u", (int )srckey.len,
-          srckey.str, low->pgno);
+              srckey.str, low->pgno);
     } else {
       srckey.len = srcnode->ksize;
       bcopy(NODEKEY(srcnode), srckey.str, srcnode->ksize);
@@ -2821,7 +2831,7 @@ class cow_btree {
       remove_prefix(&key, src->parent->prefix.len);
 
       DPRINTF("update separator for source page %u to [%.*s]", src->pgno,
-          (int )key.size, (char * )key.data);
+              (int )key.size, (char * )key.data);
       if (cow_btree_update_key(src->parent, src->parent_index,
                                &key) != BT_SUCCESS)
         return BT_FAIL;
@@ -2840,7 +2850,7 @@ class cow_btree {
       remove_prefix(&key, dst->parent->prefix.len);
 
       DPRINTF("update separator for destination page %u to [%.*s]", dst->pgno,
-          (int )key.size, (char * )key.data);
+              (int )key.size, (char * )key.data);
       if (cow_btree_update_key(dst->parent, dst->parent_index,
                                &key) != BT_SUCCESS)
         return BT_FAIL;
@@ -2935,7 +2945,7 @@ class cow_btree {
             cow_btree_search_page_root(src, NULL, NULL, 0, &low) == BT_SUCCESS);
         expand_prefix(low, 0, &tmpkey);
         DPRINTF("found lowest key [%.*s] on leaf page %u", (int )tmpkey.len,
-            tmpkey.str, low->pgno);
+                tmpkey.str, low->pgno);
       } else {
         expand_prefix(src, i, &tmpkey);
       }
@@ -2953,7 +2963,7 @@ class cow_btree {
     }
 
     DPRINTF("dst page %u now has %lu keys (%.1f%% filled)", dst->pgno,
-        NUMKEYS(dst), (float)PAGEFILL(dst) / 10);
+            NUMKEYS(dst), (float)PAGEFILL(dst) / 10);
 
     /* Unlink the src page from parent.
      */
@@ -2989,8 +2999,8 @@ class cow_btree {
     assert(mp != NULL);
 
     DPRINTF("rebalancing %s page %u (has %lu keys, %.1f%% full)",
-        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, NUMKEYS(mp),
-        (float)PAGEFILL(mp) / 10);
+            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, NUMKEYS(mp),
+            (float)PAGEFILL(mp) / 10);
 
     if (PAGEFILL(mp) >= FILL_THRESHOLD) {
       DPRINTF("no need to rebalance page %u, above fill threshold", mp->pgno);
@@ -3054,7 +3064,7 @@ class cow_btree {
     neighbor->parent = parent;
 
     DPRINTF("found neighbor page %u (%lu keys, %.1f%% full)", neighbor->pgno,
-        NUMKEYS(neighbor), (float)PAGEFILL(neighbor) / 10);
+            NUMKEYS(neighbor), (float)PAGEFILL(neighbor) / 10);
 
     /* If the neighbor page is above threshold and has at least two
      * keys, move one key from it.
@@ -3177,7 +3187,7 @@ class cow_btree {
     }
 
     DPRINTF("reduced separator to [%.*s] > [%.*s]", (int )sep->size,
-        (char * )sep->data, (int )min->ksize, (char *)NODEKEY(min));
+            (char * )sep->data, (int )min->ksize, (char *)NODEKEY(min));
   }
 
   /* Split page <*mpp>, and insert <key,(data|newpgno)> in either left or
@@ -3206,9 +3216,10 @@ class cow_btree {
     newindx = *newindxp;
 
     DPRINTF("-----> splitting %s page %u and adding [%.*s] at index %i",
-        IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )newkey->size,
-        (char * )newkey->data, *newindxp);DPRINTF("page %u has prefix [%.*s]", mp->pgno, (int )mp->prefix.len,
-        (char * )mp->prefix.str);
+            IS_LEAF(mp) ? "leaf" : "branch", mp->pgno, (int )newkey->size,
+            (char * )newkey->data, *newindxp);
+    DPRINTF("page %u has prefix [%.*s]", mp->pgno, (int )mp->prefix.len,
+            (char * )mp->prefix.str);
     orig_pfx_len = mp->prefix.len;
 
     if (mp->parent == NULL) {
@@ -3395,8 +3406,9 @@ class cow_btree {
       return BT_FAIL;
     }
 
-    DPRINTF("==> put key %.*s, size %zu, data %s data size %zu", (int )key->size,
-        (char * )key->data, key->size, (char *)data->data, data->size);
+    DPRINTF("==> put key %.*s, size %zu, data %s data size %zu",
+            (int )key->size, (char * )key->data, key->size, (char * )data->data,
+            data->size);
 
     if (txn == NULL) {
       close_txn = 1;
@@ -3433,8 +3445,9 @@ class cow_btree {
     } else
       goto done;
 
-    assert(IS_LEAF(mp));DPRINTF("there are %lu keys, should insert new key at index %i",
-        NUMKEYS(mp), ki);
+    assert(IS_LEAF(mp));
+    DPRINTF("there are %lu keys, should insert new key at index %i",
+            NUMKEYS(mp), ki);
 
     /* Copy the key pointer as it is modified by the prefix code. The
      * caller might have allocated the data.
@@ -3652,7 +3665,7 @@ class cow_btree {
 
     if (persist) {
       DPRINTF("truncating file at page %u to page %u", meta.root,
-          meta.prev_meta);
+              meta.prev_meta);
       meta.root = meta.prev_meta;
     } else {
       int rc = ftruncate(fd, head.psize * meta.root);
@@ -3687,7 +3700,8 @@ class cow_btree {
     return &stat;
   }
 
-  RB_GENERATE(page_cache, mpage, entry, mpage_cmp);
+  RB_GENERATE(page_cache, mpage, entry, mpage_cmp)
+  ;
 
   int mpage_cmp(struct mpage *a, struct mpage *b) {
     if (a->pgno > b->pgno)
@@ -3732,7 +3746,8 @@ class cow_btree {
     return *p1 - *p2;
   }
 
-};
+}
+;
 
 class cow_pbtree {
  public:
@@ -3740,7 +3755,7 @@ class cow_pbtree {
     // Persist mode
     if (_persist) {
       t_ptr = (cow_btree*) (*_ptr);
-      DPRINTF("check tree ::  %p ",t_ptr);
+      DPRINTF("check tree ::  %p ", t_ptr);
 
       if (t_ptr == NULL) {
         t_ptr = new cow_btree(_persist, (char*) NULL);
@@ -3748,8 +3763,7 @@ class cow_pbtree {
 
         (*_ptr) = t_ptr;
         DPRINTF("persistent :: init mode :: %p", t_ptr);
-      }
-      else{
+      } else {
         // cleanup
         DPRINTF("pages : %p ", t_ptr->pages);
       }
@@ -3758,7 +3772,7 @@ class cow_pbtree {
     // File mode
     else {
       t_ptr = new cow_btree(_persist, path);
-      DPRINTF("file :: init mode :: %p", t_ptr );
+      DPRINTF("file :: init mode :: %p", t_ptr);
     }
 
   }

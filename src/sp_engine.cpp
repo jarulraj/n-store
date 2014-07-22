@@ -10,8 +10,10 @@ void sp_engine::group_commit() {
 
     if (txn_ptr != NULL) {
       wrlock(&cow_pbtree_rwlock);
-      bt->txn_commit(txn_ptr);
+      assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+
       txn_ptr = bt->txn_begin(0);
+      assert(txn_ptr);
       unlock(&cow_pbtree_rwlock);
     }
 
@@ -55,6 +57,7 @@ std::string sp_engine::select(const statement& st) {
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     std::sscanf((char*) val.data, "%p", &rec_ptr);
+    //printf("rec_ptr :: %p \n", rec_ptr);
     value = get_data(rec_ptr, st.projection);
     LOG_INFO("val : %s", value.c_str());
   }
@@ -265,6 +268,7 @@ void sp_engine::generator(const workload& load, bool stats) {
 
   bt = db->dirs->t_ptr;
   txn_ptr = bt->txn_begin(0);
+  assert(txn_ptr);
 
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -276,7 +280,7 @@ void sp_engine::generator(const workload& load, bool stats) {
   gc.join();
 
   if (txn_ptr != NULL) {
-    bt->txn_commit(txn_ptr);
+    assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
   }
 
   gettimeofday(&t2, NULL);

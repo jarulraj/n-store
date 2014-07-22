@@ -10,8 +10,10 @@ void opt_sp_engine::group_commit() {
 
     if (txn_ptr != NULL) {
       wrlock(&opt_sp_pbtree_rwlock);
-      bt->txn_commit(txn_ptr);
+      assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+
       txn_ptr = bt->txn_begin(0);
+      assert(txn_ptr);
       unlock(&opt_sp_pbtree_rwlock);
     }
 
@@ -265,6 +267,7 @@ void opt_sp_engine::generator(const workload& load, bool stats) {
 
   bt = db->dirs->t_ptr;
   txn_ptr = bt->txn_begin(0);
+  assert(txn_ptr);
 
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -276,13 +279,13 @@ void opt_sp_engine::generator(const workload& load, bool stats) {
   gc.join();
 
   if (txn_ptr != NULL) {
-    bt->txn_commit(txn_ptr);
+    assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
   }
 
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "SP :: ";
+    cout << "OPT SP :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }
