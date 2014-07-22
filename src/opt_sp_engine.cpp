@@ -59,6 +59,7 @@ std::string opt_sp_engine::select(const statement& st) {
     LOG_INFO("val : %s", value.c_str());
   }
 
+  //cout<<"val : "<<value<<endl;
   delete rec_ptr;
 
   return value;

@@ -1156,8 +1156,10 @@ class cow_btree {
   }
 
   void mpage_release(struct mpage *mp) {
+
     if (mp != NULL) {
-      delete mp->page;
+      if(persist == false)
+        delete mp->page;
       delete mp;
     }
   }
@@ -1445,9 +1447,11 @@ class cow_btree {
       done = 1;
       SIMPLEQ_FOREACH(mp, _txn->dirty_queue, next)
       {
-        DPRINTF("commiting page %u", mp->pgno);
-        iov[n].iov_len = head.psize;
-        iov[n].iov_base = mp->page;
+        if(persist == false){
+          DPRINTF("commiting page %u", mp->pgno);
+          iov[n].iov_len = head.psize;
+          iov[n].iov_base = mp->page;
+        }
 
         // WRITE
         if (persist)
@@ -1888,21 +1892,17 @@ class cow_btree {
 
     mp = mpage_lookup(pgno);
     if (mp == NULL) {
-      if ((mp = new mpage()) == NULL)
-        return NULL;
-      if ((mp->page = (page*) new char[head.psize]) == NULL) {
-        delete mp;
-        return NULL;
-      }
-      if (persist) {
-        pmemalloc_activate(mp);
-        pmemalloc_activate(mp->page);
-      }
+
+      mp = new mpage();
+
+      if(persist == false)
+        mp->page = (page*) new char[head.psize];
 
       if (cow_btree_read_page(pgno, mp->page) != BT_SUCCESS) {
         mpage_release(mp);
         return NULL;
       }
+
       mp->pgno = pgno;
       mpage_add(mp);
     } else

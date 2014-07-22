@@ -48,7 +48,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.num_txns = 10;
   state.num_executors = 1;
 
-  state.sz_value = 4;
+  state.sz_value = 256;
   state.verbose = false;
 
   state.gc_interval = 5;

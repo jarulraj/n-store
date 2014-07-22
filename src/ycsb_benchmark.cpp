@@ -74,7 +74,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     offset = 0;
     field_info col1(offset, 10, 10, field_type::INTEGER, 1, 1);
     offset += col1.ser_len;
-    field_info col2(offset, sizeof(void*), 100, field_type::VARCHAR, 0, 1);
+    field_info col2(offset, sizeof(void*), conf.sz_value, field_type::VARCHAR, 0, 1);
     offset += col2.ser_len;
 
     vector<field_info> cols;

@@ -61,6 +61,7 @@ std::string sp_engine::select(const statement& st) {
     LOG_INFO("val : %s", tuple.c_str());
   }
 
+  //cout<<"val : "<<tuple<<endl;
   delete rec_ptr;
 
   return tuple;
