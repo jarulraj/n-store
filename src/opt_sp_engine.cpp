@@ -265,13 +265,13 @@ void opt_sp_engine::runner() {
 
 void opt_sp_engine::generator(const workload& load, bool stats) {
 
-  std::thread gc(&opt_sp_engine::group_commit, this);
-  ready = true;
-
   bt = db->dirs->t_ptr;
   txn_ptr = bt->txn_begin(0);
   assert(txn_ptr);
 
+  std::thread gc(&opt_sp_engine::group_commit, this);
+  ready = true;
+  
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
 
@@ -280,10 +280,9 @@ void opt_sp_engine::generator(const workload& load, bool stats) {
 
   ready = false;
   gc.join();
-
-  if (txn_ptr != NULL) {
-    assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
-  }
+  
+  assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+  txn_ptr = NULL;
 
   gettimeofday(&t2, NULL);
 
