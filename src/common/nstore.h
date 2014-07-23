@@ -60,7 +60,9 @@ class config {
   double per_writes;
 
   int gc_interval;
+
   int merge_interval;
+  double merge_ratio;
 
   double skew;
 

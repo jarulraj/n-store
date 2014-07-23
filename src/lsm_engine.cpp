@@ -22,25 +22,17 @@ void lsm_engine::group_commit() {
 }
 
 void lsm_engine::merge() {
+  std::cout << "Merging ! " << merge_looper <<endl;
 
-  while (ready) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(conf.merge_interval));
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    table_index *table_index = tab->indices->at(0);
 
-    if (!ready)
-      break;
+    pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
 
-    std::cout << "Merging !" << endl;
+    // Check if need to merge
+    if (pm_map->size() > conf.merge_ratio * table_index->off_map->size()) {
 
-    /*
-    wrlock(&merge_rwlock);
-
-    vector<table*> tables = db->tables->get_data();
-    for (table* tab : tables) {
-      table_index *table_index = tab->indices->at(0);
-      printf("tab sptr %p \n", tab->sptr);
-      assert(tab->sptr != NULL);
-
-      pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
       pbtree<unsigned long, record*>::const_iterator itr;
       record *pm_rec, *fs_rec;
       unsigned long key;
@@ -52,11 +44,6 @@ void lsm_engine::merge() {
         key = (*itr).first;
         pm_rec = (*itr).second;
 
-        if(key == 0 || pm_rec == NULL){
-          printf("key :: %lu pm_rec %p \n", key, pm_rec);
-          break;
-        }
-
         fs_rec = NULL;
 
         // Check if we need to merge
@@ -67,30 +54,32 @@ void lsm_engine::merge() {
 
           int num_cols = pm_rec->sptr->num_columns;
           for (int field_itr = 0; field_itr < num_cols; field_itr++) {
-            if (pm_rec->sptr->columns[field_itr].enabled)
-              fs_rec->set_data(field_itr, pm_rec);
+            fs_rec->set_data(field_itr, pm_rec);
           }
 
           val = serialize(fs_rec, tab->sptr, false);
+          //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
+
           tab->fs_data.update(storage_offset, val);
 
           delete fs_rec;
         } else {
           // Insert tuple
           val = serialize(pm_rec, tab->sptr, false);
+          //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
+
           storage_offset = tab->fs_data.push_back(val);
           table_index->off_map->insert(key, storage_offset);
         }
       }
 
+      // Clear mem table
+      table_index->pm_map->clear();
     }
-
-    // Truncate log
-
-    unlock(&merge_rwlock);
-    */
-
   }
+
+  // Truncate log
+  fs_log.truncate();
 }
 
 lsm_engine::lsm_engine(const config& _conf)
@@ -163,6 +152,7 @@ std::string lsm_engine::select(const statement& st) {
   }
 
   LOG_INFO("val : %s", val.c_str());
+  //cout << "val : " << val << endl;
 
   return val;
 }
@@ -185,10 +175,8 @@ void lsm_engine::insert(const statement& st) {
                << " " << serialize(after_rec, after_rec->sptr, true) << "\n";
   entry_str = entry_stream.str();
 
+  // Add log entry
   fs_log.push_back(entry_str);
-
-  // Activate new record
-  pmemalloc_activate(after_rec);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -215,6 +203,7 @@ void lsm_engine::remove(const statement& st) {
 
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
+    delete rec_ptr;
     return;
   }
 
@@ -252,27 +241,30 @@ void lsm_engine::update(const statement& st) {
   unsigned long key = hash_fn(key_str);
   off_t log_offset;
   std::string val;
+  record* before_rec;
 
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
-    return;
+    //LOG_INFO("Key not found in mem table %lu ", key);
+    before_rec = rec_ptr;
+
+  } else {
+    before_rec = indices->at(0)->pm_map->at(key);
+
+    // Update existing record
+    for (int field_itr : st.field_ids) {
+      void* field_ptr = rec_ptr->get_pointer(field_itr);
+      before_rec->set_data(field_itr, rec_ptr);
+      delete ((char*) field_ptr);
+    }
   }
 
-  record* before_rec = indices->at(0)->pm_map->at(key);
-
-  // Update existing record
-  for (int field_itr : st.field_ids) {
-    void* field_ptr = rec_ptr->get_pointer(field_itr);
-    before_rec->set_data(field_itr, rec_ptr);
-    delete ((char*)field_ptr);
-  }
-
-  // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
   entry_str = entry_stream.str();
 
+  // Add log entry
   fs_log.push_back(entry_str);
 
   // Add entry in indices
@@ -280,7 +272,8 @@ void lsm_engine::update(const statement& st) {
     key_str = get_data(before_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->pm_map->update(key, before_rec);
+    indices->at(index_itr)->pm_map->erase(key);
+    indices->at(index_itr)->pm_map->insert(key, before_rec);
   }
 
 }
@@ -288,8 +281,6 @@ void lsm_engine::update(const statement& st) {
 // RUNNER + LOADER
 
 void lsm_engine::execute(const transaction& txn) {
-
-  wrlock(&merge_rwlock);
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -303,7 +294,8 @@ void lsm_engine::execute(const transaction& txn) {
     }
   }
 
-  unlock(&merge_rwlock);
+  if (++merge_looper % conf.merge_interval == 0)
+    merge();
 
 }
 
@@ -338,23 +330,20 @@ void lsm_engine::runner() {
 void lsm_engine::generator(const workload& load, bool stats) {
 
   fs_log.configure(conf.fs_path + "log");
+  merge_looper = 0;
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
   // Logger start
-  //std::thread gc(&lsm_engine::group_commit, this);
-  // Merger start
-  //std::thread merger(&lsm_engine::merge, this);
-  //ready = true;
+  std::thread gc(&lsm_engine::group_commit, this);
 
   for (const transaction& txn : load.txns)
     execute(txn);
 
-// Logger end
+  // Logger end
   ready = false;
-  //gc.join();
-  //merger.join();
+  gc.join();
 
   fs_log.sync();
   fs_log.close();

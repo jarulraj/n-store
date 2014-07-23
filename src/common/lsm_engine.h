@@ -56,6 +56,8 @@ class lsm_engine : public engine {
   pthread_rwlock_t merge_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
   std::atomic_bool ready;
+  unsigned long merge_looper = 0;
+
 };
 
 #endif /* LSM_ENGINE_H_ */

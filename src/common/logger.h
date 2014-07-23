@@ -87,6 +87,13 @@ class logger {
     fclose(log_file);
   }
 
+  void truncate(){
+    int rc = ftruncate(log_file_fd, 0);
+    if(rc == -1){
+      perror("truncate");
+    }
+  }
+
   //private:
   FILE* log_file;
   off_t log_offset;
