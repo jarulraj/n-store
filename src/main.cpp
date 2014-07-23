@@ -225,9 +225,7 @@ int main(int argc, char **argv) {
     ycsb_benchmark ycsb(state);
     opt_lsm_engine opt_lsm(state);
 
-    if (generate_dataset)
-      opt_lsm.generator(ycsb.get_dataset(), false);
-
+    opt_lsm.generator(ycsb.get_dataset(), false);
     opt_lsm.generator(ycsb.get_workload(), true);
   }
   return 0;

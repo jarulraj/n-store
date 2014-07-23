@@ -105,22 +105,23 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     pmemalloc_activate(key_index);
     indices->push_back(key_index);
 
-    pbtree<unsigned long, record*>* key_index_map = new pbtree<unsigned long,
+    pbtree<unsigned long, record*>* key_index_pm_map = new pbtree<unsigned long,
         record*>(&conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(key_index_map);
-    key_index->pm_map = key_index_map;
+    pmemalloc_activate(key_index_pm_map);
+    key_index->pm_map = key_index_pm_map;
 
-    pbtree<unsigned long, off_t>* key_index_lsm_map = new pbtree<unsigned long,
+    pbtree<unsigned long, off_t>* key_index_off_map = new pbtree<unsigned long,
         off_t>(&conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(key_index_lsm_map);
-    key_index->off_map = key_index_lsm_map;
+    pmemalloc_activate(key_index_off_map);
+    key_index->off_map = key_index_off_map;
 
     // XXX Disable persistence
-    if (conf.wal_enable == 1 || conf.lsm_enable == 1) {
+    if (conf.wal_enable == 1 || conf.lsm_enable == 1 || conf.opt_lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();
         for (table_index* index : indices) {
+          index->pm_map->disable_persistence();
           index->off_map->disable_persistence();
         }
       }
@@ -141,7 +142,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     }
 
     // Clear all indices
-    if (conf.wal_enable == 1 || conf.lsm_enable == 1) {
+    if (conf.wal_enable == 1 || conf.lsm_enable == 1 || conf.opt_lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         tab->pm_data->clear();

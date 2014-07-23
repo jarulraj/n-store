@@ -35,7 +35,7 @@ class lsm_engine : public engine {
   void execute(const transaction& t);
 
   void group_commit();
-  void merge();
+  void merge(bool force);
   void recovery();
 
   //private:

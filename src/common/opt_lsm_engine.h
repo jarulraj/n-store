@@ -36,6 +36,7 @@ class opt_lsm_engine : public engine {
   void execute(const transaction& t);
 
   void group_commit();
+  void merge(bool force);
   void recovery();
 
   //private:
@@ -54,6 +55,8 @@ class opt_lsm_engine : public engine {
   std::atomic_bool done;
 
   std::atomic_bool ready;
+  unsigned long merge_looper = 0;
+
 };
 
 #endif /* OPT_LSM_ENGINE_H_ */

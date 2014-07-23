@@ -1,4 +1,4 @@
-// LSM FILE
+// LSM - FILE BASED
 
 #include "lsm_engine.h"
 #include <fstream>
@@ -8,7 +8,7 @@ using namespace std;
 void lsm_engine::group_commit() {
 
   while (ready) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
 
     if (!ready)
       break;
@@ -21,7 +21,7 @@ void lsm_engine::group_commit() {
   }
 }
 
-void lsm_engine::merge() {
+void lsm_engine::merge(bool force) {
   std::cout << "Merging ! " << merge_looper <<endl;
 
   vector<table*> tables = db->tables->get_data();
@@ -31,7 +31,7 @@ void lsm_engine::merge() {
     pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
 
     // Check if need to merge
-    if (pm_map->size() > conf.merge_ratio * table_index->off_map->size()) {
+    if (force || (pm_map->size() > conf.merge_ratio * table_index->off_map->size())) {
 
       pbtree<unsigned long, record*>::const_iterator itr;
       record *pm_rec, *fs_rec;
@@ -169,6 +169,12 @@ void lsm_engine::insert(const statement& st) {
   std::string key_str = get_data(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
+  // Check if key exists
+  if (indices->at(0)->pm_map->exists(key) || indices->at(0)->off_map->exists(key)) {
+    delete after_rec;
+    return;
+  }
+
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -223,6 +229,7 @@ void lsm_engine::remove(const statement& st) {
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->erase(key);
+    indices->at(index_itr)->off_map->erase(key);
   }
 
   delete before_rec;
@@ -295,7 +302,7 @@ void lsm_engine::execute(const transaction& txn) {
   }
 
   if (++merge_looper % conf.merge_interval == 0)
-    merge();
+    merge(false);
 
 }
 
@@ -344,6 +351,8 @@ void lsm_engine::generator(const workload& load, bool stats) {
   // Logger end
   ready = false;
   gc.join();
+
+  merge(false);
 
   fs_log.sync();
   fs_log.close();
