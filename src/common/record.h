@@ -30,6 +30,22 @@ class record {
     delete data;
   }
 
+  // clear only data
+  void clear_data() {
+    delete data;
+  }
+
+  inline void display() {
+    std::string data;
+
+    unsigned int field_itr;
+    for (field_itr = 0; field_itr < sptr->num_columns; field_itr++)
+        data  += get_data(field_itr);
+
+    printf("record : %p %s \n", this, data.c_str());
+
+  }
+
   inline std::string get_data(const int field_id) {
     std::string field;
     field_info finfo = sptr->columns[field_id];
@@ -113,6 +129,7 @@ class record {
     for (field_itr = 0; field_itr < sptr->num_columns; field_itr++) {
       if (sptr->columns[field_itr].inlined == 0) {
         void* ptr = get_pointer(field_itr);
+        //printf("persist data :: %p \n", ptr);
         pmemalloc_activate(ptr);
       }
     }

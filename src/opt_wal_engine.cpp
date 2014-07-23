@@ -4,26 +4,6 @@
 
 using namespace std;
 
-void opt_wal_engine::group_commit() {
-
-  while (ready) {
-
-    // Clear commit_free list
-    for (void* ptr : commit_free_list) {
-      pmemalloc_free(ptr);
-    }
-    commit_free_list.clear();
-
-    // Clear log
-    vector<char*> undo_log = db->log->get_data();
-    for (char* ptr : undo_log)
-      delete ptr;
-    db->log->clear();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
-  }
-}
-
 opt_wal_engine::opt_wal_engine(const config& _conf)
     : conf(_conf),
       db(conf.db),
@@ -45,15 +25,19 @@ opt_wal_engine::~opt_wal_engine() {
 std::string opt_wal_engine::select(const statement& st) {
   LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
+  record* select_ptr = NULL;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
   unsigned long key = hash_fn(st.key);
   std::string val;
 
-  rec_ptr = table_index->pm_map->at(key);
-  val = get_data(rec_ptr, st.projection);
+  select_ptr = table_index->pm_map->at(key);
+  val = get_data(select_ptr, st.projection);
   LOG_INFO("val : %s", val.c_str());
+
+  //cout<<"val : " <<val<<endl;
+  delete rec_ptr;
 
   return val;
 }
@@ -72,6 +56,7 @@ void opt_wal_engine::insert(const statement& st) {
 
   // Check if key exists
   if (indices->at(0)->pm_map->exists(key) != 0) {
+    delete after_rec;
     return;
   }
 
@@ -201,8 +186,11 @@ void opt_wal_engine::update(const statement& st) {
   for (int field_itr : st.field_ids) {
     // Activate new field and garbage collect previous field
     if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
-      commit_free_list.push_back(before_field);
+      before_field = before_rec->get_pointer(field_itr);
+      after_field = rec_ptr->get_pointer(field_itr);
+
       pmemalloc_activate(after_field);
+      commit_free_list.push_back(before_field);
     }
 
     // Update existing record

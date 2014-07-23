@@ -64,7 +64,7 @@ record* deserialize_to_record(std::string entry_str, schema* sptr, bool prefix) 
 
     char type = sptr->columns[idx].type;
     size_t offset = sptr->columns[idx].offset;
-    size_t len = sptr->columns[idx].ser_len;
+    size_t len = sptr->columns[idx].deser_len;
 
     switch (type) {
       case field_type::INTEGER: {
@@ -82,7 +82,7 @@ record* deserialize_to_record(std::string entry_str, schema* sptr, bool prefix) 
         break;
 
       case field_type::VARCHAR: {
-        char* vc = new char[sptr->columns[idx].ser_len];
+        char* vc = new char[sptr->columns[idx].deser_len];
         entry >> vc;
         std::sprintf(&(rec_ptr->data[offset]), "%p", vc);
       }

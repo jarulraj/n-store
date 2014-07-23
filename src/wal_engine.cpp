@@ -163,7 +163,7 @@ void wal_engine::update(const statement& st) {
 
   // Check if key does not exist
   if (indices->at(0)->off_map->exists(key) == 0) {
-    //delete rec_ptr;
+    delete rec_ptr;
     return;
   }
 
@@ -171,7 +171,7 @@ void wal_engine::update(const statement& st) {
   val = tab->fs_data.at(storage_offset);
   LOG_INFO("val : %s", val.c_str());
   record* before_rec = deserialize_to_record(val, tab->sptr, false);
-  //LOG_INFO("before tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
+  LOG_INFO("before tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
 
   std::string after_data, before_data;
   int num_fields = st.field_ids.size();

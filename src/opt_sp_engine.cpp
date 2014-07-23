@@ -43,6 +43,7 @@ opt_sp_engine::~opt_sp_engine() {
 std::string opt_sp_engine::select(const statement& st) {
   LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
+  record* select_ptr;
   struct cow_btval key, val;
 
   unsigned long key_id = hasher(hash_fn(st.key), st.table_id,
@@ -54,12 +55,13 @@ std::string opt_sp_engine::select(const statement& st) {
 
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
-    std::sscanf((char*) val.data, "%p", &rec_ptr);
-    value = get_data(rec_ptr, st.projection);
-    LOG_INFO("val : %s", value.c_str());
+    std::sscanf((char*) val.data, "%p", &select_ptr);
+    value = get_data(select_ptr, st.projection);
   }
 
-  //cout<<"val : "<<value<<endl;
+  LOG_INFO("val : %s", value.c_str());
+  //cout<<"val : " <<value<<endl;
+
   delete rec_ptr;
 
   return value;
@@ -184,9 +186,9 @@ void opt_sp_engine::update(const statement& st) {
 
   // Update record
   for (int field_itr : st.field_ids) {
-    void* before_field = after_rec->get_pointer(field_itr);
+    void* before_field = before_rec->get_pointer(field_itr);
     after_rec->set_data(field_itr, rec_ptr);
-    //delete ((char*)before_field);
+    delete ((char*)before_field);
   }
 
   // Activate new record
@@ -209,8 +211,11 @@ void opt_sp_engine::update(const statement& st) {
     bt->insert(txn_ptr, &key, &update_val);
   }
 
+  //printf("before_rec :: record :: %p \n", before_rec);
+  //printf("rec_ptr :: record :: %p \n", rec_ptr);
+
+  before_rec->clear_data();
   delete rec_ptr;
-  delete before_rec;
 }
 
 // RUNNER + LOADER

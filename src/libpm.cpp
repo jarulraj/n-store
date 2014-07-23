@@ -952,8 +952,10 @@ void pmemalloc_free(void *abs_ptr_) {
   else if (state != PMEM_STATE_RESERVED && state != PMEM_STATE_ACTIVE) {
     if (state == PMEM_STATE_FREE) {
       return;
-    } else
-      FATAL("freeing clumb in bad state: %d", state);
+    } else{
+      fprintf(stderr, "[0x%lx]clump size %lu state %d \n", OFF(clp), sz, state);
+      FATAL("freeing clump in bad state: %d", state);
+    }
   }
 
   clp->size = sz | PMEM_STATE_FREE;
