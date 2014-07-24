@@ -47,5 +47,5 @@ bin/*
 zfile
 
 # Plots
-results/*
+results/*.pdf
 /Debug
