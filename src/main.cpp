@@ -105,27 +105,27 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         break;
       case 'a':
         state.wal_enable = true;
-        cout << "WAL enable: " << state.wal_enable << endl;
+        cout << "wal_enable: " << state.wal_enable << endl;
         break;
       case 'w':
         state.opt_wal_enable = true;
-        cout << "OPT WAL enable: " << state.opt_wal_enable << endl;
+        cout << "opt_wal_enable: " << state.opt_wal_enable << endl;
         break;
       case 's':
         state.sp_enable = true;
-        cout << "SP enable: " << state.sp_enable << endl;
+        cout << "sp_enable: " << state.sp_enable << endl;
         break;
       case 'c':
         state.opt_sp_enable = true;
-        cout << "OPT SP enable: " << state.opt_sp_enable << endl;
+        cout << "opt_sp_enable: " << state.opt_sp_enable << endl;
         break;
       case 'm':
         state.lsm_enable = true;
-        cout << "LSM enable: " << state.lsm_enable << endl;
+        cout << "lsm_enable: " << state.lsm_enable << endl;
         break;
       case 'l':
         state.opt_lsm_enable = true;
-        cout << "OPT LSM enable: " << state.opt_lsm_enable << endl;
+        cout << "opt_lsm_enable: " << state.opt_lsm_enable << endl;
         break;
       case 'q':
         state.skew = atof(optarg);
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
   state.sp = sp;
 
   if (state.opt_wal_enable == true) {
-    LOG_INFO("WAL");
+    LOG_INFO("OPT WAL");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
   }
 
   if (state.wal_enable == true) {
-    LOG_INFO("ARIES");
+    LOG_INFO("WAL");
 
     bool generate_dataset = !sp->init;
     ycsb_benchmark ycsb(state);
@@ -230,5 +230,6 @@ int main(int argc, char **argv) {
 
     opt_lsm.generator(ycsb.get_workload(), true);
   }
+
   return 0;
 }

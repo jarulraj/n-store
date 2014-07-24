@@ -60,15 +60,17 @@ def parse_ycsb(log_name):
                 engine_type[0] = "sp"
             elif(engine_type[0] == "LSM"):
                 engine_type[0] = "lsm"
-            elif(engine_type[0] == "OPT WAL"):
-                engine_type[0] = "opt-wal"
-            elif(engine_type[0] == "OPT SP"):
-                engine_type[0] = "opt-sp"
-            elif(engine_type[0] == "OPT LSM"):
-                engine_type[0] = "opt-lsm"
+            elif(engine_type[0] == "OPT_WAL"):
+                engine_type[0] = "opt_wal"
+            elif(engine_type[0] == "OPT_SP"):
+                engine_type[0] = "opt_sp"
+            elif(engine_type[0] == "OPT_LSM"):
+                engine_type[0] = "opt_lsm"
             
             if engine_type not in engine_types:
                 engine_types.append(engine_type)
+            
+            print (engine_type)    
                 
             key = (rw_mix, skew, latency, engine_type[0]);
             if key in tput:
@@ -79,6 +81,8 @@ def parse_ycsb(log_name):
 
     # CLEAN UP RESULT FILE
     subprocess.call(['rm', '-rf', benchmark_dir])          
+    
+    pprint.pprint(tput)
     
     for key in sorted(tput.keys()):
         mean[key] = round(numpy.mean(tput[key]), 2)
@@ -161,7 +165,7 @@ def eval(enable_sdv, enable_trials, log_name):
     
      # CLEANUP
     def cleanup():
-        subprocess.call(['rm', '-f', fs_path + '*'])        
+        subprocess.call(["rm -f " + fs_path + "./*"], shell=True)        
     
     num_trials = 1 
     if enable_trials: 
@@ -172,7 +176,7 @@ def eval(enable_sdv, enable_trials, log_name):
     #skew_factors = [0.1, 1.0, 10.0]
  
     latency_factors = [2]
-    rw_mixes = [0]
+    rw_mixes = [0, 0.5]
     skew_factors = [0.1]
     
     # LOG RESULTS
@@ -205,26 +209,25 @@ def eval(enable_sdv, enable_trials, log_name):
                     print (ostr, end="")
                     log_file.write(ostr)                    
                     log_file.flush()
-                    
-
+           
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-a'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-a'], stdout=log_file)
      
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-s'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-s'], stdout=log_file)
                     
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-m'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-m'], stdout=log_file)
 
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-w'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-w'], stdout=log_file)
 
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-c'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-c'], stdout=log_file)
 
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-l'], stdout=log_file)
-
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-l'], stdout=log_file)
+                                                    
 
 if __name__ == '__main__':
     enable_sdv = False

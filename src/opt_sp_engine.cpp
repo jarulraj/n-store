@@ -303,7 +303,7 @@ void opt_sp_engine::generator(const workload& load, bool stats) {
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "OPT SP :: ";
+    cout << "OPT_SP :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }

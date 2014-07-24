@@ -379,7 +379,7 @@ void opt_lsm_engine::generator(const workload& load, bool stats) {
   gettimeofday(&t2, NULL);
 
   if (stats) {
-    cout << "OPT LSM :: ";
+    cout << "OPT_LSM :: ";
     display_stats(t1, t2, conf.num_txns);
   }
 }

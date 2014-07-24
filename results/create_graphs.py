@@ -41,10 +41,9 @@ LOG.setLevel(logging.INFO)
 
 BASE_DIR = os.path.dirname(__file__)
 
-SYSTEMS = ("aries", "wal")
+SYSTEMS = ("wal","sp","lsm","opt_wal","opt_sp","opt_lsm")
 WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
 LATENCIES = ("200", "800")
-
 
 OPT_FONT_NAME = 'Droid Sans'
 OPT_GRAPH_HEIGHT = 300
@@ -93,7 +92,8 @@ def createYCSBGraphs(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("aries-2X", "aries-8X", "wal-2X", "wal-8X", "sp-2X", "sp-8X")
+    labels = ("WAL-2X", "WAL-8X", "SP-2X", "SP-8X", "SP-2X", "SP-8X",
+              "PM-WAL-2X", "PM-WAL-8X", "PM-SP-2X", "PM-SP-8X", "PM-SP-2X", "PM-SP-8X")
 
     x_values = [0.1, 1.0, 10.0]
     x_labels = ["0.1", "1.0", "10.0"]
@@ -131,7 +131,7 @@ def createYCSBGraphs(datasets, workload_mix):
     
     # Y-AXIS
     #fp = FontProperties(family=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE, weight=OPT_LABEL_WEIGHT)
-    ax1.set_ylabel("Througput", fontproperties=fp)
+    ax1.set_ylabel("Throughput", fontproperties=fp)
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
     for tick in ax1.yaxis.get_major_ticks():
@@ -186,16 +186,14 @@ if __name__ == '__main__':
     args = vars(aparser.parse_args())
         
     for workload in WORKLOAD_MIX:
-            aries_fast = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/aries/" + workload + "/" + "/200/results.csv")))
-            aries_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/aries/" + workload + "/" + "/800/results.csv")))
-            wal_fast = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/wal/" + workload + "/" + "/200/results.csv")))
-            wal_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/wal/" + workload + "/" + "/800/results.csv")))
-            sp_fast = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/sp/" + workload + "/" + "/200/results.csv")))
-            sp_slow = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/sp/" + workload + "/" + "/800/results.csv")))
-            
-            datasets = (aries_fast, aries_slow, wal_fast, wal_slow, sp_fast, sp_slow)
-            
-            fig = createYCSBGraphs(datasets, workload)
-            fileName = "ycsb-%s.pdf" % (workload)
-            saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+        datasets = ()
+    
+        for sy in SYSTEMS:    
+            for lat in LATENCIES:
+                dataFile = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/" + sy + "/" + workload + "/" + lat + "/results.csv")))
+                datasets += dataFile
+                           
+        fig = createYCSBGraphs(datasets, workload)
+        fileName = "ycsb-%s.pdf" % (workload)
+        saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
     
