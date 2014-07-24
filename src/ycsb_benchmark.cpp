@@ -53,7 +53,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db->log = log;
     pmemalloc_activate(log);
 
-    if (conf.sp_enable == true) {
+    if (conf.etype == engine_type::SP) {
       cow_pbtree* dirs = new cow_pbtree(false,
                                         (conf.fs_path + "cow.db").c_str(),
                                         NULL);
@@ -61,7 +61,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
       // No activation
     }
 
-    if (conf.opt_sp_enable == true) {
+    if (conf.etype == engine_type::OPT_SP) {
       cow_pbtree* dirs = new cow_pbtree(true, NULL,
                                         &conf.sp->ptrs[conf.sp->itr++]);
       db->dirs = dirs;
@@ -116,7 +116,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     key_index->off_map = key_index_off_map;
 
     // XXX Disable persistence
-    if (conf.wal_enable == 1 || conf.lsm_enable == 1) {
+    if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();
@@ -134,7 +134,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     db = (database*) conf.sp->ptrs[0];
     conf.db = db;
 
-    if (conf.sp_enable == true) {
+    if (conf.etype == engine_type::SP) {
       cow_pbtree* dirs = new cow_pbtree(false,
                                         (conf.fs_path + "cow.db").c_str(),
                                         NULL);
@@ -142,7 +142,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     }
 
     // Clear all indices
-    if (conf.wal_enable == 1 || conf.lsm_enable == 1) {
+    if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         tab->pm_data->clear();
