@@ -158,8 +158,8 @@ def eval(enable_sdv, enable_trials, log_name):
     fs_path = "/mnt/pmfs/n-store/"
     
     # NSTORE FLAGS
-    keys = 20000 
-    txns = 20000
+    keys = 200000 
+    txns = 500000
     # KEYS=100 
     # TXNS=100 
     
@@ -171,13 +171,13 @@ def eval(enable_sdv, enable_trials, log_name):
     if enable_trials: 
         num_trials = 3
     
-    #latency_factors = [2, 8]
-    #rw_mixes = [0, 0.1, 0.5]
-    #skew_factors = [0.1, 1.0, 10.0]
+    latency_factors = [2, 8]
+    rw_mixes = [0, 0.1, 0.5]
+    skew_factors = [0.1, 1.0, 10.0]
  
-    latency_factors = [2]
-    rw_mixes = [0, 0.5]
-    skew_factors = [0.1]
+    #latency_factors = [2]
+    #rw_mixes = [0, 0.5]
+    #skew_factors = [0.1]
     
     # LOG RESULTS
     log_file = open(log_name, 'w')
