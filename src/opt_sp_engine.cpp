@@ -86,7 +86,7 @@ void opt_sp_engine::insert(const statement& st) {
   key.size = key_str.size();
 
   // Check if key exists in current version
-  if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+  if (bt->at(NULL, &key, &val) != BT_FAIL) {
     delete after_rec;
     return;
   }
@@ -128,7 +128,7 @@ void opt_sp_engine::remove(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist
-  if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+  if (bt->at(NULL, &key, &val) == BT_FAIL) {
     delete rec_ptr;
     return;
   }
@@ -172,7 +172,7 @@ void opt_sp_engine::update(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist in current version
-  if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+  if (bt->at(NULL, &key, &val) == BT_FAIL) {
     delete rec_ptr;
     return;
   }
