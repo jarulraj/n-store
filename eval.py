@@ -205,7 +205,7 @@ def eval(enable_sdv, enable_trials, log_name):
                     ostr = ("--------------------------------------------------- \n")
                     print (ostr, end="")
                     log_file.write(ostr)
-                    ostr = ("TRIAL :: %d RW MIX :: %.1f SKEW :: %.1f \n" % (trial, rw_mix, skew_factor))
+                    ostr = ("TRIAL :: %d RW MIX :: %.1f SKEW :: %.2f \n" % (trial, rw_mix, skew_factor))
                     print (ostr, end="")
                     log_file.write(ostr)                    
                     log_file.flush()

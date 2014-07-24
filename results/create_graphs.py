@@ -93,15 +93,14 @@ def createYCSBGraphs(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL-2X", "WAL-8X", 
-              "SP-2X", "SP-8X", 
-              "LSM-2X", "LSM-8X",
-              "PM-WAL-2X", "PM-WAL-8X", 
-              "PM-SP-2X", "PM-SP-8X", 
-              "PM-LSM-2X", "PM-LSM-8X")
+    #labels = ("WAL-2X", "WAL-8X", "SP-2X", "SP-8X", "LSM-2X", "LSM-8X",
+    #          "PM-WAL-2X", "PM-WAL-8X", "PM-SP-2X", "PM-SP-8X", "PM-LSM-2X", "PM-LSM-8X")
 
-    x_values = [0.1, 1.0, 10.0]
-    x_labels = ["0.1", "1.0", "10.0"]
+    labels = ("WAL-2X", "SP-2X", "LSM-2X",
+              "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
+
+    x_values = [0.1, 1.0]
+    x_labels = ["0.1", "1.0"]
 
     for i in xrange(len(datasets)):
         LOG.info("%s y_values = %s", labels[i], datasets[i])
@@ -147,7 +146,7 @@ def createYCSBGraphs(datasets, workload_mix):
     ax1.set_xscale('log');
     ax1.set_xlabel("Skew", fontproperties=fp)
     ax1.xaxis.set_major_locator(MaxNLocator(len(x_values)))
-    axes.set_xlim(0.09, 11)
+    axes.set_xlim(0.09, 1.1)
     ax1.minorticks_off()
     ax1.set_xticklabels(x_labels)
     print (x_values)
