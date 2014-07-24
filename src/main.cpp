@@ -57,13 +57,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.merge_interval = 100000;
   state.merge_ratio = 0.2;
 
-  state.sp_enable = false;
-  state.wal_enable = false;
-  state.opt_wal_enable = false;
-  state.lsm_enable = false;
-  state.opt_sp_enable = false;
-  state.opt_lsm_enable = false;
-
+  state.etype = engine_type::invalid;
   state.skew = 1;
 
   // Parse args
@@ -104,28 +98,28 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         cout << "gc_interval: " << state.gc_interval << endl;
         break;
       case 'a':
-        state.wal_enable = true;
-        cout << "wal_enable: " << state.wal_enable << endl;
+        state.etype = engine_type::WAL;
+        cout << "wal_enable: " << endl;
         break;
       case 'w':
-        state.opt_wal_enable = true;
-        cout << "opt_wal_enable: " << state.opt_wal_enable << endl;
+        state.etype = engine_type::OPT_WAL;
+        cout << "opt_wal_enable " << endl;
         break;
       case 's':
-        state.sp_enable = true;
-        cout << "sp_enable: " << state.sp_enable << endl;
+        state.etype = engine_type::SP;
+        cout << "sp_enable  " << endl;
         break;
       case 'c':
-        state.opt_sp_enable = true;
-        cout << "opt_sp_enable: " << state.opt_sp_enable << endl;
+        state.etype = engine_type::OPT_SP;
+        cout << "opt_sp_enable " << endl;
         break;
       case 'm':
-        state.lsm_enable = true;
-        cout << "lsm_enable: " << state.lsm_enable << endl;
+        state.etype = engine_type::LSM;
+        cout << "lsm_enable " << endl;
         break;
       case 'l':
-        state.opt_lsm_enable = true;
-        cout << "opt_lsm_enable: " << state.opt_lsm_enable << endl;
+        state.etype = engine_type::OPT_LSM;
+        cout << "opt_lsm_enable " << endl;
         break;
       case 'q':
         state.skew = atof(optarg);
@@ -143,6 +137,78 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   assert(state.per_writes >= 0 && state.per_writes <= 1);
 }
 
+void execute(config& state) {
+
+  bool generate_dataset = !sp->init;
+  ycsb_benchmark ycsb(state);
+
+  switch (state.etype) {
+    case engine_type::WAL: {
+      LOG_INFO("WAL");
+
+      wal_engine wal(state);
+      wal.generator(ycsb.get_dataset(), false);
+      wal.generator(ycsb.get_workload(), true);
+    }
+      break;
+
+    case engine_type::SP: {
+      LOG_INFO("SP");
+
+      sp_engine sp(state);
+      if (generate_dataset)
+        sp.generator(ycsb.get_dataset(), false);
+      sp.generator(ycsb.get_workload(), true);
+    }
+      break;
+
+    case engine_type::LSM: {
+      LOG_INFO("LSM");
+
+      lsm_engine lsm(state);
+      lsm.generator(ycsb.get_dataset(), false);
+      lsm.generator(ycsb.get_workload(), true);
+    }
+      break;
+
+    case engine_type::OPT_WAL: {
+      LOG_INFO("OPT WAL");
+
+      opt_wal_engine opt_wal(state);
+      if (generate_dataset)
+        opt_wal.generator(ycsb.get_dataset(), false);
+
+      opt_wal.generator(ycsb.get_workload(), true);
+    }
+      break;
+
+    case engine_type::OPT_SP: {
+      LOG_INFO("OPT SP");
+
+      opt_sp_engine opt_sp(state);
+      if (generate_dataset)
+        opt_sp.generator(ycsb.get_dataset(), false);
+      opt_sp.generator(ycsb.get_workload(), true);
+    }
+      break;
+
+    case engine_type::OPT_LSM: {
+      LOG_INFO("OPT LSM");
+
+      opt_lsm_engine opt_lsm(state);
+      if (generate_dataset)
+        opt_lsm.generator(ycsb.get_dataset(), false);
+      opt_lsm.generator(ycsb.get_workload(), true);
+    }
+      break;
+
+    default:
+      cout << "unknown engine type :: " << state.etype << endl;
+      break;
+  }
+
+}
+
 int main(int argc, char **argv) {
   const char* path = "/mnt/pmfs/n-store/zfile";
 
@@ -157,79 +223,7 @@ int main(int argc, char **argv) {
   parse_arguments(argc, argv, state);
   state.sp = sp;
 
-  if (state.opt_wal_enable == true) {
-    LOG_INFO("OPT WAL");
-
-    bool generate_dataset = !sp->init;
-    ycsb_benchmark ycsb(state);
-    opt_wal_engine opt_wal(state);
-
-    if (generate_dataset)
-      opt_wal.generator(ycsb.get_dataset(), false);
-
-    opt_wal.generator(ycsb.get_workload(), true);
-  }
-
-  if (state.wal_enable == true) {
-    LOG_INFO("WAL");
-
-    bool generate_dataset = !sp->init;
-    ycsb_benchmark ycsb(state);
-    wal_engine wal(state);
-
-    wal.generator(ycsb.get_dataset(), false);
-
-    wal.generator(ycsb.get_workload(), true);
-  }
-
-  if (state.sp_enable == true) {
-    LOG_INFO("SP");
-
-    bool generate_dataset = !sp->init;
-    ycsb_benchmark ycsb(state);
-    sp_engine sp(state);
-
-    if (generate_dataset)
-      sp.generator(ycsb.get_dataset(), false);
-
-    sp.generator(ycsb.get_workload(), true);
-  }
-
-  if (state.opt_sp_enable == true) {
-    LOG_INFO("OPT SP");
-
-    bool generate_dataset = !sp->init;
-    ycsb_benchmark ycsb(state);
-    opt_sp_engine opt_sp(state);
-
-    if (generate_dataset)
-      opt_sp.generator(ycsb.get_dataset(), false);
-
-    opt_sp.generator(ycsb.get_workload(), true);
-  }
-
-  if (state.lsm_enable == true) {
-    LOG_INFO("LSM");
-
-    ycsb_benchmark ycsb(state);
-    lsm_engine lsm(state);
-
-    lsm.generator(ycsb.get_dataset(), false);
-    lsm.generator(ycsb.get_workload(), true);
-  }
-
-  if (state.opt_lsm_enable == true) {
-    LOG_INFO("OPT LSM");
-
-    bool generate_dataset = !sp->init;
-    ycsb_benchmark ycsb(state);
-    opt_lsm_engine opt_lsm(state);
-
-    if (generate_dataset)
-      opt_lsm.generator(ycsb.get_dataset(), false);
-
-    opt_lsm.generator(ycsb.get_workload(), true);
-  }
+  execute(state);
 
   return 0;
 }

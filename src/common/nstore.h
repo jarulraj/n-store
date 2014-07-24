@@ -38,13 +38,21 @@ static struct option opts[] = {
     { "lsm-enable", no_argument, NULL, 'm' },
     { "opt-lsm-enable", no_argument, NULL, 'l' },
     { "verbose", no_argument, NULL, 'v' },
-    { "skew", optional_argument, NULL, 'q' },
     { "help", no_argument, NULL, 'h' },
     { NULL, 0, NULL, 0 }
 };
 
-class config {
+enum engine_type {
+  invalid,
+  WAL,
+  SP,
+  LSM,
+  OPT_WAL,
+  OPT_SP,
+  OPT_LSM
+};
 
+class config {
  public:
   std::string fs_path;
 
@@ -67,13 +75,7 @@ class config {
   double skew;
 
   bool verbose;
-  bool opt_wal_enable;
-  bool wal_enable;
-  bool sp_enable;
-  bool opt_sp_enable;
-  bool lsm_enable;
-  bool opt_lsm_enable;
-
+  engine_type etype;
 };
 
 #endif /* NSTORE_H_ */
