@@ -161,7 +161,7 @@ def eval(enable_sdv, enable_trials, log_name):
     
      # CLEANUP
     def cleanup():
-        subprocess.call(['rm', '-f', fs_path + './*'])        
+        subprocess.call(['rm', '-f', fs_path + '*'])        
     
     num_trials = 1 
     if enable_trials: 
@@ -172,8 +172,8 @@ def eval(enable_sdv, enable_trials, log_name):
     #skew_factors = [0.1, 1.0, 10.0]
  
     latency_factors = [2]
-    rw_mixes = [0, 0.5]
-    skew_factors = [0.1, 1]
+    rw_mixes = [0]
+    skew_factors = [0.1]
     
     # LOG RESULTS
     log_file = open(log_name, 'w')
@@ -214,7 +214,7 @@ def eval(enable_sdv, enable_trials, log_name):
                     subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-s'], stdout=log_file)
                     
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-l'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-m'], stdout=log_file)
 
                     cleanup()
                     subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-w'], stdout=log_file)
@@ -223,7 +223,7 @@ def eval(enable_sdv, enable_trials, log_name):
                     subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-c'], stdout=log_file)
 
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-m'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-l'], stdout=log_file)
 
 
 if __name__ == '__main__':
