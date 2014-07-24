@@ -22,7 +22,7 @@ void lsm_engine::group_commit() {
 }
 
 void lsm_engine::merge(bool force) {
-  std::cout << "Merging ! " << merge_looper <<endl;
+  //std::cout << "Merging ! " << merge_looper << endl;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -31,7 +31,8 @@ void lsm_engine::merge(bool force) {
     pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
 
     // Check if need to merge
-    if (force || (pm_map->size() > conf.merge_ratio * table_index->off_map->size())) {
+    if (force
+        || (pm_map->size() > conf.merge_ratio * table_index->off_map->size())) {
 
       pbtree<unsigned long, record*>::const_iterator itr;
       record *pm_rec, *fs_rec;
@@ -71,6 +72,8 @@ void lsm_engine::merge(bool force) {
           storage_offset = tab->fs_data.push_back(val);
           table_index->off_map->insert(key, storage_offset);
         }
+
+        delete pm_rec;
       }
 
       // Clear mem table
@@ -79,7 +82,8 @@ void lsm_engine::merge(bool force) {
   }
 
   // Truncate log
-  fs_log.truncate();
+  if (force)
+    fs_log.truncate();
 }
 
 lsm_engine::lsm_engine(const config& _conf)
@@ -92,7 +96,7 @@ lsm_engine::lsm_engine(const config& _conf)
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-    tab->fs_data.configure(table_file_name, tab->max_tuple_size);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size, true);
   }
 
 }
@@ -170,7 +174,8 @@ void lsm_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  if (indices->at(0)->pm_map->exists(key) || indices->at(0)->off_map->exists(key)) {
+  if (indices->at(0)->pm_map->exists(key)
+      || indices->at(0)->off_map->exists(key)) {
     delete after_rec;
     return;
   }
@@ -338,6 +343,9 @@ void lsm_engine::generator(const workload& load, bool stats) {
 
   fs_log.configure(conf.fs_path + "log");
   merge_looper = 0;
+  txn_counter = 0;
+  unsigned int num_txns = load.txns.size();
+  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -345,8 +353,16 @@ void lsm_engine::generator(const workload& load, bool stats) {
   // Logger start
   std::thread gc(&lsm_engine::group_commit, this);
 
-  for (const transaction& txn : load.txns)
+  for (const transaction& txn : load.txns) {
     execute(txn);
+
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
+    }
+  }
+  printf("\n");
 
   // Logger end
   ready = false;

@@ -106,7 +106,7 @@ void sp_engine::insert(const statement& st) {
 
     //printf("Val :: %s \n", (char*) val.data);
 
-    val.size = after_tuple.size()+1;
+    val.size = after_tuple.size() + 1;
     bt->insert(txn_ptr, &key, &val);
   }
 
@@ -205,7 +205,7 @@ void sp_engine::update(const statement& st) {
     update_val.data = (void*) after_tuple.c_str();
     //printf("Update_val :: %s \n", (char*) update_val.data);
 
-    update_val.size = after_tuple.size()+1;
+    update_val.size = after_tuple.size() + 1;
     bt->insert(txn_ptr, &key, &update_val);
   }
 
@@ -268,15 +268,26 @@ void sp_engine::generator(const workload& load, bool stats) {
   bt = db->dirs->t_ptr;
   txn_ptr = bt->txn_begin(0);
   assert(txn_ptr);
+  txn_counter = 0;
+  unsigned int num_txns = load.txns.size();
+  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
   std::thread gc(&sp_engine::group_commit, this);
   ready = true;
-  
+
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
 
-  for (const transaction& txn : load.txns)
+  for (const transaction& txn : load.txns) {
     execute(txn);
+
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
+    }
+  }
+  printf("\n");
 
   ready = false;
   gc.join();

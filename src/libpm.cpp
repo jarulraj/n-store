@@ -667,7 +667,7 @@ pmemalloc_reserve(size_t size) {
     sz = clp->size & ~PMEM_STATE_MASK;
     state = clp->size & PMEM_STATE_MASK;
 
-    DEBUG("[0x%lx] clump size %lu state %d", OFF(clp), sz, state);
+    //printf("[0x%lx] clump size %lu state %d \n", OFF(clp), sz, state);
 
     if (nsize <= sz) {
       if (state == PMEM_STATE_FREE) {
@@ -736,8 +736,8 @@ pmemalloc_reserve(size_t size) {
   if (loop == 0) {
     loop = 1;
     clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
-    printf("allocator :: loop back \n");
-    //pmemalloc_coalesce_free(pmp);
+    //printf("allocator :: loop back and COALESCE clp :: [0x%lx] \n", OFF(clp));
+    pmemalloc_coalesce_free(pmp);
     goto check;
   }
 
@@ -972,7 +972,7 @@ void pmemalloc_free(void *abs_ptr_) {
    *     the recovery code for coalescing.
    */
 
-  pmemalloc_coalesce_rotate();
+  //pmemalloc_coalesce_rotate();
 }
 
 /*

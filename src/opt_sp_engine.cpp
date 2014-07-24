@@ -188,7 +188,7 @@ void opt_sp_engine::update(const statement& st) {
   for (int field_itr : st.field_ids) {
     void* before_field = before_rec->get_pointer(field_itr);
     after_rec->set_data(field_itr, rec_ptr);
-    delete ((char*)before_field);
+    delete ((char*) before_field);
   }
 
   // Activate new record
@@ -273,19 +273,30 @@ void opt_sp_engine::generator(const workload& load, bool stats) {
   bt = db->dirs->t_ptr;
   txn_ptr = bt->txn_begin(0);
   assert(txn_ptr);
+  txn_counter = 0;
+  unsigned int num_txns = load.txns.size();
+  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
   std::thread gc(&opt_sp_engine::group_commit, this);
   ready = true;
-  
+
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
 
-  for (const transaction& txn : load.txns)
+  for (const transaction& txn : load.txns) {
     execute(txn);
+
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
+    }
+  }
+  printf("\n");
 
   ready = false;
   gc.join();
-  
+
   assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
   txn_ptr = NULL;
 

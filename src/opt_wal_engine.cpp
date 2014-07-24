@@ -144,7 +144,7 @@ void opt_wal_engine::update(const statement& st) {
   record* before_rec = indices->at(0)->pm_map->at(key);
 
   // Check if key does not exist
-  if (before_rec == 0){
+  if (before_rec == 0) {
     delete rec_ptr;
     return;
   }
@@ -259,11 +259,23 @@ void opt_wal_engine::runner() {
 
 void opt_wal_engine::generator(const workload& load, bool stats) {
 
+  txn_counter = 0;
+  unsigned int num_txns = load.txns.size();
+  unsigned int period = (num_txns >= 10) ? (num_txns / 10) : 1;
+
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
-  for (const transaction& txn : load.txns)
+  for (const transaction& txn : load.txns) {
     execute(txn);
+
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
+    }
+  }
+  printf("\n");
 
   gettimeofday(&t2, NULL);
 

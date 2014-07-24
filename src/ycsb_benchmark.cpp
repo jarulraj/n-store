@@ -116,7 +116,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     key_index->off_map = key_index_off_map;
 
     // XXX Disable persistence
-    if (conf.wal_enable == 1 || conf.lsm_enable == 1 || conf.opt_lsm_enable == 1) {
+    if (conf.wal_enable == 1 || conf.lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         vector<table_index*> indices = tab->indices->get_data();
@@ -142,7 +142,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     }
 
     // Clear all indices
-    if (conf.wal_enable == 1 || conf.lsm_enable == 1 || conf.opt_lsm_enable == 1) {
+    if (conf.wal_enable == 1 || conf.lsm_enable == 1) {
       vector<table*> tables = db->tables->get_data();
       for (table* tab : tables) {
         tab->pm_data->clear();

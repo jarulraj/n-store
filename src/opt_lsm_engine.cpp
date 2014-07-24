@@ -15,13 +15,15 @@ void opt_lsm_engine::merge(bool force) {
     pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
 
     // Check if need to merge
-    if (force || (pm_map->size() > conf.merge_ratio * table_index->off_map->size())) {
+    if (force
+        || (pm_map->size() > conf.merge_ratio * table_index->off_map->size())) {
 
       pbtree<unsigned long, record*>::const_iterator itr;
       record *pm_rec, *fs_rec;
       unsigned long key;
       off_t storage_offset;
       std::string val;
+      char ptr_buf[32];
 
       // All tuples in table
       for (itr = pm_map->begin(); itr != pm_map->end(); itr++) {
@@ -32,25 +34,26 @@ void opt_lsm_engine::merge(bool force) {
 
         // Check if we need to merge
         if (table_index->off_map->exists(key) != 0) {
+          LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
+
           storage_offset = table_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
-          fs_rec = deserialize_to_record(val, tab->sptr, false);
+          std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+          //printf("fs_rec :: %p \n", fs_rec);
 
           int num_cols = pm_rec->sptr->num_columns;
           for (int field_itr = 0; field_itr < num_cols; field_itr++) {
             fs_rec->set_data(field_itr, pm_rec);
           }
 
-          val = serialize(fs_rec, tab->sptr, false);
-          //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
-
-          tab->fs_data.update(storage_offset, val);
-
-          delete fs_rec;
         } else {
           // Insert tuple
-          val = serialize(pm_rec, tab->sptr, false);
-          //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
+          std::sprintf(ptr_buf, "%p", pm_rec);
+          val = std::string(ptr_buf);
+          LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
+
+          std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+          //printf("fs_rec :: %p \n", fs_rec);
 
           storage_offset = tab->fs_data.push_back(val);
           table_index->off_map->insert(key, storage_offset);
@@ -63,7 +66,8 @@ void opt_lsm_engine::merge(bool force) {
   }
 
   // Truncate log
-  pm_log->clear();
+  if (force)
+    pm_log->clear();
 
 }
 
@@ -78,7 +82,7 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf)
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-    tab->fs_data.configure(table_file_name, tab->max_tuple_size);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
   }
 
 }
@@ -107,6 +111,7 @@ std::string opt_lsm_engine::select(const statement& st) {
   if (table_index->pm_map->exists(key) != 0) {
     LOG_INFO("Using mem table ");
     pm_rec = table_index->pm_map->at(key);
+    //printf("pm_rec :: %p \n", pm_rec);
   }
 
   // Check if key exists in fs
@@ -114,7 +119,10 @@ std::string opt_lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    fs_rec = deserialize_to_record(val, tab->sptr, false);
+    //printf("val :: --%s-- \n", val.c_str());
+
+    std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+    //printf("fs_rec :: %p \n", fs_rec);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
@@ -124,7 +132,6 @@ std::string opt_lsm_engine::select(const statement& st) {
     // From SSTable
     val = serialize(fs_rec, st.projection, false);
 
-    delete fs_rec;
   } else if (pm_rec != NULL && fs_rec != NULL) {
     // Merge
     int num_cols = pm_rec->sptr->num_columns;
@@ -134,7 +141,6 @@ std::string opt_lsm_engine::select(const statement& st) {
     }
 
     val = serialize(fs_rec, st.projection, false);
-    delete fs_rec;
   }
 
   LOG_INFO("val : %s", val.c_str());
@@ -165,11 +171,15 @@ void opt_lsm_engine::insert(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(after_rec, after_rec->sptr, true) << "\n";
+               << " " << after_rec << "\n";
 
   entry_str = entry_stream.str();
   char* entry = new char[entry_str.size() + 1];
   strcpy(entry, entry_str.c_str());
+
+  // Activate new record
+  pmemalloc_activate(after_rec);
+  after_rec->persist_data();
 
   // Add log entry
   pmemalloc_activate(entry);
@@ -209,7 +219,7 @@ void opt_lsm_engine::remove(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
+               << " " << before_rec << "\n";
 
   entry_str = entry_stream.str();
   char* entry = new char[entry_str.size() + 1];
@@ -245,6 +255,7 @@ void opt_lsm_engine::update(const statement& st) {
   off_t log_offset;
   std::string val;
   record* before_rec;
+  void *before_field, *after_field;
 
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
@@ -256,15 +267,20 @@ void opt_lsm_engine::update(const statement& st) {
 
     // Update existing record
     for (int field_itr : st.field_ids) {
-      void* field_ptr = rec_ptr->get_pointer(field_itr);
+      if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
+        before_field = before_rec->get_pointer(field_itr);
+        after_field = rec_ptr->get_pointer(field_itr);
+        pmemalloc_activate(after_field);
+        //delete ((char*) before_field);
+      }
+
       before_rec->set_data(field_itr, rec_ptr);
-      delete ((char*) field_ptr);
     }
   }
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
+               << " " << before_rec << "\n";
 
   entry_str = entry_stream.str();
   char* entry = new char[entry_str.size() + 1];
@@ -337,12 +353,23 @@ void opt_lsm_engine::runner() {
 void opt_lsm_engine::generator(const workload& load, bool stats) {
 
   merge_looper = 0;
+  txn_counter = 0;
+  unsigned int num_txns = load.txns.size();
+  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
 
-  for (const transaction& txn : load.txns)
+  for (const transaction& txn : load.txns) {
     execute(txn);
+
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
+    }
+  }
+  printf("\n");
 
   // Logger end
   ready = false;

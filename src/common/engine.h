@@ -22,6 +22,8 @@ class engine {
   virtual void runner() = 0;
 
   virtual ~engine() {}
+
+  int txn_counter;
 };
 
 #endif  /* ENGINE_H_ */

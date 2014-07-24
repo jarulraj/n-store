@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 
 #include "record.h"
 
@@ -18,21 +19,33 @@ class storage {
       : storage_file(NULL),
         storage_file_fd(-1),
         storage_offset(0),
-        max_tuple_size(0){
+        max_tuple_size(0) {
   }
 
-  void configure(std::string _name, size_t _tuple_size) {
+  void configure(std::string _name, size_t _tuple_size, bool overwrite) {
     storage_file_name = _name;
     max_tuple_size = _tuple_size;
 
     // write/update mode
-    storage_file = fopen(storage_file_name.c_str(), "w+");
+    if (overwrite) {
+      storage_file = fopen(storage_file_name.c_str(), "w+");
+    } else {
+      if (access(storage_file_name.c_str(), F_OK) != -1) {
+        // file exists - read/update mode
+        storage_file = fopen(storage_file_name.c_str(), "r+");
+      } else {
+        // new file - write/update mode
+        storage_file = fopen(storage_file_name.c_str(), "w+");
+      }
+    }
 
     if (storage_file != NULL) {
       storage_file_fd = fileno(storage_file);
       storage_offset = 0;
+
       //fseek(storage_file, 0, SEEK_END);
-      //storage_offset = ftell(storage_file);
+      //size_t sz = ftell(storage_file);
+      //printf("File size :: %lu \n", sz);
     } else {
       std::cout << "Log file not found : " << storage_file_name << std::endl;
       exit(EXIT_FAILURE);

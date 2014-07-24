@@ -48,13 +48,13 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.num_txns = 10;
   state.num_executors = 1;
 
-  state.sz_value = 16;
+  state.sz_value = 1024;
   state.verbose = false;
 
   state.gc_interval = 5;
   state.per_writes = 0.1;
 
-  state.merge_interval = 131072;
+  state.merge_interval = 100000;
   state.merge_ratio = 0.2;
 
   state.sp_enable = false;
@@ -225,7 +225,9 @@ int main(int argc, char **argv) {
     ycsb_benchmark ycsb(state);
     opt_lsm_engine opt_lsm(state);
 
-    opt_lsm.generator(ycsb.get_dataset(), false);
+    if (generate_dataset)
+      opt_lsm.generator(ycsb.get_dataset(), false);
+
     opt_lsm.generator(ycsb.get_workload(), true);
   }
   return 0;

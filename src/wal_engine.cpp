@@ -24,7 +24,7 @@ wal_engine::wal_engine(const config& _conf)
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-    tab->fs_data.configure(table_file_name, tab->max_tuple_size);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size, true);
   }
 
   //for (int i = 0; i < conf.num_executors; i++)
@@ -52,6 +52,7 @@ std::string wal_engine::select(const statement& st) {
   off_t storage_offset;
 
   if (table_index->off_map->exists(key) == 0) {
+    delete rec_ptr;
     return val;
   }
 
@@ -59,6 +60,8 @@ std::string wal_engine::select(const statement& st) {
   val = tab->fs_data.at(storage_offset);
   val = deserialize_to_string(val, st.projection, false);
   LOG_INFO("val : %s", val.c_str());
+
+  delete rec_ptr;
 
   return val;
 }
@@ -171,7 +174,8 @@ void wal_engine::update(const statement& st) {
   val = tab->fs_data.at(storage_offset);
   LOG_INFO("val : %s", val.c_str());
   record* before_rec = deserialize_to_record(val, tab->sptr, false);
-  LOG_INFO("before tuple : %s", serialize(before_rec, before_rec->sptr, false).c_str());
+  LOG_INFO("before tuple : %s",
+           serialize(before_rec, before_rec->sptr, false).c_str());
 
   std::string after_data, before_data;
   int num_fields = st.field_ids.size();
@@ -255,6 +259,9 @@ void wal_engine::runner() {
 void wal_engine::generator(const workload& load, bool stats) {
 
   fs_log.configure(conf.fs_path + "log");
+  txn_counter = 0;
+  unsigned int num_txns = load.txns.size();
+  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
   timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -263,8 +270,16 @@ void wal_engine::generator(const workload& load, bool stats) {
   std::thread gc(&wal_engine::group_commit, this);
   ready = true;
 
-  for (const transaction& txn : load.txns)
+  for (const transaction& txn : load.txns) {
     execute(txn);
+
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
+    }
+  }
+  printf("\n");
 
   // Logger end
   ready = false;
