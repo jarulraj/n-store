@@ -54,12 +54,18 @@ def parse_ycsb(log_name):
             engine_type = entry[0].split(' ');
             val = float(entry[4]);
             
-            if(engine_type[0] == "ARIES"):
-                engine_type[0] = "aries"                
-            elif(engine_type[0] == "WAL"):
-                engine_type[0] = "wal"
+            if(engine_type[0] == "WAL"):
+                engine_type[0] = "wal"                
             elif(engine_type[0] == "SP"):
                 engine_type[0] = "sp"
+            elif(engine_type[0] == "LSM"):
+                engine_type[0] = "lsm"
+            elif(engine_type[0] == "OPT WAL"):
+                engine_type[0] = "opt-wal"
+            elif(engine_type[0] == "OPT SP"):
+                engine_type[0] = "opt-sp"
+            elif(engine_type[0] == "OPT LSM"):
+                engine_type[0] = "opt-lsm"
             
             if engine_type not in engine_types:
                 engine_types.append(engine_type)
@@ -148,28 +154,26 @@ def eval(enable_sdv, enable_trials, log_name):
     fs_path = "/mnt/pmfs/n-store/"
     
     # NSTORE FLAGS
-    keys = 1000000 
-    txns = 1000000
+    keys = 20000 
+    txns = 20000
     # KEYS=100 
     # TXNS=100 
     
      # CLEANUP
     def cleanup():
-        subprocess.call(['rm', '-f', fs_path + './zfile'])
-        subprocess.call(['rm', '-f', fs_path + './log'])
-        
+        subprocess.call(['rm', '-f', fs_path + './*'])        
     
     num_trials = 1 
     if enable_trials: 
         num_trials = 3
     
-    latency_factors = [2, 8]
-    rw_mixes = [0, 0.1, 0.5]
-    skew_factors = [0.1, 1.0, 10.0]
+    #latency_factors = [2, 8]
+    #rw_mixes = [0, 0.1, 0.5]
+    #skew_factors = [0.1, 1.0, 10.0]
  
-    #latency_factors = [2]
-    #rw_mixes = [0, 0.5]
-    #skew_factors = [0.1, 1]
+    latency_factors = [2]
+    rw_mixes = [0, 0.5]
+    skew_factors = [0.1, 1]
     
     # LOG RESULTS
     log_file = open(log_name, 'w')
@@ -204,13 +208,23 @@ def eval(enable_sdv, enable_trials, log_name):
                     
 
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-w', str(rw_mix), '-f', fs_path, 'q', str(skew_factor), '-l'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-a'], stdout=log_file)
      
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-w', str(rw_mix), '-f', fs_path, 'q', str(skew_factor), '-a'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-s'], stdout=log_file)
+                    
+                    cleanup()
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-l'], stdout=log_file)
 
                     cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-w', str(rw_mix), '-f', fs_path, 'q', str(skew_factor), '-s'], stdout=log_file)
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-w'], stdout=log_file)
+
+                    cleanup()
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-c'], stdout=log_file)
+
+                    cleanup()
+                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), 'q', str(skew_factor), '-m'], stdout=log_file)
+
 
 if __name__ == '__main__':
     enable_sdv = False
@@ -219,6 +233,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run experiments')
     parser.add_argument("-s", "--enable-sdv", help='enable sdv', action='store_true')
     parser.add_argument("-t", "--enable-trials", help='enable trials', action='store_true')
+    parser.add_argument("-e", "--evaluate", help='evaluation', action='store_true')
+    parser.add_argument("-p", "--plot", help='plot data', action='store_true')
     
     args = parser.parse_args()
     
@@ -229,8 +245,10 @@ if __name__ == '__main__':
 
     log_name = "data.log"
     
-    #eval(enable_sdv, enable_trials, log_name)
+    if args.evaluate:
+        eval(enable_sdv, enable_trials, log_name)
     
-    parse_ycsb(log_name)
+    if args.plot:
+        parse_ycsb(log_name)
 
     
