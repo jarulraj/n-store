@@ -1,6 +1,7 @@
 #ifndef DATABASE_H_
 #define DATABASE_H_
 
+#include "nstore.h"
 #include "table.h"
 #include "plist.h"
 #include "cow_pbtree.h"
@@ -9,10 +10,41 @@ using namespace std;
 
 class database {
  public:
-  database()
+  database(const config& _conf)
       : tables(NULL),
         log(NULL),
-        dirs(NULL) {
+        dirs(NULL),
+        conf(_conf) {
+
+    conf.sp->itr++;
+
+    // TABLES
+    plist<table*>* _tables = new plist<table*>(&conf.sp->ptrs[conf.sp->itr++],
+                                               &conf.sp->ptrs[conf.sp->itr++]);
+    pmemalloc_activate(_tables);
+    tables = _tables;
+
+    // LOG
+    plist<char*>* _log = new plist<char*>(&conf.sp->ptrs[conf.sp->itr++],
+                                          &conf.sp->ptrs[conf.sp->itr++]);
+    pmemalloc_activate(_log);
+    log = _log;
+
+    // DIRS
+    if (conf.etype == engine_type::SP) {
+      cow_pbtree* _dirs = new cow_pbtree(false,
+                                         (conf.fs_path + "cow.db").c_str(),
+                                         NULL);
+      dirs = _dirs;
+      // No activation
+    }
+
+    if (conf.etype == engine_type::OPT_SP) {
+      cow_pbtree* _dirs = new cow_pbtree(true, NULL,
+                                         &conf.sp->ptrs[conf.sp->itr++]);
+      pmemalloc_activate(_dirs);
+      dirs = _dirs;
+    }
   }
 
   ~database() {
@@ -25,13 +57,11 @@ class database {
     delete log;
   }
 
-  // WAL
+  const config& conf;
   plist<table*>* tables;
-
-  // ARIES
   plist<char*>* log;
 
-  // SP
+  // SP and OPT_SP
   cow_pbtree* dirs;
 };
 

@@ -38,35 +38,10 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
 
   // Initialization mode
   if (conf.sp->init == 0) {
-    db = new database();
-    conf.sp->ptrs[conf.sp->itr++] = db;
+    db = new database(conf);
+    conf.sp->ptrs[0] = db;
     pmemalloc_activate(db);
     conf.db = db;
-
-    plist<table*>* tables = new plist<table*>(&conf.sp->ptrs[conf.sp->itr++],
-                                              &conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(tables);
-    db->tables = tables;
-
-    plist<char*>* log = new plist<char*>(&conf.sp->ptrs[conf.sp->itr++],
-                                         &conf.sp->ptrs[conf.sp->itr++]);
-    db->log = log;
-    pmemalloc_activate(log);
-
-    if (conf.etype == engine_type::SP) {
-      cow_pbtree* dirs = new cow_pbtree(false,
-                                        (conf.fs_path + "cow.db").c_str(),
-                                        NULL);
-      db->dirs = dirs;
-      // No activation
-    }
-
-    if (conf.etype == engine_type::OPT_SP) {
-      cow_pbtree* dirs = new cow_pbtree(true, NULL,
-                                        &conf.sp->ptrs[conf.sp->itr++]);
-      db->dirs = dirs;
-      pmemalloc_activate(dirs);
-    }
 
     // USERTABLE
     off_t offset;
@@ -85,7 +60,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
 
     table* usertable = new table("usertable", usertable_schema, 1);
     pmemalloc_activate(usertable);
-    tables->push_back(usertable);
+    db->tables->push_back(usertable);
 
     plist<record*>* usertable_data = new plist<record*>(
         &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);

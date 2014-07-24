@@ -6,8 +6,6 @@
 #include <vector>
 #include <sys/time.h>
 
-#include "database.h"
-
 using namespace std;
 
 // Logging
@@ -51,6 +49,8 @@ enum engine_type {
   OPT_SP,
   OPT_LSM
 };
+
+class database;
 
 class config {
  public:
