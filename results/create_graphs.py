@@ -49,10 +49,11 @@ OPT_FONT_NAME = 'Droid Sans'
 OPT_GRAPH_HEIGHT = 300
 OPT_GRAPH_WIDTH = 400
 OPT_LABEL_WEIGHT = 'bold'
-OPT_COLORS = brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
-#OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
+OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
+OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
 OPT_GRID_COLOR = 'gray'
 OPT_LEGEND_SHADOW=False
+OPT_MARKERS = (['o','s','v',">", "h", "v","^", "x", "d","<", "|","8","|", "_"])
 
 ## ==============================================
 # # SAVE GRAPH
@@ -92,15 +93,19 @@ def createYCSBGraphs(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL-2X", "WAL-8X", "SP-2X", "SP-8X", "SP-2X", "SP-8X",
-              "PM-WAL-2X", "PM-WAL-8X", "PM-SP-2X", "PM-SP-8X", "PM-SP-2X", "PM-SP-8X")
+    labels = ("WAL-2X", "WAL-8X", 
+              "SP-2X", "SP-8X", 
+              "LSM-2X", "LSM-8X",
+              "PM-WAL-2X", "PM-WAL-8X", 
+              "PM-SP-2X", "PM-SP-8X", 
+              "PM-LSM-2X", "PM-LSM-8X")
 
     x_values = [0.1, 1.0, 10.0]
     x_labels = ["0.1", "1.0", "10.0"]
 
     for i in xrange(len(datasets)):
         LOG.info("%s y_values = %s", labels[i], datasets[i])
-        ax1.plot(x_values, datasets[i], label=labels[i], color=OPT_COLORS[i])
+        ax1.plot(x_values, datasets[i], label=labels[i], color=OPT_COLORS[i], marker=OPT_MARKERS[i])
     # # FOR
     
     # GRID
@@ -113,7 +118,6 @@ def createYCSBGraphs(datasets, workload_mix):
         axes.set_ylim(0, 150000)
         
     makeGrid(ax1)
-    axes.set_xlim(.4, 1.6)
 
     # LEGEND
     fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
@@ -143,11 +147,10 @@ def createYCSBGraphs(datasets, workload_mix):
     ax1.set_xscale('log');
     ax1.set_xlabel("Skew", fontproperties=fp)
     ax1.xaxis.set_major_locator(MaxNLocator(len(x_values)))
-    xlim = ax1.get_xlim()[::-1]
-    xlim = (xlim[0], xlim[1])
-    ax1.set_xlim(xlim)
+    axes.set_xlim(0.09, 11)
     ax1.minorticks_off()
     ax1.set_xticklabels(x_labels)
+    print (x_values)
     ax1.set_xticks(x_values)
     print(x_labels)
     pprint(ax1.xaxis.get_majorticklocs())
@@ -186,12 +189,13 @@ if __name__ == '__main__':
     args = vars(aparser.parse_args())
         
     for workload in WORKLOAD_MIX:
-        datasets = ()
+        datasets = []
     
         for sy in SYSTEMS:    
             for lat in LATENCIES:
                 dataFile = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/" + sy + "/" + workload + "/" + lat + "/results.csv")))
-                datasets += dataFile
+                print dataFile
+                datasets.append(dataFile)
                            
         fig = createYCSBGraphs(datasets, workload)
         fileName = "ycsb-%s.pdf" % (workload)
