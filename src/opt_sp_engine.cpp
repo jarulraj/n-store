@@ -10,6 +10,7 @@ void opt_sp_engine::group_commit() {
 
     if (txn_ptr != NULL) {
       wrlock(&opt_sp_pbtree_rwlock);
+
       assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
 
       txn_ptr = bt->txn_begin(0);
@@ -68,7 +69,7 @@ std::string opt_sp_engine::select(const statement& st) {
 }
 
 void opt_sp_engine::insert(const statement& st) {
-  //LOG_INFO("Insert");
+  LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -86,7 +87,7 @@ void opt_sp_engine::insert(const statement& st) {
   key.size = key_str.size();
 
   // Check if key exists in current version
-  if (bt->at(NULL, &key, &val) != BT_FAIL) {
+  if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     delete after_rec;
     return;
   }
@@ -128,7 +129,7 @@ void opt_sp_engine::remove(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist
-  if (bt->at(NULL, &key, &val) == BT_FAIL) {
+  if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
     return;
   }
@@ -172,7 +173,7 @@ void opt_sp_engine::update(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist in current version
-  if (bt->at(NULL, &key, &val) == BT_FAIL) {
+  if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
     return;
   }

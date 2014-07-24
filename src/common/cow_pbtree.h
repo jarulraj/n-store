@@ -767,7 +767,7 @@ struct cow_btree_stat {
 };
 
 #define PAGESIZE   4096
-#define BT_MINKEYS   16
+#define BT_MINKEYS   4
 #define BT_MAGIC   0xB3DBB3DB
 #define BT_VERSION   4
 #define MAXKEYSIZE   31
