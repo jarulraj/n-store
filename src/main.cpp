@@ -51,7 +51,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.verbose = false;
 
-  state.gc_interval = 1000;
+  state.gc_interval = 5;
   state.ycsb_per_writes = 0.1;
 
   state.merge_interval = 100000;
