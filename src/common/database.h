@@ -10,11 +10,10 @@ using namespace std;
 
 class database {
  public:
-  database(const config& _conf)
+  database(config& conf)
       : tables(NULL),
         log(NULL),
-        dirs(NULL),
-        conf(_conf) {
+        dirs(NULL) {
 
     conf.sp->itr++;
 
@@ -32,18 +31,14 @@ class database {
 
     // DIRS
     if (conf.etype == engine_type::SP) {
-      cow_pbtree* _dirs = new cow_pbtree(false,
-                                         (conf.fs_path + "cow.db").c_str(),
-                                         NULL);
-      dirs = _dirs;
+      dirs = new cow_pbtree(false, (conf.fs_path + "cow.db").c_str(),
+      NULL);
       // No activation
     }
 
     if (conf.etype == engine_type::OPT_SP) {
-      cow_pbtree* _dirs = new cow_pbtree(true, NULL,
-                                         &conf.sp->ptrs[conf.sp->itr++]);
-      pmemalloc_activate(_dirs);
-      dirs = _dirs;
+      dirs = new cow_pbtree(true, NULL, &conf.sp->ptrs[conf.sp->itr++]);
+      pmemalloc_activate(dirs);
     }
   }
 
@@ -57,7 +52,29 @@ class database {
     delete log;
   }
 
-  const config& conf;
+  void reset(config& conf) {
+
+    if (conf.etype == engine_type::SP) {
+      dirs = new cow_pbtree(false, (conf.fs_path + "cow.db").c_str(),
+      NULL);
+    }
+
+    // Clear all table data and indices
+    if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM) {
+      vector<table*> tab_vec = tables->get_data();
+
+      for (table* tab : tab_vec) {
+        tab->pm_data->clear();
+        vector<table_index*> indices = tab->indices->get_data();
+        for (table_index* index : indices) {
+          index->pm_map->clear();
+          index->off_map->clear();
+        }
+      }
+    }
+
+  }
+
   plist<table*>* tables;
   plist<char*>* log;
 

@@ -30,106 +30,63 @@ class usertable_record : public record {
   char* vc;
 };
 
+// USERTABLE
+table* create_usertable(config& conf) {
+
+  vector<field_info> cols;
+  off_t offset;
+
+  offset = 0;
+  field_info col1(offset, 10, 10, field_type::INTEGER, 1, 1);
+  offset += col1.ser_len;
+  field_info col2(offset, sizeof(void*), conf.sz_value, field_type::VARCHAR, 0,
+                  1);
+  offset += col2.ser_len;
+
+  cols.push_back(col1);
+  cols.push_back(col2);
+
+  // SCHEMA
+  schema* usertable_schema = new schema(cols);
+  pmemalloc_activate(usertable_schema);
+
+  table* usertable = new table("usertable", usertable_schema, 1, conf);
+  pmemalloc_activate(usertable);
+
+  // PRIMARY INDEX
+  cols[1].enabled = 0;
+  schema* usertable_index_schema = new schema(cols);
+  pmemalloc_activate(usertable_index_schema);
+
+  table_index* key_index = new table_index(usertable_index_schema, 2, conf);
+  pmemalloc_activate(key_index);
+  usertable->indices->push_back(key_index);
+
+  return usertable;
+}
+
 ycsb_benchmark::ycsb_benchmark(config& _conf)
     : conf(_conf),
       txn_id(0) {
 
-  database* db;
-
   // Initialization mode
   if (conf.sp->init == 0) {
-    db = new database(conf);
+    //cout << "Initialization Mode" << endl;
+
+    database* db = new database(conf);
     conf.sp->ptrs[0] = db;
     pmemalloc_activate(db);
     conf.db = db;
 
-    // USERTABLE
-    off_t offset;
-
-    offset = 0;
-    field_info col1(offset, 10, 10, field_type::INTEGER, 1, 1);
-    offset += col1.ser_len;
-    field_info col2(offset, sizeof(void*), conf.sz_value, field_type::VARCHAR,
-                    0, 1);
-    offset += col2.ser_len;
-
-    vector<field_info> cols;
-    cols.push_back(col1);
-    cols.push_back(col2);
-    schema* usertable_schema = new schema(cols);
-    pmemalloc_activate(usertable_schema);
-
-    table* usertable = new table("usertable", usertable_schema, 1);
-    pmemalloc_activate(usertable);
+    table* usertable = create_usertable(conf);
     db->tables->push_back(usertable);
 
-    plist<record*>* usertable_data = new plist<record*>(
-        &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(usertable_data);
-    usertable->pm_data = usertable_data;
-
-    plist<table_index*>* indices = new plist<table_index*>(
-        &conf.sp->ptrs[conf.sp->itr++], &conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(indices);
-    usertable->indices = indices;
-
-    cols[1].enabled = 0;
-    schema* usertable_index_schema = new schema(cols);
-    pmemalloc_activate(usertable_index_schema);
-
-    table_index* key_index = new table_index(usertable_index_schema, 2);
-    pmemalloc_activate(key_index);
-    indices->push_back(key_index);
-
-    pbtree<unsigned long, record*>* key_index_pm_map = new pbtree<unsigned long,
-        record*>(&conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(key_index_pm_map);
-    key_index->pm_map = key_index_pm_map;
-
-    pbtree<unsigned long, off_t>* key_index_off_map = new pbtree<unsigned long,
-        off_t>(&conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(key_index_off_map);
-    key_index->off_map = key_index_off_map;
-
-    // XXX Disable persistence
-    if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM) {
-      vector<table*> tables = db->tables->get_data();
-      for (table* tab : tables) {
-        vector<table_index*> indices = tab->indices->get_data();
-        for (table_index* index : indices) {
-          index->pm_map->disable_persistence();
-          index->off_map->disable_persistence();
-        }
-      }
-    }
-
-    //cout << "Initialization Mode" << endl;
     conf.sp->init = 1;
   } else {
     //cout << "Recovery Mode " << endl;
-    db = (database*) conf.sp->ptrs[0];
+    database* db = (database*) conf.sp->ptrs[0];
+    db->reset(conf);
     conf.db = db;
-
-    if (conf.etype == engine_type::SP) {
-      cow_pbtree* dirs = new cow_pbtree(false,
-                                        (conf.fs_path + "cow.db").c_str(),
-                                        NULL);
-      db->dirs = dirs;
-    }
-
-    // Clear all indices
-    if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM) {
-      vector<table*> tables = db->tables->get_data();
-      for (table* tab : tables) {
-        tab->pm_data->clear();
-
-        vector<table_index*> indices = tab->indices->get_data();
-        for (table_index* index : indices) {
-          index->pm_map->clear();
-          index->off_map->clear();
-        }
-      }
-    }
 
   }
 
@@ -171,7 +128,7 @@ workload & ycsb_benchmark::get_workload() {
 
   load.txns.clear();
 
-  if(conf.per_writes == 0)
+  if (conf.per_writes == 0)
     load.read_only = true;
 
   unsigned int usertable_id = 0;
