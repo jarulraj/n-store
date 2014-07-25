@@ -132,7 +132,9 @@ std::string lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    fs_rec = deserialize_to_record(val, tab->sptr, false);
+    // XXX Skip merge
+    //fs_rec = deserialize_to_record(val, tab->sptr, false);
+    val = deserialize_to_string(val, st.projection, false);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
