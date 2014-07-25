@@ -22,12 +22,13 @@ inline std::string random_string(size_t len) {
 }
 
 inline std::string get_data(record* rptr, schema* sptr) {
-  unsigned int num_columns = sptr->num_columns;
-  unsigned int itr;
   std::string rec_str;
 
   if (rptr == NULL || sptr == NULL)
     return rec_str;
+
+  unsigned int num_columns = sptr->num_columns;
+  unsigned int itr;
 
   for (itr = 0; itr < num_columns; itr++) {
     if (sptr->columns[itr].enabled)

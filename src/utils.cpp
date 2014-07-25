@@ -24,18 +24,16 @@ std::string serialize(record* rptr, schema* sptr, bool prefix) {
     return rec_str;
 
   for (itr = 0; itr < num_columns; itr++) {
-    if (sptr->columns[itr].enabled) {
-      if (prefix)
-        rec_str += std::to_string(itr) + " ";
-
-      rec_str += rptr->get_data(itr);
-    }
+    if (prefix)
+      rec_str += std::to_string(itr) + " ";
+    rec_str += rptr->get_data(itr);
   }
 
   return rec_str;
 }
 
-record* deserialize_to_record(std::string entry_str, schema* sptr, bool prefix) {
+record* deserialize_to_record(std::string entry_str, schema* sptr,
+                              bool prefix) {
   unsigned int num_columns;
   unsigned int itr, field_id;
   std::string rec_str;
@@ -55,11 +53,10 @@ record* deserialize_to_record(std::string entry_str, schema* sptr, bool prefix) 
 
   off_t idx;
   for (itr = 0; itr < num_columns; itr++) {
-    if(prefix){
+    if (prefix) {
       entry >> field_id;
       idx = field_id;
-    }
-    else
+    } else
       idx = itr;
 
     char type = sptr->columns[idx].type;
@@ -114,17 +111,15 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr,
   if (prefix) {
     entry >> txn_id >> op_type >> table_id;
     entry >> num_columns;
-  }
-  else
+  } else
     num_columns = sptr->num_columns;
 
   off_t idx;
   for (itr = 0; itr < num_columns; itr++) {
-    if (prefix){
+    if (prefix) {
       entry >> field_id;
       idx = field_id;
-    }
-    else
+    } else
       idx = itr;
 
     bool enabled = sptr->columns[idx].enabled;

@@ -18,7 +18,11 @@ class record {
   }
 
   ~record() {
-    // Free non-inlined data
+    delete data;
+  }
+
+  // Free non-inlined data
+  void clear_data() {
     unsigned int field_itr;
     for (field_itr = 0; field_itr < sptr->num_columns; field_itr++) {
       if (sptr->columns[field_itr].inlined == 0) {
@@ -26,13 +30,6 @@ class record {
         pmemalloc_free(ptr);
       }
     }
-
-    delete data;
-  }
-
-  // clear only data
-  void clear_data() {
-    delete data;
   }
 
   inline void display() {
@@ -40,7 +37,7 @@ class record {
 
     unsigned int field_itr;
     for (field_itr = 0; field_itr < sptr->num_columns; field_itr++)
-        data  += get_data(field_itr);
+      data += get_data(field_itr);
 
     printf("record : %p %s \n", this, data.c_str());
 

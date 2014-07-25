@@ -22,20 +22,21 @@ int level = 2;  // verbosity level
 
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
-          "   -x --num-txns        :  Number of transactions \n"
-          "   -k --num-keys        :  Number of keys \n"
-          "   -e --num-executors   :  Number of executors \n"
-          "   -p --per-writes      :  Percent of writes \n"
-          "   -f --fs-path         :  Path for FS \n"
-          "   -g --gc-interval     :  Group commit interval \n"
-          "   -a --wal-enable      :  WAL enable (traditional) \n"
-          "   -w --opt-wal-enable  :  OPT WAL enable \n"
-          "   -s --sp-enable       :  SP enable (traditional) \n"
-          "   -c --opt-sp-enable   :  OPT SP enable \n"
-          "   -m --lsm-enable      :  LSM enable (traditional) \n"
-          "   -l --opt-lsm-enable  :  OPT LSM enable \n"
-          "   -q --skew            :  Skew \n"
-          "   -h --help            :  Print help message \n");
+          "   -x --num-txns          :  Number of transactions \n"
+          "   -k --num-keys          :  Number of keys \n"
+          "   -e --num-executors     :  Number of executors \n"
+          "   -f --fs-path           :  Path for FS \n"
+          "   -g --gc-interval       :  Group commit interval \n"
+          "   -a --wal-enable        :  WAL enable (traditional) \n"
+          "   -w --opt-wal-enable    :  OPT WAL enable \n"
+          "   -s --sp-enable         :  SP enable (traditional) \n"
+          "   -c --opt-sp-enable     :  OPT SP enable \n"
+          "   -m --lsm-enable        :  LSM enable (traditional) \n"
+          "   -l --opt-lsm-enable    :  OPT LSM enable \n"
+          "   -h --help              :  Print help message \n"
+          "   -p --per-writes        :  Percent of writes \n"
+          "   -u --ycsb-update-one   :  Update one field \n"
+          "   -q --ycsb_zipf_skew    :  Zipf Skew \n");
   exit(-1);
 }
 
@@ -45,25 +46,29 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.fs_path = std::string("/mnt/pmfs/n-store/");
 
   state.num_keys = 2;
-  state.num_txns = 10;
+  state.num_txns = 2;
   state.num_executors = 1;
 
-  state.sz_value = 1024;
   state.verbose = false;
 
   state.gc_interval = 1000;
-  state.per_writes = 0.1;
+  state.ycsb_per_writes = 0.1;
 
   state.merge_interval = 100000;
   state.merge_ratio = 0.2;
 
   state.etype = engine_type::invalid;
-  state.skew = 1;
+  state.ycsb_skew = 1;
+
+  state.ycsb_update_one = false;
+  state.ycsb_field_size = 100;
+  state.ycsb_tuples_per_txn = 2;
+  state.ycsb_num_val_fields = 10;
 
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhl", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhlu", opts, &idx);
 
     if (c == -1)
       break;
@@ -90,8 +95,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         level = 3;
         break;
       case 'p':
-        state.per_writes = atof(optarg);
-        cout << "per_writes: " << state.per_writes << endl;
+        state.ycsb_per_writes = atof(optarg);
+        cout << "per_writes: " << state.ycsb_per_writes << endl;
         break;
       case 'g':
         state.gc_interval = atoi(optarg);
@@ -122,8 +127,12 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         cout << "opt_lsm_enable " << endl;
         break;
       case 'q':
-        state.skew = atof(optarg);
-        cout << "skew: " << state.skew << endl;
+        state.ycsb_skew = atof(optarg);
+        cout << "skew: " << state.ycsb_skew << endl;
+        break;
+      case 'u':
+        state.ycsb_update_one = true;
+        cout << "ycsb_update_one " << endl;
         break;
       case 'h':
         usage_exit(stderr);
@@ -134,7 +143,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     }
   }
 
-  assert(state.per_writes >= 0 && state.per_writes <= 1);
+  assert(state.ycsb_per_writes >= 0 && state.ycsb_per_writes <= 1);
 }
 
 void execute(config& state) {

@@ -29,6 +29,7 @@ std::string opt_wal_engine::select(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
 
+  LOG_INFO("key : %s ", st.key.c_str());
   unsigned long key = hash_fn(st.key);
   std::string val;
 
@@ -131,6 +132,9 @@ void opt_wal_engine::remove(const statement& st) {
   }
 
   delete rec_ptr;
+
+  before_rec->clear_data();
+  delete before_rec;
 }
 
 void opt_wal_engine::update(const statement& st) {
@@ -167,7 +171,6 @@ void opt_wal_engine::update(const statement& st) {
     }
     // Data field
     else {
-      before_field = before_rec->get_pointer(field_itr);
       std::string before_data = before_rec->get_data(field_itr);
 
       entry_stream << field_itr << " " << before_rec << " " << before_data

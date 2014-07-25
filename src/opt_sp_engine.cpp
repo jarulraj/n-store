@@ -151,6 +151,8 @@ void opt_sp_engine::remove(const statement& st) {
   }
 
   delete rec_ptr;
+
+  before_rec->clear_data();
   delete before_rec;
 }
 
@@ -215,8 +217,8 @@ void opt_sp_engine::update(const statement& st) {
   //printf("before_rec :: record :: %p \n", before_rec);
   //printf("rec_ptr :: record :: %p \n", rec_ptr);
 
-  before_rec->clear_data();
   delete rec_ptr;
+  delete before_rec;
 }
 
 // RUNNER + LOADER

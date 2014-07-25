@@ -23,20 +23,22 @@ extern int level;
 #endif
 
 static struct option opts[] = {
+    { "log-enable", no_argument, NULL, 'a' },
+    { "sp-enable", no_argument, NULL, 's' },
+    { "lsm-enable", no_argument, NULL, 'm' },
+    { "opt-wal-enable", no_argument, NULL, 'w' },
+    { "opt-sp-enable", no_argument, NULL, 'c' },
+    { "opt-lsm-enable", no_argument, NULL, 'l' },
     { "fs-path", optional_argument, NULL, 'f' },
     { "num-txns", optional_argument, NULL, 'x' },
     { "num-keys", optional_argument, NULL, 'k' },
     { "num-executors", optional_argument, NULL, 'e' },
-    { "per-writes", optional_argument, NULL, 'w' },
+    { "ycsb_per_writes", optional_argument, NULL, 'w' },
+    { "ycsb_skew", optional_argument, NULL, 'q' },
     { "gc-interval", optional_argument, NULL, 'g' },
-    { "log-enable", no_argument, NULL, 'a' },
-    { "opt-wal-enable", no_argument, NULL, 'w' },
-    { "sp-enable", no_argument, NULL, 's' },
-    { "opt-sp-enable", no_argument, NULL, 'c' },
-    { "lsm-enable", no_argument, NULL, 'm' },
-    { "opt-lsm-enable", no_argument, NULL, 'l' },
     { "verbose", no_argument, NULL, 'v' },
     { "help", no_argument, NULL, 'h' },
+    { "ycsb-update-one", no_argument, NULL, 'u' },
     { NULL, 0, NULL, 0 }
 };
 
@@ -63,16 +65,18 @@ class config {
   int num_txns;
   int num_executors;
 
-  int sz_value;
-
-  double per_writes;
+  double ycsb_per_writes;
+  int ycsb_field_size;
+  bool ycsb_update_one;
+  int ycsb_tuples_per_txn;
+  int ycsb_num_val_fields;
+  double ycsb_skew;
 
   int gc_interval;
 
   int merge_interval;
   double merge_ratio;
 
-  double skew;
 
   bool verbose;
   engine_type etype;

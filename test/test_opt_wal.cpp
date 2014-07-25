@@ -33,9 +33,9 @@ int main(int argc, char **argv) {
   state.num_keys = 20;
   state.num_txns = 10;
   state.num_executors = 1;
-  state.sz_value = 4;
-  state.per_writes = 0.2;
-  state.skew = 0.1;
+  state.ycsb_field_size = 4;
+  state.ycsb_per_writes = 0.2;
+  state.ycsb_skew = 0.1;
   state.sp = sp;
 
   ycsb_benchmark ycsb(state);

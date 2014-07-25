@@ -1197,7 +1197,8 @@ class cow_btree {
     copy->parent_index = mp->parent_index;
     copy->pgno = mp->pgno;
 
-    mpages->insert(copy->pgno, copy);
+    if(persist)
+      mpages->insert(copy->pgno, copy);
 
     return copy;
   }

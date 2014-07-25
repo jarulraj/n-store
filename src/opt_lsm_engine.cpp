@@ -271,7 +271,7 @@ void opt_lsm_engine::update(const statement& st) {
         before_field = before_rec->get_pointer(field_itr);
         after_field = rec_ptr->get_pointer(field_itr);
         pmemalloc_activate(after_field);
-        //delete ((char*) before_field);
+        delete ((char*) before_field);
       }
 
       before_rec->set_data(field_itr, rec_ptr);

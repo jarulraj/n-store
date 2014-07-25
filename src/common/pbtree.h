@@ -1673,6 +1673,8 @@ class btree {
 
     if (itr != end())
       val = itr.data();
+    else
+      val = 0;
 
     return val;
   }
