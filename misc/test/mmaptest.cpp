@@ -17,7 +17,14 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  if ((fd = open("log", O_RDWR)) == -1) {
+  fd = open("log", O_RDWR | O_CREAT);
+  if (fd < 0) {
+    perror("open");
+    exit(1);
+  }
+
+  size_t len = 8UL * 1024;
+  if (posix_fallocate(fd, 0, len) < 0) {
     perror("open");
     exit(1);
   }
@@ -28,20 +35,27 @@ int main(int argc, char *argv[]) {
   }
 
   printf("size : %lu\n", sbuf.st_size);
+  printf("fd : %d\n", fd);
 
-  caddr_t location = 0x01c00000;
+  caddr_t location = (caddr_t) 0x010000000;
 
-  if ((data = mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, fd, 0))
-      == (caddr_t) (-1)) {
+  if ((data = (char*) mmap(location, sbuf.st_size, PROT_WRITE, MAP_SHARED, fd,
+                           0)) == (caddr_t) (-1)) {
     perror("mmap");
     exit(1);
   }
 
-  printf("data :\n%s %p\n", data, data);
+  printf("data : %s %p\n", data, data);
+
+  char cmd[512];
+  sprintf(cmd, "cat /proc/%d/maps", getpid());
+  system(cmd);
 
   data[2] = 'x';
 
-  printf("data :\n%c\n", *(location + 2));
+  char* ptr = (char*) (location + 2);
+
+  printf("data :  %p %c \n", ptr, (*ptr));
 
   msync(data, sbuf.st_size, MS_SYNC);
 

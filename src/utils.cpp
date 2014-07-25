@@ -46,6 +46,7 @@ record* deserialize_to_record(std::string entry_str, schema* sptr,
   }
 
   record* rec_ptr = new record(sptr);
+  //printf("rec_ptr :: %p \n", rec_ptr);
   if (prefix)
     entry >> num_columns;
   else

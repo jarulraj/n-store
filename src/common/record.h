@@ -62,13 +62,14 @@ class record {
         field = std::to_string(dval) + " ";
         break;
 
-      case field_type::VARCHAR:
-        char* vcval;
+      case field_type::VARCHAR: {
+        char* vcval = NULL;
         std::sscanf(&(data[offset]), "%p", &vcval);
         if (vcval != NULL) {
           //std::printf("vcval : %p \n", vcval);
           field = std::string(vcval) + " ";
         }
+      }
         break;
 
       default:
