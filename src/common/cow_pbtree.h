@@ -1209,6 +1209,9 @@ class cow_btree {
   void mpage_prune() {
     struct mpage *mp, *next;
 
+    if(persist)
+      return;
+
     for (mp = TAILQ_FIRST(lru_queue); mp; mp = next) {
       if (stat.cache_size <= stat.max_cache)
         break;

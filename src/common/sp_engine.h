@@ -53,6 +53,7 @@ class sp_engine : public engine {
   struct cow_btree* bt;
   struct cow_btree_txn* txn_ptr;
 
+  bool read_only = false;
   int looper = 0;
 };
 

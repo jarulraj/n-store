@@ -223,7 +223,8 @@ void opt_sp_engine::update(const statement& st) {
 
 void opt_sp_engine::execute(const transaction& txn) {
 
-  rdlock(&opt_sp_pbtree_rwlock);
+  if (!read_only)
+    rdlock(&opt_sp_pbtree_rwlock);
 
   for (const statement& st : txn.stmts) {
     if (st.op_type == operation_type::Select) {
@@ -237,7 +238,8 @@ void opt_sp_engine::execute(const transaction& txn) {
     }
   }
 
-  unlock(&opt_sp_pbtree_rwlock);
+  if (!read_only)
+    unlock(&opt_sp_pbtree_rwlock);
 
 }
 
@@ -271,15 +273,22 @@ void opt_sp_engine::runner() {
 
 void opt_sp_engine::generator(const workload& load, bool stats) {
 
+  read_only = load.read_only;
+
   bt = db->dirs->t_ptr;
-  txn_ptr = bt->txn_begin(0);
+  txn_ptr = bt->txn_begin(read_only);
   assert(txn_ptr);
+
   txn_counter = 0;
   unsigned int num_txns = load.txns.size();
   unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
-  std::thread gc(&opt_sp_engine::group_commit, this);
-  ready = true;
+  std::thread gc;
+  // Commit only if needed
+  if (!read_only) {
+    gc = std::thread(&opt_sp_engine::group_commit, this);
+    ready = true;
+  }
 
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
@@ -295,10 +304,14 @@ void opt_sp_engine::generator(const workload& load, bool stats) {
   }
   printf("\n");
 
-  ready = false;
-  gc.join();
+  if (!read_only) {
+    ready = false;
+    gc.join();
+  }
 
-  assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+  if (!read_only && txn_ptr != NULL) {
+    assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+  }
   txn_ptr = NULL;
 
   gettimeofday(&t2, NULL);

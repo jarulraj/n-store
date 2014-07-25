@@ -49,7 +49,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     offset = 0;
     field_info col1(offset, 10, 10, field_type::INTEGER, 1, 1);
     offset += col1.ser_len;
-    field_info col2(offset, sizeof(void*), conf.sz_value, field_type::VARCHAR, 0, 1);
+    field_info col2(offset, sizeof(void*), conf.sz_value, field_type::VARCHAR,
+                    0, 1);
     offset += col2.ser_len;
 
     vector<field_info> cols;
@@ -169,6 +170,9 @@ workload & ycsb_benchmark::get_dataset() {
 workload & ycsb_benchmark::get_workload() {
 
   load.txns.clear();
+
+  if(conf.per_writes == 0)
+    load.read_only = true;
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;

@@ -12,6 +12,7 @@ class workload {
 
 public:
 	list<transaction> txns;
+	bool read_only = false;
 };
 
 #endif /* WORKLOAD_H_ */
