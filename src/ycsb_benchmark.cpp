@@ -16,8 +16,7 @@ class usertable_record : public record {
  public:
   usertable_record(schema* _sptr, int _key, const std::string& _val,
                    int num_val_fields, bool update_one)
-      : record(_sptr),
-        vc(NULL) {
+      : record(_sptr) {
 
     std::sprintf(&(data[sptr->columns[0].offset]), "%d", _key);
 
@@ -26,12 +25,12 @@ class usertable_record : public record {
 
       if (!update_one) {
         for (int itr = 1; itr <= num_val_fields; itr++) {
-          vc = new char[_val_len + 1];
+          char* vc = new char[_val_len + 1];
           strcpy(vc, _val.c_str());
           std::sprintf(&(data[sptr->columns[itr].offset]), "%p", vc);
         }
       } else {
-        vc = new char[_val_len + 1];
+        char* vc = new char[_val_len + 1];
         strcpy(vc, _val.c_str());
         std::sprintf(&(data[sptr->columns[1].offset]), "%p", vc);
       }
@@ -39,7 +38,6 @@ class usertable_record : public record {
 
   }
 
-  char* vc;
 };
 
 // USERTABLE
@@ -86,6 +84,8 @@ table* create_usertable(config& conf) {
 ycsb_benchmark::ycsb_benchmark(config& _conf)
     : conf(_conf),
       txn_id(0) {
+
+  btype = benchmark_type::YCSB;
 
   // Initialization mode
   if (conf.sp->init == 0) {

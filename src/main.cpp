@@ -11,6 +11,7 @@
 #include "opt_lsm_engine.h"
 
 #include "ycsb_benchmark.h"
+#include "tpcc_benchmark.h"
 #include "utils.h"
 
 #include "libpm.h"
@@ -33,6 +34,8 @@ static void usage_exit(FILE *out) {
           "   -c --opt-sp-enable     :  OPT SP enable \n"
           "   -m --lsm-enable        :  LSM enable (traditional) \n"
           "   -l --opt-lsm-enable    :  OPT LSM enable \n"
+          "   -y --ycsb              :  YCSB benchmark \n"
+          "   -t --tpcc              :  TPCC benchmark \n"
           "   -h --help              :  Print help message \n"
           "   -p --per-writes        :  Percent of writes \n"
           "   -u --ycsb-update-one   :  Update one field \n"
@@ -57,7 +60,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.merge_interval = 100000;
   state.merge_ratio = 0.2;
 
-  state.etype = engine_type::EE_INVALID;
+  state.etype = engine_type::WAL;
+  state.btype = benchmark_type::YCSB;
   state.read_only = false;
 
   state.ycsb_skew = 1.0;
@@ -69,7 +73,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhlu", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluyt", opts, &idx);
 
     if (c == -1)
       break;
@@ -131,6 +135,14 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         state.etype = engine_type::OPT_LSM;
         cout << "opt_lsm_enable " << endl;
         break;
+      case 'y':
+        state.btype = benchmark_type::YCSB;
+        cout << "ycsb_benchmark " << endl;
+        break;
+      case 't':
+        state.btype = benchmark_type::TPCC;
+        cout << "tpcc_benchmark " << endl;
+        break;
       case 'q':
         state.ycsb_skew = atof(optarg);
         cout << "skew: " << state.ycsb_skew << endl;
@@ -152,19 +164,41 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 void execute(config& state) {
 
   bool generate_dataset = !sp->init;
-  ycsb_benchmark ycsb(state);
+  benchmark* bh;
 
+  // Fix benchmark
+  switch (state.btype) {
+    case benchmark_type::YCSB: {
+      LOG_INFO("YCSB");
+
+      bh = new ycsb_benchmark(state);
+    }
+      break;
+
+    case benchmark_type::TPCC: {
+      LOG_INFO("TPCC");
+
+      bh = new tpcc_benchmark(state);
+    }
+      break;
+
+    default:
+      cout << "Unknown benchmark type :: " << state.btype << endl;
+      break;
+  }
+
+  // Run engine
   switch (state.etype) {
     case engine_type::WAL: {
       LOG_INFO("WAL");
       wal_engine* wal;
 
       wal = new wal_engine(state);
-      ycsb.load(wal);
+      bh->load(wal);
       delete wal;
 
       wal = new wal_engine(state, state.read_only);
-      ycsb.execute(wal);
+      bh->execute(wal);
       delete wal;
     }
       break;
@@ -175,12 +209,12 @@ void execute(config& state) {
 
       if (generate_dataset) {
         sp = new sp_engine(state);
-        ycsb.load(sp);
+        bh->load(sp);
         delete sp;
       }
 
       sp = new sp_engine(state, state.read_only);
-      ycsb.execute(sp);
+      bh->execute(sp);
       delete sp;
 
     }
@@ -191,11 +225,11 @@ void execute(config& state) {
       lsm_engine* lsm;
 
       lsm = new lsm_engine(state);
-      ycsb.load(lsm);
+      bh->load(lsm);
       delete lsm;
 
       lsm = new lsm_engine(state, false);
-      ycsb.execute(lsm);
+      bh->execute(lsm);
       delete lsm;
     }
       break;
@@ -206,12 +240,12 @@ void execute(config& state) {
 
       if (generate_dataset) {
         opt_wal = new opt_wal_engine(state);
-        ycsb.load(opt_wal);
+        bh->load(opt_wal);
         delete opt_wal;
       }
 
       opt_wal = new opt_wal_engine(state, state.read_only);
-      ycsb.execute(opt_wal);
+      bh->execute(opt_wal);
       delete opt_wal;
     }
       break;
@@ -222,12 +256,12 @@ void execute(config& state) {
 
       if (generate_dataset) {
         opt_sp = new opt_sp_engine(state);
-        ycsb.load(opt_sp);
+        bh->load(opt_sp);
         delete opt_sp;
       }
 
       opt_sp = new opt_sp_engine(state, state.read_only);
-      ycsb.execute(opt_sp);
+      bh->execute(opt_sp);
       delete opt_sp;
     }
 
@@ -240,12 +274,12 @@ void execute(config& state) {
 
       if (generate_dataset) {
         opt_lsm = new opt_lsm_engine(state);
-        ycsb.load(opt_lsm);
+        bh->load(opt_lsm);
         delete opt_lsm;
       }
 
       opt_lsm = new opt_lsm_engine(state, state.read_only);
-      ycsb.execute(opt_lsm);
+      bh->execute(opt_lsm);
       delete opt_lsm;
     }
       break;

@@ -21,6 +21,7 @@ nstore_SOURCES  =  	main.cpp \
 					lsm_engine.cpp  \
 					opt_lsm_engine.cpp  \
 					ycsb_benchmark.cpp \
+					tpcc_benchmark.cpp \
 					utils.cpp
 
 nstore_LDADD  = libpm.a

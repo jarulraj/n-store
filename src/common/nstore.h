@@ -29,6 +29,8 @@ static struct option opts[] = {
     { "opt-wal-enable", no_argument, NULL, 'w' },
     { "opt-sp-enable", no_argument, NULL, 'c' },
     { "opt-lsm-enable", no_argument, NULL, 'l' },
+    { "ycsb", no_argument, NULL, 'y' },
+    { "tpcc", no_argument, NULL, 't' },
     { "fs-path", optional_argument, NULL, 'f' },
     { "num-txns", optional_argument, NULL, 'x' },
     { "num-keys", optional_argument, NULL, 'k' },
@@ -50,6 +52,12 @@ enum engine_type {
   OPT_WAL,
   OPT_SP,
   OPT_LSM
+};
+
+enum benchmark_type {
+  BH_INVALID,
+  YCSB,
+  TPCC
 };
 
 class database;
@@ -80,7 +88,9 @@ class config {
   double merge_ratio;
 
   bool verbose;
+
   engine_type etype;
+  benchmark_type btype;
 };
 
 #endif /* NSTORE_H_ */

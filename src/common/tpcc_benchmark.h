@@ -1,11 +1,14 @@
-#ifndef YCSB_BENCHMARK_H_
-#define YCSB_BENCHMARK_H_
+#ifndef TPCC_BENCHMARK_H_
+#define TPCC_BENCHMARK_H_
 
 #include <cstdio>
 #include <cstring>
 #include <vector>
 
 #include "nstore.h"
+#include "statement.h"
+#include "utils.h"
+#include "status.h"
 #include "benchmark.h"
 #include "database.h"
 #include "engine.h"
@@ -13,17 +16,15 @@
 
 using namespace std;
 
-class ycsb_benchmark : public benchmark {
+class tpcc_benchmark : public benchmark {
  public:
-  ycsb_benchmark(config& _conf);
+  tpcc_benchmark(config& _conf);
 
   void load(engine* ee);
   void execute(engine* ee);
 
-  void do_update(engine* ee, unsigned int txn_itr, schema* usertable_schema, const vector<int>& field_ids);
   void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
 
-  vector<int> zipf_dist;
   vector<double> uniform_dist;
 
   config& conf;
@@ -33,4 +34,4 @@ class ycsb_benchmark : public benchmark {
   timer tm;
 };
 
-#endif /* YCSB_BENCHMARK_H_ */
+#endif /* TPCC_BENCHMARK_H_ */
