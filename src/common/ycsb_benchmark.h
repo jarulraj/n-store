@@ -4,12 +4,12 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
-#include <sys/time.h>
 
 #include "nstore.h"
 #include "benchmark.h"
 #include "database.h"
 #include "engine.h"
+#include "timer.h"
 
 using namespace std;
 
@@ -29,7 +29,7 @@ class ycsb_benchmark : public benchmark {
   config& conf;
 
   unsigned int txn_id;
-  timeval total;
+  timer tm;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */

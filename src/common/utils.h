@@ -12,6 +12,11 @@ using namespace std;
 
 // UTILS
 
+#define TIMER(expr) \
+  { tm.start(); \
+    {expr;} \
+    tm.end(); }
+
 inline std::string random_string(size_t len) {
   static const char alphanum[] = "0123456789"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -46,7 +51,8 @@ std::string serialize(record* rptr, schema* sptr, bool prefix);
 record* deserialize_to_record(std::string entry, schema* sptr, bool prefix);
 
 // string to string
-std::string deserialize_to_string(std::string entry_str, schema* sptr, bool prefix);
+std::string deserialize_to_string(std::string entry_str, schema* sptr,
+                                  bool prefix);
 
 // szudzik hasher
 inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {
@@ -61,7 +67,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values);
 
 void uniform(vector<double>& uniform_dist, int num_values);
 
-void display_stats(engine* ee, timeval* tv, int num_txns);
+void display_stats(engine* ee, double duration, int num_txns);
 
 void wrlock(pthread_rwlock_t* access);
 

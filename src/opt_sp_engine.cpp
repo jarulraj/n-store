@@ -30,7 +30,6 @@ opt_sp_engine::opt_sp_engine(const config& _conf, bool _read_only)
 
   etype = engine_type::OPT_SP;
   read_only = _read_only;
-  cout << "read_only :: " << read_only << endl;
 
   bt = db->dirs->t_ptr;
   txn_ptr = bt->txn_begin(read_only);

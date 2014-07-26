@@ -165,42 +165,38 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr,
 
 // TIMER
 
-void display_stats(engine* ee, timeval* tv, int num_txns) {
-  double duration;
+void display_stats(engine* ee, double duration, int num_txns) {
   double throughput;
 
-  switch(ee->etype){
+  switch (ee->etype) {
     case engine_type::WAL:
-      cout<<"WAL :: ";
+      cout << "WAL :: ";
       break;
 
     case engine_type::SP:
-      cout<<"SP :: ";
+      cout << "SP :: ";
       break;
 
     case engine_type::LSM:
-      cout<<"LSM :: ";
+      cout << "LSM :: ";
       break;
 
     case engine_type::OPT_WAL:
-      cout<<"OPT_WAL :: ";
+      cout << "OPT_WAL :: ";
       break;
 
     case engine_type::OPT_SP:
-      cout<<"OPT_SP :: ";
+      cout << "OPT_SP :: ";
       break;
 
     case engine_type::OPT_LSM:
-      cout<<"OPT_LSM :: ";
+      cout << "OPT_LSM :: ";
       break;
 
     default:
-      cout<<"Unknown engine type "<<endl;
+      cout << "Unknown engine type " << endl;
       break;
   }
-
-  duration = (tv->tv_sec) * 1000.0;      // sec to ms
-  duration += (tv->tv_usec) / 1000.0;      // us to ms
 
   cout << std::fixed << std::setprecision(2);
   cout << "Duration(s) : " << (duration / 1000.0) << " ";

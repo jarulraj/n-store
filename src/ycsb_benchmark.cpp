@@ -6,7 +6,7 @@
 #include "statement.h"
 #include "utils.h"
 #include "nstore.h"
-
+#include "status.h"
 #include "libpm.h"
 #include "plist.h"
 
@@ -107,8 +107,6 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     conf.db = db;
   }
 
-  total = (struct timeval ) { 0 };
-
   // Generate Zipf dist
   zipf(zipf_dist, conf.ycsb_skew, conf.num_keys,
        conf.num_txns * conf.ycsb_tuples_per_txn);
@@ -121,11 +119,7 @@ void ycsb_benchmark::load(engine* ee) {
   unsigned int usertable_index_id = 0;
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   unsigned int txn_itr;
-  int rc;
-
-  unsigned int txn_counter = 0;
-  unsigned int num_txns = conf.num_keys;
-  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
+  status ss(conf.num_keys);
 
   for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++) {
 
@@ -140,17 +134,12 @@ void ycsb_benchmark::load(engine* ee) {
 
     statement st(txn_id, operation_type::Insert, usertable_id, rec_ptr);
 
-    rc = ee->insert(st);
+    ee->insert(st);
 
     ee->txn_end(true);
 
-    if (++txn_counter % period == 0) {
-      printf("Finished :: %.2lf %% \r",
-             ((double) (txn_counter * 100) / num_txns));
-      fflush(stdout);
-    }
+    ss.display();
   }
-  printf("\n");
 
 }
 
@@ -162,14 +151,9 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,
   std::string updated_val(conf.ycsb_field_size, 'x');
   int zipf_dist_offset = txn_itr * conf.ycsb_tuples_per_txn;
   unsigned int usertable_id = 0;
-  timeval t1, t2, diff;
   int rc;
 
-  gettimeofday(&t1, NULL);
-  ee->txn_begin();
-  gettimeofday(&t2, NULL);
-  timersub(&t2, &t1, &diff);
-  timeradd(&diff, &total, &total);
+  TIMER(ee->txn_begin())
 
   for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
 
@@ -182,22 +166,13 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,
     statement st(txn_id, operation_type::Update, usertable_id, rec_ptr,
                  field_ids);
 
-    gettimeofday(&t1, NULL);
-    rc = ee->update(st);
-    gettimeofday(&t2, NULL);
-    timersub(&t2, &t1, &diff);
-    timeradd(&diff, &total, &total);
+    TIMER(ee->update(st))
 
     if (rc < 0)
       perror("update");
   }
 
-  gettimeofday(&t1, NULL);
-  ee->txn_end(true);
-  gettimeofday(&t2, NULL);
-  timersub(&t2, &t1, &diff);
-  timeradd(&diff, &total, &total);
-
+  TIMER(ee->txn_end(true))
 }
 
 void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
@@ -208,14 +183,9 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
   std::string empty;
-  timeval t1, t2, diff;
   int rc;
 
-  gettimeofday(&t1, NULL);
-  ee->txn_begin();
-  gettimeofday(&t2, NULL);
-  timersub(&t2, &t1, &diff);
-  timeradd(&diff, &total, &total);
+  TIMER(ee->txn_begin())
 
   for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
 
@@ -229,19 +199,10 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
     statement st(txn_id, operation_type::Select, usertable_id, rec_ptr,
                  usertable_index_id, usertable_schema, key_str);
 
-    gettimeofday(&t1, NULL);
-    ee->select(st);
-    gettimeofday(&t2, NULL);
-    timersub(&t2, &t1, &diff);
-    timeradd(&diff, &total, &total);
+    TIMER(ee->select(st))
   }
 
-  gettimeofday(&t1, NULL);
-  ee->txn_end(true);
-  gettimeofday(&t2, NULL);
-  timersub(&t2, &t1, &diff);
-  timeradd(&diff, &total, &total);
-
+  TIMER(ee->txn_end(true))
 }
 
 void ycsb_benchmark::execute(engine* ee) {
@@ -249,6 +210,7 @@ void ycsb_benchmark::execute(engine* ee) {
   unsigned int usertable_id = 0;
   unsigned int txn_itr;
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
+  status ss(conf.num_txns);
 
   vector<int> field_ids;
   if (conf.ycsb_update_one == false) {
@@ -259,10 +221,6 @@ void ycsb_benchmark::execute(engine* ee) {
     field_ids.push_back(1);
   }
 
-  unsigned int txn_counter = 0;
-  unsigned int num_txns = conf.num_txns;
-  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
-
   for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++, txn_id++) {
     double u = uniform_dist[txn_itr];
 
@@ -272,13 +230,8 @@ void ycsb_benchmark::execute(engine* ee) {
       do_read(ee, txn_itr, usertable_schema);
     }
 
-    if (++txn_counter % period == 0) {
-      printf("Finished :: %.2lf %% \r",
-             ((double) (txn_counter * 100) / num_txns));
-      fflush(stdout);
-    }
+    ss.display();
   }
-  printf("\n");
 
-  display_stats(ee, &total, conf.num_txns);
+  display_stats(ee, tm.duration(), conf.num_txns);
 }
