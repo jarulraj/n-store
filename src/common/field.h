@@ -9,7 +9,7 @@
 using namespace std;
 
 enum field_type {
-  INVALID,
+  FD_INVALID,
   INTEGER,
   DOUBLE,
   VARCHAR
@@ -20,7 +20,7 @@ struct field_info {
       : offset(0),
         ser_len(0),
         deser_len(0),
-        type(field_type::INVALID),
+        type(field_type::FD_INVALID),
         inlined(1),
         enabled(1) {
   }

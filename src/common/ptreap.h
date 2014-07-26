@@ -183,7 +183,7 @@ class ptreap {
   bool node_free(ptreap_node *node) {
     bool data_free;
 
-    cout << "free node" << endl;
+    //cout << "free node" << endl;
 
     if (node->data)
       data_free = node_data_unref(node);

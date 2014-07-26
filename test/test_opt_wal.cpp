@@ -36,12 +36,23 @@ int main(int argc, char **argv) {
   state.ycsb_field_size = 4;
   state.ycsb_per_writes = 0.2;
   state.ycsb_skew = 0.1;
+  state.ycsb_tuples_per_txn = 2;
   state.sp = sp;
 
   ycsb_benchmark ycsb(state);
-  opt_wal_engine opt_wal(state);
-  opt_wal.generator(ycsb.get_dataset(), false);
-  opt_wal.generator(ycsb.get_workload(), true);
+  /*
+  opt_wal_engine* opt_wal ;
+
+  opt_wal = new opt_wal_engine(state);
+  ycsb.load(opt_wal);
+  delete opt_wal;
+  */
+
+  /*
+  opt_wal = new opt_wal_engine(state);
+  ycsb.execute(opt_wal);
+  delete opt_wal;
+  */
 
   int ret = std::remove(path);
   assert(ret == 0);

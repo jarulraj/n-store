@@ -22,22 +22,39 @@ void opt_sp_engine::group_commit() {
   }
 }
 
-opt_sp_engine::opt_sp_engine(const config& _conf)
+opt_sp_engine::opt_sp_engine(const config& _conf, bool _read_only)
     : conf(_conf),
       db(conf.db),
       bt(NULL),
       txn_ptr(NULL) {
 
-  //for (int i = 0; i < conf.num_executors; i++)
-  //  executors.push_back(std::thread(&wal_engine::runner, this));
+  etype = engine_type::OPT_SP;
+  read_only = _read_only;
+  cout << "read_only :: " << read_only << endl;
+
+  bt = db->dirs->t_ptr;
+  txn_ptr = bt->txn_begin(read_only);
+  assert(txn_ptr);
+
+  // Commit only if needed
+  if (!read_only) {
+    gc = std::thread(&opt_sp_engine::group_commit, this);
+    ready = true;
+  }
 
 }
 
 opt_sp_engine::~opt_sp_engine() {
 
-  // done = true;
-  //for (int i = 0; i < conf.num_executors; i++)
-  //  executors[i].join();
+  if (!read_only) {
+    ready = false;
+    gc.join();
+  }
+
+  if (!read_only && txn_ptr != NULL) {
+    assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+  }
+  txn_ptr = NULL;
 
 }
 
@@ -68,7 +85,7 @@ std::string opt_sp_engine::select(const statement& st) {
   return value;
 }
 
-void opt_sp_engine::insert(const statement& st) {
+int opt_sp_engine::insert(const statement& st) {
   LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -89,7 +106,7 @@ void opt_sp_engine::insert(const statement& st) {
   // Check if key exists in current version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     delete after_rec;
-    return;
+    return EXIT_SUCCESS;
   }
 
   // Activate new record
@@ -109,9 +126,10 @@ void opt_sp_engine::insert(const statement& st) {
     bt->insert(txn_ptr, &key, &val);
   }
 
+  return EXIT_SUCCESS;
 }
 
-void opt_sp_engine::remove(const statement& st) {
+int opt_sp_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -131,7 +149,7 @@ void opt_sp_engine::remove(const statement& st) {
   // Check if key does not exist
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
-    return;
+    return EXIT_SUCCESS;
   }
 
   // Free record
@@ -154,9 +172,10 @@ void opt_sp_engine::remove(const statement& st) {
 
   before_rec->clear_data();
   delete before_rec;
+  return EXIT_SUCCESS;
 }
 
-void opt_sp_engine::update(const statement& st) {
+int opt_sp_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -177,7 +196,7 @@ void opt_sp_engine::update(const statement& st) {
   // Check if key does not exist in current version
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
-    return;
+    return EXIT_SUCCESS;
   }
 
   // Read from current version
@@ -219,108 +238,14 @@ void opt_sp_engine::update(const statement& st) {
 
   delete rec_ptr;
   delete before_rec;
+  return EXIT_SUCCESS;
 }
 
-// RUNNER + LOADER
-
-void opt_sp_engine::execute(const transaction& txn) {
-
-  if (!read_only)
-    rdlock(&opt_sp_pbtree_rwlock);
-
-  for (const statement& st : txn.stmts) {
-    if (st.op_type == operation_type::Select) {
-      select(st);
-    } else if (st.op_type == operation_type::Insert) {
-      insert(st);
-    } else if (st.op_type == operation_type::Update) {
-      update(st);
-    } else if (st.op_type == operation_type::Delete) {
-      remove(st);
-    }
-  }
-
-  if (!read_only)
-    unlock(&opt_sp_pbtree_rwlock);
-
+void opt_sp_engine::txn_begin() {
+  wrlock(&opt_sp_pbtree_rwlock);
 }
 
-void opt_sp_engine::runner() {
-  bool empty = true;
-
-  while (!done) {
-    rdlock(&txn_queue_rwlock);
-    empty = txn_queue.empty();
-    unlock(&txn_queue_rwlock);
-
-    if (!empty) {
-      wrlock(&txn_queue_rwlock);
-      const transaction& txn = txn_queue.front();
-      txn_queue.pop();
-      unlock(&txn_queue_rwlock);
-
-      execute(txn);
-    }
-  }
-
-  while (!txn_queue.empty()) {
-    wrlock(&txn_queue_rwlock);
-    const transaction& txn = txn_queue.front();
-    txn_queue.pop();
-    unlock(&txn_queue_rwlock);
-
-    execute(txn);
-  }
-}
-
-void opt_sp_engine::generator(const workload& load, bool stats) {
-
-  read_only = load.read_only;
-
-  bt = db->dirs->t_ptr;
-  txn_ptr = bt->txn_begin(read_only);
-  assert(txn_ptr);
-
-  txn_counter = 0;
-  unsigned int num_txns = load.txns.size();
-  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
-
-  std::thread gc;
-  // Commit only if needed
-  if (!read_only) {
-    gc = std::thread(&opt_sp_engine::group_commit, this);
-    ready = true;
-  }
-
-  struct timeval t1, t2;
-  gettimeofday(&t1, NULL);
-
-  for (const transaction& txn : load.txns) {
-    execute(txn);
-
-    if (++txn_counter % period == 0) {
-      printf("Finished :: %.2lf %% \r",
-             ((double) (txn_counter * 100) / num_txns));
-      fflush(stdout);
-    }
-  }
-  printf("\n");
-
-  if (!read_only) {
-    ready = false;
-    gc.join();
-  }
-
-  if (!read_only && txn_ptr != NULL) {
-    assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
-  }
-  txn_ptr = NULL;
-
-  gettimeofday(&t2, NULL);
-
-  if (stats) {
-    cout << "OPT_SP :: ";
-    display_stats(t1, t2, conf.num_txns);
-  }
+void opt_sp_engine::txn_end(bool commit) {
+  unlock(&opt_sp_pbtree_rwlock);
 }
 

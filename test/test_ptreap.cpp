@@ -17,11 +17,13 @@ void lookup(ptreap<int, int*> *tree, unsigned int version,
   int* ret;
 
   ret = tree->at(key, version);
-  cout << "version :: " << version << "  key :: " << key << " ";
-  if (ret != NULL)
-    cout << "val :: " << (*ret) << endl;
-  else
-    cout << "val :: not found" << endl;
+  //cout << "version :: " << version << "  key :: " << key << " ";
+  if (ret != NULL){
+    //cout << "val :: " << (*ret) << endl;
+  }
+  else{
+    //cout << "val :: not found" << endl;
+  }
 }
 
 int main(int argc, char **argv) {
@@ -45,14 +47,14 @@ int main(int argc, char **argv) {
   for (i = 0; i < n; ++i)
     nums[i] = i * 10;
 
-  printf("Persistent Tree with many versions...\n");
+  //printf("Persistent Tree with many versions...\n");
 
   tree->insert(1, &(nums[1]));
   tree->insert(2, &(nums[2]));
   tree->insert(3, &(nums[3]));
   tree->insert(6, &(nums[6]));
 
-  cout << "nodes ::" << tree->nnodes << endl;
+  //cout << "nodes ::" << tree->nnodes << endl;
 
   for (i = 1; i <= 4; ++i)
     lookup(tree, tree->current_version(), i);
@@ -68,26 +70,26 @@ int main(int argc, char **argv) {
   for (i = 1; i <= 4; ++i)
     lookup(tree, tree->current_version(), i);
 
-  cout << "nodes ::" << tree->nnodes << endl;
+  //cout << "nodes ::" << tree->nnodes << endl;
 
   lookup(tree, 1, 2);
   lookup(tree, 1, 3);
   lookup(tree, 0, 2);
   lookup(tree, 0, 3);
 
-  cout << "nodes ::" << tree->nnodes << endl;
+  //cout << "nodes ::" << tree->nnodes << endl;
 
   tree->delete_versions(0);
 
   lookup(tree, 0, 2);
   lookup(tree, 0, 3);
 
-  cout << "nodes ::" << tree->nnodes << endl;
+  //cout << "nodes ::" << tree->nnodes << endl;
 
   delete tree;
   sp->ptrs[0] = NULL;
 
-  cout << "nodes ::" << tree->nnodes << endl;
+  //cout << "nodes ::" << tree->nnodes << endl;
 
   delete[] nums;
 

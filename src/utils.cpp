@@ -8,6 +8,7 @@
 #include <cassert>
 
 #include "utils.h"
+#include "nstore.h"
 
 using namespace std;
 
@@ -164,12 +165,42 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr,
 
 // TIMER
 
-void display_stats(timeval t1, timeval t2, int num_txns) {
+void display_stats(engine* ee, timeval* tv, int num_txns) {
   double duration;
   double throughput;
 
-  duration = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
-  duration += (t2.tv_usec - t1.tv_usec) / 1000.0;      // us to ms
+  switch(ee->etype){
+    case engine_type::WAL:
+      cout<<"WAL :: ";
+      break;
+
+    case engine_type::SP:
+      cout<<"SP :: ";
+      break;
+
+    case engine_type::LSM:
+      cout<<"LSM :: ";
+      break;
+
+    case engine_type::OPT_WAL:
+      cout<<"OPT_WAL :: ";
+      break;
+
+    case engine_type::OPT_SP:
+      cout<<"OPT_SP :: ";
+      break;
+
+    case engine_type::OPT_LSM:
+      cout<<"OPT_LSM :: ";
+      break;
+
+    default:
+      cout<<"Unknown engine type "<<endl;
+      break;
+  }
+
+  duration = (tv->tv_sec) * 1000.0;      // sec to ms
+  duration += (tv->tv_usec) / 1000.0;      // us to ms
 
   cout << std::fixed << std::setprecision(2);
   cout << "Duration(s) : " << (duration / 1000.0) << " ";

@@ -1,9 +1,15 @@
 // OPT LSM - PM BASED
 
 #include "opt_lsm_engine.h"
-#include <fstream>
 
 using namespace std;
+
+void opt_lsm_engine::merge_check() {
+  if (++merge_looper % conf.merge_interval == 0) {
+    merge(false);
+    merge_looper = 0;
+  }
+}
 
 void opt_lsm_engine::merge(bool force) {
   //std::cout << "Merging ! " << merge_looper << endl;
@@ -14,10 +20,11 @@ void opt_lsm_engine::merge(bool force) {
 
     pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
 
-    // Check if need to merge
-    if (force
-        || (pm_map->size() > conf.merge_ratio * table_index->off_map->size())) {
+    size_t compact_threshold = conf.merge_ratio * table_index->off_map->size();
+    bool compact = (pm_map->size() > compact_threshold);
 
+    // Check if need to merge
+    if (force || compact) {
       pbtree<unsigned long, record*>::const_iterator itr;
       record *pm_rec, *fs_rec;
       unsigned long key;
@@ -71,13 +78,14 @@ void opt_lsm_engine::merge(bool force) {
 
 }
 
-opt_lsm_engine::opt_lsm_engine(const config& _conf)
+opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only)
     : conf(_conf),
       db(conf.db),
       pm_log(db->log) {
 
-  //for (int i = 0; i < conf.num_executors; i++)
-  //  executors.push_back(std::thread(&wal_engine::runner, this));
+  etype = engine_type::OPT_LSM;
+  read_only = _read_only;
+  merge_looper = 0;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -89,9 +97,8 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf)
 
 opt_lsm_engine::~opt_lsm_engine() {
 
-  // done = true;
-  //for (int i = 0; i < conf.num_executors; i++)
-  //  executors[i].join();
+  if(!read_only)
+    merge(true);
 
 }
 
@@ -149,7 +156,7 @@ std::string opt_lsm_engine::select(const statement& st) {
   return val;
 }
 
-void opt_lsm_engine::insert(const statement& st) {
+int opt_lsm_engine::insert(const statement& st) {
   LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -165,7 +172,7 @@ void opt_lsm_engine::insert(const statement& st) {
   if (indices->at(0)->pm_map->exists(key)
       || indices->at(0)->off_map->exists(key)) {
     delete after_rec;
-    return;
+    return EXIT_SUCCESS;
   }
 
   // Add log entry
@@ -192,9 +199,11 @@ void opt_lsm_engine::insert(const statement& st) {
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
   }
+
+  return EXIT_SUCCESS;
 }
 
-void opt_lsm_engine::remove(const statement& st) {
+int opt_lsm_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -211,7 +220,7 @@ void opt_lsm_engine::remove(const statement& st) {
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
     delete rec_ptr;
-    return;
+    return EXIT_SUCCESS;
   }
 
   record* before_rec = indices->at(0)->pm_map->at(key);
@@ -239,9 +248,10 @@ void opt_lsm_engine::remove(const statement& st) {
   }
 
   delete before_rec;
+  return EXIT_SUCCESS;
 }
 
-void opt_lsm_engine::update(const statement& st) {
+int opt_lsm_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -299,91 +309,14 @@ void opt_lsm_engine::update(const statement& st) {
     indices->at(index_itr)->pm_map->insert(key, before_rec);
   }
 
+  return EXIT_SUCCESS;
 }
 
-// RUNNER + LOADER
-
-void opt_lsm_engine::execute(const transaction& txn) {
-
-  for (const statement& st : txn.stmts) {
-    if (st.op_type == operation_type::Select) {
-      select(st);
-    } else if (st.op_type == operation_type::Insert) {
-      insert(st);
-    } else if (st.op_type == operation_type::Update) {
-      update(st);
-    } else if (st.op_type == operation_type::Delete) {
-      remove(st);
-    }
-  }
-
-  if (++merge_looper % conf.merge_interval == 0)
-    merge(false);
-
+void opt_lsm_engine::txn_begin() {
 }
 
-void opt_lsm_engine::runner() {
-  bool empty = true;
-
-  while (!done) {
-    rdlock(&txn_queue_rwlock);
-    empty = txn_queue.empty();
-    unlock(&txn_queue_rwlock);
-
-    if (!empty) {
-      wrlock(&txn_queue_rwlock);
-      const transaction& txn = txn_queue.front();
-      txn_queue.pop();
-      unlock(&txn_queue_rwlock);
-
-      execute(txn);
-    }
-  }
-
-  while (!txn_queue.empty()) {
-    wrlock(&txn_queue_rwlock);
-    const transaction& txn = txn_queue.front();
-    txn_queue.pop();
-    unlock(&txn_queue_rwlock);
-
-    execute(txn);
-  }
-}
-
-void opt_lsm_engine::generator(const workload& load, bool stats) {
-
-  merge_looper = 0;
-  txn_counter = 0;
-  unsigned int num_txns = load.txns.size();
-  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
-
-  timeval t1, t2;
-  gettimeofday(&t1, NULL);
-
-  for (const transaction& txn : load.txns) {
-    execute(txn);
-
-    if (++txn_counter % period == 0) {
-      printf("Finished :: %.2lf %% \r",
-             ((double) (txn_counter * 100) / num_txns));
-      fflush(stdout);
-    }
-  }
-  printf("\n");
-
-  // Logger end
-  ready = false;
-
-  merge(true);
-
-  gettimeofday(&t2, NULL);
-
-  if (stats) {
-    cout << "OPT_LSM :: ";
-    display_stats(t1, t2, conf.num_txns);
-  }
-}
-
-void opt_lsm_engine::recovery() {
+void opt_lsm_engine::txn_end(bool commit) {
+  if(!read_only)
+    merge_check();
 }
 

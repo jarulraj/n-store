@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <thread>
-#include <queue>
 #include <sstream>
 #include <atomic>
 
@@ -13,7 +12,6 @@
 #include "transaction.h"
 #include "record.h"
 #include "utils.h"
-#include "workload.h"
 #include "database.h"
 #include "pthread.h"
 #include "logger.h"
@@ -22,21 +20,21 @@ using namespace std;
 
 class lsm_engine : public engine {
  public:
-  lsm_engine(const config& _conf);
+  lsm_engine(const config& _conf, bool _read_only = false);
   ~lsm_engine();
 
   std::string select(const statement& st);
-  void update(const statement& st);
-  void insert(const statement& t);
-  void remove(const statement& t);
-
-  void generator(const workload& load, bool stats);
-  void runner();
-  void execute(const transaction& t);
+  int update(const statement& st);
+  int insert(const statement& t);
+  int remove(const statement& t);
 
   void group_commit();
   void merge(bool force);
   void recovery();
+
+  void merge_check();
+  void txn_begin();
+  void txn_end(bool commit);
 
   //private:
   const config& conf;
@@ -49,15 +47,13 @@ class lsm_engine : public engine {
   std::stringstream entry_stream;
   std::string entry_str;
 
-  pthread_rwlock_t txn_queue_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-  std::queue<transaction> txn_queue;
-  std::atomic_bool done;
-
+  std::thread gc;
   pthread_rwlock_t merge_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
   std::atomic_bool ready;
   unsigned long merge_looper = 0;
 
+  bool read_only = false;
 };
 
 #endif /* LSM_ENGINE_H_ */

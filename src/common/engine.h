@@ -1,29 +1,28 @@
 #ifndef ENGINE_H_
 #define ENGINE_H_
 
-#include "transaction.h"
-#include "statement.h"
-#include "workload.h"
-
-#include <boost/lockfree/queue.hpp>
-#include <thread>
-#include <atomic>
 #include <string>
+
+#include "statement.h"
+#include "nstore.h"
 
 using namespace std;
 
 class engine {
  public:
   virtual std::string select(const statement& st) = 0;
-  virtual void insert(const statement& st) = 0;
-  virtual void remove(const statement& st) = 0;
-  virtual void update(const statement& st) = 0;
+  virtual int insert(const statement& st) = 0;
+  virtual int remove(const statement& st) = 0;
+  virtual int update(const statement& st) = 0;
 
-  virtual void runner() = 0;
+
+  virtual void txn_begin() = 0;
+  virtual void txn_end(bool commit) = 0;
 
   virtual ~engine() {}
 
   int txn_counter;
+  engine_type etype;
 };
 
 #endif  /* ENGINE_H_ */

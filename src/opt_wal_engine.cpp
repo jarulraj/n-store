@@ -4,21 +4,16 @@
 
 using namespace std;
 
-opt_wal_engine::opt_wal_engine(const config& _conf)
+opt_wal_engine::opt_wal_engine(const config& _conf, bool _read_only)
     : conf(_conf),
       db(conf.db),
       pm_log(db->log) {
 
-  //for (int i = 0; i < conf.num_executors; i++)
-  //  executors.push_back(std::thread(&opt_wal_engine::runner, this));
-
+  etype = engine_type::OPT_WAL;
+  read_only = _read_only;
 }
 
 opt_wal_engine::~opt_wal_engine() {
-
-  // done = true;
-  //for (int i = 0; i < conf.num_executors; i++)
-  //  executors[i].join();
 
 }
 
@@ -43,7 +38,7 @@ std::string opt_wal_engine::select(const statement& st) {
   return val;
 }
 
-void opt_wal_engine::insert(const statement& st) {
+int opt_wal_engine::insert(const statement& st) {
   //LOG_INFO("Insert");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -58,7 +53,7 @@ void opt_wal_engine::insert(const statement& st) {
   // Check if key exists
   if (indices->at(0)->pm_map->exists(key) != 0) {
     delete after_rec;
-    return;
+    return EXIT_SUCCESS;
   }
 
   // Add log entry
@@ -86,9 +81,11 @@ void opt_wal_engine::insert(const statement& st) {
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
   }
+
+  return EXIT_SUCCESS;
 }
 
-void opt_wal_engine::remove(const statement& st) {
+int opt_wal_engine::remove(const statement& st) {
   LOG_INFO("Remove");
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
@@ -103,7 +100,7 @@ void opt_wal_engine::remove(const statement& st) {
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
     delete rec_ptr;
-    return;
+    return EXIT_SUCCESS;
   }
 
   record* before_rec = indices->at(0)->pm_map->at(key);
@@ -135,9 +132,10 @@ void opt_wal_engine::remove(const statement& st) {
 
   before_rec->clear_data();
   delete before_rec;
+  return EXIT_SUCCESS;
 }
 
-void opt_wal_engine::update(const statement& st) {
+int opt_wal_engine::update(const statement& st) {
   LOG_INFO("Update");
   record* rec_ptr = st.rec_ptr;
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
@@ -150,7 +148,7 @@ void opt_wal_engine::update(const statement& st) {
   // Check if key does not exist
   if (before_rec == 0) {
     delete rec_ptr;
-    return;
+    return EXIT_SUCCESS;
   }
 
   void *before_field, *after_field;
@@ -201,23 +199,13 @@ void opt_wal_engine::update(const statement& st) {
   }
 
   delete rec_ptr;
+  return EXIT_SUCCESS;
 }
 
-// RUNNER + LOADER
-void opt_wal_engine::execute(const transaction& txn) {
+void opt_wal_engine::txn_begin() {
+}
 
-  for (const statement& st : txn.stmts) {
-    if (st.op_type == operation_type::Select) {
-      select(st);
-    } else if (st.op_type == operation_type::Insert) {
-      insert(st);
-    } else if (st.op_type == operation_type::Update) {
-      update(st);
-    } else if (st.op_type == operation_type::Delete) {
-      remove(st);
-    }
-  }
-
+void opt_wal_engine::txn_end(bool commit) {
   // Clear commit_free list
   for (void* ptr : commit_free_list) {
     pmemalloc_free(ptr);
@@ -229,64 +217,6 @@ void opt_wal_engine::execute(const transaction& txn) {
   for (char* ptr : undo_log)
     delete ptr;
   db->log->clear();
-
-}
-
-void opt_wal_engine::runner() {
-  bool empty = true;
-
-  while (!done) {
-    rdlock(&txn_queue_rwlock);
-    empty = txn_queue.empty();
-    unlock(&txn_queue_rwlock);
-
-    if (!empty) {
-      wrlock(&txn_queue_rwlock);
-      const transaction& txn = txn_queue.front();
-      txn_queue.pop();
-      unlock(&txn_queue_rwlock);
-
-      execute(txn);
-    }
-  }
-
-  while (!txn_queue.empty()) {
-    wrlock(&txn_queue_rwlock);
-    const transaction& txn = txn_queue.front();
-    txn_queue.pop();
-    unlock(&txn_queue_rwlock);
-
-    execute(txn);
-  }
-}
-
-void opt_wal_engine::generator(const workload& load, bool stats) {
-
-  txn_counter = 0;
-  unsigned int num_txns = load.txns.size();
-  unsigned int period = (num_txns >= 10) ? (num_txns / 10) : 1;
-
-  timeval t1, t2;
-  gettimeofday(&t1, NULL);
-
-  for (const transaction& txn : load.txns) {
-    execute(txn);
-
-    if (++txn_counter % period == 0) {
-      printf("Finished :: %.2lf %% \r",
-             ((double) (txn_counter * 100) / num_txns));
-      fflush(stdout);
-    }
-  }
-  printf("\n");
-
-  gettimeofday(&t2, NULL);
-
-  if (stats) {
-    cout << "OPT_WAL :: ";
-    display_stats(t1, t2, conf.num_txns);
-  }
-
 }
 
 void opt_wal_engine::recovery() {

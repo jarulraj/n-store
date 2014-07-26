@@ -105,8 +105,9 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     database* db = (database*) conf.sp->ptrs[0];
     db->reset(conf);
     conf.db = db;
-
   }
+
+  total = (struct timeval ) { 0 };
 
   // Generate Zipf dist
   zipf(zipf_dist, conf.ycsb_skew, conf.num_keys,
@@ -114,16 +115,21 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
   uniform(uniform_dist, conf.num_txns);
 }
 
-workload & ycsb_benchmark::get_dataset() {
-
-  load.txns.clear();
+void ycsb_benchmark::load(engine* ee) {
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   unsigned int txn_itr;
+  int rc;
+
+  unsigned int txn_counter = 0;
+  unsigned int num_txns = conf.num_keys;
+  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
   for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++) {
+
+    ee->txn_begin();
 
     // INSERT
     int key = txn_itr;
@@ -134,28 +140,115 @@ workload & ycsb_benchmark::get_dataset() {
 
     statement st(txn_id, operation_type::Insert, usertable_id, rec_ptr);
 
-    vector<statement> stmts = { st };
-    transaction txn(txn_itr, stmts);
-    load.txns.push_back(txn);
+    rc = ee->insert(st);
+
+    ee->txn_end(true);
+
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
+    }
   }
+  printf("\n");
 
-  //cout << load.txns.size() << " dataset transactions " << endl;
-
-  return load;
 }
 
-workload & ycsb_benchmark::get_workload() {
+void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,
+                               schema* usertable_schema,
+                               const vector<int>& field_ids) {
 
-  load.txns.clear();
+// UPDATE
+  std::string updated_val(conf.ycsb_field_size, 'x');
+  int zipf_dist_offset = txn_itr * conf.ycsb_tuples_per_txn;
+  unsigned int usertable_id = 0;
+  timeval t1, t2, diff;
+  int rc;
 
-  if (conf.ycsb_per_writes == 0)
-    load.read_only = true;
+  gettimeofday(&t1, NULL);
+  ee->txn_begin();
+  gettimeofday(&t2, NULL);
+  timersub(&t2, &t1, &diff);
+  timeradd(&diff, &total, &total);
 
+  for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
+
+    int key = zipf_dist[zipf_dist_offset + stmt_itr];
+
+    record* rec_ptr = new usertable_record(usertable_schema, key, updated_val,
+                                           conf.ycsb_num_val_fields,
+                                           conf.ycsb_update_one);
+
+    statement st(txn_id, operation_type::Update, usertable_id, rec_ptr,
+                 field_ids);
+
+    gettimeofday(&t1, NULL);
+    rc = ee->update(st);
+    gettimeofday(&t2, NULL);
+    timersub(&t2, &t1, &diff);
+    timeradd(&diff, &total, &total);
+
+    if (rc < 0)
+      perror("update");
+  }
+
+  gettimeofday(&t1, NULL);
+  ee->txn_end(true);
+  gettimeofday(&t2, NULL);
+  timersub(&t2, &t1, &diff);
+  timeradd(&diff, &total, &total);
+
+}
+
+void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
+                             schema* usertable_schema) {
+
+// SELECT
+  int zipf_dist_offset = txn_itr * conf.ycsb_tuples_per_txn;
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
+  std::string empty;
+  timeval t1, t2, diff;
+  int rc;
+
+  gettimeofday(&t1, NULL);
+  ee->txn_begin();
+  gettimeofday(&t2, NULL);
+  timersub(&t2, &t1, &diff);
+  timeradd(&diff, &total, &total);
+
+  for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
+
+    int key = zipf_dist[zipf_dist_offset + stmt_itr];
+
+    record* rec_ptr = new usertable_record(usertable_schema, key, empty,
+                                           conf.ycsb_num_val_fields, false);
+
+    std::string key_str = std::to_string(key) + " ";
+
+    statement st(txn_id, operation_type::Select, usertable_id, rec_ptr,
+                 usertable_index_id, usertable_schema, key_str);
+
+    gettimeofday(&t1, NULL);
+    ee->select(st);
+    gettimeofday(&t2, NULL);
+    timersub(&t2, &t1, &diff);
+    timeradd(&diff, &total, &total);
+  }
+
+  gettimeofday(&t1, NULL);
+  ee->txn_end(true);
+  gettimeofday(&t2, NULL);
+  timersub(&t2, &t1, &diff);
+  timeradd(&diff, &total, &total);
+
+}
+
+void ycsb_benchmark::execute(engine* ee) {
+
+  unsigned int usertable_id = 0;
   unsigned int txn_itr;
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
-  std::string empty;
 
   vector<int> field_ids;
   if (conf.ycsb_update_one == false) {
@@ -166,60 +259,26 @@ workload & ycsb_benchmark::get_workload() {
     field_ids.push_back(1);
   }
 
-  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++, txn_id++) {
+  unsigned int txn_counter = 0;
+  unsigned int num_txns = conf.num_txns;
+  unsigned int period = ((num_txns > 10) ? (num_txns / 10) : 1);
 
-    int zipf_dist_offset = txn_itr * conf.ycsb_tuples_per_txn;
+  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++, txn_id++) {
     double u = uniform_dist[txn_itr];
 
     if (u < conf.ycsb_per_writes) {
-      // UPDATE
-      std::string updated_val(conf.ycsb_field_size, 'x');
-      vector<statement> stmts;
-
-      for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
-
-        int key = zipf_dist[zipf_dist_offset + stmt_itr];
-
-        record* rec_ptr = new usertable_record(usertable_schema, key,
-                                               updated_val,
-                                               conf.ycsb_num_val_fields,
-                                               conf.ycsb_update_one);
-
-        statement st(txn_id, operation_type::Update, usertable_id, rec_ptr,
-                     field_ids);
-
-        stmts.push_back(st);
-      }
-
-      transaction txn(txn_itr, stmts);
-      load.txns.push_back(txn);
-
+      do_update(ee, txn_itr, usertable_schema, field_ids);
     } else {
+      do_read(ee, txn_itr, usertable_schema);
+    }
 
-      // SELECT
-      vector<statement> stmts;
-
-      for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
-
-        int key = zipf_dist[zipf_dist_offset + stmt_itr];
-
-        record* rec_ptr = new usertable_record(usertable_schema, key, empty,
-                                               conf.ycsb_num_val_fields, false);
-
-        std::string key_str = std::to_string(key) + " ";
-
-        statement st(txn_id, operation_type::Select, usertable_id, rec_ptr,
-                     usertable_index_id, usertable_schema, key_str);
-
-        stmts.push_back(st);
-      }
-
-      transaction txn(txn_itr, stmts);
-      load.txns.push_back(txn);
+    if (++txn_counter % period == 0) {
+      printf("Finished :: %.2lf %% \r",
+             ((double) (txn_counter * 100) / num_txns));
+      fflush(stdout);
     }
   }
+  printf("\n");
 
-  //cout << load.txns.size() << " workload transactions " << endl;
-
-  return load;
+  display_stats(ee, &total, conf.num_txns);
 }

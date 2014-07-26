@@ -110,11 +110,11 @@ def createYCSBGraphs(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 150000)
+        axes.set_ylim(0, 25000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 150000)
+        axes.set_ylim(0, 25000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 150000)
+        axes.set_ylim(0, 25000)
         
     makeGrid(ax1)
 
@@ -165,7 +165,7 @@ def loadDataFile(path):
     file = open(path, "r")
     reader = csv.reader(file)
     
-    data = [None] * 3
+    data = [None] * 2
     
     row_num = 0
     for row in reader:
@@ -187,16 +187,15 @@ if __name__ == '__main__':
                          help='PowerPoint Formatted Graphs')
     args = vars(aparser.parse_args())
         
-    for workload in WORKLOAD_MIX:
-        datasets = []
-    
-        for sy in SYSTEMS:    
-            for lat in LATENCIES:
-                dataFile = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/" + sy + "/" + workload + "/" + lat + "/results.csv")))
-                print dataFile
-                datasets.append(dataFile)
+    for workload in WORKLOAD_MIX:    
+        for lat in LATENCIES:
+                datasets = []
+
+                for sy in SYSTEMS:    
+                    dataFile = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/" + sy + "/" + workload + "/" + lat + "/results.csv")))
+                    datasets.append(dataFile)
                            
-        fig = createYCSBGraphs(datasets, workload)
-        fileName = "ycsb-%s.pdf" % (workload)
-        saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+                fig = createYCSBGraphs(datasets, workload)
+                fileName = "ycsb-%s-%s.pdf" % (workload, lat)
+                saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
     

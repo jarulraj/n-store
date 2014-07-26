@@ -43,7 +43,7 @@ static struct option opts[] = {
 };
 
 enum engine_type {
-  invalid,
+  EE_INVALID,
   WAL,
   SP,
   LSM,
@@ -65,6 +65,8 @@ class config {
   int num_txns;
   int num_executors;
 
+  bool read_only;
+
   double ycsb_per_writes;
   int ycsb_field_size;
   bool ycsb_update_one;
@@ -76,7 +78,6 @@ class config {
 
   int merge_interval;
   double merge_ratio;
-
 
   bool verbose;
   engine_type etype;

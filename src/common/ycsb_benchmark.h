@@ -4,29 +4,32 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
+#include <sys/time.h>
 
 #include "nstore.h"
 #include "benchmark.h"
 #include "database.h"
+#include "engine.h"
 
 using namespace std;
 
 class ycsb_benchmark : public benchmark {
  public:
-  ycsb_benchmark();
   ycsb_benchmark(config& _conf);
 
-  workload& get_dataset();
-  workload& get_workload();
+  void load(engine* ee);
+  void execute(engine* ee);
+
+  void do_update(engine* ee, unsigned int txn_itr, schema* usertable_schema, const vector<int>& field_ids);
+  void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
 
   vector<int> zipf_dist;
   vector<double> uniform_dist;
 
-  workload load;
   config& conf;
 
   unsigned int txn_id;
-
+  timeval total;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */

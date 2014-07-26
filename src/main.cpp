@@ -4,10 +4,10 @@
 
 #include "nstore.h"
 #include "wal_engine.h"
-#include "sp_engine.h"
-#include "lsm_engine.h"
 #include "opt_wal_engine.h"
+#include "sp_engine.h"
 #include "opt_sp_engine.h"
+#include "lsm_engine.h"
 #include "opt_lsm_engine.h"
 
 #include "ycsb_benchmark.h"
@@ -45,8 +45,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Default Values
   state.fs_path = std::string("/mnt/pmfs/n-store/");
 
-  state.num_keys = 2;
-  state.num_txns = 2;
+  state.num_keys = 10;
+  state.num_txns = 10;
   state.num_executors = 1;
 
   state.verbose = false;
@@ -57,9 +57,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.merge_interval = 100000;
   state.merge_ratio = 0.2;
 
-  state.etype = engine_type::invalid;
-  state.ycsb_skew = 1;
+  state.etype = engine_type::EE_INVALID;
+  state.read_only = false;
 
+  state.ycsb_skew = 1.0;
   state.ycsb_update_one = false;
   state.ycsb_field_size = 250;
   state.ycsb_tuples_per_txn = 2;
@@ -96,6 +97,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         break;
       case 'p':
         state.ycsb_per_writes = atof(optarg);
+        assert(state.ycsb_per_writes >= 0 && state.ycsb_per_writes <= 1);
+
+        if (state.ycsb_per_writes == 0)
+          state.read_only = true;
         cout << "per_writes: " << state.ycsb_per_writes << endl;
         break;
       case 'g':
@@ -142,8 +147,6 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         usage_exit(stderr);
     }
   }
-
-  assert(state.ycsb_per_writes >= 0 && state.ycsb_per_writes <= 1);
 }
 
 void execute(config& state) {
@@ -154,65 +157,101 @@ void execute(config& state) {
   switch (state.etype) {
     case engine_type::WAL: {
       LOG_INFO("WAL");
+      wal_engine* wal;
 
-      wal_engine wal(state);
-      wal.generator(ycsb.get_dataset(), false);
-      wal.generator(ycsb.get_workload(), true);
+      wal = new wal_engine(state);
+      ycsb.load(wal);
+      delete wal;
+
+      wal = new wal_engine(state, state.read_only);
+      ycsb.execute(wal);
+      delete wal;
     }
       break;
 
     case engine_type::SP: {
       LOG_INFO("SP");
+      sp_engine* sp;
 
-      sp_engine sp(state);
-      if (generate_dataset)
-        sp.generator(ycsb.get_dataset(), false);
-      sp.generator(ycsb.get_workload(), true);
+      if (generate_dataset) {
+        sp = new sp_engine(state);
+        ycsb.load(sp);
+        delete sp;
+      }
+
+      sp = new sp_engine(state, state.read_only);
+      ycsb.execute(sp);
+      delete sp;
+
     }
       break;
 
     case engine_type::LSM: {
       LOG_INFO("LSM");
+      lsm_engine* lsm;
 
-      lsm_engine lsm(state);
-      lsm.generator(ycsb.get_dataset(), false);
-      lsm.generator(ycsb.get_workload(), true);
+      lsm = new lsm_engine(state);
+      ycsb.load(lsm);
+      delete lsm;
+
+      lsm = new lsm_engine(state, false);
+      ycsb.execute(lsm);
+      delete lsm;
     }
       break;
 
     case engine_type::OPT_WAL: {
       LOG_INFO("OPT WAL");
+      opt_wal_engine* opt_wal;
 
-      opt_wal_engine opt_wal(state);
-      if (generate_dataset)
-        opt_wal.generator(ycsb.get_dataset(), false);
+      if (generate_dataset) {
+        opt_wal = new opt_wal_engine(state);
+        ycsb.load(opt_wal);
+        delete opt_wal;
+      }
 
-      opt_wal.generator(ycsb.get_workload(), true);
+      opt_wal = new opt_wal_engine(state, state.read_only);
+      ycsb.execute(opt_wal);
+      delete opt_wal;
     }
       break;
 
     case engine_type::OPT_SP: {
       LOG_INFO("OPT SP");
+      opt_sp_engine* opt_sp;
 
-      opt_sp_engine opt_sp(state);
-      if (generate_dataset)
-        opt_sp.generator(ycsb.get_dataset(), false);
-      opt_sp.generator(ycsb.get_workload(), true);
+      if (generate_dataset) {
+        opt_sp = new opt_sp_engine(state);
+        ycsb.load(opt_sp);
+        delete opt_sp;
+      }
+
+      opt_sp = new opt_sp_engine(state, state.read_only);
+      ycsb.execute(opt_sp);
+      delete opt_sp;
     }
+
       break;
 
     case engine_type::OPT_LSM: {
       LOG_INFO("OPT LSM");
 
-      opt_lsm_engine opt_lsm(state);
-      if (generate_dataset)
-        opt_lsm.generator(ycsb.get_dataset(), false);
-      opt_lsm.generator(ycsb.get_workload(), true);
+      opt_lsm_engine* opt_lsm;
+
+      if (generate_dataset) {
+        opt_lsm = new opt_lsm_engine(state);
+        ycsb.load(opt_lsm);
+        delete opt_lsm;
+      }
+
+      opt_lsm = new opt_lsm_engine(state, state.read_only);
+      ycsb.execute(opt_lsm);
+      delete opt_lsm;
     }
       break;
 
     default:
-      cout << "unknown engine type :: " << state.etype << endl;
+      cout << "Unknown engine type :: " << state.etype << endl;
       break;
   }
 
@@ -227,7 +266,7 @@ int main(int argc, char **argv) {
 
   sp = (struct static_info *) pmemalloc_static_area();
 
-  // Start
+// Start
   config state;
   parse_arguments(argc, argv, state);
   state.sp = sp;
