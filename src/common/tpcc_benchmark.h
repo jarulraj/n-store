@@ -25,7 +25,6 @@ class tpcc_benchmark : public benchmark {
 
   void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
 
-
   table* create_warehouse();
   table* create_district();
   table* create_item();
@@ -49,6 +48,16 @@ class tpcc_benchmark : public benchmark {
 
   unsigned int txn_id;
   timer tm;
+
+  // Table Ids
+  const int ITEM_TABLE_ID = 0;
+  const int WAREHOUSE_TABLE_ID = 1;
+  const int DISTRICT_TABLE_ID = 2;
+  const int CUSTOMER_TABLE_ID = 3;
+  const int ORDERS_TABLE_ID = 4;
+  const int ORDER_LINE_TABLE_ID = 5;
+  const int NEW_ORDER_TABLE_ID = 6;
+  const int HISTORY_TABLE_ID = 7;
 };
 
 #endif /* TPCC_BENCHMARK_H_ */
