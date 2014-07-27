@@ -58,6 +58,7 @@ class tpcc_benchmark : public benchmark {
   const int ORDER_LINE_TABLE_ID = 5;
   const int NEW_ORDER_TABLE_ID = 6;
   const int HISTORY_TABLE_ID = 7;
+  const int STOCK_TABLE_ID = 8;
 
   // Constants
   const int item_count = 3; // 100000
@@ -89,6 +90,24 @@ class tpcc_benchmark : public benchmark {
   const int customers_init_delivery_cnt = 0;
 
   const double history_init_amount = 10.0;
+
+  const int orders_min_ol_cnt = 5;
+  const int orders_max_ol_cnt = 15;
+  const int orders_init_all_local = 1;
+  const int orders_null_carrier_id = 0;
+  const int orders_min_carrier_id = 1;
+  const int orders_max_carrier_id = 10;
+
+  const int new_orders_per_district = 7; // 900
+
+  const int order_line_init_quantity = 5;
+  const int order_line_max_ol_quantity = 10;
+  const double order_line_min_amount = 0.01;
+
+  const double stock_original_ratio = 0.1;
+  const int stock_min_quantity = 10;
+  const int stock_max_quantity = 100;
+  const int stock_dist_count = 10;
 
 };
 

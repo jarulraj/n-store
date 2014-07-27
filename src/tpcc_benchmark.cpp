@@ -1,6 +1,18 @@
 // TPCC BENCHMARK
 
-#include "tpcc_benchmark.h"
+#include "common/tpcc_benchmark.h"
+
+#include <sys/types.h>
+#include <ctime>
+#include <iostream>
+#include <string>
+
+#include "common/field.h"
+#include "common/libpm.h"
+#include "common/plist.h"
+#include "common/schema.h"
+#include "common/table.h"
+#include "common/table_index.h"
 
 using namespace std;
 
@@ -35,6 +47,8 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
     db->tables->push_back(new_order_table);
     table* history_table = create_history();
     db->tables->push_back(history_table);
+    table* stock_table = create_stock();
+    db->tables->push_back(stock_table);
 
     conf.sp->init = 1;
   } else {
@@ -599,9 +613,7 @@ table* tpcc_benchmark::create_history() {
 class stock_record : public record {
  public:
   stock_record(schema* sptr, int s_i_id, int s_w_id, int s_quantity,
-               int s_d_0_id, int s_d_1_id, int s_d_2_id, int s_d_3_id,
-               int s_d_4_id, int s_d_5_id, int s_d_6_id, int s_d_7_id,
-               int s_d_8_id, int s_d_9_id, int s_ytd, int s_order_cnt,
+               vector<std::string> s_dist, int s_ytd, int s_order_cnt,
                int s_remote_cnt, const std::string& s_data)
       : record(sptr) {
 
@@ -609,16 +621,13 @@ class stock_record : public record {
     std::sprintf(&(data[sptr->columns[0].offset]), "%d", s_i_id);
     std::sprintf(&(data[sptr->columns[1].offset]), "%d", s_w_id);
     std::sprintf(&(data[sptr->columns[2].offset]), "%d", s_quantity);
-    std::sprintf(&(data[sptr->columns[3].offset]), "%d", s_d_0_id);
-    std::sprintf(&(data[sptr->columns[4].offset]), "%d", s_d_1_id);
-    std::sprintf(&(data[sptr->columns[5].offset]), "%d", s_d_2_id);
-    std::sprintf(&(data[sptr->columns[6].offset]), "%d", s_d_3_id);
-    std::sprintf(&(data[sptr->columns[7].offset]), "%d", s_d_4_id);
-    std::sprintf(&(data[sptr->columns[8].offset]), "%d", s_d_5_id);
-    std::sprintf(&(data[sptr->columns[9].offset]), "%d", s_d_6_id);
-    std::sprintf(&(data[sptr->columns[10].offset]), "%d", s_d_7_id);
-    std::sprintf(&(data[sptr->columns[11].offset]), "%d", s_d_8_id);
-    std::sprintf(&(data[sptr->columns[12].offset]), "%d", s_d_9_id);
+
+    for (int f_itr = 3; f_itr <= 12; f_itr++) {
+      int s_dist_itr = f_itr - 3;
+      vc = new char[s_dist[s_dist_itr].size() + 1];
+      strcpy(vc, s_dist[s_dist_itr].c_str());
+      std::sprintf(&(data[sptr->columns[f_itr].offset]), "%p", vc);
+    }
 
     std::sprintf(&(data[sptr->columns[13].offset]), "%d", s_ytd);
     std::sprintf(&(data[sptr->columns[14].offset]), "%d", s_order_cnt);
@@ -966,17 +975,6 @@ table* tpcc_benchmark::create_order_line() {
   return order_line;
 }
 
-// LOADING
-double get_rand_double(double d_min, double d_max) {
-  double f = (double) rand() / RAND_MAX;
-  return d_min + f * (d_max - d_min);
-}
-
-bool get_rand_bool(double ratio) {
-  double f = (double) rand() / RAND_MAX;
-  return (f < ratio) ? true : false;
-}
-
 void tpcc_benchmark::load_items(engine* ee) {
   int num_items = item_count;  //100000
 
@@ -992,7 +990,7 @@ void tpcc_benchmark::load_items(engine* ee) {
     ee->txn_begin();
 
     int i_im_id = i_itr * 10;
-    std::string name = random_string(item_name_len);
+    std::string name = get_rand_astring(item_name_len);
     double price = get_rand_double(item_min_price, item_max_price);
 
     record* rec_ptr = new item_record(item_table_schema, i_itr, i_im_id, name,
@@ -1017,8 +1015,13 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
   schema* district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
   schema* customer_table_schema = conf.db->tables->at(CUSTOMER_TABLE_ID)->sptr;
   schema* history_table_schema = conf.db->tables->at(HISTORY_TABLE_ID)->sptr;
+  schema* orders_table_schema = conf.db->tables->at(ORDERS_TABLE_ID)->sptr;
+  schema* order_line_table_schema = conf.db->tables->at(ORDER_LINE_TABLE_ID)
+      ->sptr;
+  schema* new_order_table_schema = conf.db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
+  schema* stock_table_schema = conf.db->tables->at(STOCK_TABLE_ID)->sptr;
 
-  unsigned int w_itr, d_itr, c_itr;
+  unsigned int w_itr, d_itr, c_itr, o_itr, ol_itr, s_i_itr;
   statement st;
   std::string log_str;
 
@@ -1027,9 +1030,9 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
     txn_id++;
     ee->txn_begin();
 
-    std::string name = random_string(name_len);
-    std::string state = random_string(state_len);
-    std::string zip = random_string(zip_len);
+    std::string name = get_rand_astring(name_len);
+    std::string state = get_rand_astring(state_len);
+    std::string zip = get_rand_astring(zip_len);
     double w_tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
 
     record* warehouse_rec_ptr = new warehouse_record(warehouse_table_schema,
@@ -1052,9 +1055,9 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       txn_id++;
       ee->txn_begin();
 
-      std::string name = random_string(name_len);
-      std::string state = random_string(state_len);
-      std::string zip = random_string(zip_len);
+      std::string name = get_rand_astring(name_len);
+      std::string state = get_rand_astring(state_len);
+      std::string zip = get_rand_astring(zip_len);
       double d_tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
       int next_d_o_id = customers_per_district + 1;
 
@@ -1080,9 +1083,9 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         ee->txn_begin();
 
         bool bad_credit = get_rand_bool(customers_bad_credit_ratio);
-        std::string c_name = random_string(name_len);
-        std::string c_state = random_string(state_len);
-        std::string c_zip = random_string(zip_len);
+        std::string c_name = get_rand_astring(name_len);
+        std::string c_state = get_rand_astring(state_len);
+        std::string c_zip = get_rand_astring(zip_len);
         std::string c_credit = (
             bad_credit ? customers_bcredit : customers_gcredit);
         double c_ts = static_cast<double>(time(NULL));
@@ -1111,7 +1114,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
 
         int h_w_id = w_itr;
         int h_d_id = d_itr;
-        std::string h_data = random_string(name_len);
+        std::string h_data = get_rand_astring(name_len);
 
         record* history_rec_ptr = new history_record(history_table_schema,
                                                      c_itr, d_itr, w_itr,
@@ -1129,6 +1132,123 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         ee->txn_end(true);
       }
 
+      // ORDERS
+      for (o_itr = 0; o_itr < customers_per_district; o_itr++) {
+        txn_id++;
+        ee->txn_begin();
+
+        bool new_order = (o_itr
+            > (customers_per_district - new_orders_per_district));
+        int o_ol_cnt = get_rand_int(orders_min_ol_cnt, orders_max_ol_cnt);
+        int c_id = get_rand_int(0, customers_per_district);
+        double o_ts = static_cast<double>(time(NULL));
+        int o_carrier_id = orders_null_carrier_id;
+
+        if (!new_order)
+          o_carrier_id = get_rand_int(orders_min_carrier_id,
+                                      orders_max_carrier_id);
+
+        record* orders_rec_ptr = new orders_record(orders_table_schema, o_itr,
+                                                   c_id, d_itr, w_itr, o_ts,
+                                                   o_carrier_id, o_ol_cnt,
+                                                   orders_init_all_local);
+
+        log_str = get_data(orders_rec_ptr, orders_table_schema);
+        cout << "orders ::" << log_str << endl;
+
+        st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID,
+                       orders_rec_ptr);
+
+        ee->insert(st);
+        ee->txn_end(true);
+
+        // NEW_ORDER
+
+        if (new_order) {
+          txn_id++;
+          ee->txn_begin();
+
+          record* new_order_rec_ptr = new new_order_record(
+              new_order_table_schema, o_itr, d_itr, w_itr);
+
+          log_str = get_data(new_order_rec_ptr, new_order_table_schema);
+          cout << "new_order ::" << log_str << endl;
+
+          st = statement(txn_id, operation_type::Insert, NEW_ORDER_TABLE_ID,
+                         new_order_rec_ptr);
+
+          ee->insert(st);
+          ee->txn_end(true);
+        }
+
+        // ORDER_LINE
+        for (ol_itr = 0; ol_itr < o_ol_cnt; ol_itr++) {
+          txn_id++;
+          ee->txn_begin();
+
+          int ol_i_id = get_rand_int(0, item_count);
+          int ol_supply_w_id = w_itr;
+          double ol_delivery_ts = static_cast<double>(time(NULL));
+          int ol_quantity = order_line_init_quantity;
+          std::string ol_data = get_rand_astring(name_len);
+          double ol_amount = 0.0;
+
+          if (new_order) {
+            ol_amount = get_rand_double(
+                order_line_min_amount,
+                order_line_max_ol_quantity * item_max_price);
+            ol_delivery_ts = 0;
+          }
+
+          record* order_line_rec_ptr = new order_line_record(
+              order_line_table_schema, o_itr, d_itr, w_itr, ol_itr, ol_i_id,
+              ol_supply_w_id, ol_delivery_ts, ol_quantity, ol_amount, ol_data);
+
+          log_str = get_data(order_line_rec_ptr, order_line_table_schema);
+          cout << "order_line ::" << log_str << endl;
+
+          st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
+                         order_line_rec_ptr);
+
+          ee->insert(st);
+          ee->txn_end(true);
+        }
+
+      }
+
+    }
+
+    // STOCK
+    for (s_i_itr = 0; s_i_itr < item_count; s_i_itr++) {
+
+      txn_id++;
+      ee->txn_begin();
+
+      bool s_original = get_rand_bool(stock_original_ratio);
+      int s_quantity = get_rand_int(stock_min_quantity, stock_max_quantity);
+      int s_ytd = 0;
+      int s_order_cnt = 0;
+      int s_remote_cnt = 0;
+      std::string s_data = get_rand_astring(name_len);
+      vector<std::string> s_dist;
+
+      for (int s_d_itr = 0; s_d_itr < stock_dist_count; s_d_itr++)
+        s_dist.push_back(std::to_string(s_d_itr) + s_data);
+
+      record* stock_rec_ptr = new stock_record(stock_table_schema, s_i_itr,
+                                               w_itr, s_quantity, s_dist, s_ytd,
+                                               s_order_cnt, s_remote_cnt,
+                                               s_data);
+
+      log_str = get_data(stock_rec_ptr, stock_table_schema);
+      cout << "stock ::" << log_str << endl;
+
+      st = statement(txn_id, operation_type::Insert, STOCK_TABLE_ID,
+                     stock_rec_ptr);
+
+      ee->insert(st);
+
+      ee->txn_end(true);
     }
 
   }
@@ -1146,3 +1266,4 @@ void tpcc_benchmark::load(engine* ee) {
 
 void tpcc_benchmark::execute(engine* ee) {
 }
+

@@ -17,15 +17,14 @@ using namespace std;
     {expr;} \
     tm.end(); }
 
-inline std::string random_string(size_t len) {
-  static const char alphanum[] = "0123456789"
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-      "abcdefghijklmnopqrstuvwxyz";
+// RAND GEN
+std::string get_rand_astring(size_t len);
 
-  char rep = alphanum[rand() % (sizeof(alphanum) - 1)];
-  std::string str(len, rep);
-  return str;
-}
+double get_rand_double(double d_min, double d_max);
+
+bool get_rand_bool(double ratio);
+
+int get_rand_int(int i_min, int i_max);
 
 inline std::string get_data(record* rptr, schema* sptr) {
   std::string rec_str;

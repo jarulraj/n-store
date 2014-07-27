@@ -12,6 +12,32 @@
 
 using namespace std;
 
+// RAND GEN
+std::string get_rand_astring(size_t len) {
+  static const char alphanum[] = "0123456789"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "abcdefghijklmnopqrstuvwxyz";
+
+  char rep = alphanum[rand() % (sizeof(alphanum) - 1)];
+  std::string str(len, rep);
+  return str;
+}
+
+double get_rand_double(double d_min, double d_max) {
+  double f = (double) rand() / RAND_MAX;
+  return d_min + f * (d_max - d_min);
+}
+
+bool get_rand_bool(double ratio) {
+  double f = (double) rand() / RAND_MAX;
+  return (f < ratio) ? true : false;
+}
+
+int get_rand_int(int i_min, int i_max) {
+  double f = (double) rand() / RAND_MAX;
+  return i_min + (int) (f * (double) (i_max - i_min));
+}
+
 // SER + DESER
 std::string serialize(record* rptr, schema* sptr, bool prefix) {
   unsigned int num_columns = sptr->num_columns;
@@ -160,7 +186,7 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr,
         entry >> lival;
         field_str = std::to_string(lival);
       }
-      break;
+        break;
 
       default:
         cout << "Invalid field type : --" << type << "--" << endl;

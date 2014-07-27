@@ -127,7 +127,7 @@ void ycsb_benchmark::load(engine* ee) {
 
     // INSERT
     int key = txn_itr;
-    std::string value = random_string(conf.ycsb_field_size);
+    std::string value = get_rand_astring(conf.ycsb_field_size);
 
     record* rec_ptr = new usertable_record(usertable_schema, key, value,
                                            conf.ycsb_num_val_fields, false);
