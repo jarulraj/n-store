@@ -972,6 +972,11 @@ double get_rand_double(double d_min, double d_max) {
   return d_min + f * (d_max - d_min);
 }
 
+bool get_rand_bool(double ratio) {
+  double f = (double) rand() / RAND_MAX;
+  return (f < ratio) ? true : false;
+}
+
 void tpcc_benchmark::load_items(engine* ee) {
   int num_items = item_count;  //100000
 
@@ -1010,30 +1015,33 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
 
   schema* warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
   schema* district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
-  unsigned int w_itr, d_itr;
-  double warehouse_initial_ytd = 300000.00f;
-  double district_initial_ytd = 30000.00f;
-  double tax;
+  schema* customer_table_schema = conf.db->tables->at(CUSTOMER_TABLE_ID)->sptr;
+  schema* history_table_schema = conf.db->tables->at(HISTORY_TABLE_ID)->sptr;
+
+  unsigned int w_itr, d_itr, c_itr;
+  statement st;
+  std::string log_str;
 
   // WAREHOUSE
   for (w_itr = 0; w_itr < num_warehouses; w_itr++) {
     txn_id++;
     ee->txn_begin();
 
-    // INSERT
     std::string name = random_string(name_len);
-    std::string zip = random_string(zip_len);
     std::string state = random_string(state_len);
-    tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
+    std::string zip = random_string(zip_len);
+    double w_tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
 
-    record* rec_ptr = new warehouse_record(warehouse_table_schema, w_itr, name,
-                                           zip, state, tax,
-                                           warehouse_initial_ytd);
+    record* warehouse_rec_ptr = new warehouse_record(warehouse_table_schema,
+                                                     w_itr, name, zip, state,
+                                                     w_tax,
+                                                     warehouse_initial_ytd);
 
-    std::string key_str = get_data(rec_ptr, warehouse_table_schema);
-    cout << "warehouse ::" << key_str << endl;
+    log_str = get_data(warehouse_rec_ptr, warehouse_table_schema);
+    cout << "warehouse ::" << log_str << endl;
 
-    statement st(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID, rec_ptr);
+    st = statement(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID,
+                   warehouse_rec_ptr);
 
     ee->insert(st);
     ee->txn_end(true);
@@ -1045,24 +1053,84 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       ee->txn_begin();
 
       std::string name = random_string(name_len);
-      std::string zip = random_string(zip_len);
       std::string state = random_string(state_len);
-      tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
+      std::string zip = random_string(zip_len);
+      double d_tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
       int next_d_o_id = customers_per_district + 1;
 
-      record* rec_ptr = new district_record(district_table_schema, d_itr, w_itr,
-                                            name, zip, state, tax,
-                                            district_initial_ytd, next_d_o_id);
+      record* district_rec_ptr = new district_record(district_table_schema,
+                                                     d_itr, w_itr, name, zip,
+                                                     state, d_tax,
+                                                     district_initial_ytd,
+                                                     next_d_o_id);
 
-      std::string key_str = get_data(rec_ptr, district_table_schema);
-      cout << "district ::" << key_str << endl;
+      log_str = get_data(district_rec_ptr, district_table_schema);
+      cout << "district ::" << log_str << endl;
 
-      statement st(txn_id, operation_type::Insert, DISTRICT_TABLE_ID, rec_ptr);
+      st = statement(txn_id, operation_type::Insert, DISTRICT_TABLE_ID,
+                     district_rec_ptr);
 
       ee->insert(st);
 
       ee->txn_end(true);
+
+      // CUSTOMERS
+      for (c_itr = 0; c_itr < customers_per_district; c_itr++) {
+        txn_id++;
+        ee->txn_begin();
+
+        bool bad_credit = get_rand_bool(customers_bad_credit_ratio);
+        std::string c_name = random_string(name_len);
+        std::string c_state = random_string(state_len);
+        std::string c_zip = random_string(zip_len);
+        std::string c_credit = (
+            bad_credit ? customers_bcredit : customers_gcredit);
+        double c_ts = static_cast<double>(time(NULL));
+        double c_discount = get_rand_double(customers_min_discount,
+                                            customers_max_discount);
+
+        record* customer_rec_ptr = new customer_record(
+            customer_table_schema, c_itr, d_itr, w_itr, c_name, c_state, c_zip,
+            c_credit, customers_init_credit_lim, c_ts, c_discount,
+            customers_init_balance, customers_init_ytd,
+            customers_init_payment_cnt, customers_init_delivery_cnt);
+
+        log_str = get_data(customer_rec_ptr, customer_table_schema);
+        cout << "customer ::" << log_str << endl;
+
+        st = statement(txn_id, operation_type::Insert, CUSTOMER_TABLE_ID,
+                       customer_rec_ptr);
+
+        ee->insert(st);
+        ee->txn_end(true);
+
+        // HISTORY
+
+        txn_id++;
+        ee->txn_begin();
+
+        int h_w_id = w_itr;
+        int h_d_id = d_itr;
+        std::string h_data = random_string(name_len);
+
+        record* history_rec_ptr = new history_record(history_table_schema,
+                                                     c_itr, d_itr, w_itr,
+                                                     h_w_id, h_d_id, c_ts,
+                                                     history_init_amount,
+                                                     h_data);
+
+        log_str = get_data(history_rec_ptr, history_table_schema);
+        cout << "history ::" << log_str << endl;
+
+        st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID,
+                       history_rec_ptr);
+
+        ee->insert(st);
+        ee->txn_end(true);
+      }
+
     }
+
   }
 }
 

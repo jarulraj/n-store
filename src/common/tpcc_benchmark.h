@@ -71,10 +71,25 @@ class tpcc_benchmark : public benchmark {
   const double state_len = 2;
   const double zip_len = 5;
   const double name_len = 5;
+  const double warehouse_initial_ytd = 300000.00f;
 
   const int districts_per_warehouse = 2; // 10
+  const double district_initial_ytd = 30000.00f;
 
   const int customers_per_district = 10; // 3000
+  const std::string customers_gcredit = "GC";
+  const std::string customers_bcredit = "BC";
+  const double customers_bad_credit_ratio = 0.1;
+  const double customers_init_credit_lim = 50000.0;
+  const double customers_min_discount = 0;
+  const double customers_max_discount = 0.5;
+  const double customers_init_balance = -10.0;
+  const double customers_init_ytd = 10.0;
+  const int customers_init_payment_cnt = 1;
+  const int customers_init_delivery_cnt = 0;
+
+  const double history_init_amount = 10.0;
+
 };
 
 #endif /* TPCC_BENCHMARK_H_ */
