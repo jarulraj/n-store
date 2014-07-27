@@ -972,88 +972,14 @@ double get_rand_double(double d_min, double d_max) {
   return d_min + f * (d_max - d_min);
 }
 
-void tpcc_benchmark::load_warehouse(engine* ee) {
-  int num_warehouses = conf.tpcc_num_warehouses;
+void tpcc_benchmark::load_items(engine* ee) {
+  int num_items = item_count;  //100000
 
-  unsigned int warehouse_index_id = 0;
-  schema* warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
-  unsigned int w_itr;
-
-  double tax = 0.1f;
-  double ytd = 300000.00f;
-
-  for (w_itr = 0; w_itr < num_warehouses; w_itr++) {
-    txn_id++;
-    ee->txn_begin();
-
-    // INSERT
-    std::string name = random_string(3);
-    std::string zip = random_string(5);
-    std::string state = random_string(2);
-
-    record* rec_ptr = new warehouse_record(warehouse_table_schema, w_itr, name,
-                                           zip, state, tax, ytd);
-
-    std::string key_str = get_data(rec_ptr, warehouse_table_schema);
-    cout << "warehouse ::" << key_str << endl;
-
-    statement st(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID, rec_ptr);
-
-    ee->insert(st);
-
-    ee->txn_end(true);
-  }
-}
-
-void tpcc_benchmark::load_district(engine* ee) {
-  int num_warehouses = conf.tpcc_num_warehouses;
-  int num_districts_per_warehouse = 2;
-
-  unsigned int district_index_id = 0;
-  schema* district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
-  unsigned int w_itr, d_itr;
-
-  double tax = 0.1f;
-  double ytd = 30000.00f;  // different from warehouse
-  int next_d_o_id = 3000;
-
-  for (w_itr = 0; w_itr < num_warehouses; w_itr++) {
-    for (d_itr = 0; d_itr < num_districts_per_warehouse; d_itr++) {
-
-      txn_id++;
-      ee->txn_begin();
-
-      int dist = w_itr * num_districts_per_warehouse + d_itr;
-      std::string name = random_string(3);
-      std::string zip = random_string(5);
-      std::string state = random_string(2);
-
-      record* rec_ptr = new district_record(district_table_schema, w_itr, dist,
-                                            name, zip, state, tax, ytd,
-                                            next_d_o_id);
-
-      std::string key_str = get_data(rec_ptr, district_table_schema);
-      cout << "district ::" << key_str << endl;
-
-      statement st(txn_id, operation_type::Insert, DISTRICT_TABLE_ID, rec_ptr);
-
-      ee->insert(st);
-
-      ee->txn_end(true);
-    }
-  }
-}
-
-void tpcc_benchmark::load_item(engine* ee) {
-  int num_items = 3;
-
-  unsigned int item_index_id = 0;
   schema* item_table_schema = conf.db->tables->at(ITEM_TABLE_ID)->sptr;
-  unsigned int i_itr;
-
   double tax = 0.1f;
   double ytd = 30000.00f;  // different from warehouse
   int next_d_o_id = 3000;
+  unsigned int i_itr;
 
   for (i_itr = 0; i_itr < num_items; i_itr++) {
 
@@ -1061,8 +987,8 @@ void tpcc_benchmark::load_item(engine* ee) {
     ee->txn_begin();
 
     int i_im_id = i_itr * 10;
-    std::string name = random_string(3);
-    double price = get_rand_double(1.0, 100.0);
+    std::string name = random_string(item_name_len);
+    double price = get_rand_double(item_min_price, item_max_price);
 
     record* rec_ptr = new item_record(item_table_schema, i_itr, i_im_id, name,
                                       price);
@@ -1079,16 +1005,74 @@ void tpcc_benchmark::load_item(engine* ee) {
 
 }
 
+void tpcc_benchmark::load_warehouses(engine* ee) {
+  int num_warehouses = warehouse_count;
+
+  schema* warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
+  schema* district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
+  unsigned int w_itr, d_itr;
+  double warehouse_initial_ytd = 300000.00f;
+  double district_initial_ytd = 30000.00f;
+  double tax;
+
+  // WAREHOUSE
+  for (w_itr = 0; w_itr < num_warehouses; w_itr++) {
+    txn_id++;
+    ee->txn_begin();
+
+    // INSERT
+    std::string name = random_string(name_len);
+    std::string zip = random_string(zip_len);
+    std::string state = random_string(state_len);
+    tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
+
+    record* rec_ptr = new warehouse_record(warehouse_table_schema, w_itr, name,
+                                           zip, state, tax,
+                                           warehouse_initial_ytd);
+
+    std::string key_str = get_data(rec_ptr, warehouse_table_schema);
+    cout << "warehouse ::" << key_str << endl;
+
+    statement st(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID, rec_ptr);
+
+    ee->insert(st);
+    ee->txn_end(true);
+
+    // DISTRICTS
+    for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
+
+      txn_id++;
+      ee->txn_begin();
+
+      std::string name = random_string(name_len);
+      std::string zip = random_string(zip_len);
+      std::string state = random_string(state_len);
+      tax = get_rand_double(warehouse_min_tax, warehouse_max_tax);
+      int next_d_o_id = customers_per_district + 1;
+
+      record* rec_ptr = new district_record(district_table_schema, d_itr, w_itr,
+                                            name, zip, state, tax,
+                                            district_initial_ytd, next_d_o_id);
+
+      std::string key_str = get_data(rec_ptr, district_table_schema);
+      cout << "district ::" << key_str << endl;
+
+      statement st(txn_id, operation_type::Insert, DISTRICT_TABLE_ID, rec_ptr);
+
+      ee->insert(st);
+
+      ee->txn_end(true);
+    }
+  }
+}
+
 void tpcc_benchmark::load(engine* ee) {
 
-  cout << "Load warehouse " << endl;
-  load_warehouse(ee);
+  cout << "Load items " << endl;
+  load_items(ee);
 
-  cout << "Load district " << endl;
-  load_district(ee);
-
-  cout << "Load item " << endl;
-  load_item(ee);
+  cout << "Load warehouses " << endl;
+  load_warehouses(ee);
 
 }
 
