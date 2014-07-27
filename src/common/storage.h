@@ -57,7 +57,7 @@ class storage {
     off_t prev_offset;
 
     if (entry.size() > max_tuple_size) {
-      perror("entry size exceeds tuple size");
+      printf("Entry size exceeds tuple size : %lu  %lu \n", entry.size(), max_tuple_size);
       exit(EXIT_FAILURE);
     }
 
@@ -77,7 +77,7 @@ class storage {
     int ret;
 
     if (entry.size() > max_tuple_size) {
-      perror("entry size exceeds tuple size");
+      printf("Entry size exceeds tuple size : %lu  %lu \n", entry.size(), max_tuple_size);
       exit(EXIT_FAILURE);
     }
 

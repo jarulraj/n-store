@@ -82,6 +82,8 @@ class config {
   int ycsb_num_val_fields;
   double ycsb_skew;
 
+  int tpcc_num_warehouses;
+
   int gc_interval;
 
   int merge_interval;

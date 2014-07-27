@@ -72,6 +72,12 @@ class record {
       }
         break;
 
+      case field_type::LONG_INT:
+        long int lival;
+        std::sscanf(&(data[offset]), "%ld", &lival);
+        field = std::to_string(lival) + " ";
+        break;
+
       default:
         cout << "Invalid type : " << type << endl;
         exit(EXIT_FAILURE);
@@ -97,10 +103,8 @@ class record {
 
     switch (type) {
       case field_type::INTEGER:
-        memcpy(&(data[offset]), &(rec_ptr->data[offset]), len);
-        break;
-
       case field_type::DOUBLE:
+      case field_type::LONG_INT:
         memcpy(&(data[offset]), &(rec_ptr->data[offset]), len);
         break;
 

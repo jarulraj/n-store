@@ -12,7 +12,8 @@ enum field_type {
   FD_INVALID,
   INTEGER,
   DOUBLE,
-  VARCHAR
+  VARCHAR,
+  LONG_INT
 };
 
 struct field_info {

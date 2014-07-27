@@ -87,6 +87,13 @@ record* deserialize_to_record(std::string entry_str, schema* sptr,
       }
         break;
 
+      case field_type::LONG_INT: {
+        long int lival;
+        entry >> lival;
+        std::sprintf(&(rec_ptr->data[offset]), "%ld", lival);
+      }
+        break;
+
       default:
         cout << "Invalid field type : --" << type << "--" << endl;
         cout << "Entry : --" << entry_str << "--" << endl;
@@ -147,6 +154,13 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr,
         entry >> field_str;
       }
         break;
+
+      case field_type::LONG_INT: {
+        long int lival;
+        entry >> lival;
+        field_str = std::to_string(lival);
+      }
+      break;
 
       default:
         cout << "Invalid field type : --" << type << "--" << endl;

@@ -27,7 +27,20 @@ class tpcc_benchmark : public benchmark {
 
 
   table* create_warehouse();
+  table* create_district();
+  table* create_item();
+  table* create_customer();
+
   void load_warehouse(engine* ee);
+  void load_district(engine* ee);
+  void load_item(engine* ee);
+  void load_customer(engine* ee);
+
+  table* create_history();
+  table* create_stock();
+  table* create_orders();
+  table* create_new_order();
+  table* create_order_line();
 
   vector<double> uniform_dist;
 

@@ -116,6 +116,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
 void ycsb_benchmark::load(engine* ee) {
 
   unsigned int usertable_id = 0;
+  unsigned int usertable_index_id = 0;
   schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   unsigned int txn_itr;
   status ss(conf.num_keys);
