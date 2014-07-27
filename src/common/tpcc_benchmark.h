@@ -25,6 +25,10 @@ class tpcc_benchmark : public benchmark {
 
   void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
 
+
+  table* create_warehouse();
+  void load_warehouse(engine* ee);
+
   vector<double> uniform_dist;
 
   config& conf;

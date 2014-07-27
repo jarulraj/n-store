@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <vector>
+#include <iomanip>
 
 using namespace std;
 
@@ -37,11 +38,13 @@ class schema {
     unsigned int itr;
 
     for (itr = 0; itr < num_columns; itr++) {
-      cout << "offset : " << columns[itr].offset << " ";
-      cout << "ser_len : " << columns[itr].ser_len << " ";
+      cout << std::setw(20);
+      cout << "offset    : " << columns[itr].offset << " ";
+      cout << "ser_len   : " << columns[itr].ser_len << " ";
       cout << "deser_len : " << columns[itr].deser_len << " ";
-      cout << "type : " << (int) columns[itr].type << " ";
-      cout << "inlined : " << (int) columns[itr].inlined << " ";
+      cout << "type      : " << (int) columns[itr].type << " ";
+      cout << "inlined   : " << (int) columns[itr].inlined << " ";
+      cout << "enabled   : " << (int) columns[itr].enabled << " ";
       cout << endl;
     }
 
