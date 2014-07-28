@@ -3261,7 +3261,7 @@ class cow_btree {
     if (persist)
       pmemalloc_activate(copy);
     bcopy(mp->page, copy, head.psize);
-    assert(mp->ref == 0); /* XXX */
+    //assert(mp->ref == 0); /* XXX */
     bzero(&mp->page->ptrs, head.psize - PAGEHDRSZ);
     mp->page->lower = PAGEHDRSZ;
     mp->page->upper = head.psize;

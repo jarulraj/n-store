@@ -32,7 +32,7 @@ class record {
     }
   }
 
-  inline void display() {
+  void display() {
     std::string data;
 
     unsigned int field_itr;
@@ -43,7 +43,7 @@ class record {
 
   }
 
-  inline std::string get_data(const int field_id) {
+  std::string get_data(const int field_id) {
     std::string field;
     field_info finfo = sptr->columns[field_id];
     char type = finfo.type;
@@ -87,7 +87,7 @@ class record {
     return field;
   }
 
-  inline void* get_pointer(const int field_id) {
+  void* get_pointer(const int field_id) {
     void* field = NULL;
     if (sptr->columns[field_id].inlined == 0) {
       std::sscanf(&(data[sptr->columns[field_id].offset]), "%p", &field);
@@ -96,7 +96,7 @@ class record {
     return field;
   }
 
-  inline void set_data(const int field_id, record* rec_ptr) {
+  void set_data(const int field_id, record* rec_ptr) {
     char type = sptr->columns[field_id].type;
     size_t offset = sptr->columns[field_id].offset;
     size_t len = sptr->columns[field_id].ser_len;
@@ -118,13 +118,37 @@ class record {
     }
   }
 
-  inline void set_pointer(const int field_id, void* field_ptr) {
-    if (sptr->columns[field_id].inlined == 0) {
-      std::sprintf(&(data[sptr->columns[field_id].offset]), "%p", field_ptr);
+  void set_int(const int field_id, int ival) {
+    char type = sptr->columns[field_id].type;
+    if (type == field_type::INTEGER) {
+      std::sprintf(&(data[sptr->columns[field_id].offset]), "%d", ival);
+    } else {
+      cout << "Invalid type : " << type << endl;
+      exit(EXIT_FAILURE);
     }
   }
 
-  inline void persist_data() {
+  void set_double(const int field_id, double dval) {
+    char type = sptr->columns[field_id].type;
+    if (type == field_type::DOUBLE) {
+      std::sprintf(&(data[sptr->columns[field_id].offset]), "%lf", dval);
+    } else {
+      cout << "Invalid type : " << type << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  void set_pointer(const int field_id, void* field_ptr) {
+    char type = sptr->columns[field_id].type;
+    if (type == field_type::VARCHAR) {
+      std::sprintf(&(data[sptr->columns[field_id].offset]), "%p", field_ptr);
+    } else {
+      cout << "Invalid type : " << type << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  void persist_data() {
     pmemalloc_activate(data);
 
     unsigned int field_itr;

@@ -49,6 +49,12 @@ class tpcc_benchmark : public benchmark {
   unsigned int txn_id;
   timer tm;
 
+  void do_delivery(engine* ee);
+  void do_new_order(engine* ee);
+  void do_order_status(engine* ee);
+  void do_payment(engine* ee);
+  void do_stock_level(engine* ee);
+
   // Table Ids
   const int ITEM_TABLE_ID = 0;
   const int WAREHOUSE_TABLE_ID = 1;
@@ -98,7 +104,7 @@ class tpcc_benchmark : public benchmark {
   const int orders_min_carrier_id = 1;
   const int orders_max_carrier_id = 10;
 
-  const int new_orders_per_district = 7; // 900
+  const int new_orders_per_district = 3; // 900
 
   const int order_line_init_quantity = 5;
   const int order_line_max_ol_quantity = 10;

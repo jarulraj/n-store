@@ -60,13 +60,16 @@ std::string sp_engine::select(const statement& st) {
   LOG_INFO("Select");
   record* rec_ptr = st.rec_ptr;
   struct cow_btval key, val;
+  table* tab = db->tables->at(st.table_id);
+  table_index* table_index = tab->indices->at(st.table_index_id);
+  std::string key_str = get_data(rec_ptr, table_index->sptr);
 
   //cout << "Select :: Key : -" << st.key << "-  -" << st.table_id << "-" << st.table_index_id << "-" << endl;
-  unsigned long key_id = hasher(hash_fn(st.key), st.table_id,
+  unsigned long key_id = hasher(hash_fn(key_str), st.table_id,
                                 st.table_index_id);
-  string key_str = std::to_string(key_id);
-  key.data = (void*) key_str.c_str();
-  key.size = key_str.size();
+  std::string comp_key_str = std::to_string(key_id);
+  key.data = (void*) comp_key_str.c_str();
+  key.size = comp_key_str.size();
   std::string tuple;
   //cout << "Select :: Key : -" << st.key << "-  -" << key_str << "-" << endl;
 
@@ -140,7 +143,7 @@ int sp_engine::remove(const statement& st) {
   struct cow_btval key, val;
 
   std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
-  unsigned long key_id = hasher(hash_fn(st.key), st.table_id, 0);
+  unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   key_str = std::to_string(key_id);
 
   key.data = (void*) key_str.c_str();
@@ -155,7 +158,7 @@ int sp_engine::remove(const statement& st) {
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
-    key_id = hasher(hash_fn(st.key), st.table_id, index_itr);
+    key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
     key_str = std::to_string(key_id);
 
     key.data = (void*) key_str.c_str();

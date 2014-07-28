@@ -45,9 +45,9 @@ class storage {
 
       //fseek(storage_file, 0, SEEK_END);
       //size_t sz = ftell(storage_file);
-      //printf("File size :: %lu \n", sz);
+      //printf("File size :: %s %lu \n", storage_file_name.c_str(), sz);
     } else {
-      std::cout << "Log file not found : " << storage_file_name << std::endl;
+      std::cout << "File not found : " << storage_file_name << std::endl;
       exit(EXIT_FAILURE);
     }
   }
@@ -57,7 +57,8 @@ class storage {
     off_t prev_offset;
 
     if (entry.size() > max_tuple_size) {
-      printf("Entry size exceeds tuple size : %lu  %lu \n", entry.size(), max_tuple_size);
+      printf("Entry size exceeds tuple size : %lu  %lu \n", entry.size(),
+             max_tuple_size);
       exit(EXIT_FAILURE);
     }
 
@@ -77,12 +78,13 @@ class storage {
     int ret;
 
     if (entry.size() > max_tuple_size) {
-      printf("Entry size exceeds tuple size : %lu  %lu \n", entry.size(), max_tuple_size);
+      printf("Entry size exceeds tuple size : %lu  %lu \n", entry.size(),
+             max_tuple_size);
       exit(EXIT_FAILURE);
     }
 
     fseek(storage_file, storage_offset, SEEK_SET);
-    ret = fwrite(entry.c_str(), sizeof(char), max_tuple_size, storage_file);
+    ret = fwrite(entry.c_str(), max_tuple_size, 1, storage_file);
     if (ret < 0) {
       perror("fwrite failed");
       exit(EXIT_FAILURE);
@@ -110,7 +112,7 @@ class storage {
     int rc;
 
     fseek(storage_file, storage_offset, SEEK_SET);
-    rc = fread(buf, 1, max_tuple_size, storage_file);
+    rc = fread(buf, max_tuple_size, 1, storage_file);
     if (rc == -1) {
       perror("fread");
       exit(EXIT_FAILURE);

@@ -23,9 +23,10 @@ std::string opt_wal_engine::select(const statement& st) {
   record* select_ptr = NULL;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
+  std::string key_str = get_data(rec_ptr, table_index->sptr);
 
-  LOG_INFO("key : %s ", st.key.c_str());
-  unsigned long key = hash_fn(st.key);
+  LOG_INFO("key : %s ", key_str.c_str());
+  unsigned long key = hash_fn(key_str);
   std::string val;
 
   select_ptr = table_index->pm_map->at(key);

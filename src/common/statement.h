@@ -52,14 +52,13 @@ class statement {
 
   // Select
   statement(int _txn_id, operation_type _otype, int _table_id, record* _rptr,
-            int _table_index_id, schema* _projection, std::string _key)
+            int _table_index_id, schema* _projection)
       : transaction_id(_txn_id),
         op_type(_otype),
         table_id(_table_id),
         rec_ptr(_rptr),
         table_index_id(_table_index_id),
-        projection(_projection),
-        key(_key) {
+        projection(_projection) {
   }
 
 //private:
@@ -76,7 +75,6 @@ class statement {
   // Select
   int table_index_id;
   schema* projection;
-  std::string key;
 
 };
 

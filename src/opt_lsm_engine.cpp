@@ -45,14 +45,15 @@ void opt_lsm_engine::merge(bool force) {
 
           storage_offset = table_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
-          std::sscanf((char*) val.c_str(), "%p", &fs_rec);
-          //printf("fs_rec :: %p \n", fs_rec);
+          if (!val.empty()) {
+            std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+            //printf("fs_rec :: %p \n", fs_rec);
 
-          int num_cols = pm_rec->sptr->num_columns;
-          for (int field_itr = 0; field_itr < num_cols; field_itr++) {
-            fs_rec->set_data(field_itr, pm_rec);
+            int num_cols = pm_rec->sptr->num_columns;
+            for (int field_itr = 0; field_itr < num_cols; field_itr++) {
+              fs_rec->set_data(field_itr, pm_rec);
+            }
           }
-
         } else {
           // Insert tuple
           std::sprintf(ptr_buf, "%p", pm_rec);
@@ -97,7 +98,7 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only)
 
 opt_lsm_engine::~opt_lsm_engine() {
 
-  if(!read_only)
+  if (!read_only)
     merge(true);
 
 }
@@ -110,8 +111,9 @@ std::string opt_lsm_engine::select(const statement& st) {
   record *pm_rec = NULL, *fs_rec = NULL;
   table *tab = db->tables->at(st.table_id);
   table_index *table_index = tab->indices->at(st.table_index_id);
+  std::string key_str = get_data(rec_ptr, table_index->sptr);
 
-  unsigned long key = hash_fn(st.key);
+  unsigned long key = hash_fn(key_str);
   off_t storage_offset;
 
   // Check if key exists in mem
@@ -126,9 +128,9 @@ std::string opt_lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    //printf("val :: --%s-- \n", val.c_str());
+    if (!val.empty())
+      std::sscanf((char*) val.c_str(), "%p", &fs_rec);
 
-    std::sscanf((char*) val.c_str(), "%p", &fs_rec);
     //printf("fs_rec :: %p \n", fs_rec);
   }
 
@@ -218,25 +220,30 @@ int opt_lsm_engine::remove(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
-  if (indices->at(0)->pm_map->exists(key) == 0) {
+  if (indices->at(0)->pm_map->exists(key) == 0
+      && indices->at(0)->off_map->exists(key) == 0) {
+    cout << "not found in either index " << endl;
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
 
-  record* before_rec = indices->at(0)->pm_map->at(key);
+  record* before_rec = NULL;
+  if (indices->at(0)->pm_map->exists(key) != 0) {
+    before_rec = indices->at(0)->pm_map->at(key);
 
-  // Add log entry
-  entry_stream.str("");
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << before_rec << "\n";
+    // Add log entry
+    entry_stream.str("");
+    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+                 << " " << rec_ptr << "\n";
 
-  entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
+    entry_str = entry_stream.str();
+    char* entry = new char[entry_str.size() + 1];
+    strcpy(entry, entry_str.c_str());
 
-  // Add log entry
-  pmemalloc_activate(entry);
-  pm_log->push_back(entry);
+    // Add log entry
+    pmemalloc_activate(entry);
+    pm_log->push_back(entry);
+  }
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -316,7 +323,7 @@ void opt_lsm_engine::txn_begin() {
 }
 
 void opt_lsm_engine::txn_end(bool commit) {
-  if(!read_only)
+  if (!read_only)
     merge_check();
 }
 

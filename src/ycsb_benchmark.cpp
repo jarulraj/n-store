@@ -194,10 +194,8 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
     record* rec_ptr = new usertable_record(usertable_schema, key, empty,
                                            conf.ycsb_num_val_fields, false);
 
-    std::string key_str = std::to_string(key) + " ";
-
     statement st(txn_id, operation_type::Select, usertable_id, rec_ptr,
-                 usertable_index_id, usertable_schema, key_str);
+                 usertable_index_id, usertable_schema);
 
     TIMER(ee->select(st))
   }

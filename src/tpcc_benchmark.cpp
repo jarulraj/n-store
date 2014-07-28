@@ -57,6 +57,8 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
     db->reset(conf);
     conf.db = db;
   }
+
+  uniform(uniform_dist, conf.num_txns);
 }
 
 // WAREHOUSE
@@ -784,9 +786,10 @@ table* tpcc_benchmark::create_orders() {
   pmemalloc_activate(orders);
 
   // PRIMARY INDEX
-  for (int itr = 3; itr <= cols.size(); itr++) {
+  for (int itr = 4; itr <= cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
+  cols[1].enabled = 0;
 
   schema* p_index_schema = new schema(cols);
   pmemalloc_activate(p_index_schema);
@@ -797,7 +800,7 @@ table* tpcc_benchmark::create_orders() {
 
   // SECONDARY INDEX
   cols[0].enabled = 0;
-  cols[3].enabled = 1;
+  cols[1].enabled = 1;
 
   schema* s_index_schema = new schema(cols);
   pmemalloc_activate(s_index_schema);
@@ -841,7 +844,7 @@ table* tpcc_benchmark::create_new_order() {
   offset = 0;
   field_info field;
 
-  for (int f_itr = 0; f_itr <= 3; f_itr++) {
+  for (int f_itr = 0; f_itr <= 2; f_itr++) {
     field = field_info(offset, 10, 10, field_type::INTEGER, 1, 1);
     offset += field.ser_len;
     cols.push_back(field);
@@ -855,6 +858,8 @@ table* tpcc_benchmark::create_new_order() {
   pmemalloc_activate(new_order);
 
   // PRIMARY INDEX
+  // XXX alter pkey
+  cols[0].enabled = 0;
 
   schema* new_order_index_schema = new schema(cols);
   pmemalloc_activate(new_order_index_schema);
@@ -1264,6 +1269,222 @@ void tpcc_benchmark::load(engine* ee) {
 
 }
 
+void tpcc_benchmark::do_delivery(engine* ee) {
+  cout << "Delivery " << endl;
+  /*
+   "getNewOrder": "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID > -1 LIMIT 1", #
+   "deleteNewOrder": "DELETE FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID = ?", # d_id, w_id, no_o_id
+   "getCId": "SELECT O_C_ID FROM ORDERS WHERE O_ID = ? AND O_D_ID = ? AND O_W_ID = ?", # no_o_id, d_id, w_id
+   "updateOrders": "UPDATE ORDERS SET O_CARRIER_ID = ? WHERE O_ID = ? AND O_D_ID = ? AND O_W_ID = ?", # o_carrier_id, no_o_id, d_id, w_id
+   "updateOrderLine": "UPDATE ORDER_LINE SET OL_DELIVERY_D = ? WHERE OL_O_ID = ? AND OL_D_ID = ? AND OL_W_ID = ?", # o_entry_d, no_o_id, d_id, w_id
+   "sumOLAmount": "SELECT SUM(OL_AMOUNT) FROM ORDER_LINE WHERE OL_O_ID = ? AND OL_D_ID = ? AND OL_W_ID = ?", # no_o_id, d_id, w_id
+   "updateCustomer": "UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + ? WHERE C_ID = ? AND C_D_ID = ? AND C_W_ID = ?", # ol_total, c_id, d_id, w_id
+   */
+
+  schema* warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
+  schema* district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
+  schema* customer_table_schema = conf.db->tables->at(CUSTOMER_TABLE_ID)->sptr;
+  schema* history_table_schema = conf.db->tables->at(HISTORY_TABLE_ID)->sptr;
+  schema* orders_table_schema = conf.db->tables->at(ORDERS_TABLE_ID)->sptr;
+  schema* order_line_table_schema = conf.db->tables->at(ORDER_LINE_TABLE_ID)
+      ->sptr;
+  schema* new_order_table_schema = conf.db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
+  schema* stock_table_schema = conf.db->tables->at(STOCK_TABLE_ID)->sptr;
+
+  record* rec_ptr;
+  statement st;
+  vector<int> field_ids;
+  std::string empty;
+
+  txn_id++;
+  ee->txn_begin();
+
+  unsigned int d_itr;
+
+  int w_id = get_rand_int(0, warehouse_count);
+  int o_carrier_id = get_rand_int(orders_min_carrier_id, orders_max_carrier_id);
+  double ol_delivery_ts = static_cast<double>(time(NULL));
+
+  for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
+    cout << "d_itr :: " << d_itr << " w_id :: " << w_id << endl;
+
+    // getNewOrder
+    rec_ptr = new new_order_record(new_order_table_schema, 0, d_itr, w_id);
+
+    st = statement(txn_id, operation_type::Select, NEW_ORDER_TABLE_ID, rec_ptr,
+                   0, new_order_table_schema);
+
+    std::string new_order_str = ee->select(st);
+
+    if (new_order_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "new_order :: " << new_order_str << endl;
+
+    // deleteNewOrder
+    rec_ptr = deserialize_to_record(new_order_str, new_order_table_schema,
+                                    false);
+
+    int o_id = std::stoi(rec_ptr->get_data(0));
+    cout << "o_id :: " << o_id << endl;
+
+    st = statement(txn_id, operation_type::Delete, NEW_ORDER_TABLE_ID, rec_ptr);
+
+    ee->remove(st);
+
+    // getCId
+    rec_ptr = new orders_record(orders_table_schema, o_id, 0, d_itr, w_id, 0, 0,
+                                0, 0);
+
+    st = statement(txn_id, operation_type::Select, ORDERS_TABLE_ID, rec_ptr, 0,
+                   orders_table_schema);
+
+    std::string orders_str = ee->select(st);
+
+    if (orders_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "orders :: " << orders_str << endl;
+
+    rec_ptr = deserialize_to_record(orders_str, orders_table_schema, false);
+
+    int c_id = std::stoi(rec_ptr->get_data(1));
+
+    cout << "c_id :: " << c_id << endl;
+
+    // updateOrders
+
+    int o_carrier_id = get_rand_int(orders_min_carrier_id,
+                                    orders_max_carrier_id);
+
+    rec_ptr->set_int(5, o_carrier_id);
+    field_ids = {5};  // carried id
+
+    st = statement(txn_id, operation_type::Update, ORDERS_TABLE_ID, rec_ptr,
+                   field_ids);
+
+    ee->update(st);
+
+    // updateOrderLine
+    double ol_ts = static_cast<double>(time(NULL));
+
+    rec_ptr = new order_line_record(order_line_table_schema, o_id, d_itr, w_id,
+                                    0, 0, 0, ol_ts, 0, 0, empty);
+
+    field_ids = {6};  // ol_ts
+
+    st = statement(txn_id, operation_type::Update, ORDER_LINE_TABLE_ID, rec_ptr,
+                   field_ids);
+
+    ee->update(st);
+
+    //sumOLAmount
+    rec_ptr = new order_line_record(order_line_table_schema, o_id, d_itr, w_id,
+                                    0, 0, 0, 0, 0, 0, empty);
+
+    st = statement(txn_id, operation_type::Select, ORDER_LINE_TABLE_ID, rec_ptr,
+                   0, order_line_table_schema);
+
+    std::string order_line_str = ee->select(st);
+
+    if (order_line_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "order_line :: " << order_line_str << endl;
+
+    rec_ptr = deserialize_to_record(order_line_str, order_line_table_schema,
+                                    false);
+
+    double ol_amount = std::stod(rec_ptr->get_data(8));
+    cout << "ol_amount :: " << ol_amount << endl;
+
+    // updateCustomer
+
+    rec_ptr = new customer_record(customer_table_schema, c_id, d_itr, w_id,
+                                  empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
+                                  0);
+
+    st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
+                   0, customer_table_schema);
+
+    std::string customer_str = ee->select(st);
+
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer :: " << customer_str << endl;
+
+    rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
+
+    double orig_balance = std::stod(rec_ptr->get_data(16));  // balance
+    cout << "orig_balance :: " << orig_balance << endl;
+
+    field_ids = {16};  // ol_ts
+
+    rec_ptr->set_double(16, orig_balance + ol_amount);
+
+    st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
+                   field_ids);
+
+    ee->update(st);
+  }
+
+  ee->txn_end(true);
+
+}
+
+void tpcc_benchmark::do_new_order(engine* ee) {
+
+}
+
+void tpcc_benchmark::do_order_status(engine* ee) {
+
+}
+
+void tpcc_benchmark::do_payment(engine* ee) {
+
+}
+
+void tpcc_benchmark::do_stock_level(engine* ee) {
+
+}
+
 void tpcc_benchmark::execute(engine* ee) {
+
+  unsigned int txn_itr;
+  status ss(conf.num_txns);
+
+  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
+    double u = uniform_dist[txn_itr];
+
+    do_delivery(ee);
+
+    /*
+     if (u <= 0.04) {
+     // STOCK_LEVEL
+     do_stock_level(ee);
+     } else if (u <= 0.08) {
+     // DELIVERY
+     do_delivery(ee);
+     } else if (u <= 0.12) {
+     // ORDER_STATUS
+     do_order_status(ee);
+     } else if (u <= 0.55) {
+     // PAYMENT
+     do_payment(ee);
+     } else {
+     // NEW_ORDER
+     do_new_order(ee);
+     }
+     */
+
+    //ss.display();
+  }
+
+  //display_stats(ee, tm.duration(), conf.num_txns);
 }
 
