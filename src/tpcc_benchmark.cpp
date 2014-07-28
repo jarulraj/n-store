@@ -503,7 +503,7 @@ table* tpcc_benchmark::create_customer() {
   schema* customer_schema = new schema(cols);
   pmemalloc_activate(customer_schema);
 
-  table* customer = new table("custome", customer_schema, 1, conf);
+  table* customer = new table("custome", customer_schema, 2, conf);
   pmemalloc_activate(customer);
 
   // PRIMARY INDEX
@@ -520,8 +520,8 @@ table* tpcc_benchmark::create_customer() {
   customer->indices->push_back(p_index);
 
   // SECONDARY INDEX
-  cols[2].enabled = 1;
-  cols[3].enabled = 0;
+  cols[2].enabled = 0;
+  cols[3].enabled = 1;
 
   schema* customer_name_index_schema = new schema(cols);
   pmemalloc_activate(customer_name_index_schema);
@@ -792,7 +792,7 @@ table* tpcc_benchmark::create_orders() {
   schema* orders_schema = new schema(cols);
   pmemalloc_activate(orders_schema);
 
-  table* orders = new table("orders", orders_schema, 1, conf);
+  table* orders = new table("orders", orders_schema, 2, conf);
   pmemalloc_activate(orders);
 
   // PRIMARY INDEX
@@ -962,7 +962,7 @@ table* tpcc_benchmark::create_order_line() {
   schema* order_line_schema = new schema(cols);
   pmemalloc_activate(order_line_schema);
 
-  table* order_line = new table("order_line", order_line_schema, 1, conf);
+  table* order_line = new table("order_line", order_line_schema, 2, conf);
   pmemalloc_activate(order_line);
 
   // PRIMARY INDEX
@@ -1689,6 +1689,86 @@ void tpcc_benchmark::do_new_order(engine* ee) {
 }
 
 void tpcc_benchmark::do_order_status(engine* ee) {
+  /*
+   "ORDER_STATUS": {
+   "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?", # w_id, d_id, c_id
+   "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_LAST = ? ORDER BY C_FIRST", # w_id, d_id, c_last
+   "getLastOrder": "SELECT O_ID, O_CARRIER_ID, O_ENTRY_D FROM ORDERS WHERE O_W_ID = ? AND O_D_ID = ? AND O_C_ID = ? ORDER BY O_ID DESC LIMIT 1", # w_id, d_id, c_id
+   "getOrderLines": "SELECT OL_SUPPLY_W_ID, OL_I_ID, OL_QUANTITY, OL_AMOUNT, OL_DELIVERY_D FROM ORDER_LINE WHERE OL_W_ID = ? AND OL_D_ID = ? AND OL_O_ID = ?", # w_id, d_id, o_id
+   },
+   */
+
+  cout << "Order_Status " << endl;
+
+  record* rec_ptr;
+  statement st;
+  vector<int> field_ids;
+  std::string empty;
+  vector<std::string> empty_v(10);
+
+  txn_id++;
+  ee->txn_begin();
+
+  unsigned int d_itr;
+
+  int w_id = get_rand_int(0, warehouse_count);
+  int d_id = get_rand_int(0, districts_per_warehouse);
+  int c_id = get_rand_int(0, customers_per_district);
+  std::string c_name = get_rand_astring(name_len);
+  //bool lookup_by_name = get_rand_bool(0.1);
+
+  // getCustomerByCustomerId
+  rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id, empty,
+                                empty, empty, empty, 0, 0, 0, 0, 0, 0, 0);
+
+  st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr, 0,
+                 customer_table_schema);
+
+  std::string customer_str = ee->select(st);
+
+  if (customer_str.empty()) {
+    ee->txn_end(false);
+    return;
+  }
+  cout << "customer :: " << customer_str << endl;
+
+  // getLastOrder
+  rec_ptr = new orders_record(orders_table_schema, 0, c_id, d_itr, w_id, 0, 0,
+                              0, 0);
+
+  st = statement(txn_id, operation_type::Select, ORDERS_TABLE_ID, rec_ptr, 0,
+                 orders_table_schema);
+
+  std::string orders_str = ee->select(st);
+
+  if (orders_str.empty()) {
+    ee->txn_end(false);
+    return;
+  }
+
+  cout << "orders :: " << orders_str << endl;
+
+  rec_ptr = deserialize_to_record(orders_str, orders_table_schema, false);
+
+  c_id = std::stoi(rec_ptr->get_data(1));
+
+  cout << "c_id :: " << c_id << endl;
+
+  // getOrderLines
+  rec_ptr = new order_line_record(order_line_table_schema, 0, d_itr, w_id, 0, 0,
+                                  0, 0, 0, 0, empty);
+
+  st = statement(txn_id, operation_type::Select, ORDER_LINE_TABLE_ID, rec_ptr,
+                 0, order_line_table_schema);
+
+  std::string order_line_str = ee->select(st);
+
+  if (order_line_str.empty()) {
+    ee->txn_end(false);
+    return;
+  }
+
+  cout << "order_line :: " << order_line_str << endl;
 
 }
 
@@ -1710,7 +1790,9 @@ void tpcc_benchmark::execute(engine* ee) {
 
     //do_delivery(ee);
 
-    do_new_order(ee);
+    //do_new_order(ee);
+
+    do_order_status(ee);
 
     /*
      if (u <= 0.04) {
