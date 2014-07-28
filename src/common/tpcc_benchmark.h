@@ -66,13 +66,24 @@ class tpcc_benchmark : public benchmark {
   const int HISTORY_TABLE_ID = 7;
   const int STOCK_TABLE_ID = 8;
 
+  // Schema
+  schema* item_table_schema;
+  schema* warehouse_table_schema;
+  schema* district_table_schema;
+  schema* customer_table_schema;
+  schema* history_table_schema;
+  schema* orders_table_schema;
+  schema* order_line_table_schema;
+  schema* new_order_table_schema;
+  schema* stock_table_schema;
+
   // Constants
-  const int item_count = 3; // 100000
+  const int item_count = 3;  // 100000
   const double item_min_price = 1.0;
   const double item_max_price = 100.0;
   const int item_name_len = 5;
 
-  const int warehouse_count = 3; // 10
+  const int warehouse_count = 3;  // 10
   const double warehouse_min_tax = 0.0;
   const double warehouse_max_tax = 0.2;
   const double state_len = 2;
@@ -80,10 +91,10 @@ class tpcc_benchmark : public benchmark {
   const double name_len = 5;
   const double warehouse_initial_ytd = 300000.00f;
 
-  const int districts_per_warehouse = 2; // 10
+  const int districts_per_warehouse = 2;  // 10
   const double district_initial_ytd = 30000.00f;
 
-  const int customers_per_district = 10; // 3000
+  const int customers_per_district = 10;  // 3000
   const std::string customers_gcredit = "GC";
   const std::string customers_bcredit = "BC";
   const double customers_bad_credit_ratio = 0.1;
@@ -104,7 +115,7 @@ class tpcc_benchmark : public benchmark {
   const int orders_min_carrier_id = 1;
   const int orders_max_carrier_id = 10;
 
-  const int new_orders_per_district = 3; // 900
+  const int new_orders_per_district = 3;  // 900
 
   const int order_line_init_quantity = 5;
   const int order_line_max_ol_quantity = 10;

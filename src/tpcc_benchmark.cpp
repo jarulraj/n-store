@@ -58,6 +58,16 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
     conf.db = db;
   }
 
+  item_table_schema = conf.db->tables->at(ITEM_TABLE_ID)->sptr;
+  warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
+  district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
+  customer_table_schema = conf.db->tables->at(CUSTOMER_TABLE_ID)->sptr;
+  history_table_schema = conf.db->tables->at(HISTORY_TABLE_ID)->sptr;
+  orders_table_schema = conf.db->tables->at(ORDERS_TABLE_ID)->sptr;
+  order_line_table_schema = conf.db->tables->at(ORDER_LINE_TABLE_ID)->sptr;
+  new_order_table_schema = conf.db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
+  stock_table_schema = conf.db->tables->at(STOCK_TABLE_ID)->sptr;
+
   uniform(uniform_dist, conf.num_txns);
 }
 
@@ -700,7 +710,7 @@ table* tpcc_benchmark::create_stock() {
   pmemalloc_activate(stock);
 
   // PRIMARY INDEX
-  for (int itr = 3; itr <= cols.size(); itr++) {
+  for (int itr = 2; itr <= cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -1281,16 +1291,6 @@ void tpcc_benchmark::do_delivery(engine* ee) {
    "updateCustomer": "UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + ? WHERE C_ID = ? AND C_D_ID = ? AND C_W_ID = ?", # ol_total, c_id, d_id, w_id
    */
 
-  schema* warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
-  schema* district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
-  schema* customer_table_schema = conf.db->tables->at(CUSTOMER_TABLE_ID)->sptr;
-  schema* history_table_schema = conf.db->tables->at(HISTORY_TABLE_ID)->sptr;
-  schema* orders_table_schema = conf.db->tables->at(ORDERS_TABLE_ID)->sptr;
-  schema* order_line_table_schema = conf.db->tables->at(ORDER_LINE_TABLE_ID)
-      ->sptr;
-  schema* new_order_table_schema = conf.db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
-  schema* stock_table_schema = conf.db->tables->at(STOCK_TABLE_ID)->sptr;
-
   record* rec_ptr;
   statement st;
   vector<int> field_ids;
@@ -1438,6 +1438,253 @@ void tpcc_benchmark::do_delivery(engine* ee) {
 }
 
 void tpcc_benchmark::do_new_order(engine* ee) {
+  /*
+   "NEW_ORDER": {
+   "getWarehouseTaxRate": "SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?", # w_id
+   "getDistrict": "SELECT D_TAX, D_NEXT_O_ID FROM DISTRICT WHERE D_ID = ? AND D_W_ID = ?", # d_id, w_id
+   "getCustomer": "SELECT C_DISCOUNT, C_LAST, C_CREDIT FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?", # w_id, d_id, c_id
+   "incrementNextOrderId": "UPDATE DISTRICT SET D_NEXT_O_ID = ? WHERE D_ID = ? AND D_W_ID = ?", # d_next_o_id, d_id, w_id
+   "createOrder": "INSERT INTO ORDERS (O_ID, O_D_ID, O_W_ID, O_C_ID, O_ENTRY_D, O_CARRIER_ID, O_OL_CNT, O_ALL_LOCAL) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", # d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local
+   "createNewOrder": "INSERT INTO NEW_ORDER (NO_O_ID, NO_D_ID, NO_W_ID) VALUES (?, ?, ?)", # o_id, d_id, w_id
+   "getItemInfo": "SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = ?", # ol_i_id
+   "getStockInfo": "SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_%02d FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?", # d_id, ol_i_id, ol_supply_w_id
+   "updateStock": "UPDATE STOCK SET S_QUANTITY = ?, S_YTD = ?, S_ORDER_CNT = ?, S_REMOTE_CNT = ? WHERE S_I_ID = ? AND S_W_ID = ?", # s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
+   "createOrderLine": "INSERT INTO ORDER_LINE (OL_O_ID, OL_D_ID, OL_W_ID, OL_NUMBER, OL_I_ID, OL_SUPPLY_W_ID, OL_DELIVERY_D, OL_QUANTITY, OL_AMOUNT, OL_DIST_INFO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", # o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info
+   },
+   */
+
+  cout << "New_Order " << endl;
+
+  record* rec_ptr;
+  statement st;
+  vector<int> field_ids;
+  std::string empty;
+  vector<std::string> empty_v(10);
+
+  txn_id++;
+  ee->txn_begin();
+
+  unsigned int d_itr;
+
+  int w_id = get_rand_int(0, warehouse_count);
+  int d_id = get_rand_int(0, districts_per_warehouse);
+  int c_id = get_rand_int(0, customers_per_district);
+  int o_ol_cnt = get_rand_int(orders_min_ol_cnt, orders_max_ol_cnt);
+  double o_entry_ts = static_cast<double>(time(NULL));
+  vector<int> i_ids, i_w_ids, i_qtys;
+  int o_all_local = 1;
+
+  for (int ol_itr = 0; ol_itr < o_ol_cnt; ol_itr++) {
+    i_ids.push_back(get_rand_int(0, item_count));
+    bool remote = get_rand_bool(0.01);
+    i_w_ids.push_back(w_id);
+
+    if (remote) {
+      i_w_ids[ol_itr] = get_rand_int_excluding(0, warehouse_count, w_id);
+      o_all_local = 0;
+    }
+
+    i_qtys.push_back(get_rand_int(0, order_line_max_ol_quantity));
+  }
+
+  for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
+    cout << "d_itr :: " << d_itr << " w_id :: " << w_id << endl;
+
+    // getWarehouseTaxRate
+    rec_ptr = new warehouse_record(warehouse_table_schema, w_id, empty, empty,
+                                   empty, 0, 0);
+
+    st = statement(txn_id, operation_type::Select, WAREHOUSE_TABLE_ID, rec_ptr,
+                   0, warehouse_table_schema);
+
+    std::string warehouse_str = ee->select(st);
+
+    if (warehouse_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "warehouse :: " << warehouse_str << endl;
+
+    rec_ptr = deserialize_to_record(warehouse_str, warehouse_table_schema,
+                                    false);
+
+    double w_tax = std::stod(rec_ptr->get_data(7));
+
+    cout << "w_tax :: " << w_tax << endl;
+
+    // getDistrict
+    rec_ptr = new district_record(district_table_schema, d_itr, w_id, empty,
+                                  empty, empty, 0, 0, 0);
+
+    st = statement(txn_id, operation_type::Select, DISTRICT_TABLE_ID, rec_ptr,
+                   0, district_table_schema);
+
+    std::string district_str = ee->select(st);
+
+    if (district_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "district :: " << district_str << endl;
+
+    rec_ptr = deserialize_to_record(district_str, district_table_schema, false);
+
+    double d_tax = std::stod(rec_ptr->get_data(8));
+    int d_next_o_id = std::stoi(rec_ptr->get_data(10));
+    int o_id = d_next_o_id;
+
+    cout << "d_tax :: " << d_tax << endl;
+    cout << "d_next_o_id :: " << d_next_o_id << endl;
+
+    // incrementNextOrderId
+
+    rec_ptr->set_int(10, d_next_o_id + 1);
+
+    field_ids = {10};
+
+    st = statement(txn_id, operation_type::Update, DISTRICT_TABLE_ID, rec_ptr,
+                   field_ids);
+
+    ee->update(st);
+
+    // getCustomer
+    rec_ptr = new customer_record(customer_table_schema, c_id, d_itr, w_id,
+                                  empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
+                                  0);
+
+    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
+                   0, customer_table_schema);
+
+    std::string customer_str = ee->select(st);
+
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer :: " << customer_str << endl;
+
+    rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
+
+    double c_discount = std::stod(rec_ptr->get_data(15));
+    cout << "c_discount :: " << c_discount << endl;
+
+    // createOrder
+
+    int o_carrier_id = orders_null_carrier_id;
+
+    rec_ptr = new orders_record(orders_table_schema, o_id, c_id, d_itr, w_id,
+                                o_entry_ts, o_carrier_id, o_ol_cnt,
+                                o_all_local);
+
+    st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID, rec_ptr);
+
+    ee->insert(st);
+
+    // createNewOrder
+
+    rec_ptr = new new_order_record(new_order_table_schema, o_id, d_itr, w_id);
+
+    st = statement(txn_id, operation_type::Insert, NEW_ORDER_TABLE_ID, rec_ptr);
+
+    ee->insert(st);
+
+    // ITEMS
+    int ol_total = 0;
+    for (int i_itr = 0; i_itr < i_ids.size(); i_itr++) {
+
+      int ol_i_id = i_ids[i_itr];
+      int ol_supply_w_id = i_w_ids[i_itr];
+      int ol_number = i_itr;
+      int ol_quantity = i_qtys[i_itr];
+
+      // getItemInfo
+      rec_ptr = new item_record(item_table_schema, ol_i_id, 0, empty, 0);
+
+      st = statement(txn_id, operation_type::Select, ITEM_TABLE_ID, rec_ptr, 0,
+                     item_table_schema);
+
+      std::string item_str = ee->select(st);
+
+      if (item_str.empty()) {
+        ee->txn_end(false);
+        break;
+      }
+      cout << "item :: " << item_str << endl;
+
+      rec_ptr = deserialize_to_record(item_str, item_table_schema, false);
+
+      std::string i_name = rec_ptr->get_data(2);
+      double i_price = std::stod(rec_ptr->get_data(3));
+
+      // getStockInfo
+
+      rec_ptr = new stock_record(stock_table_schema, ol_i_id, ol_supply_w_id, 0,
+                                 empty_v, 0, 0, 0, empty);
+
+      st = statement(txn_id, operation_type::Select, STOCK_TABLE_ID, rec_ptr, 0,
+                     stock_table_schema);
+
+      std::string stock_str = ee->select(st);
+
+      if (stock_str.empty()) {
+        ee->txn_end(false);
+        break;
+      }
+      cout << "stock :: " << stock_str << endl;
+
+      rec_ptr = deserialize_to_record(stock_str, stock_table_schema, false);
+
+      int s_quantity = std::stoi(rec_ptr->get_data(2));
+      int s_ytd = std::stoi(rec_ptr->get_data(13));
+      int s_order_cnt = std::stoi(rec_ptr->get_data(14));
+      int s_remote_cnt = std::stoi(rec_ptr->get_data(15));
+      std::string s_ol_data = rec_ptr->get_data(16);
+
+      // updateStock
+      s_ytd += ol_quantity;
+
+      if (s_quantity >= ol_quantity + 10)
+        s_quantity = s_quantity - ol_quantity;
+      else
+        s_quantity = s_quantity + 91 - ol_quantity;
+      s_order_cnt += 1;
+      if (ol_supply_w_id != w_id)
+        s_remote_cnt += 1;
+
+      rec_ptr->set_int(2, s_quantity);
+      rec_ptr->set_int(13, s_ytd);
+      rec_ptr->set_int(14, s_order_cnt);
+      rec_ptr->set_int(15, s_remote_cnt);
+
+      field_ids = {2, 13, 14, 15};
+
+      st = statement(txn_id, operation_type::Update, STOCK_TABLE_ID, rec_ptr,
+                     field_ids);
+
+      ee->update(st);
+
+      // createOrderLine
+
+      int ol_amount = ol_quantity * i_price;
+
+      rec_ptr = new order_line_record(order_line_table_schema, o_id, d_itr,
+                                      w_id, ol_number, ol_i_id, ol_supply_w_id,
+                                      o_entry_ts, ol_quantity, ol_amount,
+                                      s_ol_data);
+
+      st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
+                     rec_ptr);
+
+      ee->insert(st);
+
+      ol_total += ol_amount;
+    }
+
+    ol_total *= (1 - c_discount) * (1 + w_tax + d_tax);
+
+    if (ol_total > 0)
+      cout << "ol_total :: " << ol_total << endl;
+  }
 
 }
 
@@ -1461,7 +1708,9 @@ void tpcc_benchmark::execute(engine* ee) {
   for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
-    do_delivery(ee);
+    //do_delivery(ee);
+
+    do_new_order(ee);
 
     /*
      if (u <= 0.04) {

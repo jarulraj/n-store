@@ -26,6 +26,8 @@ bool get_rand_bool(double ratio);
 
 int get_rand_int(int i_min, int i_max);
 
+int get_rand_int_excluding(int i_min, int i_max, int excl);
+
 inline std::string get_data(record* rptr, schema* sptr) {
   std::string rec_str;
 

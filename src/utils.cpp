@@ -38,6 +38,20 @@ int get_rand_int(int i_min, int i_max) {
   return i_min + (int) (f * (double) (i_max - i_min));
 }
 
+int get_rand_int_excluding(int i_min, int i_max, int excl) {
+  int ret;
+  double f;
+
+  while (1) {
+    f = (double) rand() / RAND_MAX;
+    ret = i_min + (int) (f * (double) (i_max - i_min));
+    if (ret != excl)
+      break;
+  }
+
+  return ret;
+}
+
 // SER + DESER
 std::string serialize(record* rptr, schema* sptr, bool prefix) {
   unsigned int num_columns = sptr->num_columns;
