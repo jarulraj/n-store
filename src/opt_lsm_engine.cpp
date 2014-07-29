@@ -45,15 +45,15 @@ void opt_lsm_engine::merge(bool force) {
 
           storage_offset = table_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
-          if (!val.empty()) {
-            std::sscanf((char*) val.c_str(), "%p", &fs_rec);
-            //printf("fs_rec :: %p \n", fs_rec);
 
-            int num_cols = pm_rec->sptr->num_columns;
-            for (int field_itr = 0; field_itr < num_cols; field_itr++) {
-              fs_rec->set_data(field_itr, pm_rec);
-            }
+          std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+          //printf("fs_rec :: %p \n", fs_rec);
+
+          int num_cols = pm_rec->sptr->num_columns;
+          for (int field_itr = 0; field_itr < num_cols; field_itr++) {
+            fs_rec->set_data(field_itr, pm_rec);
           }
+
         } else {
           // Insert tuple
           std::sprintf(ptr_buf, "%p", pm_rec);
@@ -98,8 +98,16 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only)
 
 opt_lsm_engine::~opt_lsm_engine() {
 
-  if (!read_only)
-    merge(true);
+  if (read_only)
+    return;
+
+  merge(true);
+
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    tab->fs_data.sync();
+    tab->fs_data.close();
+  }
 
 }
 
@@ -128,8 +136,8 @@ std::string opt_lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    if (!val.empty())
-      std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+    //assert(!val.empty());
+    std::sscanf((char*) val.c_str(), "%p", &fs_rec);
 
     //printf("fs_rec :: %p \n", fs_rec);
   }

@@ -56,21 +56,20 @@ void lsm_engine::merge(bool force) {
         if (table_index->off_map->exists(key) != 0) {
           storage_offset = table_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
-          if (!val.empty()) {
-            fs_rec = deserialize_to_record(val, tab->sptr, false);
+          fs_rec = deserialize_to_record(val, tab->sptr, false);
 
-            int num_cols = pm_rec->sptr->num_columns;
-            for (int field_itr = 0; field_itr < num_cols; field_itr++) {
-              fs_rec->set_data(field_itr, pm_rec);
-            }
-
-            val = serialize(fs_rec, tab->sptr, false);
-            //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
-
-            tab->fs_data.update(storage_offset, val);
-
-            delete fs_rec;
+          int num_cols = pm_rec->sptr->num_columns;
+          for (int field_itr = 0; field_itr < num_cols; field_itr++) {
+            fs_rec->set_data(field_itr, pm_rec);
           }
+
+          val = serialize(fs_rec, tab->sptr, false);
+          //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
+
+          tab->fs_data.update(storage_offset, val);
+
+          delete fs_rec;
+
         } else {
           // Insert tuple
           val = serialize(pm_rec, tab->sptr, false);
@@ -117,16 +116,24 @@ lsm_engine::lsm_engine(const config& _conf, bool _read_only)
 
 lsm_engine::~lsm_engine() {
 
+  if (read_only)
+    return;
+
   // Logger end
-  if (!read_only) {
-    ready = false;
-    gc.join();
+  ready = false;
+  gc.join();
 
-    merge(false);
+  merge(false);
 
-    fs_log.sync();
-    fs_log.close();
+  fs_log.sync();
+  fs_log.close();
+
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    tab->fs_data.sync();
+    tab->fs_data.close();
   }
+
 }
 
 std::string lsm_engine::select(const statement& st) {
@@ -153,8 +160,8 @@ std::string lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    if (!val.empty())
-      fs_rec = deserialize_to_record(val, tab->sptr, false);
+    //assert(!val.empty());
+    fs_rec = deserialize_to_record(val, tab->sptr, false);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {

@@ -50,8 +50,8 @@ wal_engine::~wal_engine() {
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
-      std::string table_file_name = conf.fs_path + std::string(tab->table_name);
       tab->fs_data.sync();
+      tab->fs_data.close();
     }
   }
 }
@@ -76,8 +76,7 @@ std::string wal_engine::select(const statement& st) {
 
   storage_offset = table_index->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
-  if (val.empty())
-    goto end;
+  //assert(!val.empty());
 
   val = deserialize_to_string(val, st.projection, false);
 
@@ -154,8 +153,6 @@ int wal_engine::remove(const statement& st) {
 
   storage_offset = indices->at(0)->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
-  if (val.empty())
-    goto end;
 
   before_rec = deserialize_to_record(val, tab->sptr, false);
 
@@ -203,8 +200,6 @@ int wal_engine::update(const statement& st) {
 
   storage_offset = indices->at(0)->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
-  if (val.empty())
-    goto end;
 
   //LOG_INFO("val : %s", val.c_str());
   before_rec = deserialize_to_record(val, tab->sptr, false);
