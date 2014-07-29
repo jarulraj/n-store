@@ -126,6 +126,9 @@ class tpcc_benchmark : public benchmark {
   const int stock_max_quantity = 100;
   const int stock_dist_count = 10;
 
+  const double payment_min_amount = 1.0;
+  const double payment_max_amount = 5000.0;
+
 };
 
 #endif /* TPCC_BENCHMARK_H_ */

@@ -372,7 +372,7 @@ class customer_record : public record {
                   const double c_credit_lim, const double c_ts,
                   const double c_discount, const double c_balance,
                   const double c_ytd, const int c_payment_cnt,
-                  const int c_delivery_cnt)
+                  const int c_delivery_cnt, std::string c_data)
       : record(sptr) {
 
     char* vc = NULL;
@@ -412,8 +412,8 @@ class customer_record : public record {
     std::sprintf(&(data[sptr->columns[18].offset]), "%d", c_payment_cnt);
     std::sprintf(&(data[sptr->columns[19].offset]), "%d", c_delivery_cnt);
 
-    vc = new char[c_name.size() + 1];
-    strcpy(vc, c_name.c_str());
+    vc = new char[c_data.size() + 1];
+    strcpy(vc, c_data.c_str());
     std::sprintf(&(data[sptr->columns[20].offset]), "%p", vc);
   }
 
@@ -520,7 +520,7 @@ table* tpcc_benchmark::create_customer() {
   customer->indices->push_back(p_index);
 
   // SECONDARY INDEX
-  cols[2].enabled = 0;
+  cols[0].enabled = 0;
   cols[3].enabled = 1;
 
   schema* customer_name_index_schema = new schema(cols);
@@ -1111,7 +1111,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
             customer_table_schema, c_itr, d_itr, w_itr, c_name, c_state, c_zip,
             c_credit, customers_init_credit_lim, c_ts, c_discount,
             customers_init_balance, customers_init_ytd,
-            customers_init_payment_cnt, customers_init_delivery_cnt);
+            customers_init_payment_cnt, customers_init_delivery_cnt, c_name);
 
         log_str = get_data(customer_rec_ptr, customer_table_schema);
         cout << "customer ::" << log_str << endl;
@@ -1405,7 +1405,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
 
     rec_ptr = new customer_record(customer_table_schema, c_id, d_itr, w_id,
                                   empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
-                                  0);
+                                  0, empty);
 
     st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
                    0, customer_table_schema);
@@ -1550,7 +1550,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     // getCustomer
     rec_ptr = new customer_record(customer_table_schema, c_id, d_itr, w_id,
                                   empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
-                                  0);
+                                  0, empty);
 
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    0, customer_table_schema);
@@ -1686,6 +1686,8 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       cout << "ol_total :: " << ol_total << endl;
   }
 
+  ee->txn_end(true);
+
 }
 
 void tpcc_benchmark::do_order_status(engine* ee) {
@@ -1715,28 +1717,54 @@ void tpcc_benchmark::do_order_status(engine* ee) {
   int d_id = get_rand_int(0, districts_per_warehouse);
   int c_id = get_rand_int(0, customers_per_district);
   std::string c_name = get_rand_astring(name_len);
-  //bool lookup_by_name = get_rand_bool(0.1);
+  bool lookup_by_name = get_rand_bool(0.8);
+  std::string customer_str;
 
-  // getCustomerByCustomerId
-  rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id, empty,
-                                empty, empty, empty, 0, 0, 0, 0, 0, 0, 0);
+  if (lookup_by_name) {
+    // getCustomerByCustomerId
+    rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
+                                  empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
+                                  0, empty);
 
-  st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr, 0,
-                 customer_table_schema);
+    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
+                   0, customer_table_schema);
 
-  std::string customer_str = ee->select(st);
+    customer_str = ee->select(st);
 
-  if (customer_str.empty()) {
-    ee->txn_end(false);
-    return;
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer :: " << customer_str << endl;
+  } else {
+    // getCustomerByLastName
+    rec_ptr = new customer_record(customer_table_schema, 0, d_id, w_id, c_name,
+                                  empty, empty, empty, 0, 0, 0, 0, 0, 0, 0,
+                                  empty);
+
+    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
+                   1, customer_table_schema);
+
+    customer_str = ee->select(st);
+
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer by name :: " << customer_str << endl;
+
+    rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
+
+    c_id = std::stoi(rec_ptr->get_data(0));
+
+    cout << "c_id :: " << c_id << endl;
   }
-  cout << "customer :: " << customer_str << endl;
 
   // getLastOrder
   rec_ptr = new orders_record(orders_table_schema, 0, c_id, d_itr, w_id, 0, 0,
                               0, 0);
 
-  st = statement(txn_id, operation_type::Select, ORDERS_TABLE_ID, rec_ptr, 0,
+  st = statement(txn_id, operation_type::Select, ORDERS_TABLE_ID, rec_ptr, 1,
                  orders_table_schema);
 
   std::string orders_str = ee->select(st);
@@ -1750,16 +1778,16 @@ void tpcc_benchmark::do_order_status(engine* ee) {
 
   rec_ptr = deserialize_to_record(orders_str, orders_table_schema, false);
 
-  c_id = std::stoi(rec_ptr->get_data(1));
+  c_id = std::stoi(rec_ptr->get_data(0));
 
   cout << "c_id :: " << c_id << endl;
 
   // getOrderLines
-  rec_ptr = new order_line_record(order_line_table_schema, 0, d_itr, w_id, 0, 0,
-                                  0, 0, 0, 0, empty);
+  rec_ptr = new order_line_record(order_line_table_schema, c_id, d_itr, w_id, 0,
+                                  0, 0, 0, 0, 0, empty);
 
   st = statement(txn_id, operation_type::Select, ORDER_LINE_TABLE_ID, rec_ptr,
-                 0, order_line_table_schema);
+                 1, order_line_table_schema);
 
   std::string order_line_str = ee->select(st);
 
@@ -1770,9 +1798,268 @@ void tpcc_benchmark::do_order_status(engine* ee) {
 
   cout << "order_line :: " << order_line_str << endl;
 
+  if (lookup_by_name) {
+    // getCustomerByCustomerId
+    rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
+                                  empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
+                                  0, empty);
+
+    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
+                   0, customer_table_schema);
+
+    customer_str = ee->select(st);
+
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer :: " << customer_str << endl;
+  } else {
+    // getCustomerByLastName
+    rec_ptr = new customer_record(customer_table_schema, 0, d_id, w_id, c_name,
+                                  empty, empty, empty, 0, 0, 0, 0, 0, 0, 0,
+                                  empty);
+
+    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
+                   1, customer_table_schema);
+
+    customer_str = ee->select(st);
+
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer by name :: " << customer_str << endl;
+
+    rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
+
+    c_id = std::stoi(rec_ptr->get_data(0));
+
+    cout << "c_id :: " << c_id << endl;
+  }
+
+  ee->txn_end(true);
+
 }
 
 void tpcc_benchmark::do_payment(engine* ee) {
+
+  /*
+   "getWarehouse": "SELECT W_NAME, W_STREET_1, W_STREET_2, W_CITY, W_STATE, W_ZIP FROM WAREHOUSE WHERE W_ID = ?", # w_id
+   "updateWarehouseBalance": "UPDATE WAREHOUSE SET W_YTD = W_YTD + ? WHERE W_ID = ?", # h_amount, w_id
+   "getDistrict": "SELECT D_NAME, D_STREET_1, D_STREET_2, D_CITY, D_STATE, D_ZIP FROM DISTRICT WHERE D_W_ID = ? AND D_ID = ?", # w_id, d_id
+   "updateDistrictBalance": "UPDATE DISTRICT SET D_YTD = D_YTD + ? WHERE D_W_ID = ? AND D_ID = ?", # h_amount, d_w_id, d_id
+   "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?", # w_id, d_id, c_id
+   "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_LAST = ? ORDER BY C_FIRST", # w_id, d_id, c_last
+   "updateBCCustomer": "UPDATE CUSTOMER SET C_BALANCE = ?, C_YTD_PAYMENT = ?, C_PAYMENT_CNT = ?, C_DATA = ? WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?", # c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id
+   "updateGCCustomer": "UPDATE CUSTOMER SET C_BALANCE = ?, C_YTD_PAYMENT = ?, C_PAYMENT_CNT = ? WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?", # c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id
+   "insertHistory": "INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+   */
+
+  cout << "Payment " << endl;
+
+  record* rec_ptr;
+  statement st;
+  vector<int> field_ids;
+  std::string empty;
+
+  bool pay_local = get_rand_bool(0.85);
+  bool pay_by_name = get_rand_bool(0.10);  // 0.60
+  int w_id = get_rand_int(0, warehouse_count);
+  int d_id = get_rand_int(0, districts_per_warehouse);
+  double h_amount = get_rand_double(payment_min_amount, payment_max_amount);
+  double h_ts = static_cast<double>(time(NULL));
+  int c_w_id, c_d_id, c_id;
+  std::string c_name;
+  std::string customer_str;
+
+  if (pay_local) {
+    c_w_id = w_id;
+    c_d_id = d_id;
+  } else {
+    c_w_id = get_rand_int_excluding(0, warehouse_count, w_id);
+    c_d_id = d_id;
+  }
+
+  if (pay_by_name)
+    c_name = get_rand_astring(name_len);
+  else
+    c_id = get_rand_int(0, customers_per_district);
+
+  if (!pay_by_name) {
+    // getCustomerByCustomerId
+    rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
+                                  empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
+                                  0, empty);
+
+    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
+                   0, customer_table_schema);
+
+    customer_str = ee->select(st);
+
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer :: " << customer_str << endl;
+  } else {
+    // getCustomerByLastName
+    rec_ptr = new customer_record(customer_table_schema, 0, d_id, w_id, c_name,
+                                  empty, empty, empty, 0, 0, 0, 0, 0, 0, 0,
+                                  empty);
+
+    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
+                   1, customer_table_schema);
+
+    customer_str = ee->select(st);
+
+    if (customer_str.empty()) {
+      ee->txn_end(false);
+      return;
+    }
+    cout << "customer by name :: " << customer_str << endl;
+
+    rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
+
+    c_id = std::stoi(rec_ptr->get_data(0));
+
+    cout << "c_id :: " << c_id << endl;
+  }
+
+  rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
+
+  int c_balance = std::stoi(rec_ptr->get_data(16));
+  int c_ytd_payment = std::stoi(rec_ptr->get_data(17));
+  int c_payment_cnt = std::stoi(rec_ptr->get_data(18));
+  std::string c_data = rec_ptr->get_data(20);
+  std::string c_credit = rec_ptr->get_data(13);
+
+  c_balance -= h_amount;
+  c_ytd_payment += h_amount;
+  c_payment_cnt += 1;
+
+  cout << "c_balance :: " << c_balance << endl;
+
+  // getWarehouse
+  rec_ptr = new warehouse_record(warehouse_table_schema, w_id, empty, empty,
+                                 empty, 0, 0);
+
+  st = statement(txn_id, operation_type::Select, WAREHOUSE_TABLE_ID, rec_ptr, 0,
+                 warehouse_table_schema);
+
+  std::string warehouse_str = ee->select(st);
+
+  if (warehouse_str.empty()) {
+    ee->txn_end(false);
+    return;
+  }
+  cout << "warehouse :: " << warehouse_str << endl;
+
+  rec_ptr = deserialize_to_record(warehouse_str, warehouse_table_schema, false);
+
+  double w_ytd = std::stod(rec_ptr->get_data(8));
+
+  cout << "w_ytd :: " << w_ytd << endl;
+
+  // updateWarehouseBalance
+
+  w_ytd += h_amount;
+
+  rec_ptr->set_double(8, w_ytd);
+
+  field_ids = {8};  // w_ytd
+
+  st = statement(txn_id, operation_type::Update, WAREHOUSE_TABLE_ID, rec_ptr,
+                 field_ids);
+
+  ee->update(st);
+
+  // getDistrict
+  rec_ptr = new district_record(district_table_schema, d_id, w_id, empty, empty,
+                                empty, 0, 0, 0);
+
+  st = statement(txn_id, operation_type::Select, DISTRICT_TABLE_ID, rec_ptr, 0,
+                 district_table_schema);
+
+  std::string district_str = ee->select(st);
+
+  if (district_str.empty()) {
+    ee->txn_end(false);
+    return;
+  }
+  cout << "district :: " << district_str << endl;
+
+  rec_ptr = deserialize_to_record(district_str, district_table_schema, false);
+
+  double d_ytd = std::stod(rec_ptr->get_data(9));
+
+  cout << "d_ytd :: " << d_ytd << endl;
+
+  // updateDistrictBalance
+
+  d_ytd += h_amount;
+
+  rec_ptr->set_double(9, d_ytd);
+
+  field_ids = {9};  // w_ytd
+
+  st = statement(txn_id, operation_type::Update, DISTRICT_TABLE_ID, rec_ptr,
+                 field_ids);
+
+  ee->update(st);
+
+  cout << "c_credit :: " << c_credit << endl;
+
+  if (c_credit == customers_bcredit + " ") {
+    // updateBCCustomer
+
+    c_data = std::string(
+        std::to_string(c_id) + " " + std::to_string(d_id) + " "
+            + std::to_string(w_id) + " " + std::to_string(c_d_id) + " "
+            + std::to_string(c_w_id) + " " + std::to_string(h_amount));
+
+    rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
+                                  empty, empty, empty, empty, 0, 0, 0,
+                                  c_balance, c_ytd_payment, c_payment_cnt, 0,
+                                  c_data);
+
+    field_ids = {16, 17, 18, 20};
+
+    st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
+                   field_ids);
+
+    ee->update(st);
+
+  } else {
+
+    // updateGCCustomer
+
+    rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
+                                  empty, empty, empty, empty, 0, 0, 0,
+                                  c_balance, c_ytd_payment, c_payment_cnt, 0,
+                                  empty);
+
+    field_ids = {16, 17, 18};
+
+    st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
+                   field_ids);
+
+    ee->update(st);
+
+  }
+
+  // insertHistory
+
+  std::string h_data = std::to_string(w_id) + "    " + std::to_string(d_id);
+
+  rec_ptr = new history_record(history_table_schema, c_id, c_d_id, c_w_id, d_id,
+                               w_id, h_ts, h_amount, h_data);
+
+  st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID, rec_ptr);
+
+  ee->insert(st);
+
+  ee->txn_end(true);
 
 }
 
@@ -1792,7 +2079,9 @@ void tpcc_benchmark::execute(engine* ee) {
 
     //do_new_order(ee);
 
-    do_order_status(ee);
+    //do_order_status(ee);
+
+    do_payment(ee);
 
     /*
      if (u <= 0.04) {
@@ -1806,7 +2095,6 @@ void tpcc_benchmark::execute(engine* ee) {
      do_order_status(ee);
      } else if (u <= 0.55) {
      // PAYMENT
-     do_payment(ee);
      } else {
      // NEW_ORDER
      do_new_order(ee);
@@ -1816,6 +2104,6 @@ void tpcc_benchmark::execute(engine* ee) {
     //ss.display();
   }
 
-  //display_stats(ee, tm.duration(), conf.num_txns);
+//display_stats(ee, tm.duration(), conf.num_txns);
 }
 
