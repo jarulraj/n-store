@@ -890,13 +890,9 @@ void pmemalloc_check(const char *path) {
           PMEM_MIN_POOL_SIZE);
 
   if ((pmp = mmap((caddr_t) LIBPM, stbuf.st_size, PROT_READ,
-  MAP_SHARED | MAP_POPULATE,
+  MAP_SHARED,
                   fd, 0)) == MAP_FAILED)
     FATALSYS("mmap");DEBUG("pmp %lx", pmp);
-
-  // Add madvise
-  if (madvise(pmp, stbuf.st_size, MADV_WILLNEED) != 0)
-    FATALSYS("madvise");
 
   close(fd);
 

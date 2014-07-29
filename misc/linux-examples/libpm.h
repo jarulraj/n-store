@@ -69,10 +69,14 @@ pmem_map(int fd, size_t len) {
   void *base;
 
   if ((base = mmap((caddr_t) LIBPM, len, PROT_READ | PROT_WRITE,
-  MAP_SHARED,
+  MAP_SHARED | MAP_POPULATE,
                    fd, 0)) == MAP_FAILED)
     return NULL;
 
+// Add madvise
+//  if (madvise(base, len, MADV_SEQUENTIAL | MADV_WILLNEED) != 0)
+//    FATALSYS("madvise");
+  
   return base;
 }
 
