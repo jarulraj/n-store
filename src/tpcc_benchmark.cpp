@@ -2114,9 +2114,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   st = statement(txn_id, operation_type::Select, DISTRICT_TABLE_ID, rec_ptr, 0,
                  district_table_schema);
 
-  TIMER(district_str = ee->select(st)
-  ;
-  )
+  TIMER(district_str = ee->select(st))
 
   if (district_str.empty()) {
     TIMER(ee->txn_end(false));

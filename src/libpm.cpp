@@ -13,7 +13,7 @@ struct static_info *sp;
 void* operator new(size_t sz) throw (bad_alloc) {
   pthread_mutex_lock(&pmp_mutex);
   void* ret = pmemalloc_reserve(sz);
-  assert(ret != NULL);
+  //assert(ret != NULL);
   pthread_mutex_unlock(&pmp_mutex);
   return ret;
 }
@@ -658,8 +658,8 @@ pmemalloc_reserve(size_t size) {
     clp = PMEM((struct clump *)PMEM_CLUMP_OFFSET);
   }
 
-  if (clp->size == 0)
-    FATAL("no clumps found");
+  //if (clp->size == 0)
+  //  FATAL("no clumps found");
 
   check:
   /* first fit */
