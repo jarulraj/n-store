@@ -24,7 +24,7 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
 
   // Initialization mode
   if (conf.sp->init == 0) {
-    //cout << "Initialization Mode" << endl;
+    //cout << "Initialization Mode" );
 
     database* db = new database(conf);
     conf.sp->ptrs[0] = db;
@@ -52,7 +52,7 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
 
     conf.sp->init = 1;
   } else {
-    //cout << "Recovery Mode " << endl;
+    //cout << "Recovery Mode " );
     database* db = (database*) conf.sp->ptrs[0];
     db->reset(conf);
     conf.db = db;
@@ -1012,7 +1012,7 @@ void tpcc_benchmark::load_items(engine* ee) {
                                       price);
 
     std::string key_str = get_data(rec_ptr, item_table_schema);
-    cout << "item ::" << key_str << endl;
+    LOG_INFO("item :: %s ", key_str.c_str());
 
     statement st(txn_id, operation_type::Insert, ITEM_TABLE_ID, rec_ptr);
 
@@ -1056,7 +1056,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      warehouse_initial_ytd);
 
     log_str = get_data(warehouse_rec_ptr, warehouse_table_schema);
-    cout << "warehouse ::" << log_str << endl;
+    LOG_INFO("warehouse :: %s ", log_str.c_str());
 
     st = statement(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID,
                    warehouse_rec_ptr);
@@ -1083,7 +1083,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      next_d_o_id);
 
       log_str = get_data(district_rec_ptr, district_table_schema);
-      cout << "district ::" << log_str << endl;
+      LOG_INFO("district :: %s", log_str.c_str());
 
       st = statement(txn_id, operation_type::Insert, DISTRICT_TABLE_ID,
                      district_rec_ptr);
@@ -1114,7 +1114,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
             customers_init_payment_cnt, customers_init_delivery_cnt, c_name);
 
         log_str = get_data(customer_rec_ptr, customer_table_schema);
-        cout << "customer ::" << log_str << endl;
+        LOG_INFO("customer :: %s", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, CUSTOMER_TABLE_ID,
                        customer_rec_ptr);
@@ -1138,7 +1138,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      h_data);
 
         log_str = get_data(history_rec_ptr, history_table_schema);
-        cout << "history ::" << log_str << endl;
+        LOG_INFO("history :: %s ", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID,
                        history_rec_ptr);
@@ -1169,7 +1169,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                    orders_init_all_local);
 
         log_str = get_data(orders_rec_ptr, orders_table_schema);
-        cout << "orders ::" << log_str << endl;
+        LOG_INFO("orders ::%s", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID,
                        orders_rec_ptr);
@@ -1187,7 +1187,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
               new_order_table_schema, o_itr, d_itr, w_itr);
 
           log_str = get_data(new_order_rec_ptr, new_order_table_schema);
-          cout << "new_order ::" << log_str << endl;
+          LOG_INFO("new_order ::%s", log_str.c_str());
 
           st = statement(txn_id, operation_type::Insert, NEW_ORDER_TABLE_ID,
                          new_order_rec_ptr);
@@ -1220,7 +1220,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
               ol_supply_w_id, ol_delivery_ts, ol_quantity, ol_amount, ol_data);
 
           log_str = get_data(order_line_rec_ptr, order_line_table_schema);
-          cout << "order_line ::" << log_str << endl;
+          LOG_INFO("order_line ::%s", log_str.c_str());
 
           st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
                          order_line_rec_ptr);
@@ -1256,7 +1256,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                s_data);
 
       log_str = get_data(stock_rec_ptr, stock_table_schema);
-      cout << "stock ::" << log_str << endl;
+      LOG_INFO("stock ::%s", log_str.c_str());
 
       st = statement(txn_id, operation_type::Insert, STOCK_TABLE_ID,
                      stock_rec_ptr);
@@ -1271,16 +1271,16 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
 
 void tpcc_benchmark::load(engine* ee) {
 
-  cout << "Load items " << endl;
+  LOG_INFO("Load items ");
   load_items(ee);
 
-  cout << "Load warehouses " << endl;
+  LOG_INFO("Load warehouses ");
   load_warehouses(ee);
 
 }
 
 void tpcc_benchmark::do_delivery(engine* ee) {
-  cout << "Delivery " << endl;
+  LOG_INFO("Delivery ");
   /*
    "getNewOrder": "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID > -1 LIMIT 1", #
    "deleteNewOrder": "DELETE FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID = ?", # d_id, w_id, no_o_id
@@ -1306,7 +1306,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
   double ol_delivery_ts = static_cast<double>(time(NULL));
 
   for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
-    cout << "d_itr :: " << d_itr << " w_id :: " << w_id << endl;
+    LOG_INFO("d_itr :: %d  w_id :: %d ", d_itr, w_id);
 
     // getNewOrder
     rec_ptr = new new_order_record(new_order_table_schema, 0, d_itr, w_id);
@@ -1320,14 +1320,14 @@ void tpcc_benchmark::do_delivery(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "new_order :: " << new_order_str << endl;
+    LOG_INFO("new_order :: %s", new_order_str.c_str());
 
     // deleteNewOrder
     rec_ptr = deserialize_to_record(new_order_str, new_order_table_schema,
                                     false);
 
     int o_id = std::stoi(rec_ptr->get_data(0));
-    cout << "o_id :: " << o_id << endl;
+    LOG_INFO("o_id :: %d ", o_id);
 
     st = statement(txn_id, operation_type::Delete, NEW_ORDER_TABLE_ID, rec_ptr);
 
@@ -1346,13 +1346,13 @@ void tpcc_benchmark::do_delivery(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "orders :: " << orders_str << endl;
+    LOG_INFO("orders :: %s ", orders_str.c_str());
 
     rec_ptr = deserialize_to_record(orders_str, orders_table_schema, false);
 
     int c_id = std::stoi(rec_ptr->get_data(1));
 
-    cout << "c_id :: " << c_id << endl;
+    LOG_INFO("c_id :: %d ", c_id);
 
     // updateOrders
 
@@ -1393,13 +1393,13 @@ void tpcc_benchmark::do_delivery(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "order_line :: " << order_line_str << endl;
+    LOG_INFO("order_line :: %s ", order_line_str.c_str());
 
     rec_ptr = deserialize_to_record(order_line_str, order_line_table_schema,
                                     false);
 
     double ol_amount = std::stod(rec_ptr->get_data(8));
-    cout << "ol_amount :: " << ol_amount << endl;
+    LOG_INFO("ol_amount :: %.2lf ", ol_amount);
 
     // updateCustomer
 
@@ -1416,12 +1416,12 @@ void tpcc_benchmark::do_delivery(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer :: " << customer_str << endl;
+    LOG_INFO("customer :: %s ", customer_str.c_str());
 
     rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
 
     double orig_balance = std::stod(rec_ptr->get_data(16));  // balance
-    cout << "orig_balance :: " << orig_balance << endl;
+    LOG_INFO("orig_balance :: %.2lf ", orig_balance);
 
     field_ids = {16};  // ol_ts
 
@@ -1453,16 +1453,13 @@ void tpcc_benchmark::do_new_order(engine* ee) {
    },
    */
 
-  cout << "New_Order " << endl;
+  LOG_INFO("New_Order ");
 
   record* rec_ptr;
   statement st;
   vector<int> field_ids;
   std::string empty;
   vector<std::string> empty_v(10);
-
-  txn_id++;
-  ee->txn_begin();
 
   unsigned int d_itr;
 
@@ -1487,8 +1484,11 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     i_qtys.push_back(get_rand_int(0, order_line_max_ol_quantity));
   }
 
+  txn_id++;
+  ee->txn_begin();
+
   for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
-    cout << "d_itr :: " << d_itr << " w_id :: " << w_id << endl;
+    LOG_INFO("d_itr ::  %d  w_id :: %d ", d_itr, w_id);
 
     // getWarehouseTaxRate
     rec_ptr = new warehouse_record(warehouse_table_schema, w_id, empty, empty,
@@ -1503,14 +1503,14 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "warehouse :: " << warehouse_str << endl;
+    LOG_INFO("warehouse ::  %s", warehouse_str.c_str());
 
     rec_ptr = deserialize_to_record(warehouse_str, warehouse_table_schema,
                                     false);
 
     double w_tax = std::stod(rec_ptr->get_data(7));
 
-    cout << "w_tax :: " << w_tax << endl;
+    LOG_INFO("w_tax :: %.2lf ", w_tax);
 
     // getDistrict
     rec_ptr = new district_record(district_table_schema, d_itr, w_id, empty,
@@ -1525,7 +1525,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "district :: " << district_str << endl;
+    LOG_INFO("district :: %s ", district_str.c_str());
 
     rec_ptr = deserialize_to_record(district_str, district_table_schema, false);
 
@@ -1533,8 +1533,8 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     int d_next_o_id = std::stoi(rec_ptr->get_data(10));
     int o_id = d_next_o_id;
 
-    cout << "d_tax :: " << d_tax << endl;
-    cout << "d_next_o_id :: " << d_next_o_id << endl;
+    LOG_INFO("d_tax :: %.2lf ", d_tax);
+    LOG_INFO("d_next_o_id ::  %d ", d_next_o_id);
 
     // incrementNextOrderId
 
@@ -1561,12 +1561,12 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer :: " << customer_str << endl;
+    LOG_INFO("customer :: %s ", customer_str.c_str());
 
     rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
 
     double c_discount = std::stod(rec_ptr->get_data(15));
-    cout << "c_discount :: " << c_discount << endl;
+    LOG_INFO("c_discount :: %.2lf ", c_discount);
 
     // createOrder
 
@@ -1609,7 +1609,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
         ee->txn_end(false);
         return;
       }
-      cout << "item :: " << item_str << endl;
+      LOG_INFO("item :: %s ", item_str.c_str());
 
       rec_ptr = deserialize_to_record(item_str, item_table_schema, false);
 
@@ -1630,7 +1630,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
         ee->txn_end(false);
         return;
       }
-      cout << "stock :: " << stock_str << endl;
+      LOG_INFO("stock :: %s", stock_str.c_str());
 
       rec_ptr = deserialize_to_record(stock_str, stock_table_schema, false);
 
@@ -1683,7 +1683,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     ol_total *= (1 - c_discount) * (1 + w_tax + d_tax);
 
     if (ol_total > 0)
-      cout << "ol_total :: " << ol_total << endl;
+      LOG_INFO("ol_total :: %d ", ol_total);
   }
 
   ee->txn_end(true);
@@ -1700,7 +1700,7 @@ void tpcc_benchmark::do_order_status(engine* ee) {
    },
    */
 
-  cout << "Order_Status " << endl;
+  LOG_INFO("Order_Status ");
 
   record* rec_ptr;
   statement st;
@@ -1735,9 +1735,9 @@ void tpcc_benchmark::do_order_status(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer :: " << customer_str << endl;
+    LOG_INFO("customer :: %s ", customer_str.c_str());
   } else {
-    // getCustomerByLastName
+// getCustomerByLastName
     rec_ptr = new customer_record(customer_table_schema, 0, d_id, w_id, c_name,
                                   empty, empty, empty, 0, 0, 0, 0, 0, 0, 0,
                                   empty);
@@ -1751,16 +1751,16 @@ void tpcc_benchmark::do_order_status(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer by name :: " << customer_str << endl;
+    LOG_INFO("customer by name :: %s ", customer_str.c_str());
 
     rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
 
     c_id = std::stoi(rec_ptr->get_data(0));
 
-    cout << "c_id :: " << c_id << endl;
+    LOG_INFO("c_id :: %d", c_id);
   }
 
-  // getLastOrder
+// getLastOrder
   rec_ptr = new orders_record(orders_table_schema, 0, c_id, d_itr, w_id, 0, 0,
                               0, 0);
 
@@ -1774,15 +1774,15 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     return;
   }
 
-  cout << "orders :: " << orders_str << endl;
+  LOG_INFO("orders :: %s ", orders_str.c_str());
 
   rec_ptr = deserialize_to_record(orders_str, orders_table_schema, false);
 
   c_id = std::stoi(rec_ptr->get_data(0));
 
-  cout << "c_id :: " << c_id << endl;
+  LOG_INFO("c_id :: %d ", c_id);
 
-  // getOrderLines
+// getOrderLines
   rec_ptr = new order_line_record(order_line_table_schema, c_id, d_itr, w_id, 0,
                                   0, 0, 0, 0, 0, empty);
 
@@ -1796,10 +1796,10 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     return;
   }
 
-  cout << "order_line :: " << order_line_str << endl;
+  LOG_INFO("order_line :: %s", order_line_str.c_str());
 
   if (lookup_by_name) {
-    // getCustomerByCustomerId
+// getCustomerByCustomerId
     rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
                                   empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
                                   0, empty);
@@ -1813,9 +1813,9 @@ void tpcc_benchmark::do_order_status(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer :: " << customer_str << endl;
+    LOG_INFO("customer :: %s ", customer_str.c_str());
   } else {
-    // getCustomerByLastName
+// getCustomerByLastName
     rec_ptr = new customer_record(customer_table_schema, 0, d_id, w_id, c_name,
                                   empty, empty, empty, 0, 0, 0, 0, 0, 0, 0,
                                   empty);
@@ -1829,13 +1829,13 @@ void tpcc_benchmark::do_order_status(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer by name :: " << customer_str << endl;
+    LOG_INFO("customer by name :: %s ", customer_str.c_str());
 
     rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
 
     c_id = std::stoi(rec_ptr->get_data(0));
 
-    cout << "c_id :: " << c_id << endl;
+    LOG_INFO("c_id :: %d ", c_id);
   }
 
   ee->txn_end(true);
@@ -1856,7 +1856,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
    "insertHistory": "INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
    */
 
-  cout << "Payment " << endl;
+  LOG_INFO("Payment ");
 
   record* rec_ptr;
   statement st;
@@ -1890,7 +1890,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
   ee->txn_begin();
 
   if (!pay_by_name) {
-    // getCustomerByCustomerId
+// getCustomerByCustomerId
     rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
                                   empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
                                   0, empty);
@@ -1904,9 +1904,9 @@ void tpcc_benchmark::do_payment(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer :: " << customer_str << endl;
+    LOG_INFO("customer :: %s ", customer_str.c_str());
   } else {
-    // getCustomerByLastName
+// getCustomerByLastName
     rec_ptr = new customer_record(customer_table_schema, 0, d_id, w_id, c_name,
                                   empty, empty, empty, 0, 0, 0, 0, 0, 0, 0,
                                   empty);
@@ -1920,13 +1920,13 @@ void tpcc_benchmark::do_payment(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "customer by name :: " << customer_str << endl;
+    LOG_INFO("customer by name :: %s", customer_str.c_str());
 
     rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
 
     c_id = std::stoi(rec_ptr->get_data(0));
 
-    cout << "c_id :: " << c_id << endl;
+    LOG_INFO("c_id :: %d ", c_id);
   }
 
   rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
@@ -1941,9 +1941,9 @@ void tpcc_benchmark::do_payment(engine* ee) {
   c_ytd_payment += h_amount;
   c_payment_cnt += 1;
 
-  cout << "c_balance :: " << c_balance << endl;
+  LOG_INFO("c_balance :: %d ", c_balance);
 
-  // getWarehouse
+// getWarehouse
   rec_ptr = new warehouse_record(warehouse_table_schema, w_id, empty, empty,
                                  empty, 0, 0);
 
@@ -1956,15 +1956,15 @@ void tpcc_benchmark::do_payment(engine* ee) {
     ee->txn_end(false);
     return;
   }
-  cout << "warehouse :: " << warehouse_str << endl;
+  LOG_INFO("warehouse :: %s ", warehouse_str.c_str());
 
   rec_ptr = deserialize_to_record(warehouse_str, warehouse_table_schema, false);
 
   double w_ytd = std::stod(rec_ptr->get_data(8));
 
-  cout << "w_ytd :: " << w_ytd << endl;
+  LOG_INFO("w_ytd :: %.2lf ", w_ytd);
 
-  // updateWarehouseBalance
+// updateWarehouseBalance
 
   w_ytd += h_amount;
 
@@ -1977,7 +1977,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
   ee->update(st);
 
-  // getDistrict
+// getDistrict
   rec_ptr = new district_record(district_table_schema, d_id, w_id, empty, empty,
                                 empty, 0, 0, 0);
 
@@ -1990,15 +1990,16 @@ void tpcc_benchmark::do_payment(engine* ee) {
     ee->txn_end(false);
     return;
   }
-  cout << "district :: " << district_str << endl;
+
+  LOG_INFO("district :: %s ", district_str.c_str());
 
   rec_ptr = deserialize_to_record(district_str, district_table_schema, false);
 
   double d_ytd = std::stod(rec_ptr->get_data(9));
 
-  cout << "d_ytd :: " << d_ytd << endl;
+  LOG_INFO("d_ytd :: %.2lf ", d_ytd);
 
-  // updateDistrictBalance
+// updateDistrictBalance
 
   d_ytd += h_amount;
 
@@ -2011,10 +2012,10 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
   ee->update(st);
 
-  cout << "c_credit :: " << c_credit << endl;
+  LOG_INFO("c_credit :: %s ", c_credit.c_str());
 
   if (c_credit == customers_bcredit + " ") {
-    // updateBCCustomer
+// updateBCCustomer
 
     c_data = std::string(
         std::to_string(c_id) + " " + std::to_string(d_id) + " "
@@ -2035,7 +2036,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
   } else {
 
-    // updateGCCustomer
+// updateGCCustomer
 
     rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
                                   empty, empty, empty, empty, 0, 0, 0,
@@ -2051,7 +2052,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
   }
 
-  // insertHistory
+// insertHistory
 
   std::string h_data = std::to_string(w_id) + "    " + std::to_string(d_id);
 
@@ -2073,7 +2074,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
    "getStockCount": "SELECT COUNT(DISTINCT(OL_I_ID)) FROM ORDER_LINE, STOCK  WHERE OL_W_ID = ? AND OL_D_ID = ? AND OL_O_ID < ? AND OL_O_ID >= ? AND S_W_ID = ? AND S_I_ID = OL_I_ID AND S_QUANTITY < ?
    */
 
-  cout << "Stock Level " << endl;
+  LOG_INFO("Stock Level ");
 
   record* rec_ptr;
   statement st;
@@ -2085,7 +2086,10 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   int d_id = get_rand_int(0, districts_per_warehouse);
   int threshold = get_rand_int(stock_min_threshold, stock_max_threshold);
 
-  // getOId
+  txn_id++;
+  ee->txn_begin();
+
+// getOId
   rec_ptr = new district_record(district_table_schema, d_id, w_id, empty, empty,
                                 empty, 0, 0, 0);
 
@@ -2098,20 +2102,20 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
     ee->txn_end(false);
     return;
   }
-  cout << "district :: " << district_str << endl;
+  LOG_INFO("district :: %s ", district_str.c_str());
 
   rec_ptr = deserialize_to_record(district_str, district_table_schema, false);
 
   int d_next_o_id = std::stoi(rec_ptr->get_data(10));
 
-  cout << "d_next_o_id :: " << d_next_o_id << endl;
+  LOG_INFO("d_next_o_id :: %d ", d_next_o_id);
 
-  // getStockCount
+// getStockCount
   std::set<int> items;
   int min_o_id = std::max(0, d_next_o_id - 20);
 
   for (int o_id = min_o_id; o_id < d_next_o_id; o_id++) {
-    cout << "o_id :: " << o_id << endl;
+    LOG_INFO("o_id :: %d ", o_id);
 
     rec_ptr = new order_line_record(order_line_table_schema, o_id, d_id, w_id,
                                     0, 0, 0, 0, 0, 0, empty);
@@ -2124,14 +2128,14 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
     if (order_line_str.empty())
       break;
 
-    cout << "order_line :: " << order_line_str << endl;
+    LOG_INFO("order_line :: %s ", order_line_str.c_str());
 
     rec_ptr = deserialize_to_record(order_line_str, order_line_table_schema,
                                     false);
 
     int s_i_id = std::stoi(rec_ptr->get_data(4));
 
-    cout << "s_i_id :: " << s_i_id << endl;
+    LOG_INFO("s_i_id :: %d ", s_i_id);
 
     rec_ptr = new stock_record(stock_table_schema, o_id, w_id, 0, empty_v, 0, 0,
                                0, empty);
@@ -2145,13 +2149,13 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
       ee->txn_end(false);
       return;
     }
-    cout << "stock :: " << stock_str << endl;
+    LOG_INFO("stock :: %s ", stock_str.c_str());
 
     rec_ptr = deserialize_to_record(stock_str, stock_table_schema, false);
 
     int s_quantity = std::stoi(rec_ptr->get_data(2));
 
-    cout << "s_quantity :: " << s_quantity << endl;
+    LOG_INFO("s_quantity :: %d ", s_quantity);
 
     if (s_quantity < threshold) {
       items.insert(s_i_id);
@@ -2159,7 +2163,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   }
 
   int i_count = items.size();
-  cout << "i_count :: " << i_count << endl;
+  LOG_INFO("i_count :: %d ", i_count);
 
   ee->txn_end(true);
 }
@@ -2173,25 +2177,25 @@ void tpcc_benchmark::execute(engine* ee) {
     double u = uniform_dist[txn_itr];
 
     if (u <= 0.04) {
-      // STOCK_LEVEL
+      //cout << "stock_level " << endl;
       do_stock_level(ee);
     } else if (u <= 0.08) {
-      // DELIVERY
+      //cout << "delivery " << endl;
       do_delivery(ee);
     } else if (u <= 0.12) {
-      // ORDER_STATUS
+      //cout << "order_status " << endl;
       do_order_status(ee);
     } else if (u <= 0.55) {
-      // PAYMENT
+      //cout << "payment " << endl;
       do_payment(ee);
     } else {
-      // NEW_ORDER
+      //cout << "new_order " << endl;
       do_new_order(ee);
     }
 
-    //ss.display();
+    ss.display();
   }
 
-//display_stats(ee, tm.duration(), conf.num_txns);
+  //display_stats(ee, tm.duration(), conf.num_txns);
 }
 

@@ -9,11 +9,15 @@ void sp_engine::group_commit() {
   while (ready) {
 
     if (!read_only && txn_ptr != NULL) {
+      //cout<<"gc lock"<<endl;
       wrlock(&cow_pbtree_rwlock);
+
       assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
 
       txn_ptr = bt->txn_begin(0);
       assert(txn_ptr);
+
+      //cout<<"gc unlock"<<endl;
       unlock(&cow_pbtree_rwlock);
     }
 
@@ -236,12 +240,16 @@ int sp_engine::update(const statement& st) {
 }
 
 void sp_engine::txn_begin() {
-  if (!read_only)
+  if (!read_only){
+    //cout<<"lock"<<endl;
     wrlock(&cow_pbtree_rwlock);
+  }
 }
 
 void sp_engine::txn_end(bool commit) {
-  if (!read_only)
+  if (!read_only){
+    //cout<<"unlock"<<endl;
     unlock(&cow_pbtree_rwlock);
+  }
 }
 

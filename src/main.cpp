@@ -49,7 +49,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.fs_path = std::string("/mnt/pmfs/n-store/");
 
   state.num_keys = 10;
-  state.num_txns = 50;
+  state.num_txns = 10;
   state.num_executors = 1;
 
   state.verbose = false;
@@ -60,10 +60,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.merge_interval = 100000;
   state.merge_ratio = 0.2;
 
-  //state.etype = engine_type::WAL;
-  //state.btype = benchmark_type::YCSB;
-  state.etype = engine_type::SP;
-  state.btype = benchmark_type::TPCC;
+  state.etype = engine_type::WAL;
+  state.btype = benchmark_type::YCSB;
 
   state.read_only = false;
 
