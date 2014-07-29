@@ -1002,7 +1002,7 @@ void tpcc_benchmark::load_items(engine* ee) {
   for (i_itr = 0; i_itr < num_items; i_itr++) {
 
     txn_id++;
-    TIMER(ee->txn_begin());
+    ee->txn_begin();
 
     int i_im_id = i_itr * 10;
     std::string name = get_rand_astring(item_name_len);
@@ -1016,9 +1016,9 @@ void tpcc_benchmark::load_items(engine* ee) {
 
     statement st(txn_id, operation_type::Insert, ITEM_TABLE_ID, rec_ptr);
 
-    TIMER(ee->insert(st));
+    ee->insert(st);
 
-    TIMER(ee->txn_end(true));
+    ee->txn_end(true);
   }
 
 }
@@ -1044,7 +1044,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
   // WAREHOUSE
   for (w_itr = 0; w_itr < num_warehouses; w_itr++) {
     txn_id++;
-    TIMER(ee->txn_begin());
+    ee->txn_begin();
 
     std::string name = get_rand_astring(name_len);
     std::string state = get_rand_astring(state_len);
@@ -1062,14 +1062,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
     st = statement(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID,
                    warehouse_rec_ptr);
 
-    TIMER(ee->insert(st));
-    TIMER(ee->txn_end(true));
+    ee->insert(st);
+    ee->txn_end(true);
 
     // DISTRICTS
     for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
 
       txn_id++;
-      TIMER(ee->txn_begin());
+      ee->txn_begin();
 
       std::string name = get_rand_astring(name_len);
       std::string state = get_rand_astring(state_len);
@@ -1089,14 +1089,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       st = statement(txn_id, operation_type::Insert, DISTRICT_TABLE_ID,
                      district_rec_ptr);
 
-      TIMER(ee->insert(st));
+      ee->insert(st);
 
-      TIMER(ee->txn_end(true));
+      ee->txn_end(true);
 
       // CUSTOMERS
       for (c_itr = 0; c_itr < customers_per_district; c_itr++) {
         txn_id++;
-        TIMER(ee->txn_begin());
+        ee->txn_begin();
 
         bool bad_credit = get_rand_bool(customers_bad_credit_ratio);
         std::string c_name = get_rand_astring(name_len);
@@ -1120,13 +1120,13 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         st = statement(txn_id, operation_type::Insert, CUSTOMER_TABLE_ID,
                        customer_rec_ptr);
 
-        TIMER(ee->insert(st));
-        TIMER(ee->txn_end(true));
+        ee->insert(st);
+        ee->txn_end(true);
 
         // HISTORY
 
         txn_id++;
-        TIMER(ee->txn_begin());
+        ee->txn_begin();
 
         int h_w_id = w_itr;
         int h_d_id = d_itr;
@@ -1144,14 +1144,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID,
                        history_rec_ptr);
 
-        TIMER(ee->insert(st));
-        TIMER(ee->txn_end(true));
+        ee->insert(st);
+        ee->txn_end(true);
       }
 
       // ORDERS
       for (o_itr = 0; o_itr < customers_per_district; o_itr++) {
         txn_id++;
-        TIMER(ee->txn_begin());
+        ee->txn_begin();
 
         bool new_order = (o_itr
             > (customers_per_district - new_orders_per_district));
@@ -1175,14 +1175,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID,
                        orders_rec_ptr);
 
-        TIMER(ee->insert(st));
-        TIMER(ee->txn_end(true));
+        ee->insert(st);
+        ee->txn_end(true);
 
         // NEW_ORDER
 
         if (new_order) {
           txn_id++;
-          TIMER(ee->txn_begin());
+          ee->txn_begin();
 
           record* new_order_rec_ptr = new new_order_record(
               new_order_table_schema, o_itr, d_itr, w_itr);
@@ -1193,14 +1193,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
           st = statement(txn_id, operation_type::Insert, NEW_ORDER_TABLE_ID,
                          new_order_rec_ptr);
 
-          TIMER(ee->insert(st));
-          TIMER(ee->txn_end(true));
+          ee->insert(st);
+          ee->txn_end(true);
         }
 
         // ORDER_LINE
         for (ol_itr = 0; ol_itr < o_ol_cnt; ol_itr++) {
           txn_id++;
-          TIMER(ee->txn_begin());
+          ee->txn_begin();
 
           int ol_i_id = get_rand_int(0, item_count);
           int ol_supply_w_id = w_itr;
@@ -1226,8 +1226,8 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
           st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
                          order_line_rec_ptr);
 
-          TIMER(ee->insert(st));
-          TIMER(ee->txn_end(true));
+          ee->insert(st);
+          ee->txn_end(true);
         }
 
       }
@@ -1239,7 +1239,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
     for (s_i_itr = 0; s_i_itr < item_count; s_i_itr++) {
 
       txn_id++;
-      TIMER(ee->txn_begin());
+      ee->txn_begin();
 
       bool s_original = get_rand_bool(stock_original_ratio);
       int s_quantity = get_rand_int(stock_min_quantity, stock_max_quantity);
@@ -1263,9 +1263,9 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       st = statement(txn_id, operation_type::Insert, STOCK_TABLE_ID,
                      stock_rec_ptr);
 
-      TIMER(ee->insert(st));
+      ee->insert(st);
 
-      TIMER(ee->txn_end(true));
+      ee->txn_end(true);
     }
 
   }

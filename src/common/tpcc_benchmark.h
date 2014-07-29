@@ -116,7 +116,7 @@ class tpcc_benchmark : public benchmark {
   const int orders_min_carrier_id = 1;
   const int orders_max_carrier_id = 10;
 
-  const int new_orders_per_district = 900;
+  const int new_orders_per_district = 900; // 900
 
   const int order_line_init_quantity = 5;
   const int order_line_max_ol_quantity = 10;
