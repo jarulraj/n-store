@@ -1002,7 +1002,7 @@ void tpcc_benchmark::load_items(engine* ee) {
   for (i_itr = 0; i_itr < num_items; i_itr++) {
 
     txn_id++;
-    ee->txn_begin();
+    TIMER(ee->txn_begin());
 
     int i_im_id = i_itr * 10;
     std::string name = get_rand_astring(item_name_len);
@@ -1016,9 +1016,9 @@ void tpcc_benchmark::load_items(engine* ee) {
 
     statement st(txn_id, operation_type::Insert, ITEM_TABLE_ID, rec_ptr);
 
-    ee->insert(st);
+    TIMER(ee->insert(st));
 
-    ee->txn_end(true);
+    TIMER(ee->txn_end(true));
   }
 
 }
@@ -1044,7 +1044,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
   // WAREHOUSE
   for (w_itr = 0; w_itr < num_warehouses; w_itr++) {
     txn_id++;
-    ee->txn_begin();
+    TIMER(ee->txn_begin());
 
     std::string name = get_rand_astring(name_len);
     std::string state = get_rand_astring(state_len);
@@ -1062,14 +1062,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
     st = statement(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID,
                    warehouse_rec_ptr);
 
-    ee->insert(st);
-    ee->txn_end(true);
+    TIMER(ee->insert(st));
+    TIMER(ee->txn_end(true));
 
     // DISTRICTS
     for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
 
       txn_id++;
-      ee->txn_begin();
+      TIMER(ee->txn_begin());
 
       std::string name = get_rand_astring(name_len);
       std::string state = get_rand_astring(state_len);
@@ -1089,14 +1089,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       st = statement(txn_id, operation_type::Insert, DISTRICT_TABLE_ID,
                      district_rec_ptr);
 
-      ee->insert(st);
+      TIMER(ee->insert(st));
 
-      ee->txn_end(true);
+      TIMER(ee->txn_end(true));
 
       // CUSTOMERS
       for (c_itr = 0; c_itr < customers_per_district; c_itr++) {
         txn_id++;
-        ee->txn_begin();
+        TIMER(ee->txn_begin());
 
         bool bad_credit = get_rand_bool(customers_bad_credit_ratio);
         std::string c_name = get_rand_astring(name_len);
@@ -1120,13 +1120,13 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         st = statement(txn_id, operation_type::Insert, CUSTOMER_TABLE_ID,
                        customer_rec_ptr);
 
-        ee->insert(st);
-        ee->txn_end(true);
+        TIMER(ee->insert(st));
+        TIMER(ee->txn_end(true));
 
         // HISTORY
 
         txn_id++;
-        ee->txn_begin();
+        TIMER(ee->txn_begin());
 
         int h_w_id = w_itr;
         int h_d_id = d_itr;
@@ -1144,14 +1144,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID,
                        history_rec_ptr);
 
-        ee->insert(st);
-        ee->txn_end(true);
+        TIMER(ee->insert(st));
+        TIMER(ee->txn_end(true));
       }
 
       // ORDERS
       for (o_itr = 0; o_itr < customers_per_district; o_itr++) {
         txn_id++;
-        ee->txn_begin();
+        TIMER(ee->txn_begin());
 
         bool new_order = (o_itr
             > (customers_per_district - new_orders_per_district));
@@ -1175,14 +1175,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID,
                        orders_rec_ptr);
 
-        ee->insert(st);
-        ee->txn_end(true);
+        TIMER(ee->insert(st));
+        TIMER(ee->txn_end(true));
 
         // NEW_ORDER
 
         if (new_order) {
           txn_id++;
-          ee->txn_begin();
+          TIMER(ee->txn_begin());
 
           record* new_order_rec_ptr = new new_order_record(
               new_order_table_schema, o_itr, d_itr, w_itr);
@@ -1193,14 +1193,14 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
           st = statement(txn_id, operation_type::Insert, NEW_ORDER_TABLE_ID,
                          new_order_rec_ptr);
 
-          ee->insert(st);
-          ee->txn_end(true);
+          TIMER(ee->insert(st));
+          TIMER(ee->txn_end(true));
         }
 
         // ORDER_LINE
         for (ol_itr = 0; ol_itr < o_ol_cnt; ol_itr++) {
           txn_id++;
-          ee->txn_begin();
+          TIMER(ee->txn_begin());
 
           int ol_i_id = get_rand_int(0, item_count);
           int ol_supply_w_id = w_itr;
@@ -1226,8 +1226,8 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
           st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
                          order_line_rec_ptr);
 
-          ee->insert(st);
-          ee->txn_end(true);
+          TIMER(ee->insert(st));
+          TIMER(ee->txn_end(true));
         }
 
       }
@@ -1239,7 +1239,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
     for (s_i_itr = 0; s_i_itr < item_count; s_i_itr++) {
 
       txn_id++;
-      ee->txn_begin();
+      TIMER(ee->txn_begin());
 
       bool s_original = get_rand_bool(stock_original_ratio);
       int s_quantity = get_rand_int(stock_min_quantity, stock_max_quantity);
@@ -1263,9 +1263,9 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       st = statement(txn_id, operation_type::Insert, STOCK_TABLE_ID,
                      stock_rec_ptr);
 
-      ee->insert(st);
+      TIMER(ee->insert(st));
 
-      ee->txn_end(true);
+      TIMER(ee->txn_end(true));
     }
 
   }
@@ -1299,13 +1299,14 @@ void tpcc_benchmark::do_delivery(engine* ee) {
   std::string empty;
 
   txn_id++;
-  ee->txn_begin();
+  TIMER(ee->txn_begin());
 
   unsigned int d_itr;
 
   int w_id = get_rand_int(0, warehouse_count);
   int o_carrier_id = get_rand_int(orders_min_carrier_id, orders_max_carrier_id);
   double ol_delivery_ts = static_cast<double>(time(NULL));
+  std::string new_order_str, orders_str, order_line_str, customer_str;
 
   for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
     LOG_INFO("d_itr :: %d  w_id :: %d ", d_itr, w_id);
@@ -1316,10 +1317,10 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     st = statement(txn_id, operation_type::Select, NEW_ORDER_TABLE_ID, rec_ptr,
                    0, new_order_table_schema);
 
-    std::string new_order_str = ee->select(st);
+    TIMER(new_order_str = ee->select(st))
 
     if (new_order_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("new_order :: %s", new_order_str.c_str());
@@ -1342,10 +1343,10 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     st = statement(txn_id, operation_type::Select, ORDERS_TABLE_ID, rec_ptr, 0,
                    orders_table_schema);
 
-    std::string orders_str = ee->select(st);
+    TIMER(orders_str = ee->select(st))
 
     if (orders_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("orders :: %s ", orders_str.c_str());
@@ -1367,7 +1368,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     st = statement(txn_id, operation_type::Update, ORDERS_TABLE_ID, rec_ptr,
                    field_ids);
 
-    ee->update(st);
+    TIMER(ee->update(st));
 
     // updateOrderLine
     double ol_ts = static_cast<double>(time(NULL));
@@ -1380,7 +1381,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     st = statement(txn_id, operation_type::Update, ORDER_LINE_TABLE_ID, rec_ptr,
                    field_ids);
 
-    ee->update(st);
+    TIMER(ee->update(st));
 
     //sumOLAmount
     rec_ptr = new order_line_record(order_line_table_schema, o_id, d_itr, w_id,
@@ -1389,10 +1390,10 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     st = statement(txn_id, operation_type::Select, ORDER_LINE_TABLE_ID, rec_ptr,
                    0, order_line_table_schema);
 
-    std::string order_line_str = ee->select(st);
+    TIMER(order_line_str = ee->select(st))
 
     if (order_line_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("order_line :: %s ", order_line_str.c_str());
@@ -1412,10 +1413,10 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
                    0, customer_table_schema);
 
-    std::string customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer :: %s ", customer_str.c_str());
@@ -1432,10 +1433,10 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
                    field_ids);
 
-    ee->update(st);
+    TIMER(ee->update(st));
   }
 
-  ee->txn_end(true);
+  TIMER(ee->txn_end(true));
 
 }
 
@@ -1472,6 +1473,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
   double o_entry_ts = static_cast<double>(time(NULL));
   vector<int> i_ids, i_w_ids, i_qtys;
   int o_all_local = 1;
+  std::string warehouse_str, district_str, customer_str, item_str, stock_str;
 
   for (int ol_itr = 0; ol_itr < o_ol_cnt; ol_itr++) {
     i_ids.push_back(get_rand_int(0, item_count));
@@ -1487,7 +1489,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
   }
 
   txn_id++;
-  ee->txn_begin();
+  TIMER(ee->txn_begin());
 
   for (d_itr = 0; d_itr < districts_per_warehouse; d_itr++) {
     LOG_INFO("d_itr ::  %d  w_id :: %d ", d_itr, w_id);
@@ -1499,10 +1501,10 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     st = statement(txn_id, operation_type::Select, WAREHOUSE_TABLE_ID, rec_ptr,
                    0, warehouse_table_schema);
 
-    std::string warehouse_str = ee->select(st);
+    TIMER(warehouse_str = ee->select(st))
 
     if (warehouse_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("warehouse ::  %s", warehouse_str.c_str());
@@ -1521,10 +1523,10 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     st = statement(txn_id, operation_type::Select, DISTRICT_TABLE_ID, rec_ptr,
                    0, district_table_schema);
 
-    std::string district_str = ee->select(st);
+    TIMER(district_str = ee->select(st))
 
     if (district_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("district :: %s ", district_str.c_str());
@@ -1547,7 +1549,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     st = statement(txn_id, operation_type::Update, DISTRICT_TABLE_ID, rec_ptr,
                    field_ids);
 
-    ee->update(st);
+    TIMER(ee->update(st));
 
     // getCustomer
     rec_ptr = new customer_record(customer_table_schema, c_id, d_itr, w_id,
@@ -1557,10 +1559,10 @@ void tpcc_benchmark::do_new_order(engine* ee) {
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    0, customer_table_schema);
 
-    std::string customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer :: %s ", customer_str.c_str());
@@ -1580,7 +1582,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
 
     st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID, rec_ptr);
 
-    ee->insert(st);
+    TIMER(ee->insert(st));
 
     // createNewOrder
 
@@ -1588,7 +1590,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
 
     st = statement(txn_id, operation_type::Insert, NEW_ORDER_TABLE_ID, rec_ptr);
 
-    ee->insert(st);
+    TIMER(ee->insert(st));
 
     // ITEMS
     int ol_total = 0;
@@ -1605,10 +1607,12 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       st = statement(txn_id, operation_type::Select, ITEM_TABLE_ID, rec_ptr, 0,
                      item_table_schema);
 
-      std::string item_str = ee->select(st);
+      TIMER(item_str = ee->select(st)
+      ;
+      )
 
       if (item_str.empty()) {
-        ee->txn_end(false);
+        TIMER(ee->txn_end(false));
         return;
       }
       LOG_INFO("item :: %s ", item_str.c_str());
@@ -1626,10 +1630,12 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       st = statement(txn_id, operation_type::Select, STOCK_TABLE_ID, rec_ptr, 0,
                      stock_table_schema);
 
-      std::string stock_str = ee->select(st);
+      TIMER(stock_str = ee->select(st)
+      ;
+      )
 
       if (stock_str.empty()) {
-        ee->txn_end(false);
+        TIMER(ee->txn_end(false));
         return;
       }
       LOG_INFO("stock :: %s", stock_str.c_str());
@@ -1663,7 +1669,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       st = statement(txn_id, operation_type::Update, STOCK_TABLE_ID, rec_ptr,
                      field_ids);
 
-      ee->update(st);
+      TIMER(ee->update(st));
 
       // createOrderLine
 
@@ -1677,7 +1683,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
                      rec_ptr);
 
-      ee->insert(st);
+      TIMER(ee->insert(st));
 
       ol_total += ol_amount;
     }
@@ -1688,7 +1694,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
       LOG_INFO("ol_total :: %d ", ol_total);
   }
 
-  ee->txn_end(true);
+  TIMER(ee->txn_end(true));
 
 }
 
@@ -1711,7 +1717,7 @@ void tpcc_benchmark::do_order_status(engine* ee) {
   vector<std::string> empty_v(10);
 
   txn_id++;
-  ee->txn_begin();
+  TIMER(ee->txn_begin());
 
   unsigned int d_itr;
 
@@ -1720,7 +1726,7 @@ void tpcc_benchmark::do_order_status(engine* ee) {
   int c_id = get_rand_int(0, customers_per_district);
   std::string c_name = get_rand_astring(name_len);
   bool lookup_by_name = get_rand_bool(0.8);
-  std::string customer_str;
+  std::string customer_str, orders_str, order_line_str;
 
   if (lookup_by_name) {
     // getCustomerByCustomerId
@@ -1731,10 +1737,10 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    0, customer_table_schema);
 
-    customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer :: %s ", customer_str.c_str());
@@ -1747,10 +1753,10 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    1, customer_table_schema);
 
-    customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer by name :: %s ", customer_str.c_str());
@@ -1769,10 +1775,12 @@ void tpcc_benchmark::do_order_status(engine* ee) {
   st = statement(txn_id, operation_type::Select, ORDERS_TABLE_ID, rec_ptr, 1,
                  orders_table_schema);
 
-  std::string orders_str = ee->select(st);
+  TIMER(orders_str = ee->select(st)
+  ;
+  )
 
   if (orders_str.empty()) {
-    ee->txn_end(false);
+    TIMER(ee->txn_end(false));
     return;
   }
 
@@ -1791,10 +1799,12 @@ void tpcc_benchmark::do_order_status(engine* ee) {
   st = statement(txn_id, operation_type::Select, ORDER_LINE_TABLE_ID, rec_ptr,
                  1, order_line_table_schema);
 
-  std::string order_line_str = ee->select(st);
+  TIMER(order_line_str = ee->select(st)
+  ;
+  )
 
   if (order_line_str.empty()) {
-    ee->txn_end(false);
+    TIMER(ee->txn_end(false));
     return;
   }
 
@@ -1809,10 +1819,10 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    0, customer_table_schema);
 
-    customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer :: %s ", customer_str.c_str());
@@ -1825,10 +1835,10 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    1, customer_table_schema);
 
-    customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer by name :: %s ", customer_str.c_str());
@@ -1840,7 +1850,7 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     LOG_INFO("c_id :: %d ", c_id);
   }
 
-  ee->txn_end(true);
+  TIMER(ee->txn_end(true));
 
 }
 
@@ -1889,7 +1899,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
     c_id = get_rand_int(0, customers_per_district);
 
   txn_id++;
-  ee->txn_begin();
+  TIMER(ee->txn_begin());
 
   if (!pay_by_name) {
 // getCustomerByCustomerId
@@ -1900,10 +1910,10 @@ void tpcc_benchmark::do_payment(engine* ee) {
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    0, customer_table_schema);
 
-    customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer :: %s ", customer_str.c_str());
@@ -1916,10 +1926,10 @@ void tpcc_benchmark::do_payment(engine* ee) {
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
                    1, customer_table_schema);
 
-    customer_str = ee->select(st);
+    TIMER(customer_str = ee->select(st))
 
     if (customer_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("customer by name :: %s", customer_str.c_str());
@@ -1938,6 +1948,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
   int c_payment_cnt = std::stoi(rec_ptr->get_data(18));
   std::string c_data = rec_ptr->get_data(20);
   std::string c_credit = rec_ptr->get_data(13);
+  std::string warehouse_str, district_str;
 
   c_balance -= h_amount;
   c_ytd_payment += h_amount;
@@ -1952,10 +1963,12 @@ void tpcc_benchmark::do_payment(engine* ee) {
   st = statement(txn_id, operation_type::Select, WAREHOUSE_TABLE_ID, rec_ptr, 0,
                  warehouse_table_schema);
 
-  std::string warehouse_str = ee->select(st);
+  TIMER(warehouse_str = ee->select(st)
+  ;
+  )
 
   if (warehouse_str.empty()) {
-    ee->txn_end(false);
+    TIMER(ee->txn_end(false));
     return;
   }
   LOG_INFO("warehouse :: %s ", warehouse_str.c_str());
@@ -1977,7 +1990,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
   st = statement(txn_id, operation_type::Update, WAREHOUSE_TABLE_ID, rec_ptr,
                  field_ids);
 
-  ee->update(st);
+  TIMER(ee->update(st));
 
 // getDistrict
   rec_ptr = new district_record(district_table_schema, d_id, w_id, empty, empty,
@@ -1986,10 +1999,12 @@ void tpcc_benchmark::do_payment(engine* ee) {
   st = statement(txn_id, operation_type::Select, DISTRICT_TABLE_ID, rec_ptr, 0,
                  district_table_schema);
 
-  std::string district_str = ee->select(st);
+  TIMER(district_str = ee->select(st)
+  ;
+  )
 
   if (district_str.empty()) {
-    ee->txn_end(false);
+    TIMER(ee->txn_end(false));
     return;
   }
 
@@ -2012,7 +2027,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
   st = statement(txn_id, operation_type::Update, DISTRICT_TABLE_ID, rec_ptr,
                  field_ids);
 
-  ee->update(st);
+  TIMER(ee->update(st));
 
   LOG_INFO("c_credit :: %s ", c_credit.c_str());
 
@@ -2034,7 +2049,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
     st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
                    field_ids);
 
-    ee->update(st);
+    TIMER(ee->update(st));
 
   } else {
 
@@ -2050,7 +2065,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
     st = statement(txn_id, operation_type::Update, CUSTOMER_TABLE_ID, rec_ptr,
                    field_ids);
 
-    ee->update(st);
+    TIMER(ee->update(st));
 
   }
 
@@ -2063,9 +2078,9 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
   st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID, rec_ptr);
 
-  ee->insert(st);
+  TIMER(ee->insert(st));
 
-  ee->txn_end(true);
+  TIMER(ee->txn_end(true));
 
 }
 
@@ -2087,9 +2102,10 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   int w_id = get_rand_int(0, warehouse_count);
   int d_id = get_rand_int(0, districts_per_warehouse);
   int threshold = get_rand_int(stock_min_threshold, stock_max_threshold);
+  std::string district_str, order_line_str, stock_str;
 
   txn_id++;
-  ee->txn_begin();
+  TIMER(ee->txn_begin());
 
 // getOId
   rec_ptr = new district_record(district_table_schema, d_id, w_id, empty, empty,
@@ -2098,10 +2114,12 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   st = statement(txn_id, operation_type::Select, DISTRICT_TABLE_ID, rec_ptr, 0,
                  district_table_schema);
 
-  std::string district_str = ee->select(st);
+  TIMER(district_str = ee->select(st)
+  ;
+  )
 
   if (district_str.empty()) {
-    ee->txn_end(false);
+    TIMER(ee->txn_end(false));
     return;
   }
   LOG_INFO("district :: %s ", district_str.c_str());
@@ -2125,7 +2143,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
     st = statement(txn_id, operation_type::Select, ORDER_LINE_TABLE_ID, rec_ptr,
                    1, order_line_table_schema);
 
-    std::string order_line_str = ee->select(st);
+    TIMER(order_line_str = ee->select(st))
 
     if (order_line_str.empty())
       break;
@@ -2145,10 +2163,10 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
     st = statement(txn_id, operation_type::Select, STOCK_TABLE_ID, rec_ptr, 0,
                    stock_table_schema);
 
-    std::string stock_str = ee->select(st);
+    TIMER(stock_str = ee->select(st))
 
     if (stock_str.empty()) {
-      ee->txn_end(false);
+      TIMER(ee->txn_end(false));
       return;
     }
     LOG_INFO("stock :: %s ", stock_str.c_str());
@@ -2167,7 +2185,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   int i_count = items.size();
   LOG_INFO("i_count :: %d ", i_count);
 
-  ee->txn_end(true);
+  TIMER(ee->txn_end(true));
 }
 
 void tpcc_benchmark::execute(engine* ee) {
@@ -2198,6 +2216,6 @@ void tpcc_benchmark::execute(engine* ee) {
     ss.display();
   }
 
-  //display_stats(ee, tm.duration(), conf.num_txns);
+  display_stats(ee, tm.duration(), conf.num_txns);
 }
 
