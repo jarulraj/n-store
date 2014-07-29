@@ -100,7 +100,7 @@ def createYCSBGraphs(datasets, workload_mix):
               "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
 
     x_values = [0.1, 1.0]
-    x_labels = ["0.1", "1.0"]
+    x_labels = ["Low", "High"]
 
     for i in xrange(len(datasets)):
         LOG.info("%s y_values = %s", labels[i], datasets[i])
