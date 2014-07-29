@@ -503,7 +503,7 @@ table* tpcc_benchmark::create_customer() {
   schema* customer_schema = new schema(cols);
   pmemalloc_activate(customer_schema);
 
-  table* customer = new table("custome", customer_schema, 2, conf);
+  table* customer = new table("customer", customer_schema, 2, conf);
   pmemalloc_activate(customer);
 
   // PRIMARY INDEX
@@ -1607,7 +1607,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
 
       if (item_str.empty()) {
         ee->txn_end(false);
-        break;
+        return;
       }
       cout << "item :: " << item_str << endl;
 
@@ -1628,7 +1628,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
 
       if (stock_str.empty()) {
         ee->txn_end(false);
-        break;
+        return;
       }
       cout << "stock :: " << stock_str << endl;
 
@@ -1886,6 +1886,9 @@ void tpcc_benchmark::do_payment(engine* ee) {
   else
     c_id = get_rand_int(0, customers_per_district);
 
+  txn_id++;
+  ee->txn_begin();
+
   if (!pay_by_name) {
     // getCustomerByCustomerId
     rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
@@ -2140,7 +2143,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
 
     if (stock_str.empty()) {
       ee->txn_end(false);
-      break;
+      return;
     }
     cout << "stock :: " << stock_str << endl;
 
@@ -2169,8 +2172,6 @@ void tpcc_benchmark::execute(engine* ee) {
   for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
-    do_stock_level(ee);
-
     if (u <= 0.04) {
       // STOCK_LEVEL
       do_stock_level(ee);
@@ -2182,6 +2183,7 @@ void tpcc_benchmark::execute(engine* ee) {
       do_order_status(ee);
     } else if (u <= 0.55) {
       // PAYMENT
+      do_payment(ee);
     } else {
       // NEW_ORDER
       do_new_order(ee);
