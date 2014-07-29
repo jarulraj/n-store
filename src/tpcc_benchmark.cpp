@@ -1039,6 +1039,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
   unsigned int w_itr, d_itr, c_itr, o_itr, ol_itr, s_i_itr;
   statement st;
   std::string log_str;
+  status ss(num_warehouses * districts_per_warehouse);
 
   // WAREHOUSE
   for (w_itr = 0; w_itr < num_warehouses; w_itr++) {
@@ -1231,6 +1232,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
 
       }
 
+      ss.display();
     }
 
     // STOCK
