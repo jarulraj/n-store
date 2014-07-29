@@ -2150,7 +2150,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
 
     cout << "s_quantity :: " << s_quantity << endl;
 
-    if (s_quantity < threshold){
+    if (s_quantity < threshold) {
       items.insert(s_i_id);
     }
   }
@@ -2169,33 +2169,23 @@ void tpcc_benchmark::execute(engine* ee) {
   for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
-    //do_delivery(ee);
-
-    //do_new_order(ee);
-
-    //do_order_status(ee);
-
-    //do_payment(ee);
-
     do_stock_level(ee);
 
-    /*
-     if (u <= 0.04) {
-     // STOCK_LEVEL
-     do_stock_level(ee);
-     } else if (u <= 0.08) {
-     // DELIVERY
-     do_delivery(ee);
-     } else if (u <= 0.12) {
-     // ORDER_STATUS
-     do_order_status(ee);
-     } else if (u <= 0.55) {
-     // PAYMENT
-     } else {
-     // NEW_ORDER
-     do_new_order(ee);
-     }
-     */
+    if (u <= 0.04) {
+      // STOCK_LEVEL
+      do_stock_level(ee);
+    } else if (u <= 0.08) {
+      // DELIVERY
+      do_delivery(ee);
+    } else if (u <= 0.12) {
+      // ORDER_STATUS
+      do_order_status(ee);
+    } else if (u <= 0.55) {
+      // PAYMENT
+    } else {
+      // NEW_ORDER
+      do_new_order(ee);
+    }
 
     //ss.display();
   }
