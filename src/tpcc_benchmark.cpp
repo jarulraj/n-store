@@ -2065,6 +2065,100 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
 void tpcc_benchmark::do_stock_level(engine* ee) {
 
+  /*
+   "getOId": "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = ? AND D_ID = ?",
+   "getStockCount": "SELECT COUNT(DISTINCT(OL_I_ID)) FROM ORDER_LINE, STOCK  WHERE OL_W_ID = ? AND OL_D_ID = ? AND OL_O_ID < ? AND OL_O_ID >= ? AND S_W_ID = ? AND S_I_ID = OL_I_ID AND S_QUANTITY < ?
+   */
+
+  cout << "Stock Level " << endl;
+
+  record* rec_ptr;
+  statement st;
+  vector<int> field_ids;
+  std::string empty;
+  vector<std::string> empty_v(10);
+
+  int w_id = get_rand_int(0, warehouse_count);
+  int d_id = get_rand_int(0, districts_per_warehouse);
+  int threshold = get_rand_int(stock_min_threshold, stock_max_threshold);
+
+  // getOId
+  rec_ptr = new district_record(district_table_schema, d_id, w_id, empty, empty,
+                                empty, 0, 0, 0);
+
+  st = statement(txn_id, operation_type::Select, DISTRICT_TABLE_ID, rec_ptr, 0,
+                 district_table_schema);
+
+  std::string district_str = ee->select(st);
+
+  if (district_str.empty()) {
+    ee->txn_end(false);
+    return;
+  }
+  cout << "district :: " << district_str << endl;
+
+  rec_ptr = deserialize_to_record(district_str, district_table_schema, false);
+
+  int d_next_o_id = std::stoi(rec_ptr->get_data(10));
+
+  cout << "d_next_o_id :: " << d_next_o_id << endl;
+
+  // getStockCount
+  std::set<int> items;
+  int min_o_id = std::max(0, d_next_o_id - 20);
+
+  for (int o_id = min_o_id; o_id < d_next_o_id; o_id++) {
+    cout << "o_id :: " << o_id << endl;
+
+    rec_ptr = new order_line_record(order_line_table_schema, o_id, d_id, w_id,
+                                    0, 0, 0, 0, 0, 0, empty);
+
+    st = statement(txn_id, operation_type::Select, ORDER_LINE_TABLE_ID, rec_ptr,
+                   1, order_line_table_schema);
+
+    std::string order_line_str = ee->select(st);
+
+    if (order_line_str.empty())
+      break;
+
+    cout << "order_line :: " << order_line_str << endl;
+
+    rec_ptr = deserialize_to_record(order_line_str, order_line_table_schema,
+                                    false);
+
+    int s_i_id = std::stoi(rec_ptr->get_data(4));
+
+    cout << "s_i_id :: " << s_i_id << endl;
+
+    rec_ptr = new stock_record(stock_table_schema, o_id, w_id, 0, empty_v, 0, 0,
+                               0, empty);
+
+    st = statement(txn_id, operation_type::Select, STOCK_TABLE_ID, rec_ptr, 0,
+                   stock_table_schema);
+
+    std::string stock_str = ee->select(st);
+
+    if (stock_str.empty()) {
+      ee->txn_end(false);
+      break;
+    }
+    cout << "stock :: " << stock_str << endl;
+
+    rec_ptr = deserialize_to_record(stock_str, stock_table_schema, false);
+
+    int s_quantity = std::stoi(rec_ptr->get_data(2));
+
+    cout << "s_quantity :: " << s_quantity << endl;
+
+    if (s_quantity < threshold){
+      items.insert(s_i_id);
+    }
+  }
+
+  int i_count = items.size();
+  cout << "i_count :: " << i_count << endl;
+
+  ee->txn_end(true);
 }
 
 void tpcc_benchmark::execute(engine* ee) {
@@ -2081,7 +2175,9 @@ void tpcc_benchmark::execute(engine* ee) {
 
     //do_order_status(ee);
 
-    do_payment(ee);
+    //do_payment(ee);
+
+    do_stock_level(ee);
 
     /*
      if (u <= 0.04) {

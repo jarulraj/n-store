@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
+#include <set>
 
 #include "nstore.h"
 #include "statement.h"
@@ -128,6 +129,9 @@ class tpcc_benchmark : public benchmark {
 
   const double payment_min_amount = 1.0;
   const double payment_max_amount = 5000.0;
+
+  const int stock_min_threshold = 10;
+  const int stock_max_threshold = 20;
 
 };
 
