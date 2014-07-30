@@ -86,6 +86,91 @@ def makeGrid(ax):
     ax.set_axisbelow(True)
 # # DEF
 
+def create_ycsb_storage_bar_chart(datasets, workload_mix):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+     
+    labels = ("WAL-2X", "SP-2X", "LSM-2X",
+              "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
+
+    N = 2
+    x_values = [0.1, 1.0]
+    x_labels = ["Low", "High"]
+
+    ind = np.arange(N)  
+    width = 0.05  # the width of the bars
+    offset = 0.15
+    
+    for group in xrange(len(datasets)):
+        # GROUP
+        fs_data = []       
+        pm_data = [] 
+
+        # LINE
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    fs_data.append(datasets[group][line][col]/(1024))
+                if col == 2:
+                    pm_data.append(datasets[group][line][col]/(1024))
+  
+        LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
+                
+        ax1.bar(ind+group*width, fs_data, width, color=OPT_COLORS[group])
+        ax1.bar(ind+group*width, pm_data, width, bottom = fs_data, color=OPT_COLORS[group], hatch='/')
+
+    # # FOR
+        
+    # GRID
+    axes = ax1.get_axes()
+    if workload_mix == "read-only":
+        axes.set_ylim(0, 400000)
+    elif workload_mix == "read-heavy":
+        axes.set_ylim(0, 400000)
+    elif workload_mix == "write-heavy":
+        axes.set_ylim(0, 400000)
+        
+    makeGrid(ax1)
+    
+    # LEGEND
+    fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
+    #fp = FontProperties(family=OPT_FONT_NAME, size=OPT_LEGEND_FONT_SIZE)
+    ax1.legend(labels,
+                prop=fp,
+                bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
+                loc=1,
+                ncol=2,
+                mode="expand",
+                shadow=OPT_LEGEND_SHADOW,
+                borderaxespad=0.0,
+    )
+    
+    # Y-AXIS
+    #fp = FontProperties(family=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE, weight=OPT_LABEL_WEIGHT)
+    ax1.set_ylabel("Throughput", fontproperties=fp)
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+    for tick in ax1.yaxis.get_major_ticks():
+        #tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+        
+    # X-AXIS
+    #fp = FontProperties(family=OPT_FONT_NAME, size=OPT_XLABEL_FONT_SIZE, weight=OPT_LABEL_WEIGHT)
+    ax1.set_xlabel("Skew", fontproperties=fp)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    print (x_values)
+    ax1.set_xticks(ind + width*len(x_labels))
+    print(x_labels)
+    #pprint(ax1.xaxis.get_majorticklocs())
+    for tick in ax1.xaxis.get_major_ticks():
+        #tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+    # # FOR
+        
+    return (fig)
+# # DEF
+
 def create_ycsb_perf_bar_chart(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
@@ -110,11 +195,11 @@ def create_ycsb_perf_bar_chart(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 25000)
+        axes.set_ylim(0, 200)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 25000)
+        axes.set_ylim(0, 200)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 25000)
+        axes.set_ylim(0, 200)
         
     makeGrid(ax1)
     
@@ -157,6 +242,7 @@ def create_ycsb_perf_bar_chart(datasets, workload_mix):
         
     return (fig)
 # # DEF
+
 
 def create_ycsb_perf_line_chart(datasets, workload_mix):
     fig = plot.figure()
@@ -227,41 +313,65 @@ def create_ycsb_perf_line_chart(datasets, workload_mix):
     return (fig)
 # # DEF
 
-def loadDataFile(path):
+def loadDataFile(n_rows, n_cols, path):
     file = open(path, "r")
     reader = csv.reader(file)
     
-    data = [None] * 2
+    data = [[0 for x in xrange(n_cols)] for y in xrange(n_rows)]
     
     row_num = 0
     for row in reader:
+        print row
         column_num = 0
         for col in row:
-            if column_num == 1:
-                data[row_num] = float(col)
+            data[row_num][column_num] = float(col)
             column_num += 1
         row_num += 1
-        
+                
     return data
                 
 ## ==============================================
 # # main
 ## ==============================================
 if __name__ == '__main__':
-    aparser = argparse.ArgumentParser(description='Throughput Graphs')
-    aparser.add_argument('--powerpoint', action='store_true',
-                         help='PowerPoint Formatted Graphs')
-    args = vars(aparser.parse_args())
-        
-    for workload in WORKLOAD_MIX:    
-        for lat in LATENCIES:
+    
+    parser = argparse.ArgumentParser(description='Plot graphs')
+    
+    parser.add_argument('--powerpoint', action='store_true', help='PowerPoint Formatted Graphs')
+    parser.add_argument("-y", "--ycsb_perf", help='ycsb throughput', action='store_true')
+    parser.add_argument("-s", "--ycsb_storage", help='ycsb storage', action='store_true')
+    
+    args = parser.parse_args()
+    
+    # YCSB PERF
+    if args.ycsb_perf:                
+        for workload in WORKLOAD_MIX:    
+            for lat in LATENCIES:
+                    datasets = []
+    
+                    for sy in SYSTEMS:    
+                        dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(BASE_DIR, "ycsb/performance/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
+                        datasets.append(dataFile)
+                               
+                    fig = create_ycsb_perf_bar_chart(datasets, workload)
+                    
+                    fileName = "ycsb-perf-%s-%s.pdf" % (workload, lat)
+                    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+                    
+    WORKLOAD_MIX = ("read-only", "write-heavy")
+                    
+    # YCSB STORAGE                
+    if args.ycsb_storage:                
+        for workload in WORKLOAD_MIX:    
                 datasets = []
 
                 for sy in SYSTEMS:    
-                    dataFile = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/" + sy + "/" + workload + "/" + lat + "/results.csv")))
+                    dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(BASE_DIR, "ycsb/storage/" + sy + "/" + workload + "/storage.csv")))
                     datasets.append(dataFile)
                            
-                fig = create_ycsb_perf_bar_chart(datasets, workload)
-                fileName = "ycsb-%s-%s.pdf" % (workload, lat)
+                fig = create_ycsb_storage_bar_chart(datasets, workload)
+                                
+                fileName = "ycsb-storage-%s.pdf" % (workload)
                 saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+               
     

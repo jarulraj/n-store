@@ -17,7 +17,7 @@ def chunks(l, n):
 
 def parse_ycsb(log_name):
     
-    benchmark_dir = "../results/ycsb/"
+    benchmark_dir = "../results/ycsb/performance/"
     
     tput = {}
     mean = {}
@@ -109,7 +109,7 @@ def parse_ycsb(log_name):
         if not os.path.exists(result_directory):
             os.makedirs(result_directory)
 
-        result_file_name = result_directory + "results.csv"
+        result_file_name = result_directory + "performance.csv"
         result_file = open(result_file_name, "a")
         result_file.write(str(key[1] + " , " + mean[key] + "\n"))
         result_file.close()    
@@ -158,8 +158,8 @@ def ycsb_eval_performance(enable_sdv, enable_trials, log_name):
     fs_path = "/mnt/pmfs/n-store/"
     
     # NSTORE FLAGS
-    keys = 200000 
-    txns = 500000
+    keys = 20000 
+    txns = 50000
     # KEYS=100 
     # TXNS=100 
     
@@ -227,6 +227,11 @@ def ycsb_eval_storage(log_name):
     fs_path = "/mnt/pmfs/n-store/"
     pmem_check = "./src/pmem_check"
     
+    benchmark_dir = "../results/ycsb/storage/"
+
+    # CLEAN UP RESULT FILES
+    subprocess.call(['rm', '-rf', benchmark_dir])          
+
     # NSTORE FLAGS
     keys = 20000 
     txns = 50000
@@ -236,20 +241,64 @@ def ycsb_eval_storage(log_name):
         subprocess.call(["rm -f " + fs_path + "./*"], shell=True)        
         
     # GET STATS
-    def get_stats():
+    def get_stats(engine_type, rw_mix, skew_factor):
+        print ("eng : %s rw_mix : %lf" % (engine_type, rw_mix))
+                
         subprocess.call(['ls', '-larth', fs_path ], stdout=log_file)
         find_cmd = subprocess.Popen(['find', fs_path , '-name', '*.nvm', '-exec', 'ls', '-lart', '{}', ';'], stdout=subprocess.PIPE)
         log_file.write("FS STORAGE :: ")
         log_file.flush()
-        subprocess.call(['awk', '{ sum += $5 } END { print sum }'], stdin=find_cmd.stdout, stdout=log_file)
-    
+        fs_st = subprocess.check_output(['awk', '{ sum += $5 } END { print sum }'], stdin=find_cmd.stdout)
+        fs_st = fs_st.replace(" ","").strip()
+        if not fs_st:
+            fs_st = "0"
+        print("FS STORAGE :: --" + fs_st+"--")
+        log_file.write(fs_st)
+        log_file.flush()
+
         subprocess.call([pmem_check, fs_path + "./zfile" ], stdout=log_file)           
         pmem_cmd = subprocess.Popen([pmem_check, fs_path + "./zfile" ], stdout=subprocess.PIPE)
         grep_cmd = subprocess.Popen(['grep', 'Active'], stdin=pmem_cmd.stdout, stdout=subprocess.PIPE)
         log_file.write("PM STORAGE :: ")
         log_file.flush()
-        subprocess.call(['awk', '{ print $2 }'], stdin=grep_cmd.stdout, stdout=log_file)
+        pm_st = subprocess.check_output(['awk', '{ print $2 }'], stdin=grep_cmd.stdout)
+        pm_st = pm_st.replace(" ","").strip()
+        if not pm_st:
+            pm_st = "0"
+        print("PM STORAGE :: --" + pm_st+"--")
+        log_file.write(pm_st)
+        log_file.flush()
     
+        if(engine_type == "-a"):
+            engine_type = "wal"                
+        elif(engine_type == "-s"):
+            engine_type = "sp"
+        elif(engine_type == "-m"):
+            engine_type = "lsm"
+        elif(engine_type == "-w"):
+            engine_type = "opt_wal"
+        elif(engine_type == "-c"):
+            engine_type = "opt_sp"
+        elif(engine_type == "-l"):
+            engine_type = "opt_lsm"
+      
+        if(rw_mix == 0):
+            workload_type = 'read-only'
+        elif(rw_mix == 0.1):
+            workload_type = 'read-heavy'
+        elif(rw_mix == 0.5):
+            workload_type = 'write-heavy'    
+            
+        result_directory = benchmark_dir + engine_type + "/" + workload_type + "/";
+        if not os.path.exists(result_directory):
+            os.makedirs(result_directory)
+
+        result_file_name = result_directory + "storage.csv"
+        result_file = open(result_file_name, "a")
+        print(str(skew_factor) + " , " + str(fs_st) + " , " + str(pm_st))
+        result_file.write(str(skew_factor) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
+        result_file.close()    
+
         
     rw_mixes = [0, 0.5]
     skew_factors = [0.1, 1.0]
@@ -273,7 +322,7 @@ def ycsb_eval_storage(log_name):
             for eng in engines:
                 cleanup()
                 subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
-                get_stats()
+                get_stats(eng, rw_mix, skew_factor)
                        
        
 
@@ -295,7 +344,7 @@ if __name__ == '__main__':
     if args.enable_trials:
         enable_trials = True
 
-    ycsb_eval_log_name = "ycsb_eval.log"
+    ycsb_eval_log_name = "ycsb_performance.log"
     ycsb_storage_log_name = "ycsb_storage.log"
     
     if args.evaluate:
