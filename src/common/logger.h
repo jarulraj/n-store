@@ -21,7 +21,7 @@ class logger {
   }
 
   void configure(std::string _name) {
-    log_file_name = _name;
+    log_file_name = _name + ".nvm";
 
     // append/update mode
     log_file = fopen(log_file_name.c_str(), "a+");

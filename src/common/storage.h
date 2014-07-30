@@ -23,7 +23,7 @@ class storage {
   }
 
   void configure(std::string _name, size_t _tuple_size, bool overwrite) {
-    storage_file_name = _name;
+    storage_file_name = _name + ".nvm";
     max_tuple_size = _tuple_size;
 
     // write/update mode

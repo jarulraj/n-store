@@ -49,8 +49,8 @@ OPT_FONT_NAME = 'Droid Sans'
 OPT_GRAPH_HEIGHT = 300
 OPT_GRAPH_WIDTH = 400
 OPT_LABEL_WEIGHT = 'bold'
-OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
-OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
+#OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
+OPT_COLORS = brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
 OPT_GRID_COLOR = 'gray'
 OPT_LEGEND_SHADOW=False
 OPT_MARKERS = (['o','s','v',">", "h", "v","^", "x", "d","<", "|","8","|", "_"])
@@ -86,16 +86,82 @@ def makeGrid(ax):
     ax.set_axisbelow(True)
 # # DEF
 
-## ==============================================
-# # CREATE WORKLOAD SKEW THROUGHPUT GRAPH
-## ==============================================
-def createYCSBGraphs(datasets, workload_mix):
+def create_ycsb_perf_bar_chart(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    #labels = ("WAL-2X", "WAL-8X", "SP-2X", "SP-8X", "LSM-2X", "LSM-8X",
-    #          "PM-WAL-2X", "PM-WAL-8X", "PM-SP-2X", "PM-SP-8X", "PM-LSM-2X", "PM-LSM-8X")
+    labels = ("WAL-2X", "SP-2X", "LSM-2X",
+              "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
 
+    N = 2
+    x_values = [0.1, 1.0]
+    x_labels = ["Low", "High"]
+
+    ind = np.arange(N)  
+    width = 0.05  # the width of the bars
+    offset = 0.15
+
+    for i in xrange(len(datasets)):
+        LOG.info("%s y_values = %s", labels[i], datasets[i])
+        ax1.bar(ind + width*i + offset, datasets[i], width, color=OPT_COLORS[i])
+
+    # # FOR
+    
+    # GRID
+    axes = ax1.get_axes()
+    if workload_mix == "read-only":
+        axes.set_ylim(0, 25000)
+    elif workload_mix == "read-heavy":
+        axes.set_ylim(0, 25000)
+    elif workload_mix == "write-heavy":
+        axes.set_ylim(0, 25000)
+        
+    makeGrid(ax1)
+    
+    # LEGEND
+    fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
+    #fp = FontProperties(family=OPT_FONT_NAME, size=OPT_LEGEND_FONT_SIZE)
+    num_col = 2
+    ax1.legend(labels,
+                prop=fp,
+                bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
+                loc=1,
+                ncol=num_col,
+                mode="expand",
+                shadow=OPT_LEGEND_SHADOW,
+                borderaxespad=0.0,
+    )
+    
+    # Y-AXIS
+    #fp = FontProperties(family=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE, weight=OPT_LABEL_WEIGHT)
+    ax1.set_ylabel("Throughput", fontproperties=fp)
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+    for tick in ax1.yaxis.get_major_ticks():
+        #tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+        
+    # X-AXIS
+    #fp = FontProperties(family=OPT_FONT_NAME, size=OPT_XLABEL_FONT_SIZE, weight=OPT_LABEL_WEIGHT)
+    ax1.set_xlabel("Skew", fontproperties=fp)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    print (x_values)
+    ax1.set_xticks(ind + width*len(datasets))
+    print(x_labels)
+    #pprint(ax1.xaxis.get_majorticklocs())
+    for tick in ax1.xaxis.get_major_ticks():
+        #tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+    # # FOR
+        
+    return (fig)
+# # DEF
+
+def create_ycsb_perf_line_chart(datasets, workload_mix):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+     
     labels = ("WAL-2X", "SP-2X", "LSM-2X",
               "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
 
@@ -195,7 +261,7 @@ if __name__ == '__main__':
                     dataFile = loadDataFile(os.path.realpath(os.path.join(BASE_DIR, "ycsb/" + sy + "/" + workload + "/" + lat + "/results.csv")))
                     datasets.append(dataFile)
                            
-                fig = createYCSBGraphs(datasets, workload)
+                fig = create_ycsb_perf_bar_chart(datasets, workload)
                 fileName = "ycsb-%s-%s.pdf" % (workload, lat)
                 saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
     

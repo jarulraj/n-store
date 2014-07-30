@@ -31,7 +31,7 @@ class database {
 
     // DIRS
     if (conf.etype == engine_type::SP) {
-      dirs = new cow_pbtree(false, (conf.fs_path + "cow.db").c_str(),
+      dirs = new cow_pbtree(false, (conf.fs_path + "cow.nvm").c_str(),
       NULL);
       // No activation
     }
@@ -55,7 +55,7 @@ class database {
   void reset(config& conf) {
 
     if (conf.etype == engine_type::SP) {
-      dirs = new cow_pbtree(false, (conf.fs_path + "cow.db").c_str(),
+      dirs = new cow_pbtree(false, (conf.fs_path + "cow.nvm").c_str(),
       NULL);
     }
 

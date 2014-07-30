@@ -94,7 +94,7 @@ def parse_ycsb(log_name):
         sdev[key] = str(sdev[key]).rjust(10)
         
         # LOG TO RESULT FILE
-        engine_type =  str(key[3]);
+        engine_type = str(key[3]);
         
         if(key[0] == '0.0'):
             workload_type = 'read-only'
@@ -103,7 +103,7 @@ def parse_ycsb(log_name):
         elif(key[0] == '0.5'):
             workload_type = 'write-heavy'
     
-        latency_factor =  str(key[2]);
+        latency_factor = str(key[2]);
         
         result_directory = benchmark_dir + engine_type + "/" + workload_type + "/" + latency_factor + "/";
         if not os.path.exists(result_directory):
@@ -118,7 +118,7 @@ def parse_ycsb(log_name):
     read_heavy = []
     write_heavy = []
     
-    #pprint.pprint(tput)
+    # pprint.pprint(tput)
     
     # ARRANGE DATA INTO TABLES    
     for key in sorted(mean.keys()):
@@ -147,7 +147,7 @@ def parse_ycsb(log_name):
     
     log_file.close()
 
-def eval(enable_sdv, enable_trials, log_name):        
+def ycsb_eval_performance(enable_sdv, enable_trials, log_name):        
     dram_latency = 100
     results_dir = "results"
     
@@ -174,10 +174,11 @@ def eval(enable_sdv, enable_trials, log_name):
     latency_factors = [2, 8]
     rw_mixes = [0, 0.1, 0.5]
     skew_factors = [0.1, 1.0]
- 
-    #latency_factors = [2]
-    #rw_mixes = [0, 0.5]
-    #skew_factors = [0.1]
+    engines = ['-a', '-s', '-m', '-w', '-c', '-l']
+
+    # latency_factors = [2]
+    # rw_mixes = [0, 0.5]
+    # skew_factors = [0.1]
     
     # LOG RESULTS
     log_file = open(log_name, 'w')
@@ -209,25 +210,72 @@ def eval(enable_sdv, enable_trials, log_name):
                     print (ostr, end="")
                     log_file.write(ostr)                    
                     log_file.flush()
-           
-                    cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-a'], stdout=log_file)
+                               
+                    for eng in engines:
+                        cleanup()
+                        subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
      
-                    cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-s'], stdout=log_file)
-                    
-                    cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-m'], stdout=log_file)
 
-                    cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-w'], stdout=log_file)
 
-                    cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-c'], stdout=log_file)
+def ycsb_eval_storage(log_name):        
+    results_dir = "results"
+    
+    sdv_dir = "/data/devel/sdv-tools/sdv-release"
+    sdv_script = sdv_dir + "/ivt_pm_sdv.sh"
+    
+    nstore = "./src/nstore"
+    fs_path = "/mnt/pmfs/n-store/"
+    pmem_check = "./src/pmem_check"
+    
+    # NSTORE FLAGS
+    keys = 20000 
+    txns = 50000
+    
+     # CLEANUP
+    def cleanup():
+        subprocess.call(["rm -f " + fs_path + "./*"], shell=True)        
+        
+    # GET STATS
+    def get_stats():
+        subprocess.call(['ls', '-larth', fs_path ], stdout=log_file)
+        find_cmd = subprocess.Popen(['find', fs_path , '-name', '*.nvm', '-exec', 'ls', '-lart', '{}', ';'], stdout=subprocess.PIPE)
+        log_file.write("FS STORAGE :: ")
+        log_file.flush()
+        subprocess.call(['awk', '{ sum += $5 } END { print sum }'], stdin=find_cmd.stdout, stdout=log_file)
+    
+        subprocess.call([pmem_check, fs_path + "./zfile" ], stdout=log_file)           
+        pmem_cmd = subprocess.Popen([pmem_check, fs_path + "./zfile" ], stdout=subprocess.PIPE)
+        grep_cmd = subprocess.Popen(['grep', 'Active'], stdin=pmem_cmd.stdout, stdout=subprocess.PIPE)
+        log_file.write("PM STORAGE :: ")
+        log_file.flush()
+        subprocess.call(['awk', '{ print $2 }'], stdin=grep_cmd.stdout, stdout=log_file)
+    
+        
+    rw_mixes = [0, 0.5]
+    skew_factors = [0.1, 1.0]
+    engines = ['-a', '-s', '-m', '-w', '-c', '-l']    
 
-                    cleanup()
-                    subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-l'], stdout=log_file)
-                                                    
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+                   
+    # RW MIX
+    for rw_mix  in rw_mixes:
+        # SKEW FACTOR
+        for skew_factor  in skew_factors:
+            ostr = ("--------------------------------------------------- \n")
+            print (ostr, end="")
+            log_file.write(ostr)
+            ostr = ("RW MIX :: %.1f SKEW :: %.2f \n" % (rw_mix, skew_factor))
+            print (ostr, end="")
+            log_file.write(ostr)                    
+            log_file.flush()
+    
+            for eng in engines:
+                cleanup()
+                subprocess.call([nstore, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
+                get_stats()
+                       
+       
 
 if __name__ == '__main__':
     enable_sdv = False
@@ -238,6 +286,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--enable-trials", help='enable trials', action='store_true')
     parser.add_argument("-e", "--evaluate", help='evaluation', action='store_true')
     parser.add_argument("-p", "--plot", help='plot data', action='store_true')
+    parser.add_argument("-f", "--storage", help='storage stats', action='store_true')
     
     args = parser.parse_args()
     
@@ -246,12 +295,15 @@ if __name__ == '__main__':
     if args.enable_trials:
         enable_trials = True
 
-    log_name = "data.log"
+    ycsb_eval_log_name = "ycsb_eval.log"
+    ycsb_storage_log_name = "ycsb_storage.log"
     
     if args.evaluate:
-        eval(enable_sdv, enable_trials, log_name)
+        ycsb_eval_performance(enable_sdv, enable_trials, ycsb_eval_log_name)
     
     if args.plot:
-        parse_ycsb(log_name)
+        parse_ycsb(ycsb_eval_log_name)
 
+    if args.storage:
+        ycsb_eval_storage(ycsb_storage_log_name);
     

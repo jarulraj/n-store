@@ -67,8 +67,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.ycsb_skew = 1.0;
   state.ycsb_update_one = false;
-  state.ycsb_field_size = 5;
-  state.ycsb_tuples_per_txn = 2;
+  state.ycsb_field_size = 250;
+  state.ycsb_tuples_per_txn = 1;
   state.ycsb_num_val_fields = 4;
 
   state.tpcc_num_warehouses = 2;
@@ -297,15 +297,11 @@ void execute(config& state) {
 int main(int argc, char **argv) {
   const char* path = "/mnt/pmfs/n-store/zfile";
 
-  cout<<"pmemalloc init start"<<endl;
-
   size_t pmp_size = 2UL * 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
   sp = (struct static_info *) pmemalloc_static_area();
-
-  cout<<"pmemalloc init finished"<<endl;
 
 // Start
   config state;
