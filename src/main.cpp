@@ -297,11 +297,15 @@ void execute(config& state) {
 int main(int argc, char **argv) {
   const char* path = "/mnt/pmfs/n-store/zfile";
 
-  size_t pmp_size = 8UL * 1024 * 1024 * 1024;
+  cout<<"pmemalloc init start"<<endl;
+
+  size_t pmp_size = 2UL * 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
   sp = (struct static_info *) pmemalloc_static_area();
+
+  cout<<"pmemalloc init finished"<<endl;
 
 // Start
   config state;

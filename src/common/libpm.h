@@ -58,6 +58,7 @@ void usage(const char *argfmt, const char *fmt, ...);
 #include <stdio.h>
 #include <stdint.h>
 #include <iostream>
+#include <unistd.h>
 
 using namespace std;
 
@@ -69,7 +70,7 @@ pmem_map(int fd, size_t len) {
   void *base;
 
   if ((base = mmap((caddr_t) LIBPM, len, PROT_READ | PROT_WRITE,
-  MAP_SHARED,
+  MAP_SHARED | MAP_POPULATE,
                    fd, 0)) == MAP_FAILED)
     return NULL;
 

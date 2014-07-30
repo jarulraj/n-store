@@ -58,6 +58,7 @@ void usage(const char *argfmt, const char *fmt, ...);
 #include <stdio.h>
 #include <stdint.h>
 #include <iostream>
+#include <unistd.h>
 
 using namespace std;
 
@@ -73,10 +74,6 @@ pmem_map(int fd, size_t len) {
                    fd, 0)) == MAP_FAILED)
     return NULL;
 
-// Add madvise
-//  if (madvise(base, len, MADV_SEQUENTIAL | MADV_WILLNEED) != 0)
-//    FATALSYS("madvise");
-  
   return base;
 }
 
