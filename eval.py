@@ -109,7 +109,8 @@ SDV_SCRIPT = SDV_DIR + "/ivt_pm_sdv.sh"
 NSTORE = "./src/nstore"
 FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
-PERF = "perf"
+#PERF = "/usr/bin/perf"
+PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
