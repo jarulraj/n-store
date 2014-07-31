@@ -116,8 +116,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000
-YCSB_TXNS = 5000
+YCSB_KEYS = 20000
+YCSB_TXNS = 50000
 YCSB_WORKLOAD_MIX = ("read-only", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.5]
@@ -125,6 +125,9 @@ YCSB_RW_MIXES = [0, 0.5]
 YCSB_PERF_DIR = "../results/ycsb/performance/"
 YCSB_STORAGE_DIR = "../results/ycsb/storage/"
 YCSB_NVM_DIR = "../results/ycsb/nvm/"
+TPCC_PERF_DIR = "../results/tpcc/performance/"
+
+TPCC_TXNS = 5000
 
 
 ###################################################################################                   
@@ -349,6 +352,69 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
         
     return (fig)
 
+def create_tpcc_perf_bar_chart(datasets):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+     
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
+
+    x_values = LATENCIES
+    N = len(x_values)
+    x_labels = ["200", "800"]
+
+    ind = np.arange(N)  
+    width = 0.05  # the width of the bars
+    offset = 0.15
+
+    for group in xrange(len(datasets)):
+        # GROUP
+        perf_data = []               
+        LOG.info("GROUP :: %s", datasets[group])
+
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    perf_data.append(datasets[group][line][col])
+  
+        LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
+                
+        ax1.bar(ind + group * width, perf_data, width, color=OPT_COLORS[group])
+    
+    # GRID
+    axes = ax1.get_axes()
+    axes.set_ylim(0, 10000)        
+    makeGrid(ax1)
+    
+    # LEGEND
+    fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
+    num_col = 2
+    ax1.legend(labels,
+                prop=fp,
+                bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
+                loc=1,
+                ncol=num_col,
+                mode="expand",
+                shadow=OPT_LEGEND_SHADOW,
+                borderaxespad=0.0,
+    )
+    
+    # Y-AXIS
+    ax1.set_ylabel("Throughput", fontproperties=fp)
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+        
+    # X-AXIS
+    ax1.set_xlabel("NVM Latency", fontproperties=fp)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    print (x_values)
+    ax1.set_xticks(ind + width * len(datasets))
+    print(x_labels)
+        
+    return (fig)
+
+
 # YCSB PERF -- PLOT
 def ycsb_perf_plot():
     for workload in YCSB_WORKLOAD_MIX:    
@@ -394,6 +460,20 @@ def ycsb_nvm_plot():
             fileName = "ycsb-nvm-%s.pdf" % (workload)
             saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
+# TPCC PERF -- PLOT
+def tpcc_perf_plot():
+    for lat in LATENCIES:
+        datasets = []
+    
+        for sy in SYSTEMS:    
+            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/performance.csv")))
+            datasets.append(dataFile)
+                   
+        fig = create_tpcc_perf_bar_chart(datasets)
+        
+        fileName = "tpcc-perf-%s.pdf" % (lat)
+        saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+ 
                    
 ###################################################################################                   
 # EVAL                   
@@ -794,6 +874,128 @@ def ycsb_nvm_eval(log_name):
             result_file = open(result_file_name, "a")
             result_file.write(str(skew) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
             result_file.close()    
+
+# TPCC PERF -- EVAL
+def tpcc_perf_eval(enable_sdv, enable_trials, log_name):        
+    dram_latency = 100
+    txns = TPCC_TXNS
+                    
+     # CLEANUP
+    def cleanup():
+        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
+    
+    num_trials = 1 
+    if enable_trials: 
+        num_trials = 3
+    
+    nvm_latencies = LATENCIES
+    engines = ENGINES
+    
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    
+    for nvm_latency in nvm_latencies:
+
+        ostr = ("LATENCY %s \n" % nvm_latency)    
+        print (ostr, end="")
+        log_file.write(ostr)
+        log_file.flush()
+        
+        if enable_sdv :
+            cwd = os.getcwd()
+            os.chdir(SDV_DIR)
+            subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', str(nvm_latency)], stdout=log_file)
+            os.chdir(cwd)
+                   
+        for trial in range(num_trials):
+            ostr = ("--------------------------------------------------- \n")
+            print (ostr, end="")
+            log_file.write(ostr)
+            ostr = ("TRIAL :: %d \n" % (trial))
+            print (ostr, end="")
+            log_file.write(ostr)                    
+            log_file.flush()
+                       
+            for eng in engines:
+                cleanup()
+                subprocess.call([NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
+
+    # PARSE LOG
+    log_file.close()   
+    log_file = open(log_name, "r")    
+
+    tput = {}
+    mean = {}
+    sdev = {}
+    latency = 0
+    
+    nvm_latencies = []
+    engine_types = []
+    
+    for line in log_file:
+        if "LATENCY" in line:
+            entry = line.strip().split(' ');
+            if entry[0] == "LATENCY":
+                latency = entry[1]
+            if latency not in nvm_latencies:
+                nvm_latencies.append(latency)
+                    
+        if "TRIAL" in line:
+            entry = line.strip().split(' ');
+            trial = entry[2]
+                   
+        if "Throughput" in line:
+            entry = line.strip().split(':');
+            engine_type = entry[0].split(' ');
+            val = float(entry[4]);
+            
+            if(engine_type[0] == "WAL"):
+                engine_type[0] = "wal"                
+            elif(engine_type[0] == "SP"):
+                engine_type[0] = "sp"
+            elif(engine_type[0] == "LSM"):
+                engine_type[0] = "lsm"
+            elif(engine_type[0] == "OPT_WAL"):
+                engine_type[0] = "opt_wal"
+            elif(engine_type[0] == "OPT_SP"):
+                engine_type[0] = "opt_sp"
+            elif(engine_type[0] == "OPT_LSM"):
+                engine_type[0] = "opt_lsm"
+            
+            if engine_type not in engine_types:
+                engine_types.append(engine_type)
+                            
+            key = (latency, engine_type[0]);
+            if key in tput:
+                tput[key].append(val)
+            else:
+                tput[key] = [ val ]
+                            
+
+    # CLEAN UP RESULT DIR
+    subprocess.call(['rm', '-rf', TPCC_PERF_DIR])          
+    
+    for key in sorted(tput.keys()):
+        mean[key] = round(numpy.mean(tput[key]), 2)
+        mean[key] = str(mean[key]).rjust(10)
+            
+        sdev[key] = numpy.std(tput[key])
+        sdev[key] /= float(mean[key])
+        sdev[key] = round(sdev[key], 3)
+        sdev[key] = str(sdev[key]).rjust(10)
+        
+        nvm_latency = str(key[0]);
+        engine_type = str(key[1]);            
+        
+        result_directory = TPCC_PERF_DIR + engine_type + "/";
+        if not os.path.exists(result_directory):
+            os.makedirs(result_directory)
+
+        result_file_name = result_directory + "performance.csv"
+        result_file = open(result_file_name, "a")
+        result_file.write(nvm_latency + " , " + mean[key] + "\n")
+        result_file.close()    
+                          
                 
 ## ==============================================
 # # main
@@ -805,13 +1007,15 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Run experiments')
     parser.add_argument("-x", "--enable-sdv", help='enable sdv', action='store_true')
-    parser.add_argument("-t", "--enable-trials", help='enable trials', action='store_true')
-    parser.add_argument("-y", "--ycsb_perf_eval", help='evaluation', action='store_true')
-    parser.add_argument("-s", "--ycsb_storage_eval", help='plot data', action='store_true')
-    parser.add_argument("-n", "--ycsb_nvm_eval", help='plot data', action='store_true')
-    parser.add_argument("-p", "--ycsb_perf_plot", help='ycsb throughput', action='store_true')
-    parser.add_argument("-q", "--ycsb_storage_plot", help='ycsb storage', action='store_true')
-    parser.add_argument("-r", "--ycsb_nvm_plot", help='ycsb storage', action='store_true')
+    parser.add_argument("-u", "--enable-trials", help='enable trials', action='store_true')
+    parser.add_argument("-y", "--ycsb_perf_eval", help='eval ycsb perf', action='store_true')
+    parser.add_argument("-s", "--ycsb_storage_eval", help='eval ycsb storage', action='store_true')
+    parser.add_argument("-n", "--ycsb_nvm_eval", help='eval ycsb nvm', action='store_true')
+    parser.add_argument("-t", "--tpcc_perf_eval", help='eval tpcc perf', action='store_true')
+    parser.add_argument("-a", "--ycsb_perf_plot", help='plot ycsb perf', action='store_true')
+    parser.add_argument("-b", "--ycsb_storage_plot", help='plot ycsb storage', action='store_true')
+    parser.add_argument("-c", "--ycsb_nvm_plot", help='plot ycsb nvm', action='store_true')
+    parser.add_argument("-d", "--tpcc_perf_plot", help='plot tpcc perf', action='store_true')
     
     args = parser.parse_args()
     
@@ -820,13 +1024,14 @@ if __name__ == '__main__':
     if args.enable_trials:
         enable_trials = True
 
-    ycsb_eval_log_name = "ycsb_perf.log"
+    ycsb_perf_log_name = "ycsb_perf.log"
     ycsb_storage_log_name = "ycsb_storage.log"
     ycsb_nvm_log_name = "ycsb_nvm.log"
+    tpcc_perf_log_name = "tpcc_perf.log"
     
     # YCSB PERF -- EVAL
     if args.ycsb_perf_eval:
-        ycsb_perf_eval(enable_sdv, enable_trials, ycsb_eval_log_name)
+        ycsb_perf_eval(enable_sdv, enable_trials, ycsb_perf_log_name)
     
     # YCSB STORAGE -- EVAL
     if args.ycsb_storage_eval:
@@ -835,6 +1040,10 @@ if __name__ == '__main__':
     # YCSB NVM -- EVAL
     if args.ycsb_nvm_eval:
         ycsb_nvm_eval(ycsb_nvm_log_name);             
+
+    # TPCC PERF -- EVAL
+    if args.tpcc_perf_eval:
+        tpcc_perf_eval(enable_sdv, enable_trials, tpcc_perf_log_name);             
              
     # YCSB PERF -- PLOT
     if args.ycsb_perf_plot:      
@@ -844,6 +1053,10 @@ if __name__ == '__main__':
     if args.ycsb_storage_plot:                
        ycsb_storage_plot();
        
-   # YCSB NVM -- PLOT               
+    # YCSB NVM -- PLOT               
     if args.ycsb_nvm_plot:                
        ycsb_nvm_plot();                          
+
+    # TPCC PERF -- PLOT               
+    if args.tpcc_perf_plot:                
+       tpcc_perf_plot();                          
