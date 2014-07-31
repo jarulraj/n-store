@@ -421,7 +421,7 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
     
     for nvm_latency in nvm_latencies:
 
-        ostr = ("LATENCY %d \n" % nvm_latency)    
+        ostr = ("LATENCY %s \n" % nvm_latency)    
         print (ostr, end="")
         log_file.write(ostr)
         log_file.flush()
