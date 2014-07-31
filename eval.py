@@ -135,8 +135,8 @@ def create_ycsb_perf_bar_chart(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL-2X", "SP-2X", "LSM-2X",
-              "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
 
     x_values = YCSB_SKEW_FACTORS
     N = len(x_values)
@@ -163,11 +163,11 @@ def create_ycsb_perf_bar_chart(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 200000)
+        axes.set_ylim(0, 40000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 200000)
+        axes.set_ylim(0, 40000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 200000)
+        axes.set_ylim(0, 40000)
         
     makeGrid(ax1)
     
@@ -203,8 +203,8 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL-2X", "SP-2X", "LSM-2X",
-              "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
 
     x_values = YCSB_SKEW_FACTORS
     N = len(x_values)
@@ -213,6 +213,7 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
     ind = np.arange(N)  
     width = 0.05  # the width of the bars
     offset = 0.15
+    bars = [None] * len(labels)
     
     for group in xrange(len(datasets)):
         # GROUP
@@ -228,23 +229,23 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
   
         LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
                 
-        ax1.bar(ind + group * width, fs_data, width, color=OPT_COLORS[group])
+        bars[group] = ax1.bar(ind + group * width, fs_data, width, color=OPT_COLORS[group])
         ax1.bar(ind + group * width, pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch='/')
         
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 400000)
+        axes.set_ylim(0, 80000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 400000)
+        axes.set_ylim(0, 80000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 400000)
+        axes.set_ylim(0, 80000)
         
     makeGrid(ax1)
     
     # LEGEND
     fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(labels,
+    ax1.legend( bars, labels,                
                 prop=fp,
                 bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
                 loc=1,
@@ -255,7 +256,7 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
     )
     
     # Y-AXIS
-    ax1.set_ylabel("Throughput", fontproperties=fp)
+    ax1.set_ylabel("Storage (MB)", fontproperties=fp)
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
     for tick in ax1.yaxis.get_major_ticks():
@@ -277,8 +278,8 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL-2X", "SP-2X", "LSM-2X",
-              "PM-WAL-2X", "PM-SP-2X", "PM-LSM-2X")
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
 
     x_values = YCSB_SKEW_FACTORS
     N = len(x_values)
@@ -287,6 +288,7 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
     ind = np.arange(N)  
     width = 0.05  # the width of the bars
     offset = 0.15
+    bars = [None] * len(labels)
     
     for group in xrange(len(datasets)):
         # GROUP
@@ -302,23 +304,23 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
   
         LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
                 
-        ax1.bar(ind + group * width, l_misses, width, color=OPT_COLORS[group])
+        bars[group] = ax1.bar(ind + group * width, l_misses, width, color=OPT_COLORS[group])
         ax1.bar(ind + group * width, s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch='/')
         
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 100000)
+        axes.set_ylim(0, 10000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 100000)
+        axes.set_ylim(0, 10000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 100000)
+        axes.set_ylim(0, 10000)
         
     makeGrid(ax1)
     
     # LEGEND
     fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(labels,
+    ax1.legend(bars, labels,
                 prop=fp,
                 bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
                 loc=1,
@@ -329,7 +331,7 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
     )
     
     # Y-AXIS
-    ax1.set_ylabel("NVM Accesses", fontproperties=fp)
+    ax1.set_ylabel("NVM accesses (K)", fontproperties=fp)
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
     for tick in ax1.yaxis.get_major_ticks():
