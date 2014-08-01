@@ -42,6 +42,13 @@ int get_rand_int_excluding(int i_min, int i_max, int excl) {
   int ret;
   double f;
 
+  if(i_max == i_min+1){
+    if(excl == i_max)
+      return i_min;
+    else
+      return i_max;
+  }
+
   while (1) {
     f = (double) rand() / RAND_MAX;
     ret = i_min + (int) (f * (double) (i_max - i_min));

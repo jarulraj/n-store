@@ -166,11 +166,11 @@ def create_ycsb_perf_bar_chart(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 40000)
+        axes.set_ylim(0, 120000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 40000)
+        axes.set_ylim(0, 120000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 40000)
+        axes.set_ylim(0, 120000)
         
     makeGrid(ax1)
     
@@ -238,11 +238,11 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 80000)
+        axes.set_ylim(0, 300000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 80000)
+        axes.set_ylim(0, 300000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 80000)
+        axes.set_ylim(0, 300000)
         
     makeGrid(ax1)
     
@@ -313,11 +313,11 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 10000)
+        axes.set_ylim(0, 20000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 10000)
+        axes.set_ylim(0, 20000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 10000)
+        axes.set_ylim(0, 20000)
         
     makeGrid(ax1)
     
