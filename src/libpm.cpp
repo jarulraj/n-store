@@ -7,6 +7,7 @@ using namespace std;
 
 void* pmp;
 struct static_info* sp;
+std::set<void*>* pmem_pool;
 size_t pmem_size;
 
 // Global new and delete
@@ -21,6 +22,7 @@ void operator delete(void *p) throw () {
 }
 
 void* pmemalloc_init(const char *path, size_t size) {
+  pmem_pool = new std::set<void*>();
   pmem_size = 0;
   pmp = (void*) 1;
   return pmp;
@@ -28,29 +30,35 @@ void* pmemalloc_init(const char *path, size_t size) {
 
 void* pmemalloc_static_area() {
   void* static_area = new static_info();
-  memset(static_area, 0 , sizeof(static_area));
+  memset(static_area, 0, sizeof(static_area));
   return static_area;
 }
 
 void* pmemalloc_reserve(size_t size) {
-  // Use calloc instead of malloc
   void* ret = calloc(1, size);
-  pmem_size += size;
   return ret;
 }
 
 void pmemalloc_activate(void *abs_ptr_) {
   size_t len = malloc_usable_size(abs_ptr_);
-  //printf("persist :: %p %lu \n", abs_ptr_, len);
   pmem_persist(abs_ptr_, len, 0);
+
+  //cout<<"Activate :: "<<len<<endl;
+  pmem_pool->insert(abs_ptr_);
+  pmem_size += len;
 }
 
 void pmemalloc_free(void *abs_ptr_) {
   size_t len = malloc_usable_size(abs_ptr_);
-  pmem_size -= len;
   free(abs_ptr_);
+
+  if (pmem_pool->count(abs_ptr_) != 0) {
+    //cout<<"Free :: "<<len<<endl;
+    pmem_pool->erase(abs_ptr_);
+    pmem_size -= len;
+  }
 }
 
 void pmemalloc_check(const char *path) {
-  printf("pmem_size :: %lu \n", pmem_size);
+  printf("PM Storage :: %lu \n", pmem_size);
 }

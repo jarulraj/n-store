@@ -103,7 +103,7 @@ opt_lsm_engine::~opt_lsm_engine() {
   if (read_only)
     return;
 
-  merge(true);
+  merge(false);
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {

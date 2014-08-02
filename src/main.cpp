@@ -310,5 +310,7 @@ int main(int argc, char **argv) {
 
   execute(state);
 
+  pmemalloc_check(path);
+
   return 0;
 }
