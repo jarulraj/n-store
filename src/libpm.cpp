@@ -9,6 +9,7 @@ void* pmp;
 struct static_info* sp;
 std::set<void*>* pmem_pool;
 size_t pmem_size;
+bool pm_stats = false;
 
 // Global new and delete
 
@@ -43,27 +44,29 @@ void pmemalloc_activate(void *abs_ptr_) {
   size_t len = malloc_usable_size(abs_ptr_);
   pmem_persist(abs_ptr_, len, 0);
 
-  //cout<<"Activate :: "<<len<<endl;
-  pmem_pool->insert(abs_ptr_);
-  pmem_size += len;
+  if (pm_stats) {
+    pmem_pool->insert(abs_ptr_);
+    pmem_size += len;
+  }
 }
 
 void pmemalloc_free(void *abs_ptr_) {
-  size_t len = malloc_usable_size(abs_ptr_);
-  free(abs_ptr_);
-
-  if (pmem_pool->count(abs_ptr_) != 0) {
-    //cout<<"Free :: "<<len<<endl;
-    pmem_pool->erase(abs_ptr_);
-    pmem_size -= len;
+  if (pm_stats) {
+    if (pmem_pool->count(abs_ptr_) != 0) {
+      size_t len = malloc_usable_size(abs_ptr_);
+      pmem_pool->erase(abs_ptr_);
+      pmem_size -= len;
+    }
   }
+
+  free(abs_ptr_);
 }
 
 void pmemalloc_end(const char *path) {
   FILE* pmem_file = fopen(path, "w");
   if (pmem_file != NULL) {
     fprintf(pmem_file, "Active %lu \n", pmem_size);
-    fclose (pmem_file);
+    fclose(pmem_file);
   }
 }
 
@@ -72,6 +75,6 @@ void pmemalloc_check(const char *path) {
   if (pmem_file != NULL) {
     fscanf(pmem_file, "Active %lu \n", &pmem_size);
     fprintf(stdout, "Active %lu \n", pmem_size);
-    fclose (pmem_file);
+    fclose(pmem_file);
   }
 }

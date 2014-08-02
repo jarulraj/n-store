@@ -38,6 +38,7 @@ struct static_info {
 
 extern struct static_info* sp;
 extern void* pmp;
+extern bool pm_stats;
 
 void* pmemalloc_init(const char *path, size_t size);
 void* pmemalloc_static_area();

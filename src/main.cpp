@@ -20,6 +20,7 @@ using namespace std;
 
 extern struct static_info *sp;  // global persistent memory structure
 int level = 2;  // verbosity level
+extern bool pm_stats;
 
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
@@ -39,8 +40,9 @@ static void usage_exit(FILE *out) {
           "   -h --help              :  Print help message \n"
           "   -p --per-writes        :  Percent of writes \n"
           "   -u --ycsb-update-one   :  Update one field \n"
-          "   -q --ycsb_zipf_skew    :  Zipf Skew \n");
-  exit(-1);
+          "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
+          "   -z --pm_stats          :  Collect PM stats \n");
+          exit(-1);
 }
 
 static void parse_arguments(int argc, char* argv[], config& state) {
@@ -67,7 +69,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.ycsb_skew = 1.0;
   state.ycsb_update_one = false;
-  state.ycsb_field_size = 200;
+  state.ycsb_field_size = 100;
   state.ycsb_tuples_per_txn = 2;
   state.ycsb_num_val_fields = 10;
 
@@ -76,7 +78,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluyt", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluytz", opts, &idx);
 
     if (c == -1)
       break;
@@ -153,6 +155,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
       case 'u':
         state.ycsb_update_one = true;
         cout << "ycsb_update_one " << endl;
+        break;
+      case 'z':
+        pm_stats = true;
+        cout << "pm_stats " << endl;
         break;
       case 'h':
         usage_exit(stderr);
