@@ -108,7 +108,7 @@ int opt_wal_engine::remove(const statement& st) {
   commit_free_list.push_back(before_rec);
   int num_cols = before_rec->sptr->num_columns;
 
-  for (int field_itr= 0 ; field_itr < num_cols ; field_itr++) {
+  for (int field_itr = 0; field_itr < num_cols; field_itr++) {
     if (before_rec->sptr->columns[field_itr].inlined == 0) {
       void* before_field = before_rec->get_pointer(field_itr);
       commit_free_list.push_back(before_field);
@@ -163,7 +163,7 @@ int opt_wal_engine::update(const statement& st) {
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << num_fields << " ";
+               << " " << num_fields << " " << before_rec << " ";
 
   for (int field_itr : st.field_ids) {
     // Pointer field
@@ -171,15 +171,13 @@ int opt_wal_engine::update(const statement& st) {
       before_field = before_rec->get_pointer(field_itr);
       after_field = rec_ptr->get_pointer(field_itr);
 
-      entry_stream << field_itr << " " << before_rec << " " << before_field
-                   << " " << after_field << " ";
+      entry_stream << field_itr << " " << before_field << " ";
     }
     // Data field
     else {
       std::string before_data = before_rec->get_data(field_itr);
 
-      entry_stream << field_itr << " " << before_rec << " " << before_data
-                   << " ";
+      entry_stream << field_itr << " " << " " << before_data << " ";
     }
   }
 

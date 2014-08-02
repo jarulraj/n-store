@@ -207,7 +207,7 @@ int wal_engine::update(const statement& st) {
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " ";
   // before image
-  //entry_stream << serialize(before_rec, before_rec->sptr) << " ";
+  entry_stream << serialize(before_rec, tab->sptr, false) << " ";
 
   // Update existing record
   for (int field_itr : st.field_ids) {
@@ -230,8 +230,7 @@ int wal_engine::update(const statement& st) {
   tab->fs_data.update(storage_offset, before_tuple);
 
   delete before_rec;
-
-  end: delete rec_ptr;
+  delete rec_ptr;
   return EXIT_SUCCESS;
 }
 

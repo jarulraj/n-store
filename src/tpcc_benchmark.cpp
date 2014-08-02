@@ -2154,21 +2154,26 @@ void tpcc_benchmark::execute(engine* ee) {
   for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
-    if (u <= 0.04) {
-      //cout << "stock_level " << endl;
+    if (conf.tpcc_stock_level_only) {
       do_stock_level(ee);
-    } else if (u <= 0.08) {
-      //cout << "delivery " << endl;
-      do_delivery(ee);
-    } else if (u <= 0.12) {
-      //cout << "order_status " << endl;
-      do_order_status(ee);
-    } else if (u <= 0.55) {
-      //cout << "payment " << endl;
-      do_payment(ee);
     } else {
-      //cout << "new_order " << endl;
-      do_new_order(ee);
+
+      if (u <= 0.04) {
+        //cout << "stock_level " << endl;
+        do_stock_level(ee);
+      } else if (u <= 0.08) {
+        //cout << "delivery " << endl;
+        do_delivery(ee);
+      } else if (u <= 0.12) {
+        //cout << "order_status " << endl;
+        do_order_status(ee);
+      } else if (u <= 0.55) {
+        //cout << "payment " << endl;
+        do_payment(ee);
+      } else {
+        //cout << "new_order " << endl;
+        do_new_order(ee);
+      }
     }
 
     ss.display();

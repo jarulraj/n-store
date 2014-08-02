@@ -70,7 +70,7 @@ void opt_lsm_engine::merge(bool force) {
 
       // Clear mem table
       vector<table_index*> indices = tab->indices->get_data();
-      for(table_index* index : indices)
+      for (table_index* index : indices)
         index->pm_map->clear();
     }
   }
@@ -103,7 +103,7 @@ opt_lsm_engine::~opt_lsm_engine() {
   if (read_only)
     return;
 
-  merge(false);
+  merge(true);
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {

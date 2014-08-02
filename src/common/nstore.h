@@ -83,6 +83,7 @@ class config {
   double ycsb_skew;
 
   int tpcc_num_warehouses;
+  bool tpcc_stock_level_only;
 
   int gc_interval;
 

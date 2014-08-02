@@ -84,15 +84,15 @@ void lsm_engine::merge(bool force) {
 
       // Clear mem table
       vector<table_index*> indices = tab->indices->get_data();
-      for(table_index* index : indices)
+      for (table_index* index : indices)
         index->pm_map->clear();
 
     }
   }
 
   // Truncate log
-  if (force)
-    fs_log.truncate();
+  //if (force)
+  //  fs_log.truncate();
 }
 
 lsm_engine::lsm_engine(const config& _conf, bool _read_only)
@@ -125,7 +125,7 @@ lsm_engine::~lsm_engine() {
   ready = false;
   gc.join();
 
-  merge(false);
+  merge(true);
 
   fs_log.sync();
   fs_log.close();
@@ -293,7 +293,10 @@ int lsm_engine::update(const statement& st) {
   off_t log_offset;
   std::string val;
   record* before_rec;
+  bool existing_rec = false;
   void *before_field, *after_field;
+
+  entry_stream.str("");
 
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
@@ -301,7 +304,11 @@ int lsm_engine::update(const statement& st) {
     before_rec = rec_ptr;
 
   } else {
+    existing_rec = true;
     before_rec = indices->at(0)->pm_map->at(key);
+
+    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+                 << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
 
     // Update existing record
     for (int field_itr : st.field_ids) {
@@ -314,7 +321,6 @@ int lsm_engine::update(const statement& st) {
     }
   }
 
-  entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " " << serialize(before_rec, before_rec->sptr, true) << "\n";
   entry_str = entry_stream.str();
@@ -323,12 +329,13 @@ int lsm_engine::update(const statement& st) {
   fs_log.push_back(entry_str);
 
   // Add entry in indices
-  for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_data(before_rec, indices->at(index_itr)->sptr);
-    key = hash_fn(key_str);
+  if (existing_rec == false) {
+    for (index_itr = 0; index_itr < num_indices; index_itr++) {
+      key_str = get_data(before_rec, indices->at(index_itr)->sptr);
+      key = hash_fn(key_str);
 
-    indices->at(index_itr)->pm_map->erase(key);
-    indices->at(index_itr)->pm_map->insert(key, before_rec);
+      indices->at(index_itr)->pm_map->insert(key, before_rec);
+    }
   }
 
   return EXIT_SUCCESS;

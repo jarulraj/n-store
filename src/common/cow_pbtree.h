@@ -2174,12 +2174,10 @@ class cow_btree {
     //assert(data);
     DPRINTF("===> get key [%.*s]", (int )key->size, (char * )key->data);
 
-    /*
     if (key->size == 0 || key->size > MAXKEYSIZE) {
       errno = EINVAL;
       return BT_FAIL;
     }
-    */
 
     if ((rc = cow_btree_search_page(_txn, key, NULL, 0, &mp)) != BT_SUCCESS)
       return rc;
@@ -2192,7 +2190,7 @@ class cow_btree {
       rc = BT_FAIL;
     }
 
-    //mpage_prune();
+    mpage_prune();
     return rc;
   }
 

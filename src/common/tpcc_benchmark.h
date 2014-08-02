@@ -92,7 +92,7 @@ class tpcc_benchmark : public benchmark {
   const double name_len = 5;
   const double warehouse_initial_ytd = 300000.00f;
 
-  const int districts_per_warehouse = 2;  // 10
+  const int districts_per_warehouse = 10;  // 10
   const double district_initial_ytd = 30000.00f;
 
   const int customers_per_district = 3000;  // 3000

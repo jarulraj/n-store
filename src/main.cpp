@@ -41,7 +41,8 @@ static void usage_exit(FILE *out) {
           "   -p --per-writes        :  Percent of writes \n"
           "   -u --ycsb-update-one   :  Update one field \n"
           "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
-          "   -z --pm_stats          :  Collect PM stats \n");
+          "   -z --pm_stats          :  Collect PM stats \n"
+          "   -o --tpcc_stock-level  :  TPCC stock level only \n");
           exit(-1);
 }
 
@@ -59,7 +60,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.gc_interval = 5;
   state.ycsb_per_writes = 0.1;
 
-  state.merge_interval = 100000;
+  state.merge_interval = 10000;
   state.merge_ratio = 0.2;
 
   state.etype = engine_type::WAL;
@@ -74,11 +75,12 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.ycsb_num_val_fields = 10;
 
   state.tpcc_num_warehouses = 2;
+  state.tpcc_stock_level_only = false;
 
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluytz", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluytzo", opts, &idx);
 
     if (c == -1)
       break;
@@ -160,6 +162,12 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         pm_stats = true;
         cout << "pm_stats " << endl;
         break;
+
+      case 'o':
+        state.tpcc_stock_level_only = true;
+        cout << "tpcc_stock_level " << endl;
+        break;
+
       case 'h':
         usage_exit(stderr);
         break;

@@ -204,15 +204,21 @@ int opt_sp_engine::update(const statement& st) {
   // Read from current version
   record* before_rec;
   std::sscanf((char*) val.data, "%p", &before_rec);
+  void *before_field, *after_field;
 
   record* after_rec = new record(before_rec->sptr);
   memcpy(after_rec->data, before_rec->data, before_rec->data_len);
 
   // Update record
   for (int field_itr : st.field_ids) {
-    void* before_field = before_rec->get_pointer(field_itr);
+    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
+      before_field = before_rec->get_pointer(field_itr);
+      after_field = rec_ptr->get_pointer(field_itr);
+      pmemalloc_activate(after_field);
+      delete ((char*) before_field);
+    }
+
     after_rec->set_data(field_itr, rec_ptr);
-    delete ((char*) before_field);
   }
 
   // Activate new record

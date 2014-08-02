@@ -116,8 +116,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 20000
-YCSB_TXNS = 50000
+YCSB_KEYS = 100000
+YCSB_TXNS = 100000
 YCSB_WORKLOAD_MIX = ("read-only", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.5]
@@ -226,9 +226,9 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
         for line in  xrange(len(datasets[group])):
             for col in  xrange(len(datasets[group][line])):
                 if col == 1:
-                    fs_data.append(datasets[group][line][col] / (1024))
+                    fs_data.append(datasets[group][line][col] / (1024*1024))
                 if col == 2:
-                    pm_data.append(datasets[group][line][col] / (1024))
+                    pm_data.append(datasets[group][line][col] / (1024*1024))
   
         LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
                 
@@ -238,11 +238,11 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 300000)
+        axes.set_ylim(0, 3000)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 300000)
+        axes.set_ylim(0, 3000)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 300000)
+        axes.set_ylim(0, 3000)
         
     makeGrid(ax1)
     
@@ -743,7 +743,7 @@ def ycsb_storage_eval(log_name):
     
             for eng in engines:
                 cleanup()
-                subprocess.call([NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
+                subprocess.call([NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-z', eng], stdout=log_file)
                 get_stats(eng, rw_mix, skew_factor)
 
 
