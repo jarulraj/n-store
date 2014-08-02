@@ -1407,8 +1407,6 @@ class btree {
 
       (*m_root) = NULL;
       m_headleaf = m_tailleaf = NULL;
-
-      delete m_stats;
     }
 
     BTREE_ASSERT(m_stats->itemcount == 0);

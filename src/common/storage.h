@@ -62,6 +62,8 @@ class storage {
       exit(EXIT_FAILURE);
     }
 
+    entry.resize(max_tuple_size);
+
     fseek(storage_file, storage_offset, SEEK_SET);
     ret = fwrite(entry.c_str(), sizeof(char), max_tuple_size, storage_file);
     if (ret < 0) {
@@ -83,8 +85,10 @@ class storage {
       exit(EXIT_FAILURE);
     }
 
+    entry.resize(max_tuple_size);
+
     fseek(storage_file, storage_offset, SEEK_SET);
-    ret = fwrite(entry.c_str(), max_tuple_size, 1, storage_file);
+    ret = fwrite(entry.c_str(), sizeof(char), max_tuple_size, storage_file);
     if (ret < 0) {
       perror("fwrite failed");
       exit(EXIT_FAILURE);
@@ -108,11 +112,11 @@ class storage {
 
   std::string at(off_t storage_offset) {
     std::string entry_str;
-    char* buf = new char[max_tuple_size];
+    char* buf = new char[max_tuple_size+1];
     int rc;
 
     fseek(storage_file, storage_offset, SEEK_SET);
-    rc = fread(buf, max_tuple_size, 1, storage_file);
+    rc = fread(buf, sizeof(char), max_tuple_size, storage_file);
     if (rc == -1) {
       perror("fread");
       exit(EXIT_FAILURE);

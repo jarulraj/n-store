@@ -22,11 +22,11 @@ int main(int argc, char *argv[]) {
   int opt;
 
   if (optind >= argc)
-    USAGE("No path given");
+    printf("No path given \nUsage:: %s \n", Usage);
   path = argv[optind++];
 
   if (optind < argc)
-    USAGE(NULL);
+    printf("Usage :: %s \n", Usage);
 
   pmemalloc_check(path);
 

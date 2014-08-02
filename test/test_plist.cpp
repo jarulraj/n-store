@@ -60,7 +60,6 @@ int main(int argc, char *argv[]) {
   delete list;
 
   int ret = std::remove(path);
-  assert(ret == 0);
 
   return 0;
 }

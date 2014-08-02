@@ -1012,7 +1012,7 @@ void tpcc_benchmark::load_items(engine* ee) {
                                       price);
 
     std::string key_str = get_data(rec_ptr, item_table_schema);
-    LOG_INFO("item :: %s ", key_str.c_str());
+    //LOG_INFO("item :: %s ", key_str.c_str());
 
     statement st(txn_id, operation_type::Insert, ITEM_TABLE_ID, rec_ptr);
 
@@ -1057,7 +1057,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      warehouse_initial_ytd);
 
     log_str = get_data(warehouse_rec_ptr, warehouse_table_schema);
-    LOG_INFO("warehouse :: %s ", log_str.c_str());
+    //LOG_INFO("warehouse :: %s ", log_str.c_str());
 
     st = statement(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID,
                    warehouse_rec_ptr);
@@ -1084,7 +1084,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      next_d_o_id);
 
       log_str = get_data(district_rec_ptr, district_table_schema);
-      LOG_INFO("district :: %s", log_str.c_str());
+      //LOG_INFO("district :: %s", log_str.c_str());
 
       st = statement(txn_id, operation_type::Insert, DISTRICT_TABLE_ID,
                      district_rec_ptr);
@@ -1115,7 +1115,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
             customers_init_payment_cnt, customers_init_delivery_cnt, c_name);
 
         log_str = get_data(customer_rec_ptr, customer_table_schema);
-        LOG_INFO("customer :: %s", log_str.c_str());
+        //LOG_INFO("customer :: %s", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, CUSTOMER_TABLE_ID,
                        customer_rec_ptr);
@@ -1139,7 +1139,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      h_data);
 
         log_str = get_data(history_rec_ptr, history_table_schema);
-        LOG_INFO("history :: %s ", log_str.c_str());
+        //LOG_INFO("history :: %s ", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID,
                        history_rec_ptr);
@@ -1170,7 +1170,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                    orders_init_all_local);
 
         log_str = get_data(orders_rec_ptr, orders_table_schema);
-        LOG_INFO("orders ::%s", log_str.c_str());
+        //LOG_INFO("orders ::%s", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID,
                        orders_rec_ptr);
@@ -1221,7 +1221,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
               ol_supply_w_id, ol_delivery_ts, ol_quantity, ol_amount, ol_data);
 
           log_str = get_data(order_line_rec_ptr, order_line_table_schema);
-          LOG_INFO("order_line ::%s", log_str.c_str());
+          //LOG_INFO("order_line ::%s", log_str.c_str());
 
           st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
                          order_line_rec_ptr);
@@ -1258,7 +1258,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                s_data);
 
       log_str = get_data(stock_rec_ptr, stock_table_schema);
-      LOG_INFO("stock ::%s", log_str.c_str());
+      //LOG_INFO("stock ::%s", log_str.c_str());
 
       st = statement(txn_id, operation_type::Insert, STOCK_TABLE_ID,
                      stock_rec_ptr);

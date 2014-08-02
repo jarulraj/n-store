@@ -79,7 +79,8 @@ void lsm_engine::merge(bool force) {
           table_index->off_map->insert(key, storage_offset);
         }
 
-        delete pm_rec;
+        // XXX Clean up
+        //delete pm_rec;
       }
 
       // Clear mem table
@@ -107,7 +108,6 @@ lsm_engine::lsm_engine(const config& _conf, bool _read_only)
     tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
   }
 
-  cout << "LSM ::" << read_only << endl;
   // Logger start
   if (!read_only) {
     gc = std::thread(&lsm_engine::group_commit, this);
@@ -153,6 +153,7 @@ std::string lsm_engine::select(const statement& st) {
   if (table_index->pm_map->exists(key) != 0) {
     LOG_INFO("Using mem table ");
     pm_rec = table_index->pm_map->at(key);
+    //printf("pm_rec :: %p \n", pm_rec);
   }
 
   // Check if key exists in fs
@@ -160,8 +161,8 @@ std::string lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    //assert(!val.empty());
     fs_rec = deserialize_to_record(val, tab->sptr, false);
+    //printf("fs_rec :: %p \n", fs_rec);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
@@ -290,6 +291,7 @@ int lsm_engine::update(const statement& st) {
   off_t log_offset;
   std::string val;
   record* before_rec;
+  void *before_field, *after_field;
 
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0) {
@@ -301,9 +303,12 @@ int lsm_engine::update(const statement& st) {
 
     // Update existing record
     for (int field_itr : st.field_ids) {
-      void* field_ptr = rec_ptr->get_pointer(field_itr);
+      if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
+        before_field = before_rec->get_pointer(field_itr);
+        delete ((char*) before_field);
+      }
+
       before_rec->set_data(field_itr, rec_ptr);
-      delete ((char*) field_ptr);
     }
   }
 

@@ -106,6 +106,14 @@ int opt_wal_engine::remove(const statement& st) {
 
   record* before_rec = indices->at(0)->pm_map->at(key);
   commit_free_list.push_back(before_rec);
+  int num_cols = before_rec->sptr->num_columns;
+
+  for (int field_itr= 0 ; field_itr < num_cols ; field_itr++) {
+    if (before_rec->sptr->columns[field_itr].inlined == 0) {
+      void* before_field = before_rec->get_pointer(field_itr);
+      commit_free_list.push_back(before_field);
+    }
+  }
 
   // Add log entry
   entry_stream.str("");
@@ -131,8 +139,6 @@ int opt_wal_engine::remove(const statement& st) {
 
   delete rec_ptr;
 
-  before_rec->clear_data();
-  delete before_rec;
   return EXIT_SUCCESS;
 }
 

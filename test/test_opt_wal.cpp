@@ -55,7 +55,6 @@ int main(int argc, char **argv) {
   */
 
   int ret = std::remove(path);
-  assert(ret == 0);
 
   return 0;
 }
