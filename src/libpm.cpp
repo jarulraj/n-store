@@ -59,6 +59,19 @@ void pmemalloc_free(void *abs_ptr_) {
   }
 }
 
+void pmemalloc_end(const char *path) {
+  FILE* pmem_file = fopen(path, "w");
+  if (pmem_file != NULL) {
+    fprintf(pmem_file, "Active %lu \n", pmem_size);
+    fclose (pmem_file);
+  }
+}
+
 void pmemalloc_check(const char *path) {
-  printf("PM Storage :: %lu \n", pmem_size);
+  FILE* pmem_file = fopen(path, "r");
+  if (pmem_file != NULL) {
+    fscanf(pmem_file, "Active %lu \n", &pmem_size);
+    fprintf(stdout, "Active %lu \n", pmem_size);
+    fclose (pmem_file);
+  }
 }

@@ -45,5 +45,6 @@ void* pmemalloc_reserve(size_t size);
 void pmemalloc_activate(void *abs_ptr_);
 void pmemalloc_free(void *abs_ptr_);
 void pmemalloc_check(const char *path);
+void pmemalloc_end(const char *path);
 
 #endif /* LIBPM_H_ */
