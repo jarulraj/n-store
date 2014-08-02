@@ -42,8 +42,8 @@ int get_rand_int_excluding(int i_min, int i_max, int excl) {
   int ret;
   double f;
 
-  if(i_max == i_min+1){
-    if(excl == i_max)
+  if (i_max == i_min + 1) {
+    if (excl == i_max)
       return i_min;
     else
       return i_max;
@@ -62,19 +62,21 @@ int get_rand_int_excluding(int i_min, int i_max, int excl) {
 // SER + DESER
 std::string serialize(record* rptr, schema* sptr, bool prefix) {
   unsigned int num_columns = sptr->num_columns;
-  unsigned int itr;
   std::string rec_str;
-
-  if (prefix)
-    rec_str += std::to_string(num_columns) + " ";
 
   if (rptr == NULL || sptr == NULL)
     return rec_str;
 
-  for (itr = 0; itr < num_columns; itr++) {
-    if (prefix)
+  if (!prefix) {
+    for (int itr = 0; itr < num_columns; itr++)
+      rec_str += rptr->get_data(itr);
+  } else {
+    rec_str += std::to_string(num_columns) + " ";
+
+    for (int itr = 0; itr < num_columns; itr++) {
       rec_str += std::to_string(itr) + " ";
-    rec_str += rptr->get_data(itr);
+      rec_str += rptr->get_data(itr);
+    }
   }
 
   return rec_str;
@@ -84,7 +86,6 @@ record* deserialize_to_record(std::string entry_str, schema* sptr,
                               bool prefix) {
   unsigned int num_columns;
   unsigned int itr, field_id;
-  std::string rec_str;
   std::stringstream entry(entry_str);
 
   // prefix
