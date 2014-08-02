@@ -76,13 +76,13 @@ std::string wal_engine::select(const statement& st) {
 
   storage_offset = table_index->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
-  //assert(!val.empty());
-
-  val = deserialize_to_string(val, st.projection, false);
+  record* select_ptr = deserialize_to_record(val, tab->sptr, false);
+  val = get_data(select_ptr, st.projection);
 
   LOG_INFO("val : %s", val.c_str());
 
-  end: delete rec_ptr;
+  delete select_ptr;
+  delete rec_ptr;
   return val;
 }
 
