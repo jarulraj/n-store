@@ -116,8 +116,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 100000
-YCSB_TXNS = 100000
+YCSB_KEYS = 200000
+YCSB_TXNS = 200000
 YCSB_WORKLOAD_MIX = ("read-only", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.5]
@@ -127,7 +127,7 @@ YCSB_STORAGE_DIR = "../results/ycsb/storage/"
 YCSB_NVM_DIR = "../results/ycsb/nvm/"
 TPCC_PERF_DIR = "../results/tpcc/performance/"
 
-TPCC_TXNS = 5000
+TPCC_TXNS = 10000
 
 
 ###################################################################################                   
