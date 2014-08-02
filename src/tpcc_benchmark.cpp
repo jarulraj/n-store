@@ -1810,46 +1810,6 @@ void tpcc_benchmark::do_order_status(engine* ee) {
 
   LOG_INFO("order_line :: %s", order_line_str.c_str());
 
-  if (lookup_by_name) {
-// getCustomerByCustomerId
-    rec_ptr = new customer_record(customer_table_schema, c_id, d_id, w_id,
-                                  empty, empty, empty, empty, 0, 0, 0, 0, 0, 0,
-                                  0, empty);
-
-    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
-                   0, customer_table_schema);
-
-    TIMER(customer_str = ee->select(st))
-
-    if (customer_str.empty()) {
-      TIMER(ee->txn_end(false));
-      return;
-    }
-    LOG_INFO("customer :: %s ", customer_str.c_str());
-  } else {
-// getCustomerByLastName
-    rec_ptr = new customer_record(customer_table_schema, 0, d_id, w_id, c_name,
-                                  empty, empty, empty, 0, 0, 0, 0, 0, 0, 0,
-                                  empty);
-
-    st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
-                   1, customer_table_schema);
-
-    TIMER(customer_str = ee->select(st))
-
-    if (customer_str.empty()) {
-      TIMER(ee->txn_end(false));
-      return;
-    }
-    LOG_INFO("customer by name :: %s ", customer_str.c_str());
-
-    rec_ptr = deserialize_to_record(customer_str, customer_table_schema, false);
-
-    c_id = std::stoi(rec_ptr->get_data(0));
-
-    LOG_INFO("c_id :: %d ", c_id);
-  }
-
   TIMER(ee->txn_end(true));
 
 }

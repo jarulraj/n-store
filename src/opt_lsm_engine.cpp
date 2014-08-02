@@ -16,11 +16,11 @@ void opt_lsm_engine::merge(bool force) {
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
-    table_index *table_index = tab->indices->at(0);
+    table_index *p_index = tab->indices->at(0);
 
-    pbtree<unsigned long, record*>* pm_map = table_index->pm_map;
+    pbtree<unsigned long, record*>* pm_map = p_index->pm_map;
 
-    size_t compact_threshold = conf.merge_ratio * table_index->off_map->size();
+    size_t compact_threshold = conf.merge_ratio * p_index->off_map->size();
     bool compact = (pm_map->size() > compact_threshold);
 
     // Check if need to merge
@@ -40,10 +40,10 @@ void opt_lsm_engine::merge(bool force) {
         fs_rec = NULL;
 
         // Check if we need to merge
-        if (table_index->off_map->exists(key) != 0) {
+        if (p_index->off_map->exists(key) != 0) {
           LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
 
-          storage_offset = table_index->off_map->at(key);
+          storage_offset = p_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
 
           std::sscanf((char*) val.c_str(), "%p", &fs_rec);
@@ -64,12 +64,14 @@ void opt_lsm_engine::merge(bool force) {
           //printf("fs_rec :: %p \n", fs_rec);
 
           storage_offset = tab->fs_data.push_back(val);
-          table_index->off_map->insert(key, storage_offset);
+          p_index->off_map->insert(key, storage_offset);
         }
       }
 
       // Clear mem table
-      table_index->pm_map->clear();
+      vector<table_index*> indices = tab->indices->get_data();
+      for(table_index* index : indices)
+        index->pm_map->clear();
     }
   }
 
@@ -101,8 +103,7 @@ opt_lsm_engine::~opt_lsm_engine() {
   if (read_only)
     return;
 
-  // XXX Clean up
-  //merge(true);
+  merge(true);
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
