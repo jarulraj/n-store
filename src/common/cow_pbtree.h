@@ -2121,8 +2121,6 @@ class cow_btree {
         if (mp == NULL) {
           if ((data->data = new char[data->size]) == NULL)
             return BT_FAIL;
-          if (persist)
-            pmemalloc_activate(data->data);
 
           bcopy(NODEDATA(leaf), data->data, data->size);
           data->release_data = 1;
@@ -2142,8 +2140,6 @@ class cow_btree {
     DPRINTF("allocating %u byte for overflow data", leaf->n_dsize);
     if ((data->data = new char[leaf->n_dsize]) == NULL)
       return BT_FAIL;
-    if (persist)
-      pmemalloc_activate(data->data);
 
     data->size = leaf->n_dsize;
     data->release_data = 1;
@@ -2174,13 +2170,16 @@ class cow_btree {
     struct cow_node *leaf;
     struct mpage *mp;
 
-    assert(key);
-    assert(data);DPRINTF("===> get key [%.*s]", (int )key->size, (char * )key->data);
+    //assert(key);
+    //assert(data);
+    DPRINTF("===> get key [%.*s]", (int )key->size, (char * )key->data);
 
+    /*
     if (key->size == 0 || key->size > MAXKEYSIZE) {
       errno = EINVAL;
       return BT_FAIL;
     }
+    */
 
     if ((rc = cow_btree_search_page(_txn, key, NULL, 0, &mp)) != BT_SUCCESS)
       return rc;
@@ -2193,7 +2192,7 @@ class cow_btree {
       rc = BT_FAIL;
     }
 
-    mpage_prune();
+    //mpage_prune();
     return rc;
   }
 
