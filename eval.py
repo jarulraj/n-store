@@ -531,6 +531,13 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
                         cleanup()
                         subprocess.call([NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
 
+    # RESET
+    if enable_sdv :
+        cwd = os.getcwd()
+        os.chdir(SDV_DIR)
+        subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', "200"], stdout=log_file)
+        os.chdir(cwd)
+ 
     # PARSE LOG
     log_file.close()   
     log_file = open(log_name, "r")    
