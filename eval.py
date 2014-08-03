@@ -111,6 +111,8 @@ FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
 #PERF = "/usr/bin/perf"
 PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
+NUMACTL = "numactl"
+NUMACTL_FLAGS="--membind=2"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
@@ -699,7 +701,7 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
                                
                     for eng in engines:
                         cleanup()
-                        subprocess.call([NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
+                        subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
 
     # RESET
     if enable_sdv :
@@ -920,7 +922,7 @@ def ycsb_storage_eval(log_name):
     
             for eng in engines:
                 cleanup()
-                subprocess.call([NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-z', eng], stdout=log_file)
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-z', eng], stdout=log_file)
                 get_stats(eng, rw_mix, skew_factor)
 
 
@@ -958,7 +960,7 @@ def ycsb_nvm_eval(log_name):
     
             for eng in engines:
                 cleanup()
-                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE,
+                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NUMACTL, NUMACTL_FLAGS, NSTORE,
                                  '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng],
                                 stdout=log_file, stderr=log_file)
                               
@@ -1080,9 +1082,9 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
                     cleanup()
 
                     if rw_mix == 0.0:
-                        subprocess.call([NSTORE, '-x', str(txns), '-t', '-o', eng], stdout=log_file)
+                        subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', '-o', eng], stdout=log_file)
                     else:    
-                        subprocess.call([NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
+                        subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
 
     # RESET
     if enable_sdv :
@@ -1261,9 +1263,9 @@ def tpcc_storage_eval(log_name):
             cleanup()
             
             if rw_mix == 0.0:
-                subprocess.call([NSTORE, '-x', str(txns), '-t', '-z', '-o', eng], stdout=log_file)
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', '-z', '-o', eng], stdout=log_file)
             else:
-                subprocess.call([NSTORE, '-x', str(txns), '-t', '-z', eng], stdout=log_file)
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', '-z', eng], stdout=log_file)
                 
             
             get_stats(eng, rw_mix)
@@ -1301,10 +1303,10 @@ def tpcc_nvm_eval(log_name):
             cleanup()
             
             if rw_mix == 0.0:
-                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-o', eng],
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-o', eng],
                             stdout=log_file, stderr=log_file)
             else:   
-                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), eng],
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), eng],
                             stdout=log_file, stderr=log_file)
                                   
     log_file.close()   
@@ -1402,6 +1404,7 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--tpcc_perf_plot", help='plot tpcc perf', action='store_true')
     parser.add_argument("-e", "--tpcc_storage_plot", help='plot tpcc storage', action='store_true')
     parser.add_argument("-f", "--tpcc_nvm_plot", help='plot tpcc nvm', action='store_true')
+    parser.add_argument("-l", "--enable-local", help='local mode', action='store_true')
     
     args = parser.parse_args()
     
@@ -1409,6 +1412,9 @@ if __name__ == '__main__':
         enable_sdv = True
     if args.enable_trials:
         enable_trials = True
+
+    if args.enable_local:
+        NUMACTL_FLAGS="--membind=0"
 
     ycsb_perf_log_name = "ycsb_perf.log"
     ycsb_storage_log_name = "ycsb_storage.log"
