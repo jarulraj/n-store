@@ -134,7 +134,7 @@ TPCC_PERF_DIR = "../results/tpcc/performance/"
 TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
 
-TPCC_TXNS = 1000
+TPCC_TXNS = 10000
 
 
 ###################################################################################                   
