@@ -122,12 +122,15 @@ YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.1, 0.5]
 
+TPCC_WORKLOAD_MIX = ("all", "stock-level")
+TPCC_RW_MIXES = [0, 0.5]
+
 YCSB_PERF_DIR = "../results/ycsb/performance/"
 YCSB_STORAGE_DIR = "../results/ycsb/storage/"
 YCSB_NVM_DIR = "../results/ycsb/nvm/"
 TPCC_PERF_DIR = "../results/tpcc/performance/"
 
-TPCC_TXNS = 10000
+TPCC_TXNS = 1000
 
 
 ###################################################################################                   
@@ -462,17 +465,18 @@ def ycsb_nvm_plot():
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
-    for lat in LATENCIES:
-        datasets = []
-    
-        for sy in SYSTEMS:    
-            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/performance.csv")))
-            datasets.append(dataFile)
-                   
-        fig = create_tpcc_perf_bar_chart(datasets)
+    for workload in TPCC_WORKLOAD_MIX:  
+        for lat in LATENCIES:
+            datasets = []
         
-        fileName = "tpcc-perf-%s.pdf" % (lat)
-        saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+            for sy in SYSTEMS:    
+                dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/" + workload + "/performance.csv")))
+                datasets.append(dataFile)
+                       
+            fig = create_tpcc_perf_bar_chart(datasets)
+            
+            fileName = "tpcc-perf-%s-%s.pdf" % (workload, lat)
+            saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
  
                    
 ###################################################################################                   
@@ -897,7 +901,8 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
     
     nvm_latencies = LATENCIES
     engines = ENGINES
-    
+    rw_mixes = TPCC_RW_MIXES
+
     # LOG RESULTS
     log_file = open(log_name, 'w')
     
@@ -915,17 +920,23 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
             os.chdir(cwd)
                    
         for trial in range(num_trials):
-            ostr = ("--------------------------------------------------- \n")
-            print (ostr, end="")
-            log_file.write(ostr)
-            ostr = ("TRIAL :: %d \n" % (trial))
-            print (ostr, end="")
-            log_file.write(ostr)                    
-            log_file.flush()
-                       
-            for eng in engines:
-                cleanup()
-                subprocess.call([NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
+            # RW MIX
+            for rw_mix  in rw_mixes:            
+                ostr = ("--------------------------------------------------- \n")
+                print (ostr, end="")
+                log_file.write(ostr)
+                ostr = ("TRIAL :: %d RW MIX :: %.1f \n" % (trial, rw_mix))
+                print (ostr, end="")
+                log_file.write(ostr)                    
+                log_file.flush()
+                           
+                for eng in engines:
+                    cleanup()
+
+                    if rw_mix == 0.0:
+                        subprocess.call([NSTORE, '-x', str(txns), '-t', '-o', eng], stdout=log_file)
+                    else:    
+                        subprocess.call([NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
 
     # PARSE LOG
     log_file.close()   
@@ -950,6 +961,7 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
         if "TRIAL" in line:
             entry = line.strip().split(' ');
             trial = entry[2]
+            rw_mix = entry[6]
                    
         if "Throughput" in line:
             entry = line.strip().split(':');
@@ -968,11 +980,8 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
                 engine_type[0] = "opt_sp"
             elif(engine_type[0] == "OPT_LSM"):
                 engine_type[0] = "opt_lsm"
-            
-            if engine_type not in engine_types:
-                engine_types.append(engine_type)
-                            
-            key = (latency, engine_type[0]);
+                                       
+            key = (rw_mix, latency, engine_type[0]);
             if key in tput:
                 tput[key].append(val)
             else:
@@ -991,10 +1000,15 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
         sdev[key] = round(sdev[key], 3)
         sdev[key] = str(sdev[key]).rjust(10)
         
-        nvm_latency = str(key[0]);
-        engine_type = str(key[1]);            
-        
-        result_directory = TPCC_PERF_DIR + engine_type + "/";
+        nvm_latency = str(key[1]);
+        engine_type = str(key[2]);            
+              
+        if(key[0] == '0.0'):
+            workload_type = 'stock-level'
+        elif(key[0] == '0.5'):
+            workload_type = 'all'
+            
+        result_directory = TPCC_PERF_DIR + engine_type + "/" + workload_type + "/";
         if not os.path.exists(result_directory):
             os.makedirs(result_directory)
 

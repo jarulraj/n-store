@@ -75,7 +75,7 @@ std::string opt_sp_engine::select(const statement& st) {
 
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
-    std::sscanf((char*) val.data, "%p", &select_ptr);
+    std::sscanf((char*) val.data, "%p  ", &select_ptr);
     value = get_data(select_ptr, st.projection);
   }
 
@@ -123,7 +123,7 @@ int opt_sp_engine::insert(const statement& st) {
 
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
-    std::sprintf((char*) val.data, "%p", after_rec);
+    std::sprintf((char*) val.data, "%p  ", after_rec);
     val.size = strlen((char*) val.data) + 1;
     bt->insert(txn_ptr, &key, &val);
   }
@@ -156,7 +156,7 @@ int opt_sp_engine::remove(const statement& st) {
 
   // Free record
   record* before_rec;
-  std::sscanf((char*) val.data, "%p", &before_rec);
+  std::sscanf((char*) val.data, "%p  ", &before_rec);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -203,8 +203,9 @@ int opt_sp_engine::update(const statement& st) {
 
   // Read from current version
   record* before_rec;
-  std::sscanf((char*) val.data, "%p", &before_rec);
+  std::sscanf((char*) val.data, "%p  ", &before_rec);
   void *before_field, *after_field;
+  assert(before_rec->data != NULL);
 
   record* after_rec = new record(before_rec->sptr);
   memcpy(after_rec->data, before_rec->data, before_rec->data_len);
@@ -226,7 +227,7 @@ int opt_sp_engine::update(const statement& st) {
   after_rec->persist_data();
 
   update_val.data = new char[64];
-  std::sprintf((char*) update_val.data, "%p", after_rec);
+  std::sprintf((char*) update_val.data, "%p  ", after_rec);
   update_val.size = strlen((char*) val.data) + 1;
 
   // Update entry in indices
