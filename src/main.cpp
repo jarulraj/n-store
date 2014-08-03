@@ -43,7 +43,7 @@ static void usage_exit(FILE *out) {
           "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
           "   -z --pm_stats          :  Collect PM stats \n"
           "   -o --tpcc_stock-level  :  TPCC stock level only \n");
-          exit(-1);
+  exit(-1);
 }
 
 static void parse_arguments(int argc, char* argv[], config& state) {
@@ -324,7 +324,7 @@ int main(int argc, char **argv) {
 
   execute(state);
 
-  //pmemalloc_end(path);
+  pmemalloc_end(path);
 
   return 0;
 }
