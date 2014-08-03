@@ -46,7 +46,6 @@ void pmemalloc_activate(void *abs_ptr_) {
 
   if (pm_stats) {
     pmem_pool->insert(abs_ptr_);
-
     pmem_size += len;
   }
 }
@@ -56,7 +55,6 @@ void pmemalloc_free(void *abs_ptr_) {
     if (pmem_pool->count(abs_ptr_) != 0) {
       size_t len = malloc_usable_size(abs_ptr_);
       pmem_pool->erase(abs_ptr_);
-
       pmem_size -= len;
     }
   }

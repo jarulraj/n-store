@@ -120,7 +120,7 @@ ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
 YCSB_KEYS = 200000
 YCSB_TXNS = 200000
-YCSB_WORKLOAD_MIX = ("read-only", "read-heavy" "write-heavy")
+YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.1, 0.5]
 
