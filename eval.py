@@ -1303,10 +1303,10 @@ def tpcc_nvm_eval(log_name):
             cleanup()
             
             if rw_mix == 0.0:
-                subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-o', eng],
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-t', '-o', eng],
                             stdout=log_file, stderr=log_file)
             else:   
-                subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), eng],
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-t', eng],
                             stdout=log_file, stderr=log_file)
                                   
     log_file.close()   
