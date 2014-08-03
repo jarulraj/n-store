@@ -680,12 +680,12 @@ def ycsb_storage_eval(log_name):
         log_file.write("FS STORAGE :: ")
         log_file.flush()
 
-        fs_st = subprocess.check_output(['awk', '{ sum += $5 } END { print sum }'], stdin=find_cmd.stdout)
+        fs_st = subprocess.check_output(['awk', '{ sum += $5 } END { printf "%.2f", sum }'], stdin=find_cmd.stdout)
         fs_st = fs_st.replace(" ", "").strip()
         if not fs_st:
             fs_st = "0"
         print("FS STORAGE :: " + fs_st)
-        log_file.write(fs_st)
+        log_file.write(fs_st + "\n")
         log_file.flush()
 
         subprocess.call([PMEM_CHECK, FS_PATH + "./zfile" ], stdout=log_file)           
@@ -699,7 +699,7 @@ def ycsb_storage_eval(log_name):
         if not pm_st:
             pm_st = "0"
         print("PM STORAGE :: " + pm_st)
-        log_file.write(pm_st)
+        log_file.write(pm_st + "\n")
         log_file.flush()
     
         if(engine_type == "-a"):
