@@ -159,7 +159,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         cout << "ycsb_update_one " << endl;
         break;
       case 'z':
-        //pm_stats = true;
+        pm_stats = true;
         cout << "pm_stats " << endl;
         break;
 

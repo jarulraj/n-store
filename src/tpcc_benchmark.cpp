@@ -131,15 +131,15 @@ table* tpcc_benchmark::create_warehouse() {
   cols.push_back(field);
 
   for (int f_itr = 1; f_itr <= 4; f_itr++) {
-    field = field_info(offset, 12, 16, field_type::VARCHAR, 0, 1);
+    field = field_info(offset, 12, name_len, field_type::VARCHAR, 0, 1);
     offset += field.ser_len;
     cols.push_back(field);
   }
 
-  field = field_info(offset, 12, 2, field_type::VARCHAR, 0, 1);
+  field = field_info(offset, 12, zip_len, field_type::VARCHAR, 0, 1);
   offset += field.ser_len;
   cols.push_back(field);
-  field = field_info(offset, 12, 9, field_type::VARCHAR, 0, 1);
+  field = field_info(offset, 12, state_len, field_type::VARCHAR, 0, 1);
   offset += field.ser_len;
   cols.push_back(field);
 
@@ -239,12 +239,12 @@ table* tpcc_benchmark::create_district() {
   cols.push_back(field);
 
   for (int f_itr = 2; f_itr <= 5; f_itr++) {
-    field = field_info(offset, 12, 16, field_type::VARCHAR, 0, 1);
+    field = field_info(offset, 12, name_len, field_type::VARCHAR, 0, 1);
     offset += field.ser_len;
     cols.push_back(field);
   }
   for (int f_itr = 6; f_itr <= 7; f_itr++) {
-    field = field_info(offset, 12, 2, field_type::VARCHAR, 0, 1);
+    field = field_info(offset, 12, name_len, field_type::VARCHAR, 0, 1);
     offset += field.ser_len;
     cols.push_back(field);
   }
@@ -330,7 +330,7 @@ table* tpcc_benchmark::create_item() {
   field = field_info(offset, 10, 10, field_type::INTEGER, 1, 1);
   offset += field.ser_len;
   cols.push_back(field);
-  field = field_info(offset, 12, 32, field_type::VARCHAR, 0, 1);
+  field = field_info(offset, 12, name_len, field_type::VARCHAR, 0, 1);
   offset += field.ser_len;
   cols.push_back(field);
   field = field_info(offset, 15, 15, field_type::DOUBLE, 1, 1);
@@ -464,15 +464,15 @@ table* tpcc_benchmark::create_customer() {
   }
 
   for (int f_itr = 3; f_itr <= 8; f_itr++) {
-    field = field_info(offset, 12, 16, field_type::VARCHAR, 0, 1);
+    field = field_info(offset, 12, name_len, field_type::VARCHAR, 0, 1);
     offset += field.ser_len;
     cols.push_back(field);
   }
 
-  field = field_info(offset, 12, 2, field_type::VARCHAR, 0, 1);
+  field = field_info(offset, 12, zip_len, field_type::VARCHAR, 0, 1);
   offset += field.ser_len;
   cols.push_back(field);
-  field = field_info(offset, 12, 9, field_type::VARCHAR, 0, 1);
+  field = field_info(offset, 12, state_len, field_type::VARCHAR, 0, 1);
   offset += field.ser_len;
   cols.push_back(field);
   field = field_info(offset, 12, 32, field_type::VARCHAR, 0, 1);
@@ -1005,7 +1005,7 @@ void tpcc_benchmark::load_items(engine* ee) {
     ee->txn_begin();
 
     int i_im_id = i_itr * 10;
-    std::string name = get_rand_astring(item_name_len);
+    std::string name = get_rand_astring(name_len);
     double price = get_rand_double(item_min_price, item_max_price);
 
     record* rec_ptr = new item_record(item_table_schema, i_itr, i_im_id, name,
