@@ -546,7 +546,7 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
         tick.label.set_fontname(OPT_FONT_NAME)
         
     # X-AXIS
-    ax1.set_xlabel("Skew", fontproperties=fp)
+    ax1.set_xlabel("Workload", fontproperties=fp)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     print (x_values)
@@ -1281,45 +1281,31 @@ def tpcc_nvm_eval(log_name):
     def cleanup():
         subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
 
-    nvm_latencies = LATENCIES                
     rw_mixes = TPCC_RW_MIXES
     engines = ENGINES   
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
-    
-    for nvm_latency in nvm_latencies:
-
-        ostr = ("LATENCY %s \n" % nvm_latency)    
+               
+    # RW MIX
+    for rw_mix  in rw_mixes:
+        ostr = ("--------------------------------------------------- \n")
         print (ostr, end="")
         log_file.write(ostr)
+        ostr = ("RW MIX :: %.1f \n" % (rw_mix))
+        print (ostr, end="")
+        log_file.write(ostr)                    
         log_file.flush()
-        
-        if enable_sdv :
-            cwd = os.getcwd()
-            os.chdir(SDV_DIR)
-            subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', str(nvm_latency)], stdout=log_file)
-            os.chdir(cwd)
-               
-        # RW MIX
-        for rw_mix  in rw_mixes:
-            ostr = ("--------------------------------------------------- \n")
-            print (ostr, end="")
-            log_file.write(ostr)
-            ostr = ("RW MIX :: %.1f \n" % (rw_mix))
-            print (ostr, end="")
-            log_file.write(ostr)                    
-            log_file.flush()
-    
-            for eng in engines:
-                cleanup()
-                
-                if rw_mix == 0.0:
-                    subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-o', eng],
-                                stdout=log_file, stderr=log_file)
-                else:   
-                    subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), eng],
-                                stdout=log_file, stderr=log_file)
+
+        for eng in engines:
+            cleanup()
+            
+            if rw_mix == 0.0:
+                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-o', eng],
+                            stdout=log_file, stderr=log_file)
+            else:   
+                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), eng],
+                            stdout=log_file, stderr=log_file)
                                   
     log_file.close()   
     log_file = open(log_name, "r")    
@@ -1331,12 +1317,7 @@ def tpcc_nvm_eval(log_name):
     rw_mix = 0.0
     skew = 0.0    
     
-    for line in log_file:
-        if "LATENCY" in line:
-            entry = line.strip().split(' ');
-            if entry[0] == "LATENCY":
-                latency = entry[1]
-                    
+    for line in log_file:                    
         if "RW MIX" in line:
             entry = line.strip().split(' ');
             print("RW MIX :: " + str(entry))
@@ -1374,7 +1355,7 @@ def tpcc_nvm_eval(log_name):
                 llc_l_miss = str(entry[0])
             llc_l_miss = llc_l_miss.replace(",", "")    
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " , " + str(latency) + " :: " + str(llc_l_miss) + "\n")
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss) + "\n")
 
 
         if "LLC-store-misses" in line:
@@ -1385,7 +1366,7 @@ def tpcc_nvm_eval(log_name):
                 llc_s_miss = str(entry[0])
             llc_s_miss = llc_s_miss.replace(",", "")    
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " , " + str(latency) + " :: " + str(llc_s_miss) + "\n")
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew)  + " :: " + str(llc_s_miss) + "\n")
                                                                 
             result_directory = TPCC_NVM_DIR + engine_type + "/";
             if not os.path.exists(result_directory):
