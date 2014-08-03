@@ -109,8 +109,8 @@ SDV_SCRIPT = SDV_DIR + "/ivt_pm_sdv.sh"
 NSTORE = "./src/nstore"
 FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
-# PERF = "/usr/bin/perf"
-PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
+PERF = "/usr/bin/perf"
+#PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
@@ -123,12 +123,14 @@ YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.5]
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
-TPCC_RW_MIXES = [0, 0.5]
+TPCC_RW_MIXES = [0.5, 0]
 
 YCSB_PERF_DIR = "../results/ycsb/performance/"
 YCSB_STORAGE_DIR = "../results/ycsb/storage/"
 YCSB_NVM_DIR = "../results/ycsb/nvm/"
 TPCC_PERF_DIR = "../results/tpcc/performance/"
+TPCC_STORAGE_DIR = "../results/tpcc/storage/"
+TPCC_NVM_DIR = "../results/tpcc/nvm/"
 
 TPCC_TXNS = 1000
 
@@ -304,9 +306,9 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
         for line in  xrange(len(datasets[group])):
             for col in  xrange(len(datasets[group][line])):
                 if col == 1:
-                    l_misses.append(datasets[group][line][col] / (1024*1024))
+                    l_misses.append(datasets[group][line][col] / (1024 * 1024))
                 if col == 2:
-                    s_misses.append(datasets[group][line][col] / (1024*1024))
+                    s_misses.append(datasets[group][line][col] / (1024 * 1024))
   
         LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
                 
@@ -362,9 +364,9 @@ def create_tpcc_perf_bar_chart(datasets):
     labels = ("WAL", "SP", "LSM",
               "PM-WAL", "PM-SP", "PM-LSM")
 
-    x_values = LATENCIES
+    x_values = TPCC_RW_MIXES
     N = len(x_values)
-    x_labels = ["200", "800"]
+    x_labels = ["All", "Stock-level"]
 
     ind = np.arange(N)  
     width = 0.05  # the width of the bars
@@ -386,7 +388,7 @@ def create_tpcc_perf_bar_chart(datasets):
     
     # GRID
     axes = ax1.get_axes()
-    axes.set_ylim(0, 10000)        
+    axes.set_ylim(0, 5000)        
     makeGrid(ax1)
     
     # LEGEND
@@ -408,12 +410,150 @@ def create_tpcc_perf_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("NVM Latency", fontproperties=fp)
+    ax1.set_xlabel("Workload", fontproperties=fp)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     print (x_values)
     ax1.set_xticks(ind + width * len(datasets))
     print(x_labels)
+        
+    return (fig)
+
+def create_tpcc_storage_bar_chart(datasets, workload_mix):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+     
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
+
+    x_values = TPCC_RW_MIXES
+    N = len(x_values)
+    x_labels = ["All", "Stock-level"]
+
+    ind = np.arange(N)  
+    width = 0.05  # the width of the bars
+    offset = 0.15
+    bars = [None] * len(labels)
+    
+    for group in xrange(len(datasets)):
+        # GROUP
+        fs_data = []       
+        pm_data = [] 
+
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    fs_data.append(datasets[group][line][col] / (1024 * 1024))
+                if col == 2:
+                    pm_data.append(datasets[group][line][col] / (1024 * 1024))
+  
+        LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
+                
+        bars[group] = ax1.bar(ind + group * width, fs_data, width, color=OPT_COLORS[group])
+        ax1.bar(ind + group * width, pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch='/')
+        
+    # GRID
+    axes = ax1.get_axes()
+    axes.set_ylim(0, 3000)        
+    makeGrid(ax1)
+    
+    # LEGEND
+    fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
+    ax1.legend(bars, labels,
+                prop=fp,
+                bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
+                loc=1,
+                ncol=2,
+                mode="expand",
+                shadow=OPT_LEGEND_SHADOW,
+                borderaxespad=0.0,
+    )
+    
+    # Y-AXIS
+    ax1.set_ylabel("Storage (MB)", fontproperties=fp)
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+    for tick in ax1.yaxis.get_major_ticks():
+        tick.label.set_fontname(OPT_FONT_NAME)
+        
+    # X-AXIS
+    ax1.set_xlabel("Workload", fontproperties=fp)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    print (x_values)
+    ax1.set_xticks(ind + width * len(x_labels))
+    print(x_labels)
+    for tick in ax1.xaxis.get_major_ticks():
+        tick.label.set_fontname(OPT_FONT_NAME)
+        
+    return (fig)
+
+def create_tpcc_nvm_bar_chart(datasets, workload_mix):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+     
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
+
+    x_values = TPCC_RW_MIXES
+    N = len(x_values)
+    x_labels = ["All", "Stock-level"]
+
+    ind = np.arange(N)  
+    width = 0.05  # the width of the bars
+    offset = 0.15
+    bars = [None] * len(labels)
+    
+    for group in xrange(len(datasets)):
+        # GROUP
+        l_misses = []       
+        s_misses = [] 
+
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    l_misses.append(datasets[group][line][col] / (1024 * 1024))
+                if col == 2:
+                    s_misses.append(datasets[group][line][col] / (1024 * 1024))
+  
+        LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
+                
+        bars[group] = ax1.bar(ind + group * width, l_misses, width, color=OPT_COLORS[group])
+        ax1.bar(ind + group * width, s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch='/')
+        
+    # GRID
+    axes = ax1.get_axes()
+    axes.set_ylim(0, 200)        
+    makeGrid(ax1)
+    
+    # LEGEND
+    fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
+    ax1.legend(bars, labels,
+                prop=fp,
+                bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
+                loc=1,
+                ncol=2,
+                mode="expand",
+                shadow=OPT_LEGEND_SHADOW,
+                borderaxespad=0.0,
+    )
+    
+    # Y-AXIS
+    ax1.set_ylabel("NVM accesses (M)", fontproperties=fp)
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+    for tick in ax1.yaxis.get_major_ticks():
+        tick.label.set_fontname(OPT_FONT_NAME)
+        
+    # X-AXIS
+    ax1.set_xlabel("Skew", fontproperties=fp)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    print (x_values)
+    ax1.set_xticks(ind + width * len(x_labels))
+    print(x_labels)
+    for tick in ax1.xaxis.get_major_ticks():
+        tick.label.set_fontname(OPT_FONT_NAME)
         
     return (fig)
 
@@ -465,19 +605,47 @@ def ycsb_nvm_plot():
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
-    for workload in TPCC_WORKLOAD_MIX:  
-        for lat in LATENCIES:
+    for lat in LATENCIES:
+        for workload in TPCC_WORKLOAD_MIX:  
+
             datasets = []
-        
+
             for sy in SYSTEMS:    
-                dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/" + workload + "/performance.csv")))
+                dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/" + lat + "/performance.csv")))
                 datasets.append(dataFile)
                        
-            fig = create_tpcc_perf_bar_chart(datasets)
+        fig = create_tpcc_perf_bar_chart(datasets)
             
-            fileName = "tpcc-perf-%s-%s.pdf" % (workload, lat)
-            saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
- 
+        fileName = "tpcc-perf-%s.pdf" % (lat)
+        saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+
+# TPCC STORAGE -- PLOT               
+def tpcc_storage_plot():    
+    for workload in TPCC_WORKLOAD_MIX:    
+        datasets = []
+    
+        for sy in SYSTEMS:    
+            dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(TPCC_STORAGE_DIR, sy + "/storage.csv")))
+            datasets.append(dataFile)
+                                      
+    fig = create_tpcc_storage_bar_chart(datasets, workload)
+                        
+    fileName = "tpcc-storage.pdf"
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
+
+# TPCC NVM -- PLOT               
+def tpcc_nvm_plot():    
+    for workload in TPCC_WORKLOAD_MIX:    
+        datasets = []
+    
+        for sy in SYSTEMS:    
+            dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(TPCC_STORAGE_DIR, sy + "/storage.csv")))
+            datasets.append(dataFile)
+                                      
+    fig = create_tpcc_nvm_bar_chart(datasets, workload)
+                        
+    fileName = "tpcc-nvm.pdf"
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
                    
 ###################################################################################                   
 # EVAL                   
@@ -938,6 +1106,13 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
                     else:    
                         subprocess.call([NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
 
+    # RESET
+    if enable_sdv :
+        cwd = os.getcwd()
+        os.chdir(SDV_DIR)
+        subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', "200"], stdout=log_file)
+        os.chdir(cwd)
+
     # PARSE LOG
     log_file.close()   
     log_file = open(log_name, "r")    
@@ -1008,14 +1183,241 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
         elif(key[0] == '0.5'):
             workload_type = 'all'
             
-        result_directory = TPCC_PERF_DIR + engine_type + "/" + workload_type + "/";
+        result_directory = TPCC_PERF_DIR + engine_type + "/" + nvm_latency + "/";
         if not os.path.exists(result_directory):
             os.makedirs(result_directory)
 
         result_file_name = result_directory + "performance.csv"
         result_file = open(result_file_name, "a")
-        result_file.write(nvm_latency + " , " + mean[key] + "\n")
+        result_file.write(key[0] + " , " + mean[key] + "\n")
         result_file.close()    
+
+# TPCC STORAGE -- EVAL
+def tpcc_storage_eval(log_name):            
+    subprocess.call(['rm', '-rf', TPCC_STORAGE_DIR])          
+    txns = TPCC_TXNS
+    
+     # CLEANUP
+    def cleanup():
+        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
+        
+    # GET STATS
+    def get_stats(engine_type, rw_mix):
+        print ("eng : %s rw_mix : %lf" % (engine_type, rw_mix))
+                
+        subprocess.call(['ls', '-larth', FS_PATH ], stdout=log_file)
+        find_cmd = subprocess.Popen(['find', FS_PATH , '-name', '*.nvm', '-exec', 'ls', '-lart', '{}', ';'], stdout=subprocess.PIPE)
+        log_file.write("FS STORAGE :: ")
+        log_file.flush()
+
+        fs_st = subprocess.check_output(['awk', '{ sum += $5 } END { printf "%.2f", sum }'], stdin=find_cmd.stdout)
+        fs_st = fs_st.replace(" ", "").strip()
+        if not fs_st:
+            fs_st = "0"
+        print("FS STORAGE :: " + fs_st)
+        log_file.write(fs_st + "\n")
+        log_file.flush()
+
+        subprocess.call([PMEM_CHECK, FS_PATH + "./zfile" ], stdout=log_file)           
+        pmem_cmd = subprocess.Popen([PMEM_CHECK, FS_PATH + "./zfile" ], stdout=subprocess.PIPE)
+        grep_cmd = subprocess.Popen(['grep', 'Active'], stdin=pmem_cmd.stdout, stdout=subprocess.PIPE)
+        log_file.write("PM STORAGE :: ")
+        log_file.flush()
+
+        pm_st = subprocess.check_output(['awk', '{ print $2 }'], stdin=grep_cmd.stdout)
+        pm_st = pm_st.replace(" ", "").strip()
+        if not pm_st:
+            pm_st = "0"
+        print("PM STORAGE :: " + pm_st)
+        log_file.write(pm_st + "\n")
+        log_file.flush()
+    
+        if(engine_type == "-a"):
+            engine_type = "wal"                
+        elif(engine_type == "-s"):
+            engine_type = "sp"
+        elif(engine_type == "-m"):
+            engine_type = "lsm"
+        elif(engine_type == "-w"):
+            engine_type = "opt_wal"
+        elif(engine_type == "-c"):
+            engine_type = "opt_sp"
+        elif(engine_type == "-l"):
+            engine_type = "opt_lsm"
+      
+        print("rw_mix :: --" + str(rw_mix) + "-- ")    
+      
+        if(rw_mix == 0):
+            workload_type = 'stock-level'
+        elif(rw_mix == 0.5):
+            workload_type = 'all'    
+            
+        result_directory = TPCC_STORAGE_DIR + engine_type + "/";
+        if not os.path.exists(result_directory):
+            os.makedirs(result_directory)
+
+        result_file_name = result_directory + "storage.csv"
+        result_file = open(result_file_name, "a")
+        print(workload_type + " , " + str(fs_st) + " , " + str(pm_st))
+        result_file.write(str(rw_mix) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
+        result_file.close()    
+
+        
+    rw_mixes = TPCC_RW_MIXES
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+                   
+    # RW MIX
+    for rw_mix  in rw_mixes:
+        ostr = ("--------------------------------------------------- \n")
+        print (ostr, end="")
+        log_file.write(ostr)
+        ostr = ("RW MIX :: %.1f \n" % (rw_mix))
+        print (ostr, end="")
+        log_file.write(ostr)                    
+        log_file.flush()
+
+        for eng in engines:
+            cleanup()
+            
+            if rw_mix == 0.0:
+                subprocess.call([NSTORE, '-x', str(txns), '-t', '-z', '-o', eng], stdout=log_file)
+            else:
+                subprocess.call([NSTORE, '-x', str(txns), '-t', '-z', eng], stdout=log_file)
+                
+            
+            get_stats(eng, rw_mix)
+
+
+# TPCC NVM -- EVAL
+def tpcc_nvm_eval(log_name):            
+    subprocess.call(['rm', '-rf', TPCC_NVM_DIR])          
+    txns = TPCC_TXNS
+
+    PERF_STAT = "stat"    
+    PERF_STAT_FLAGS = "-e LLC-load-misses,LLC-store-misses"
+
+     # CLEANUP
+    def cleanup():
+        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
+
+    nvm_latencies = LATENCIES                
+    rw_mixes = TPCC_RW_MIXES
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    
+    for nvm_latency in nvm_latencies:
+
+        ostr = ("LATENCY %s \n" % nvm_latency)    
+        print (ostr, end="")
+        log_file.write(ostr)
+        log_file.flush()
+        
+        if enable_sdv :
+            cwd = os.getcwd()
+            os.chdir(SDV_DIR)
+            subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', str(nvm_latency)], stdout=log_file)
+            os.chdir(cwd)
+               
+        # RW MIX
+        for rw_mix  in rw_mixes:
+            ostr = ("--------------------------------------------------- \n")
+            print (ostr, end="")
+            log_file.write(ostr)
+            ostr = ("RW MIX :: %.1f \n" % (rw_mix))
+            print (ostr, end="")
+            log_file.write(ostr)                    
+            log_file.flush()
+    
+            for eng in engines:
+                cleanup()
+                
+                if rw_mix == 0.0:
+                    subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-o', eng],
+                                stdout=log_file, stderr=log_file)
+                else:   
+                    subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), eng],
+                                stdout=log_file, stderr=log_file)
+                                  
+    log_file.close()   
+    log_file = open(log_name, "r")    
+
+    # CLEAN UP RESULT DIR
+    subprocess.call(['rm', '-rf', TPCC_NVM_DIR])          
+ 
+    latency = 0
+    rw_mix = 0.0
+    skew = 0.0    
+    
+    for line in log_file:
+        if "LATENCY" in line:
+            entry = line.strip().split(' ');
+            if entry[0] == "LATENCY":
+                latency = entry[1]
+                    
+        if "RW MIX" in line:
+            entry = line.strip().split(' ');
+            print("RW MIX :: " + str(entry))
+            rw_mix = entry[3]
+                        
+            if(rw_mix == '0.0'):
+                workload_type = 'read-only'
+            elif(rw_mix == '0.1'):
+                workload_type = 'read-heavy'
+            elif(rw_mix == '0.5'):
+                workload_type = 'write-heavy'  
+                       
+        if "Throughput" in line:
+            entry = line.strip().split(':');
+            etypes = entry[0].split(' ');
+            
+            if(etypes[0] == "WAL"):
+                engine_type = "wal"                
+            elif(etypes[0] == "SP"):
+                engine_type = "sp"
+            elif(etypes[0] == "LSM"):
+                engine_type = "lsm"
+            elif(etypes[0] == "OPT_WAL"):
+                engine_type = "opt_wal"
+            elif(etypes[0] == "OPT_SP"):
+                engine_type = "opt_sp"
+            elif(etypes[0] == "OPT_LSM"):
+                engine_type = "opt_lsm"
+                                                        
+        if "LLC-load-misses" in line:
+            entry = line.strip().split(' ');
+            if(entry[0] == '<not'):
+                llc_l_miss = "0"
+            else:    
+                llc_l_miss = str(entry[0])
+            llc_l_miss = llc_l_miss.replace(",", "")    
+                
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " , " + str(latency) + " :: " + str(llc_l_miss) + "\n")
+
+
+        if "LLC-store-misses" in line:
+            entry = line.strip().split(' ');
+            if(entry[0] == '<not'):
+                llc_s_miss = "0"
+            else:    
+                llc_s_miss = str(entry[0])
+            llc_s_miss = llc_s_miss.replace(",", "")    
+                
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " , " + str(latency) + " :: " + str(llc_s_miss) + "\n")
+                                                                
+            result_directory = TPCC_NVM_DIR + engine_type + "/";
+            if not os.path.exists(result_directory):
+                os.makedirs(result_directory)
+
+            result_file_name = result_directory + "nvm.csv"
+            result_file = open(result_file_name, "a")
+            result_file.write(str(rw_mix) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
+            result_file.close()    
+
                           
                 
 ## ==============================================
@@ -1033,10 +1435,14 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--ycsb_storage_eval", help='eval ycsb storage', action='store_true')
     parser.add_argument("-n", "--ycsb_nvm_eval", help='eval ycsb nvm', action='store_true')
     parser.add_argument("-t", "--tpcc_perf_eval", help='eval tpcc perf', action='store_true')
+    parser.add_argument("-q", "--tpcc_storage_eval", help='eval tpcc storage', action='store_true')
+    parser.add_argument("-r", "--tpcc_nvm_eval", help='eval tpcc nvm', action='store_true')
     parser.add_argument("-a", "--ycsb_perf_plot", help='plot ycsb perf', action='store_true')
     parser.add_argument("-b", "--ycsb_storage_plot", help='plot ycsb storage', action='store_true')
     parser.add_argument("-c", "--ycsb_nvm_plot", help='plot ycsb nvm', action='store_true')
     parser.add_argument("-d", "--tpcc_perf_plot", help='plot tpcc perf', action='store_true')
+    parser.add_argument("-e", "--tpcc_storage_plot", help='plot tpcc storage', action='store_true')
+    parser.add_argument("-f", "--tpcc_nvm_plot", help='plot tpcc nvm', action='store_true')
     
     args = parser.parse_args()
     
@@ -1049,6 +1455,10 @@ if __name__ == '__main__':
     ycsb_storage_log_name = "ycsb_storage.log"
     ycsb_nvm_log_name = "ycsb_nvm.log"
     tpcc_perf_log_name = "tpcc_perf.log"
+    tpcc_storage_log_name = "tpcc_storage.log"
+    tpcc_nvm_log_name = "tpcc_nvm.log"
+    
+    ################################ YCSB
     
     # YCSB PERF -- EVAL
     if args.ycsb_perf_eval:
@@ -1061,10 +1471,6 @@ if __name__ == '__main__':
     # YCSB NVM -- EVAL
     if args.ycsb_nvm_eval:
         ycsb_nvm_eval(ycsb_nvm_log_name);             
-
-    # TPCC PERF -- EVAL
-    if args.tpcc_perf_eval:
-        tpcc_perf_eval(enable_sdv, enable_trials, tpcc_perf_log_name);             
              
     # YCSB PERF -- PLOT
     if args.ycsb_perf_plot:      
@@ -1078,6 +1484,31 @@ if __name__ == '__main__':
     if args.ycsb_nvm_plot:                
        ycsb_nvm_plot();                          
 
+    ################################ TPCC
+
+    # TPCC PERF -- EVAL
+    if args.tpcc_perf_eval:
+        tpcc_perf_eval(enable_sdv, enable_trials, tpcc_perf_log_name);             
+
+    # TPCC STORAGE -- EVAL
+    if args.tpcc_storage_eval:
+        tpcc_storage_eval(tpcc_storage_log_name);
+             
+    # TPCC NVM -- EVAL
+    if args.tpcc_nvm_eval:
+        tpcc_nvm_eval(tpcc_nvm_log_name);             
+
     # TPCC PERF -- PLOT               
     if args.tpcc_perf_plot:                
        tpcc_perf_plot();                          
+
+    # TPCC STORAGE -- PLOT               
+    if args.tpcc_storage_plot:                
+       tpcc_storage_plot();
+       
+    # TPCC NVM -- PLOT               
+    if args.tpcc_nvm_plot:                
+       tpcc_nvm_plot();                          
+
+
+

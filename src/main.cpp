@@ -159,7 +159,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         cout << "ycsb_update_one " << endl;
         break;
       case 'z':
-        pm_stats = true;
+        //pm_stats = true;
         cout << "pm_stats " << endl;
         break;
 
@@ -311,7 +311,7 @@ void execute(config& state) {
 int main(int argc, char **argv) {
   const char* path = "/mnt/pmfs/n-store/zfile";
 
-  size_t pmp_size = 8UL * 1024 * 1024 * 1024;
+  size_t pmp_size = 4UL * 1024 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
@@ -324,7 +324,7 @@ int main(int argc, char **argv) {
 
   execute(state);
 
-  pmemalloc_end(path);
+  //pmemalloc_end(path);
 
   return 0;
 }
