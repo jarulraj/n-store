@@ -135,7 +135,7 @@ std::string opt_lsm_engine::select(const statement& st) {
   if (table_index->pm_map->exists(key) != 0) {
     LOG_INFO("Using mem table ");
     pm_rec = table_index->pm_map->at(key);
-    printf("pm_rec :: %p \n", pm_rec);
+    //printf("pm_rec :: %p \n", pm_rec);
   }
 
   // Check if key exists in fs
@@ -146,7 +146,7 @@ std::string opt_lsm_engine::select(const statement& st) {
     //assert(!val.empty());
     std::sscanf((char*) val.c_str(), "%p", &fs_rec);
 
-    printf("fs_rec :: %p \n", fs_rec);
+    //printf("fs_rec :: %p \n", fs_rec);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {

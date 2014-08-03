@@ -109,8 +109,8 @@ SDV_SCRIPT = SDV_DIR + "/ivt_pm_sdv.sh"
 NSTORE = "./src/nstore"
 FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
-PERF = "/usr/bin/perf"
-#PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
+#PERF = "/usr/bin/perf"
+PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
@@ -118,9 +118,9 @@ ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
 YCSB_KEYS = 200000
 YCSB_TXNS = 200000
-YCSB_WORKLOAD_MIX = ("read-only" "write-heavy")
+YCSB_WORKLOAD_MIX = ("read-only", "read-heavy" "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
-YCSB_RW_MIXES = [0, 0.5]
+YCSB_RW_MIXES = [0, 0.1, 0.5]
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
 TPCC_RW_MIXES = [0.5, 0]
@@ -589,17 +589,15 @@ def ycsb_storage_plot():
 
 # YCSB NVM -- PLOT               
 def ycsb_nvm_plot():    
-    for workload in YCSB_WORKLOAD_MIX:   
-        for lat in LATENCIES:
- 
-            datasets = []
-        
-            for sy in SYSTEMS:    
-                dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/" + lat + "/nvm.csv")))
-                datasets.append(dataFile)
-                       
+    for workload in YCSB_WORKLOAD_MIX:    
+        datasets = []
+    
+        for sy in SYSTEMS:    
+            dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/nvm.csv")))
+            datasets.append(dataFile)
+                   
         fig = create_ycsb_nvm_bar_chart(datasets, workload)
-                            
+                        
         fileName = "ycsb-nvm-%s.pdf" % (workload)
         saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
@@ -939,61 +937,41 @@ def ycsb_nvm_eval(log_name):
     def cleanup():
         subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
 
-    nvm_latencies = LATENCIES                
     rw_mixes = YCSB_RW_MIXES
     skew_factors = YCSB_SKEW_FACTORS
     engines = ENGINES   
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
+                   
+    # RW MIX
+    for rw_mix  in rw_mixes:
+        # SKEW FACTOR
+        for skew_factor  in skew_factors:
+            ostr = ("--------------------------------------------------- \n")
+            print (ostr, end="")
+            log_file.write(ostr)
+            ostr = ("RW MIX :: %.1f SKEW :: %.2f \n" % (rw_mix, skew_factor))
+            print (ostr, end="")
+            log_file.write(ostr)                    
+            log_file.flush()
     
-    for nvm_latency in nvm_latencies:
-
-        ostr = ("LATENCY %s \n" % nvm_latency)    
-        print (ostr, end="")
-        log_file.write(ostr)
-        log_file.flush()
-        
-        if enable_sdv :
-            cwd = os.getcwd()
-            os.chdir(SDV_DIR)
-            subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', str(nvm_latency)], stdout=log_file)
-            os.chdir(cwd)
-               
-        # RW MIX
-        for rw_mix  in rw_mixes:
-            # SKEW FACTOR
-            for skew_factor  in skew_factors:
-                ostr = ("--------------------------------------------------- \n")
-                print (ostr, end="")
-                log_file.write(ostr)
-                ostr = ("RW MIX :: %.1f SKEW :: %.2f \n" % (rw_mix, skew_factor))
-                print (ostr, end="")
-                log_file.write(ostr)                    
-                log_file.flush()
-        
-                for eng in engines:
-                    cleanup()
-                    subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE,
-                                     '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng],
-                                    stdout=log_file, stderr=log_file)
-                                  
+            for eng in engines:
+                cleanup()
+                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE,
+                                 '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng],
+                                stdout=log_file, stderr=log_file)
+                              
     log_file.close()   
     log_file = open(log_name, "r")    
 
     # CLEAN UP RESULT DIR
     subprocess.call(['rm', '-rf', YCSB_NVM_DIR])          
  
-    latency = 0
     rw_mix = 0.0
     skew = 0.0    
     
-    for line in log_file:
-        if "LATENCY" in line:
-            entry = line.strip().split(' ');
-            if entry[0] == "LATENCY":
-                latency = entry[1]
-                    
+    for line in log_file:                    
         if "RW MIX" in line:
             entry = line.strip().split(' ');
             print("RW MIX :: " + str(entry))
@@ -1032,7 +1010,7 @@ def ycsb_nvm_eval(log_name):
                 llc_l_miss = str(entry[0])
             llc_l_miss = llc_l_miss.replace(",", "")    
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " , " + str(latency) + " :: " + str(llc_l_miss) + "\n")
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss) + "\n")
 
 
         if "LLC-store-misses" in line:
@@ -1043,9 +1021,9 @@ def ycsb_nvm_eval(log_name):
                 llc_s_miss = str(entry[0])
             llc_s_miss = llc_s_miss.replace(",", "")    
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " , " + str(latency) + " :: " + str(llc_s_miss) + "\n")
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_s_miss) + "\n")
                                                                 
-            result_directory = YCSB_NVM_DIR + engine_type + "/" + workload_type + "/" + latency + "/";
+            result_directory = YCSB_NVM_DIR + engine_type + "/" + workload_type + "/";
             if not os.path.exists(result_directory):
                 os.makedirs(result_directory)
 
