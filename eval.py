@@ -109,7 +109,7 @@ SDV_SCRIPT = SDV_DIR + "/ivt_pm_sdv.sh"
 NSTORE = "./src/nstore"
 FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
-#PERF = "/usr/bin/perf"
+# PERF = "/usr/bin/perf"
 PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
@@ -229,9 +229,9 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
         for line in  xrange(len(datasets[group])):
             for col in  xrange(len(datasets[group][line])):
                 if col == 1:
-                    fs_data.append(datasets[group][line][col] / (1024*1024))
+                    fs_data.append(datasets[group][line][col] / (1024 * 1024))
                 if col == 2:
-                    pm_data.append(datasets[group][line][col] / (1024*1024))
+                    pm_data.append(datasets[group][line][col] / (1024 * 1024))
   
         LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
                 
@@ -251,7 +251,7 @@ def create_ycsb_storage_bar_chart(datasets, workload_mix):
     
     # LEGEND
     fp = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend( bars, labels,                
+    ax1.legend(bars, labels,
                 prop=fp,
                 bbox_to_anchor=(0.0, 1.1, 1.0, 0.10),
                 loc=1,
@@ -304,9 +304,9 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
         for line in  xrange(len(datasets[group])):
             for col in  xrange(len(datasets[group][line])):
                 if col == 1:
-                    l_misses.append(datasets[group][line][col] / (1024))
+                    l_misses.append(datasets[group][line][col] / (1024*1024))
                 if col == 2:
-                    s_misses.append(datasets[group][line][col] / (1024))
+                    s_misses.append(datasets[group][line][col] / (1024*1024))
   
         LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
                 
@@ -316,11 +316,11 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
     # GRID
     axes = ax1.get_axes()
     if workload_mix == "read-only":
-        axes.set_ylim(0, 20000)
+        axes.set_ylim(0, 200)
     elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 20000)
+        axes.set_ylim(0, 200)
     elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 20000)
+        axes.set_ylim(0, 200)
         
     makeGrid(ax1)
     
@@ -337,7 +337,7 @@ def create_ycsb_nvm_bar_chart(datasets, workload_mix):
     )
     
     # Y-AXIS
-    ax1.set_ylabel("NVM accesses (K)", fontproperties=fp)
+    ax1.set_ylabel("NVM accesses (M)", fontproperties=fp)
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
     for tick in ax1.yaxis.get_major_ticks():
@@ -441,7 +441,7 @@ def ycsb_storage_plot():
         for sy in SYSTEMS:    
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, sy + "/" + workload + "/storage.csv")))
             datasets.append(dataFile)
-                   
+                                      
         fig = create_ycsb_storage_bar_chart(datasets, workload)
                         
         fileName = "ycsb-storage-%s.pdf" % (workload)
@@ -458,10 +458,10 @@ def ycsb_nvm_plot():
                 dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/" + lat + "/nvm.csv")))
                 datasets.append(dataFile)
                        
-            fig = create_ycsb_nvm_bar_chart(datasets, workload)
+        fig = create_ycsb_nvm_bar_chart(datasets, workload)
                             
-            fileName = "ycsb-nvm-%s.pdf" % (workload)
-            saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+        fileName = "ycsb-nvm-%s.pdf" % (workload)
+        saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
