@@ -30,6 +30,7 @@ void lsm_engine::merge(bool force) {
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     table_index *p_index = tab->indices->at(0);
+    vector<table_index*> indices = tab->indices->get_data();
 
     pbtree<unsigned long, record*>* pm_map = p_index->pm_map;
 
@@ -76,14 +77,18 @@ void lsm_engine::merge(bool force) {
           //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
 
           storage_offset = tab->fs_data.push_back(val);
-          p_index->off_map->insert(key, storage_offset);
+
+          for (table_index* index : indices){
+            std::string key_str = get_data(pm_rec, index->sptr);
+            key = hash_fn(key_str);
+            index->off_map->insert(key, storage_offset);
+          }
         }
 
         delete pm_rec;
       }
 
       // Clear mem table
-      vector<table_index*> indices = tab->indices->get_data();
       for (table_index* index : indices)
         index->pm_map->clear();
 

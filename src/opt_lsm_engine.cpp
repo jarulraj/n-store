@@ -17,6 +17,7 @@ void opt_lsm_engine::merge(bool force) {
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     table_index *p_index = tab->indices->at(0);
+    vector<table_index*> indices = tab->indices->get_data();
 
     pbtree<unsigned long, record*>* pm_map = p_index->pm_map;
 
@@ -41,7 +42,7 @@ void opt_lsm_engine::merge(bool force) {
 
         // Check if we need to merge
         if (p_index->off_map->exists(key) != 0) {
-          LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
+          //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
 
           storage_offset = p_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
@@ -58,18 +59,22 @@ void opt_lsm_engine::merge(bool force) {
           // Insert tuple
           std::sprintf(ptr_buf, "%p", pm_rec);
           val = std::string(ptr_buf);
-          LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
+          //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
 
           std::sscanf((char*) val.c_str(), "%p", &fs_rec);
           //printf("fs_rec :: %p \n", fs_rec);
 
           storage_offset = tab->fs_data.push_back(val);
-          p_index->off_map->insert(key, storage_offset);
+
+          for (table_index* index : indices) {
+            std::string key_str = get_data(pm_rec, index->sptr);
+            key = hash_fn(key_str);
+            index->off_map->insert(key, storage_offset);
+          }
         }
       }
 
       // Clear mem table
-      vector<table_index*> indices = tab->indices->get_data();
       for (table_index* index : indices)
         index->pm_map->clear();
     }
@@ -130,7 +135,7 @@ std::string opt_lsm_engine::select(const statement& st) {
   if (table_index->pm_map->exists(key) != 0) {
     LOG_INFO("Using mem table ");
     pm_rec = table_index->pm_map->at(key);
-    //printf("pm_rec :: %p \n", pm_rec);
+    printf("pm_rec :: %p \n", pm_rec);
   }
 
   // Check if key exists in fs
@@ -141,7 +146,7 @@ std::string opt_lsm_engine::select(const statement& st) {
     //assert(!val.empty());
     std::sscanf((char*) val.c_str(), "%p", &fs_rec);
 
-    //printf("fs_rec :: %p \n", fs_rec);
+    printf("fs_rec :: %p \n", fs_rec);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
