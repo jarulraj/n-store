@@ -379,6 +379,8 @@ def create_tpcc_perf_bar_chart(datasets):
         perf_data = []               
         LOG.info("GROUP :: %s", datasets[group])
 
+        datasets[group].reverse()
+        
         for line in  xrange(len(datasets[group])):
             for col in  xrange(len(datasets[group][line])):
                 if col == 1:
@@ -390,7 +392,7 @@ def create_tpcc_perf_bar_chart(datasets):
     
     # GRID
     axes = ax1.get_axes()
-    axes.set_ylim(0, 5000)        
+    axes.set_ylim(0, 3000)        
     makeGrid(ax1)
     
     # LEGEND
@@ -456,7 +458,7 @@ def create_tpcc_storage_bar_chart(datasets, workload_mix):
         
     # GRID
     axes = ax1.get_axes()
-    axes.set_ylim(0, 3000)        
+    axes.set_ylim(0, 10000)        
     makeGrid(ax1)
     
     # LEGEND
@@ -525,7 +527,7 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
         
     # GRID
     axes = ax1.get_axes()
-    axes.set_ylim(0, 200)        
+    axes.set_ylim(0, 10000)        
     makeGrid(ax1)
     
     # LEGEND
