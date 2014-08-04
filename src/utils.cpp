@@ -116,43 +116,46 @@ std::string serialize(record* rptr, schema* sptr) {
 record* deserialize(std::string entry_str, schema* sptr) {
   unsigned int num_columns;
   unsigned int itr, field_id;
-
   std::stringstream entry(entry_str);
+
   record* rec_ptr = new record(sptr);
 
   for (itr = 0; itr < sptr->num_columns; itr++) {
+    field_info finfo = sptr->columns[itr];
+    bool enabled = finfo.enabled;
 
-    char type = sptr->columns[itr].type;
-    size_t offset = sptr->columns[itr].offset;
-    size_t len = sptr->columns[itr].deser_len;
+    if (enabled) {
+      char type = finfo.type;
+      size_t offset = finfo.offset;
 
-    switch (type) {
-      case field_type::INTEGER: {
-        int ival;
-        entry >> ival;
-        memcpy(&(rec_ptr->data[offset]), &ival, sizeof(int));
+      switch (type) {
+        case field_type::INTEGER: {
+          int ival;
+          entry >> ival;
+          memcpy(&(rec_ptr->data[offset]), &ival, sizeof(int));
+        }
+          break;
+
+        case field_type::DOUBLE: {
+          double dval;
+          entry >> dval;
+          memcpy(&(rec_ptr->data[offset]), &dval, sizeof(double));
+        }
+          break;
+
+        case field_type::VARCHAR: {
+          char* vc = new char[finfo.deser_len];
+          entry >> vc;
+          memcpy(&(rec_ptr->data[offset]), &vc, sizeof(char*));
+        }
+          break;
+
+        default:
+          cout << "Invalid type : --" << type << "--" << endl;
+          cout << "entry : --" << entry_str << "--" << endl;
+          exit(EXIT_FAILURE);
+          break;
       }
-        break;
-
-      case field_type::DOUBLE: {
-        double dval;
-        entry >> dval;
-        memcpy(&(rec_ptr->data[offset]), &dval, sizeof(double));
-      }
-        break;
-
-      case field_type::VARCHAR: {
-        char* vc = new char[sptr->columns[itr].deser_len];
-        entry >> vc;
-        memcpy(&(rec_ptr->data[offset]), &vc, sizeof(char*));
-      }
-        break;
-
-      default:
-        cout << "Invalid type : --" << type << "--" << endl;
-        cout << "entry : --" << entry_str << "--" << endl;
-        exit(EXIT_FAILURE);
-        break;
     }
   }
 

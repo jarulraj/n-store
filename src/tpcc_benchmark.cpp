@@ -80,25 +80,16 @@ class warehouse_record : public record {
 
       : record(sptr) {
 
-    char* vc = NULL;
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", w_id);
+    set_int(0, w_id);
 
     for (int itr = 1; itr <= 4; itr++) {
-      vc = new char[w_name.size() + 1];
-      strcpy(vc, w_name.c_str());
-      set_pointer(itr, vc);
+      set_varchar(itr, w_name);
     }
 
-    vc = new char[w_st.size() + 1];
-    strcpy(vc, w_st.c_str());
-    set_pointer(5, vc);
-
-    vc = new char[w_zip.size() + 1];
-    strcpy(vc, w_zip.c_str());
-    set_pointer(6, vc);
-
-    std::sprintf(&(data[sptr->columns[7].offset]), "%.2f", w_tax);
-    std::sprintf(&(data[sptr->columns[8].offset]), "%.2f", w_ytd);
+    set_varchar(5, w_st);
+    set_varchar(6, w_zip);
+    set_double(7, w_tax);
+    set_double(8, w_ytd);
   }
 
 };
@@ -181,27 +172,18 @@ class district_record : public record {
 
       : record(sptr) {
 
-    char* vc = NULL;
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", d_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", d_w_id);
+    set_int(0, d_id);
+    set_int(1, d_w_id);
 
     for (int itr = 2; itr <= 5; itr++) {
-      vc = new char[d_name.size() + 1];
-      strcpy(vc, d_name.c_str());
-      set_pointer(itr, vc);
+      set_varchar(itr, d_name);
     }
 
-    vc = new char[d_st.size() + 1];
-    strcpy(vc, d_st.c_str());
-    set_pointer(6, vc);
-
-    vc = new char[d_zip.size() + 1];
-    strcpy(vc, d_zip.c_str());
-    set_pointer(7, vc);
-
-    std::sprintf(&(data[sptr->columns[8].offset]), "%.2f", d_tax);
-    std::sprintf(&(data[sptr->columns[9].offset]), "%.2f", d_ytd);
-    std::sprintf(&(data[sptr->columns[10].offset]), "%d", d_next_o_id);
+    set_varchar(6, d_st);
+    set_varchar(7, d_zip);
+    set_double(8, d_tax);
+    set_double(9, d_ytd);
+    set_int(10, d_next_o_id);
   }
 
 };
@@ -288,19 +270,12 @@ class item_record : public record {
               const double i_price)
       : record(sptr) {
 
-    char* vc = NULL;
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", i_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", i_im_id);
+    set_int(0, i_id);
+    set_int(1, i_im_id);
+    set_varchar(2, i_name);
+    set_double(3, i_price);
+    set_varchar(4, i_name);
 
-    vc = new char[i_name.size() + 1];
-    strcpy(vc, i_name.c_str());
-    set_pointer(2, vc);
-
-    std::sprintf(&(data[sptr->columns[3].offset]), "%.2f", i_price);
-
-    vc = new char[i_name.size() + 1];
-    strcpy(vc, i_name.c_str());
-    set_pointer(4, vc);
   }
 
 };
@@ -375,46 +350,30 @@ class customer_record : public record {
                   const int c_delivery_cnt, std::string c_data)
       : record(sptr) {
 
-    char* vc = NULL;
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", c_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", c_d_id);
-    std::sprintf(&(data[sptr->columns[2].offset]), "%d", c_w_id);
+    set_int(0, c_id);
+    set_int(1, c_d_id);
+    set_int(2, c_w_id);
 
     for (int itr = 3; itr <= 8; itr++) {
-      vc = new char[c_name.size() + 1];
-      strcpy(vc, c_name.c_str());
-      set_pointer(itr, vc);
+      set_varchar(itr, c_name);
     }
 
-    vc = new char[c_st.size() + 1];
-    strcpy(vc, c_st.c_str());
-    set_pointer(9, vc);
+    set_varchar(9, c_st);
+    set_varchar(10, c_zip);
+    set_varchar(11, c_name);
 
-    vc = new char[c_zip.size() + 1];
-    strcpy(vc, c_zip.c_str());
-    set_pointer(10, vc);
+    set_double(12, c_ts);
+    set_varchar(13, c_credit);
 
-    vc = new char[c_name.size() + 1];
-    strcpy(vc, c_name.c_str());
-    set_pointer(11, vc);
+    set_double(14, c_credit_lim);
+    set_double(15, c_discount);
+    set_double(16, c_balance);
+    set_double(17, c_ytd);
 
-    std::sprintf(&(data[sptr->columns[12].offset]), "%.2f", c_ts);
+    set_int(18, c_payment_cnt);
+    set_int(19, c_delivery_cnt);
 
-    vc = new char[c_credit.size() + 1];
-    strcpy(vc, c_credit.c_str());
-    set_pointer(13, vc);
-
-    std::sprintf(&(data[sptr->columns[14].offset]), "%.2f", c_credit_lim);
-    std::sprintf(&(data[sptr->columns[15].offset]), "%.2f", c_discount);
-
-    std::sprintf(&(data[sptr->columns[16].offset]), "%.2f", c_balance);
-    std::sprintf(&(data[sptr->columns[17].offset]), "%.2f", c_ytd);
-    std::sprintf(&(data[sptr->columns[18].offset]), "%d", c_payment_cnt);
-    std::sprintf(&(data[sptr->columns[19].offset]), "%d", c_delivery_cnt);
-
-    vc = new char[c_data.size() + 1];
-    strcpy(vc, c_data.c_str());
-    set_pointer(20, vc);
+    set_varchar(20, c_data);
   }
 
 };
@@ -543,19 +502,15 @@ class history_record : public record {
                  const double h_amount, const std::string& h_data)
       : record(sptr) {
 
-    char* vc = NULL;
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", h_c_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", h_c_d_id);
-    std::sprintf(&(data[sptr->columns[2].offset]), "%d", h_c_w_id);
-    std::sprintf(&(data[sptr->columns[3].offset]), "%d", h_d_id);
-    std::sprintf(&(data[sptr->columns[4].offset]), "%d", h_w_id);
+    set_int(0, h_c_id);
+    set_int(1, h_c_d_id);
+    set_int(2, h_c_w_id);
+    set_int(3, h_d_id);
+    set_int(4, h_w_id);
 
-    std::sprintf(&(data[sptr->columns[5].offset]), "%.2f", h_ts);
-    std::sprintf(&(data[sptr->columns[6].offset]), "%.2f", h_amount);
-
-    vc = new char[h_data.size() + 1];
-    strcpy(vc, h_data.c_str());
-    set_pointer(7, vc);
+    set_double(5, h_ts);
+    set_double(6, h_amount);
+    set_varchar(7, h_data);
   }
 
 };
@@ -629,25 +584,19 @@ class stock_record : public record {
                int s_remote_cnt, const std::string& s_data)
       : record(sptr) {
 
-    char* vc = NULL;
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", s_i_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", s_w_id);
-    std::sprintf(&(data[sptr->columns[2].offset]), "%d", s_quantity);
+    set_int(0, s_i_id);
+    set_int(1, s_w_id);
+    set_int(2, s_quantity);
 
     for (int f_itr = 3; f_itr <= 12; f_itr++) {
       int s_dist_itr = f_itr - 3;
-      vc = new char[s_dist[s_dist_itr].size() + 1];
-      strcpy(vc, s_dist[s_dist_itr].c_str());
-      set_pointer(f_itr, vc);
+      set_varchar(f_itr, s_dist[s_dist_itr]);
     }
 
-    std::sprintf(&(data[sptr->columns[13].offset]), "%d", s_ytd);
-    std::sprintf(&(data[sptr->columns[14].offset]), "%d", s_order_cnt);
-    std::sprintf(&(data[sptr->columns[15].offset]), "%d", s_remote_cnt);
-
-    vc = new char[s_data.size() + 1];
-    strcpy(vc, s_data.c_str());
-    set_pointer(16, vc);
+    set_int(13, s_ytd);
+    set_int(14, s_order_cnt);
+    set_int(15, s_remote_cnt);
+    set_varchar(16, s_data);
   }
 
 };
@@ -733,16 +682,16 @@ class orders_record : public record {
                 int o_all_local)
       : record(sptr) {
 
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", o_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", o_c_id);
-    std::sprintf(&(data[sptr->columns[2].offset]), "%d", o_d_id);
-    std::sprintf(&(data[sptr->columns[3].offset]), "%d", o_w_id);
+    set_int(0, o_id);
+    set_int(1, o_c_id);
+    set_int(2, o_d_id);
+    set_int(3, o_w_id);
 
-    std::sprintf(&(data[sptr->columns[4].offset]), "%.2lf", o_entry_ts);
+    set_double(4, o_entry_ts);
 
-    std::sprintf(&(data[sptr->columns[5].offset]), "%d", o_carrier_id);
-    std::sprintf(&(data[sptr->columns[6].offset]), "%d", o_ol_cnt);
-    std::sprintf(&(data[sptr->columns[7].offset]), "%d", o_all_local);
+    set_int(5, o_carrier_id);
+    set_int(6, o_ol_cnt);
+    set_int(7, o_all_local);
   }
 
 };
@@ -829,9 +778,10 @@ class new_order_record : public record {
   new_order_record(schema* sptr, int no_o_id, int no_d_id, int no_w_id)
       : record(sptr) {
 
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", no_o_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", no_d_id);
-    std::sprintf(&(data[sptr->columns[2].offset]), "%d", no_w_id);
+    set_int(0, no_o_id);
+    set_int(1, no_d_id);
+    set_int(2, no_w_id);
+
   }
 
 };
@@ -892,22 +842,19 @@ class order_line_record : public record {
                     const std::string& ol_info)
       : record(sptr) {
 
-    char* vc = NULL;
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", ol_o_id);
-    std::sprintf(&(data[sptr->columns[1].offset]), "%d", ol_d_id);
-    std::sprintf(&(data[sptr->columns[2].offset]), "%d", ol_w_id);
-    std::sprintf(&(data[sptr->columns[3].offset]), "%d", ol_number);
+    set_int(0, ol_o_id);
+    set_int(1, ol_d_id);
+    set_int(2, ol_w_id);
+    set_int(3, ol_number);
 
-    std::sprintf(&(data[sptr->columns[4].offset]), "%d", ol_i_id);
-    std::sprintf(&(data[sptr->columns[5].offset]), "%d", ol_supply_w_id);
+    set_int(4, ol_i_id);
+    set_int(5, ol_supply_w_id);
 
-    std::sprintf(&(data[sptr->columns[6].offset]), "%.2lf", ol_delivery_ts);
-    std::sprintf(&(data[sptr->columns[7].offset]), "%d", ol_quantity);
-    std::sprintf(&(data[sptr->columns[8].offset]), "%.2lf", ol_amount);
+    set_double(6, ol_delivery_ts);
+    set_int(7, ol_quantity);
 
-    vc = new char[ol_info.size() + 1];
-    strcpy(vc, ol_info.c_str());
-    set_pointer(9, vc);
+    set_double(8, ol_amount);
+    set_varchar(9, ol_info);
   }
 
 };
