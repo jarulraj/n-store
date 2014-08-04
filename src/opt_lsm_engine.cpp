@@ -98,7 +98,8 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only)
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-    tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
+    // Storing pointer only
+    tab->fs_data.configure(table_file_name, 15, false);
   }
 
 }
