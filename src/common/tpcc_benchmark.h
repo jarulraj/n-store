@@ -78,6 +78,10 @@ class tpcc_benchmark : public benchmark {
   schema* new_order_table_schema;
   schema* stock_table_schema;
 
+  // Queries
+  schema* customer_do_new_order_schema;
+  schema* stock_table_do_stock_level_schema;
+
   // Constants
   const int item_count = 10;  // 100000
   const double item_min_price = 1.0;

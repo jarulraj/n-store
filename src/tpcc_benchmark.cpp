@@ -490,6 +490,15 @@ table* tpcc_benchmark::create_customer() {
   pmemalloc_activate(s_index);
   customer->indices->push_back(s_index);
 
+  // QUERY SCHEMAS
+  for (int itr = 0; itr <= cols.size(); itr++)
+    cols[itr].enabled = 0;
+  cols[3].enabled = 1;
+  cols[13].enabled = 1;
+  cols[15].enabled = 1;
+
+  customer_do_new_order_schema = new schema(cols);
+
   return customer;
 }
 
@@ -669,6 +678,13 @@ table* tpcc_benchmark::create_stock() {
   table_index* p_index = new table_index(stock_index_schema, cols.size(), conf);
   pmemalloc_activate(p_index);
   stock->indices->push_back(p_index);
+
+  // QUERY SCHEMA
+  for (int itr = 0; itr <= cols.size(); itr++)
+    cols[itr].enabled = 0;
+  cols[2].enabled = 1;
+
+  stock_table_do_stock_level_schema = new schema(cols);
 
   return stock;
 }
@@ -1501,7 +1517,7 @@ void tpcc_benchmark::do_new_order(engine* ee) {
                                   0, empty);
 
     st = statement(txn_id, operation_type::Select, CUSTOMER_TABLE_ID, rec_ptr,
-                   0, customer_table_schema);
+                   0, customer_do_new_order_schema);
 
     TIMER(customer_str = ee->select(st))
 
@@ -2062,7 +2078,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
                                0, empty);
 
     st = statement(txn_id, operation_type::Select, STOCK_TABLE_ID, rec_ptr, 0,
-                   stock_table_schema);
+                   stock_table_do_stock_level_schema);
 
     TIMER(stock_str = ee->select(st))
 
