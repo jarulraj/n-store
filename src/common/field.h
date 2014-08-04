@@ -13,7 +13,6 @@ enum field_type {
   INTEGER,
   DOUBLE,
   VARCHAR,
-  LONG_INT
 };
 
 struct field_info {

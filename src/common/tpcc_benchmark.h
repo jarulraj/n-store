@@ -79,7 +79,7 @@ class tpcc_benchmark : public benchmark {
   schema* stock_table_schema;
 
   // Constants
-  const int item_count = 100000;  // 100000
+  const int item_count = 3;  // 100000
   const double item_min_price = 1.0;
   const double item_max_price = 100.0;
   const int item_name_len = 5;
@@ -92,10 +92,10 @@ class tpcc_benchmark : public benchmark {
   const double name_len = 32;
   const double warehouse_initial_ytd = 300000.00f;
 
-  const int districts_per_warehouse = 10;  // 10
+  const int districts_per_warehouse = 3;  // 10
   const double district_initial_ytd = 30000.00f;
 
-  const int customers_per_district = 3000;  // 3000
+  const int customers_per_district = 3;  // 3000
   const std::string customers_gcredit = "GC";
   const std::string customers_bcredit = "BC";
   const double customers_bad_credit_ratio = 0.1;
@@ -116,7 +116,7 @@ class tpcc_benchmark : public benchmark {
   const int orders_min_carrier_id = 1;
   const int orders_max_carrier_id = 10;
 
-  const int new_orders_per_district = 900; // 900
+  const int new_orders_per_district = 5; // 900
 
   const int order_line_init_quantity = 5;
   const int order_line_max_ol_quantity = 10;

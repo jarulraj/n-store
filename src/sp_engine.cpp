@@ -205,7 +205,7 @@ int sp_engine::update(const statement& st) {
   std::string before_tuple, after_tuple;
 
   before_tuple = std::string((char*) val.data);
-  record* before_rec = deserialize_to_record(before_tuple, tab->sptr, false);
+  record* before_rec = deserialize(before_tuple, tab->sptr, false);
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();

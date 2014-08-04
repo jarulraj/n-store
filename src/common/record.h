@@ -5,6 +5,7 @@
 #include <string>
 #include "schema.h"
 #include "field.h"
+#include <cassert>
 
 using namespace std;
 
@@ -52,30 +53,24 @@ class record {
     switch (type) {
       case field_type::INTEGER:
         int ival;
-        std::sscanf(&(data[offset]), "%d", &ival);
+        memcpy(&ival, &(data[offset]), sizeof(int));
         field = std::to_string(ival) + " ";
         break;
 
       case field_type::DOUBLE:
         double dval;
-        std::sscanf(&(data[offset]), "%lf", &dval);
+        memcpy(&dval, &(data[offset]), sizeof(double));
         field = std::to_string(dval) + " ";
         break;
 
       case field_type::VARCHAR: {
         char* vcval = NULL;
-        std::sscanf(&(data[offset]), "%p", &vcval);
+        memcpy(&vcval, &(data[offset]), sizeof(char*));
         if (vcval != NULL) {
-          //std::printf("vcval : %p \n", vcval);
+          //std::printf("vcval : --%p-- \n", vcval);
           field = std::string(vcval) + " ";
         }
       }
-        break;
-
-      case field_type::LONG_INT:
-        long int lival;
-        std::sscanf(&(data[offset]), "%ld", &lival);
-        field = std::to_string(lival) + " ";
         break;
 
       default:
@@ -88,12 +83,9 @@ class record {
   }
 
   void* get_pointer(const int field_id) {
-    void* field = NULL;
-    if (sptr->columns[field_id].inlined == 0) {
-      std::sscanf(&(data[sptr->columns[field_id].offset]), "%p", &field);
-    }
-
-    return field;
+    void* vcval = NULL;
+    memcpy(&vcval, &(data[sptr->columns[field_id].offset]), sizeof(char*));
+    return vcval;
   }
 
   void set_data(const int field_id, record* rec_ptr) {
@@ -104,12 +96,8 @@ class record {
     switch (type) {
       case field_type::INTEGER:
       case field_type::DOUBLE:
-      case field_type::LONG_INT:
-        memcpy(&(data[offset]), &(rec_ptr->data[offset]), len);
-        break;
-
       case field_type::VARCHAR:
-        set_pointer(field_id, rec_ptr->get_pointer(field_id));
+        memcpy(&(data[offset]), &(rec_ptr->data[offset]), len);
         break;
 
       default:
@@ -119,33 +107,25 @@ class record {
   }
 
   void set_int(const int field_id, int ival) {
-    char type = sptr->columns[field_id].type;
-    if (type == field_type::INTEGER) {
-      std::sprintf(&(data[sptr->columns[field_id].offset]), "%d", ival);
-    } else {
-      cout << "Invalid type : " << type << endl;
-      exit(EXIT_FAILURE);
-    }
+    //assert(sptr->columns[field_id].type == field_type::INTEGER);
+    memcpy(&(data[sptr->columns[field_id].offset]), &ival, sizeof(int));
   }
 
   void set_double(const int field_id, double dval) {
-    char type = sptr->columns[field_id].type;
-    if (type == field_type::DOUBLE) {
-      std::sprintf(&(data[sptr->columns[field_id].offset]), "%lf", dval);
-    } else {
-      cout << "Invalid type : " << type << endl;
-      exit(EXIT_FAILURE);
-    }
+    //assert(sptr->columns[field_id].type == field_type::DOUBLE);
+    memcpy(&(data[sptr->columns[field_id].offset]), &dval, sizeof(double));
   }
 
-  void set_pointer(const int field_id, void* field_ptr) {
-    char type = sptr->columns[field_id].type;
-    if (type == field_type::VARCHAR) {
-      std::sprintf(&(data[sptr->columns[field_id].offset]), "%p", field_ptr);
-    } else {
-      cout << "Invalid type : " << type << endl;
-      exit(EXIT_FAILURE);
-    }
+  void set_varchar(const int field_id, std::string vc_str) {
+    //assert(sptr->columns[field_id].type == field_type::VARCHAR);
+    char* vc = new char[vc_str.size() + 1];
+    strcpy(vc, vc_str.c_str());
+    memcpy(&(data[sptr->columns[field_id].offset]), &vc, sizeof(char*));
+  }
+
+  void set_pointer(const int field_id, void* pval) {
+    //assert(sptr->columns[field_id].type == field_type::VARCHAR);
+    memcpy(&(data[sptr->columns[field_id].offset]), &pval, sizeof(char*));
   }
 
   void persist_data() {

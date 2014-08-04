@@ -330,13 +330,13 @@ void opt_wal_engine::recovery() {
               case field_type::INTEGER:
                 int ival;
                 entry >> ival;
-                std::sprintf(&(before_rec->data[field_offset]), "%d", ival);
+                before_rec->set_int(field_itr, ival);
                 break;
 
               case field_type::DOUBLE:
                 double dval;
                 entry >> dval;
-                std::sprintf(&(before_rec->data[field_offset]), "%lf", dval);
+                before_rec->set_int(field_itr, dval);
                 break;
 
               default:

@@ -82,10 +82,10 @@ std::string serialize(record* rptr, schema* sptr, bool prefix) {
   return rec_str;
 }
 
-record* deserialize_to_record(std::string entry_str, schema* sptr,
-                              bool prefix) {
+record* deserialize(std::string entry_str, schema* sptr, bool prefix) {
   unsigned int num_columns;
   unsigned int itr, field_id;
+
   std::stringstream entry(entry_str);
 
   // prefix
@@ -117,28 +117,21 @@ record* deserialize_to_record(std::string entry_str, schema* sptr,
       case field_type::INTEGER: {
         int ival;
         entry >> ival;
-        std::sprintf(&(rec_ptr->data[offset]), "%d", ival);
+        memcpy(&(rec_ptr->data[offset]), &ival, sizeof(int));
       }
         break;
 
       case field_type::DOUBLE: {
         double dval;
         entry >> dval;
-        std::sprintf(&(rec_ptr->data[offset]), "%lf", dval);
+        memcpy(&(rec_ptr->data[offset]), &dval, sizeof(double));
       }
         break;
 
       case field_type::VARCHAR: {
         char* vc = new char[sptr->columns[idx].deser_len];
         entry >> vc;
-        std::sprintf(&(rec_ptr->data[offset]), "%p", vc);
-      }
-        break;
-
-      case field_type::LONG_INT: {
-        long int lival;
-        entry >> lival;
-        std::sprintf(&(rec_ptr->data[offset]), "%ld", lival);
+        memcpy(&(rec_ptr->data[offset]), &vc, sizeof(char*));
       }
         break;
 
@@ -200,13 +193,6 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr,
 
       case field_type::VARCHAR: {
         entry >> field_str;
-      }
-        break;
-
-      case field_type::LONG_INT: {
-        long int lival;
-        entry >> lival;
-        field_str = std::to_string(lival);
       }
         break;
 

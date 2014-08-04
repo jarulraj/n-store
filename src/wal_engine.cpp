@@ -152,7 +152,7 @@ int wal_engine::remove(const statement& st) {
   storage_offset = indices->at(0)->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
 
-  before_rec = deserialize_to_record(val, tab->sptr, false);
+  before_rec = deserialize(val, tab->sptr, false);
 
   // Add log entry
   entry_stream.str("");
@@ -200,7 +200,7 @@ int wal_engine::update(const statement& st) {
   val = tab->fs_data.at(storage_offset);
 
   //LOG_INFO("val : %s", val.c_str());
-  before_rec = deserialize_to_record(val, tab->sptr, false);
+  before_rec = deserialize(val, tab->sptr, false);
   //LOG_INFO("before tuple : %s", serialize(before_rec, tab->sptr, false).c_str());
 
   entry_stream.str("");

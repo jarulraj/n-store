@@ -14,28 +14,21 @@ using namespace std;
 
 class usertable_record : public record {
  public:
-  usertable_record(schema* _sptr, int _key, const std::string& _val,
+  usertable_record(schema* _sptr, int key, const std::string& val,
                    int num_val_fields, bool update_one)
       : record(_sptr) {
 
-    std::sprintf(&(data[sptr->columns[0].offset]), "%d", _key);
+    set_int(0, key);
 
-    if (!_val.empty()) {
-      size_t _val_len = _val.size();
+    if (val.empty())
+      return;
 
-      if (!update_one) {
-        for (int itr = 1; itr <= num_val_fields; itr++) {
-          char* vc = new char[_val_len + 1];
-          strcpy(vc, _val.c_str());
-          std::sprintf(&(data[sptr->columns[itr].offset]), "%p", vc);
-        }
-      } else {
-        char* vc = new char[_val_len + 1];
-        strcpy(vc, _val.c_str());
-        std::sprintf(&(data[sptr->columns[1].offset]), "%p", vc);
+    if (!update_one) {
+      for (int itr = 1; itr <= num_val_fields; itr++) {
+        set_varchar(itr, val);
       }
-    }
-
+    } else
+      set_varchar(1, val);
   }
 
 };

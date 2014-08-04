@@ -57,7 +57,7 @@ void lsm_engine::merge(bool force) {
         if (p_index->off_map->exists(key) != 0) {
           storage_offset = p_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
-          fs_rec = deserialize_to_record(val, tab->sptr, false);
+          fs_rec = deserialize(val, tab->sptr, false);
 
           int num_cols = pm_rec->sptr->num_columns;
           for (int field_itr = 0; field_itr < num_cols; field_itr++) {
@@ -168,7 +168,7 @@ std::string lsm_engine::select(const statement& st) {
     LOG_INFO("Using ss table ");
     storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
-    fs_rec = deserialize_to_record(val, tab->sptr, false);
+    fs_rec = deserialize(val, tab->sptr, false);
     //printf("fs_rec :: %p \n", fs_rec);
   }
 
