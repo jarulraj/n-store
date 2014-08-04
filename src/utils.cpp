@@ -60,58 +60,71 @@ int get_rand_int_excluding(int i_min, int i_max, int excl) {
 }
 
 // SER + DESER
-std::string serialize(record* rptr, schema* sptr, bool prefix) {
+std::string serialize(record* rptr, schema* sptr) {
   unsigned int num_columns = sptr->num_columns;
-  std::string rec_str;
+  std::string rec_str, field;
 
   if (rptr == NULL || sptr == NULL)
     return rec_str;
 
-  if (!prefix) {
-    for (int itr = 0; itr < num_columns; itr++)
-      rec_str += rptr->get_data(itr);
-  } else {
-    rec_str += std::to_string(num_columns) + " ";
+  char* data = rptr->data;
 
-    for (int itr = 0; itr < num_columns; itr++) {
-      rec_str += std::to_string(itr) + " ";
-      rec_str += rptr->get_data(itr);
+  for (int itr = 0; itr < num_columns; itr++) {
+    field_info finfo = sptr->columns[itr];
+    bool enabled = finfo.enabled;
+
+    if (enabled) {
+      char type = finfo.type;
+      size_t offset = finfo.offset;
+
+      switch (type) {
+        case field_type::INTEGER:
+          int ival;
+          memcpy(&ival, &(data[offset]), sizeof(int));
+          field = std::to_string(ival) + " ";
+          break;
+
+        case field_type::DOUBLE:
+          double dval;
+          memcpy(&dval, &(data[offset]), sizeof(double));
+          field = std::to_string(dval) + " ";
+          break;
+
+        case field_type::VARCHAR: {
+          char* vcval = NULL;
+          memcpy(&vcval, &(data[offset]), sizeof(char*));
+          if (vcval != NULL) {
+            //std::printf("vcval : --%p-- \n", vcval);
+            field = std::string(vcval) + " ";
+          }
+        }
+          break;
+
+        default:
+          cout << "Invalid type : " << type << endl;
+          exit(EXIT_FAILURE);
+          break;
+      }
+
+      rec_str += field;
     }
   }
 
   return rec_str;
 }
 
-record* deserialize(std::string entry_str, schema* sptr, bool prefix) {
+record* deserialize(std::string entry_str, schema* sptr) {
   unsigned int num_columns;
   unsigned int itr, field_id;
 
   std::stringstream entry(entry_str);
-
-  // prefix
-  if (prefix) {
-    int op_type, txn_id, table_id;
-    entry >> txn_id >> op_type >> table_id;
-  }
-
   record* rec_ptr = new record(sptr);
-  //printf("rec_ptr :: %p \n", rec_ptr);
-  if (prefix)
-    entry >> num_columns;
-  else
-    num_columns = sptr->num_columns;
 
-  off_t idx;
-  for (itr = 0; itr < num_columns; itr++) {
-    if (prefix) {
-      entry >> field_id;
-      idx = field_id;
-    } else
-      idx = itr;
+  for (itr = 0; itr < sptr->num_columns; itr++) {
 
-    char type = sptr->columns[idx].type;
-    size_t offset = sptr->columns[idx].offset;
-    size_t len = sptr->columns[idx].deser_len;
+    char type = sptr->columns[itr].type;
+    size_t offset = sptr->columns[itr].offset;
+    size_t len = sptr->columns[itr].deser_len;
 
     switch (type) {
       case field_type::INTEGER: {
@@ -129,16 +142,15 @@ record* deserialize(std::string entry_str, schema* sptr, bool prefix) {
         break;
 
       case field_type::VARCHAR: {
-        char* vc = new char[sptr->columns[idx].deser_len];
+        char* vc = new char[sptr->columns[itr].deser_len];
         entry >> vc;
         memcpy(&(rec_ptr->data[offset]), &vc, sizeof(char*));
       }
         break;
 
       default:
-        cout << "Invalid field type : --" << type << "--" << endl;
-        cout << "Entry : --" << entry_str << "--" << endl;
-        cout << "Field id : --" << itr << "--" << endl;
+        cout << "Invalid type : --" << type << "--" << endl;
+        cout << "entry : --" << entry_str << "--" << endl;
         exit(EXIT_FAILURE);
         break;
     }

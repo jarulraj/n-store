@@ -63,7 +63,7 @@ std::string wal_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
-  std::string key_str = get_data(rec_ptr, table_index->sptr);
+  std::string key_str = serialize(rec_ptr, table_index->sptr);
 
   LOG_INFO("val : --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
@@ -93,7 +93,7 @@ int wal_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = get_data(after_rec, indices->at(0)->sptr);
+  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   LOG_INFO("key_str :: %s", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
@@ -104,7 +104,7 @@ int wal_engine::insert(const statement& st) {
   }
 
   // Add log entry
-  std::string after_tuple = serialize(after_rec, after_rec->sptr, false);
+  std::string after_tuple = serialize(after_rec, after_rec->sptr);
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " " << after_tuple << "\n";
@@ -118,7 +118,7 @@ int wal_engine::insert(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->off_map->insert(key, storage_offset);
@@ -138,7 +138,7 @@ int wal_engine::remove(const statement& st) {
   unsigned int index_itr;
   record* before_rec = NULL;
 
-  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
   off_t storage_offset;
   std::string val;
@@ -152,19 +152,19 @@ int wal_engine::remove(const statement& st) {
   storage_offset = indices->at(0)->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
 
-  before_rec = deserialize(val, tab->sptr, false);
+  before_rec = deserialize(val, tab->sptr);
 
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(before_rec, before_rec->sptr, false) << "\n";
+               << " " << serialize(before_rec, before_rec->sptr) << "\n";
 
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
+    key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     // Lazy deletion
@@ -184,7 +184,7 @@ int wal_engine::update(const statement& st) {
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
 
-  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
   off_t storage_offset;
   std::string val, before_tuple;
@@ -200,24 +200,21 @@ int wal_engine::update(const statement& st) {
   val = tab->fs_data.at(storage_offset);
 
   //LOG_INFO("val : %s", val.c_str());
-  before_rec = deserialize(val, tab->sptr, false);
-  //LOG_INFO("before tuple : %s", serialize(before_rec, tab->sptr, false).c_str());
+  before_rec = deserialize(val, tab->sptr);
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " ";
   // before image
-  entry_stream << serialize(before_rec, tab->sptr, false) << " ";
+  entry_stream << serialize(before_rec, tab->sptr) << " ";
 
   // Update existing record
   for (int field_itr : st.field_ids) {
     before_rec->set_data(field_itr, rec_ptr);
   }
 
-  //LOG_INFO("update tuple : %s", serialize(before_rec, tab->sptr, false).c_str());
-
   // after image
-  before_tuple = serialize(before_rec, tab->sptr, false);
+  before_tuple = serialize(before_rec, tab->sptr);
   entry_stream << before_tuple << "\n";
 
   // Add log entry

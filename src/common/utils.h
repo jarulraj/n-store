@@ -28,28 +28,11 @@ int get_rand_int(int i_min, int i_max);
 
 int get_rand_int_excluding(int i_min, int i_max, int excl);
 
-inline std::string get_data(record* rptr, schema* sptr) {
-  std::string rec_str;
-
-  if (rptr == NULL || sptr == NULL)
-    return rec_str;
-
-  unsigned int num_columns = sptr->num_columns;
-  unsigned int itr;
-
-  for (itr = 0; itr < num_columns; itr++) {
-    if (sptr->columns[itr].enabled)
-      rec_str += rptr->get_data(itr);
-  }
-
-  return rec_str;
-}
-
 // record* to string
-std::string serialize(record* rptr, schema* sptr, bool prefix);
+std::string serialize(record* rptr, schema* sptr);
 
 // string to record*
-record* deserialize(std::string entry, schema* sptr, bool prefix);
+record* deserialize(std::string entry, schema* sptr);
 
 // string to string
 std::string deserialize_to_string(std::string entry_str, schema* sptr,

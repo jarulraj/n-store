@@ -38,7 +38,7 @@ class record {
 
     unsigned int field_itr;
     for (field_itr = 0; field_itr < sptr->num_columns; field_itr++)
-      data += get_data(field_itr);
+      data += get_data(field_itr) + " ";
 
     printf("record : %p %s \n", this, data.c_str());
 
@@ -54,21 +54,20 @@ class record {
       case field_type::INTEGER:
         int ival;
         memcpy(&ival, &(data[offset]), sizeof(int));
-        field = std::to_string(ival) + " ";
+        field = std::to_string(ival);
         break;
 
       case field_type::DOUBLE:
         double dval;
         memcpy(&dval, &(data[offset]), sizeof(double));
-        field = std::to_string(dval) + " ";
+        field = std::to_string(dval);
         break;
 
       case field_type::VARCHAR: {
         char* vcval = NULL;
         memcpy(&vcval, &(data[offset]), sizeof(char*));
         if (vcval != NULL) {
-          //std::printf("vcval : --%p-- \n", vcval);
-          field = std::string(vcval) + " ";
+          field = std::string(vcval);
         }
       }
         break;

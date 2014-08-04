@@ -66,7 +66,7 @@ std::string sp_engine::select(const statement& st) {
   struct cow_btval key, val;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
-  std::string key_str = get_data(rec_ptr, table_index->sptr);
+  std::string key_str = serialize(rec_ptr, table_index->sptr);
 
   //cout << "Select :: Key : -" << st.key << "-  -" << st.table_id << "-" << st.table_index_id << "-" << endl;
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id,
@@ -99,7 +99,7 @@ int sp_engine::insert(const statement& st) {
   unsigned int index_itr;
   struct cow_btval key, val;
 
-  std::string key_str = get_data(after_rec, indices->at(0)->sptr);
+  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   //cout << "Insert :: Key : -" << key_str << "-  -" << st.table_id << "-0-"<< endl;
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   key_str = std::to_string(key_id);
@@ -114,11 +114,11 @@ int sp_engine::insert(const statement& st) {
     return EXIT_SUCCESS;
   }
 
-  std::string after_tuple = serialize(after_rec, after_rec->sptr, false);
+  std::string after_tuple = serialize(after_rec, after_rec->sptr);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_data(after_rec, indices->at(index_itr)->sptr);
+    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
     key_str = std::to_string(key_id);
 
@@ -146,7 +146,7 @@ int sp_engine::remove(const statement& st) {
   unsigned int index_itr;
   struct cow_btval key, val;
 
-  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   key_str = std::to_string(key_id);
 
@@ -161,7 +161,7 @@ int sp_engine::remove(const statement& st) {
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_data(rec_ptr, indices->at(index_itr)->sptr);
+    key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
     key_str = std::to_string(key_id);
 
@@ -185,7 +185,7 @@ int sp_engine::update(const statement& st) {
   unsigned int index_itr;
   struct cow_btval key, val, update_val;
 
-  std::string key_str = get_data(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   //cout << "Update :: Key : -" << key_str << "-  -" << st.table_id << "-0-" << endl;
 
@@ -205,7 +205,7 @@ int sp_engine::update(const statement& st) {
   std::string before_tuple, after_tuple;
 
   before_tuple = std::string((char*) val.data);
-  record* before_rec = deserialize(before_tuple, tab->sptr, false);
+  record* before_rec = deserialize(before_tuple, tab->sptr);
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();
@@ -215,11 +215,11 @@ int sp_engine::update(const statement& st) {
     before_rec->set_data(field_itr, rec_ptr);
   }
 
-  after_tuple = serialize(before_rec, tab->sptr, false);
+  after_tuple = serialize(before_rec, tab->sptr);
 
   // Update entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = get_data(before_rec, indices->at(index_itr)->sptr);
+    key_str = serialize(before_rec, indices->at(index_itr)->sptr);
     key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
     key_str = std::to_string(key_id);
 
