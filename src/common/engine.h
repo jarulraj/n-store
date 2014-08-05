@@ -19,6 +19,8 @@ class engine {
   virtual void txn_begin() = 0;
   virtual void txn_end(bool commit) = 0;
 
+  virtual void recovery() = 0;
+
   virtual ~engine() {}
 
   int txn_counter;

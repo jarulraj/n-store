@@ -30,11 +30,12 @@ class lsm_engine : public engine {
 
   void group_commit();
   void merge(bool force);
-  void recovery();
 
   void merge_check();
   void txn_begin();
   void txn_end(bool commit);
+
+  void recovery(){}
 
   //private:
   const config& conf;

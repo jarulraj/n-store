@@ -212,6 +212,20 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr) {
   return output.str();
 }
 
+std::string get_tuple(std::stringstream& entry, schema* sptr) {
+  if (sptr == NULL)
+    return "";
+
+  std::string tuple, field;
+
+  for (int col = 0; col < sptr->num_columns; col++) {
+    entry >> field;
+    tuple += field + " ";
+  }
+
+  return tuple;
+}
+
 // TIMER
 
 void display_stats(engine* ee, double duration, int num_txns) {

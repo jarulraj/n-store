@@ -31,13 +31,14 @@ class opt_lsm_engine : public engine {
   int remove(const statement& t);
 
   void group_commit();
-  void recovery();
 
   void merge(bool force);
   void merge_check();
 
   void txn_begin();
   void txn_end(bool commit);
+
+  void recovery(){}
 
   //private:
   const config& conf;

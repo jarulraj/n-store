@@ -24,6 +24,7 @@ extern bool pm_stats;
 
 static void usage_exit(FILE *out) {
   fprintf(out, "Command line options : nstore <options> \n"
+          "   -h --help              :  Print help message \n"
           "   -x --num-txns          :  Number of transactions \n"
           "   -k --num-keys          :  Number of keys \n"
           "   -e --num-executors     :  Number of executors \n"
@@ -37,12 +38,12 @@ static void usage_exit(FILE *out) {
           "   -l --opt-lsm-enable    :  OPT LSM enable \n"
           "   -y --ycsb              :  YCSB benchmark \n"
           "   -t --tpcc              :  TPCC benchmark \n"
-          "   -h --help              :  Print help message \n"
           "   -p --per-writes        :  Percent of writes \n"
           "   -u --ycsb-update-one   :  Update one field \n"
           "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
           "   -z --pm_stats          :  Collect PM stats \n"
-          "   -o --tpcc_stock-level  :  TPCC stock level only \n");
+          "   -o --tpcc_stock-level  :  TPCC stock level only \n"
+          "   -r --recovery          :  Recovery mode \n");
   exit(-1);
 }
 
@@ -67,12 +68,13 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.btype = benchmark_type::YCSB;
 
   state.read_only = false;
+  state.recovery = false;
 
   state.ycsb_skew = 1.0;
   state.ycsb_update_one = false;
-  state.ycsb_field_size = 100;
+  state.ycsb_field_size = 3;
   state.ycsb_tuples_per_txn = 2;
-  state.ycsb_num_val_fields = 10;
+  state.ycsb_num_val_fields = 2;
 
   state.tpcc_num_warehouses = 2;
   state.tpcc_stock_level_only = false;
@@ -80,7 +82,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluytzo", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluytzor", opts, &idx);
 
     if (c == -1)
       break;
@@ -162,12 +164,14 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         pm_stats = true;
         cout << "pm_stats " << endl;
         break;
-
       case 'o':
         state.tpcc_stock_level_only = true;
         cout << "tpcc_stock_level " << endl;
         break;
-
+      case 'r':
+        state.recovery = true;
+        cout << "recovery " << endl;
+        break;
       case 'h':
         usage_exit(stderr);
         break;
@@ -181,7 +185,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 void execute(config& state) {
 
   bool generate_dataset = !sp->init;
-  benchmark* bh;
+  benchmark* bh = NULL;
 
   // Fix benchmark
   switch (state.btype) {
@@ -216,6 +220,10 @@ void execute(config& state) {
 
       wal = new wal_engine(state, state.read_only);
       bh->execute(wal);
+
+      if(state.recovery)
+        wal->recovery();
+
       delete wal;
     }
       break;
@@ -232,6 +240,10 @@ void execute(config& state) {
 
       sp = new sp_engine(state, state.read_only);
       bh->execute(sp);
+
+      if(state.recovery)
+        sp->recovery();
+
       delete sp;
 
     }
@@ -247,6 +259,10 @@ void execute(config& state) {
 
       lsm = new lsm_engine(state, false);
       bh->execute(lsm);
+
+      if(state.recovery)
+        lsm->recovery();
+
       delete lsm;
     }
       break;
@@ -263,6 +279,10 @@ void execute(config& state) {
 
       opt_wal = new opt_wal_engine(state, state.read_only);
       bh->execute(opt_wal);
+
+      if(state.recovery)
+        opt_wal->recovery();
+
       delete opt_wal;
     }
       break;
@@ -279,6 +299,10 @@ void execute(config& state) {
 
       opt_sp = new opt_sp_engine(state, state.read_only);
       bh->execute(opt_sp);
+
+      if(state.recovery)
+        opt_sp->recovery();
+
       delete opt_sp;
     }
 
@@ -297,6 +321,10 @@ void execute(config& state) {
 
       opt_lsm = new opt_lsm_engine(state, state.read_only);
       bh->execute(opt_lsm);
+
+      if(state.recovery)
+        opt_lsm->recovery();
+
       delete opt_lsm;
     }
       break;
@@ -305,7 +333,6 @@ void execute(config& state) {
       cout << "Unknown engine type :: " << state.etype << endl;
       break;
   }
-
 }
 
 int main(int argc, char **argv) {

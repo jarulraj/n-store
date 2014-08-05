@@ -24,6 +24,7 @@ wal_engine::wal_engine(const config& _conf, bool _read_only)
   etype = engine_type::WAL;
   read_only = _read_only;
   fs_log.configure(conf.fs_path + "log");
+  engine_txn_id = 0;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -45,8 +46,10 @@ wal_engine::~wal_engine() {
     ready = false;
     gc.join();
 
-    fs_log.sync();
-    fs_log.close();
+    if (!conf.recovery) {
+      fs_log.sync();
+      fs_log.close();
+    }
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
@@ -239,100 +242,122 @@ void wal_engine::txn_end(bool commit) {
 
 void wal_engine::recovery() {
 
-  int op_type, txn_id, table_id;
-  table *tab;
-  plist<table_index*>* indices;
-  unsigned int num_indices, index_itr;
+  // Setup recovery
+  fs_log.flush();
+  fs_log.sync();
+  fs_log.disable();
 
-  field_info finfo;
-  std::string entry_str;
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    vector<table_index*> indices = tab->indices->get_data();
+
+    for (table_index* index : indices) {
+      index->off_map->clear();
+    }
+  }
+
+  int op_type, txn_id, table_id;
+  std::string entry_str, tuple_str;
+  table* tab;
+  statement st;
+  bool undo_mode = false;
+
   std::ifstream log_file(fs_log.log_file_name);
 
-  /*
-   while (std::getline(log_file, entry_str)) {
-   //LOG_INFO("entry : %s ", entry_str.c_str());
-   std::stringstream entry(entry_str);
+  engine_txn_id = std::count(std::istreambuf_iterator<char>(log_file),
+                             std::istreambuf_iterator<char>(), '\n');
 
-   entry >> txn_id >> op_type >> table_id;
+  log_file.clear();
+  log_file.seekg(0, ios::beg);
 
-   switch (op_type) {
-   case operation_type::Insert: {
-   LOG_INFO("Redo Insert");
+  while (std::getline(log_file, entry_str)) {
+    cout << "Entry :  " << entry_str.c_str() << endl;
+    std::stringstream entry(entry_str);
 
-   tab = db->tables->at(table_id);
-   schema* sptr = tab->sptr;
-   record* after_rec = deserialize(entry_str, sptr);
+    entry >> txn_id >> op_type >> table_id;
 
-   indices = tab->indices;
-   num_indices = tab->num_indices;
+    if (undo_mode || (engine_txn_id - txn_id < active_txn_threshold)) {
+      undo_mode = true;
 
-   tab->pm_data->push_back(after_rec);
+      switch (op_type) {
+        case operation_type::Insert:
+          op_type = operation_type::Delete;
+          break;
+        case operation_type::Delete:
+          op_type = operation_type::Insert;
+          break;
+      }
+    }
 
-   // Add entry in indices
-   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-   std::string key_str = get_data(after_rec,
-   indices->at(index_itr)->sptr);
-   unsigned long key = hash_fn(key_str);
+    switch (op_type) {
+      case operation_type::Insert: {
+        if (!undo_mode)
+          cout << "Redo Insert" << endl;
+        else
+          cout << "Undo Delete" << endl;
 
-   indices->at(index_itr)->off_map->insert(key, after_rec);
-   }
-   }
-   break;
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
 
-   case operation_type::Delete: {
-   LOG_INFO("Redo Delete");
+        tuple_str = get_tuple(entry, sptr);
+        record* after_rec = deserialize(tuple_str, sptr);
+        st = statement(0, operation_type::Insert, table_id, after_rec);
+        insert(st);
+      }
+        break;
 
-   tab = db->tables->at(table_id);
-   schema* sptr = tab->sptr;
-   record* before_rec = deserialize(entry_str, sptr);
+      case operation_type::Delete: {
+        if (!undo_mode)
+          cout << "Redo Delete" << endl;
+        else
+          cout << "Undo Insert" << endl;
 
-   indices = tab->indices;
-   num_indices = tab->num_indices;
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
 
-   tab->pm_data->erase(before_rec);
+        tuple_str = get_tuple(entry, sptr);
+        record* before_rec = deserialize(tuple_str, sptr);
+        st = statement(0, operation_type::Delete, table_id, before_rec);
+        remove(st);
+      }
+        break;
 
-   // Remove entry in indices
-   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-   std::string key_str = get_data(before_rec,
-   indices->at(index_itr)->sptr);
-   unsigned long key = hash_fn(key_str);
+      case operation_type::Update: {
+        if (!undo_mode)
+          cout << "Redo Update" << endl;
+        else
+          cout << "Undo Update" << endl;
 
-   indices->at(index_itr)->off_map->erase(key);
-   }
-   }
-   break;
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
+        tuple_str = get_tuple(entry, sptr);
+        record* before_rec = deserialize(tuple_str, sptr);
+        tuple_str = get_tuple(entry, sptr);
+        record* after_rec = deserialize(entry_str, sptr);
 
-   case operation_type::Update:
-   LOG_INFO("Redo Update");
-   {
-   int num_fields;
-   int field_itr;
+        if (!undo_mode) {
+          st = statement(0, operation_type::Delete, table_id, before_rec);
+          remove(st);
+          st = statement(0, operation_type::Insert, table_id, after_rec);
+          insert(st);
+        } else {
+          st = statement(0, operation_type::Delete, table_id, after_rec);
+          remove(st);
+          st = statement(0, operation_type::Insert, table_id, before_rec);
+          insert(st);
+        }
+      }
 
-   tab = db->tables->at(table_id);
-   schema* sptr = tab->sptr;
-   record* before_rec = deserialize(entry_str, sptr);
-   record* after_rec = deserialize(entry_str, sptr);
+        break;
 
-   // Update entry in indices
-   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-   std::string key_str = get_data(before_rec,
-   indices->at(index_itr)->sptr);
-   unsigned long key = hash_fn(key_str);
+      default:
+        cout << "Invalid operation type" << op_type << endl;
+        break;
+    }
 
-   indices->at(index_itr)->off_map->insert(key, after_rec);
-   }
+  }
 
-   }
-
-   break;
-
-   default:
-   cout << "Invalid operation type" << op_type << endl;
-   break;
-   }
-
-   }
-   */
+  fs_log.close();
 
 }
 

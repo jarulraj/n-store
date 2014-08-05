@@ -29,10 +29,11 @@ class sp_engine : public engine {
   int remove(const statement& t);
 
   void group_commit();
-  void recovery();
 
   void txn_begin();
   void txn_end(bool commit);
+
+  void recovery(){}
 
   //private:
   const config& conf;

@@ -11,7 +11,7 @@ using namespace std;
 // Logging
 extern int level;
 
-#define NDG
+//#define NDG
 #ifdef NDG
 #define LOG_ERR(M, ...)
 #define LOG_WARN(M, ...)
@@ -92,6 +92,7 @@ class config {
   double merge_ratio;
 
   bool verbose;
+  bool recovery;
 
   engine_type etype;
   benchmark_type btype;

@@ -37,13 +37,15 @@ class logger {
   }
 
   off_t push_back(std::string entry) {
-    int ret;
+    int ret = 0;
     off_t prev_offset;
 
-    ret = fwrite(entry.c_str(), sizeof(char), entry.size(), log_file);
-    if (ret < 0) {
-      perror("fwrite failed");
-      exit(EXIT_FAILURE);
+    if (can_log) {
+      ret = fwrite(entry.c_str(), sizeof(char), entry.size(), log_file);
+      if (ret < 0) {
+        perror("fwrite failed");
+        exit(EXIT_FAILURE);
+      }
     }
 
     prev_offset = log_offset;
@@ -64,6 +66,22 @@ class logger {
     return ret;
   }
 
+  int flush() {
+    int ret;
+
+    ret = fflush(log_file);
+    if (ret != 0) {
+      perror("fflush failed");
+      exit(EXIT_FAILURE);
+    }
+
+    return ret;
+  }
+
+  void disable(){
+    can_log = false;
+  }
+
   std::string at(off_t log_offset) {
     std::string entry_str;
     char* line = NULL;
@@ -72,11 +90,11 @@ class logger {
 
     fseek(log_file, log_offset, SEEK_SET);
     rc = getline(&line, &len, log_file);
-    if(rc == -1){
+    if (rc == -1) {
       perror("getline");
     }
 
-    if(rc != -1){
+    if (rc != -1) {
       entry_str = std::string(line);
       free(line);
     }
@@ -87,9 +105,9 @@ class logger {
     fclose(log_file);
   }
 
-  void truncate(){
+  void truncate() {
     int rc = ftruncate(log_file_fd, 0);
-    if(rc == -1){
+    if (rc == -1) {
       perror("truncate");
     }
   }
@@ -97,6 +115,7 @@ class logger {
   //private:
   FILE* log_file;
   off_t log_offset;
+  bool can_log = true;
 
   std::string log_file_name;
   int log_file_fd;
