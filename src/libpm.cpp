@@ -24,27 +24,25 @@ void* pmemalloc_reserve(size_t size) {
 }
 
 void operator delete(void *p) throw () {
-#ifdef PM_STATS
-  if (pmem_pool->count(p) != 0) {
-    size_t len = malloc_usable_size(p);
-    pmem_pool->erase(p);
-    pmem_size -= len;
+  if (pm_stats) {
+    if (pmem_pool->count(p) != 0) {
+      size_t len = malloc_usable_size(p);
+      pmem_pool->erase(p);
+      pmem_size -= len;
+    }
   }
-}
-#endif
 
   free(p);
 }
 
 void pmemalloc_free(void *abs_ptr_) {
-#ifdef PM_STATS
-  if (pmem_pool->count(abs_ptr_) != 0) {
-    size_t len = malloc_usable_size(abs_ptr_);
-    pmem_pool->erase(abs_ptr_);
-    pmem_size -= len;
+  if (pm_stats) {
+    if (pmem_pool->count(abs_ptr_) != 0) {
+      size_t len = malloc_usable_size(abs_ptr_);
+      pmem_pool->erase(abs_ptr_);
+      pmem_size -= len;
+    }
   }
-}
-#endif
 
   free(abs_ptr_);
 }
@@ -66,10 +64,10 @@ void pmemalloc_activate(void *abs_ptr_) {
   size_t len = malloc_usable_size(abs_ptr_);
   pmem_persist(abs_ptr_, len, 0);
 
-#ifdef PM_STATS
-  pmem_pool->insert(abs_ptr_);
-  pmem_size += len;
-#endif
+  if (pm_stats) {
+    pmem_pool->insert(abs_ptr_);
+    pmem_size += len;
+  }
 }
 
 void pmemalloc_end(const char *path) {
