@@ -35,7 +35,7 @@ class lsm_engine : public engine {
   void txn_begin();
   void txn_end(bool commit);
 
-  void recovery(){}
+  void recovery();
 
   //private:
   const config& conf;

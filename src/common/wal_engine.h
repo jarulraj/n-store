@@ -48,9 +48,6 @@ class wal_engine : public engine {
   std::atomic_bool ready;
 
   bool read_only = false;
-  int engine_txn_id;
-
-  const int active_txn_threshold = 10;
 };
 
 #endif /* WAL_ENGINE_H_ */

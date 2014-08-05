@@ -79,6 +79,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.tpcc_num_warehouses = 2;
   state.tpcc_stock_level_only = false;
 
+  state.active_txn_threshold = 10;
+
   // Parse args
   while (1) {
     int idx = 0;

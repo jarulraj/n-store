@@ -24,7 +24,6 @@ wal_engine::wal_engine(const config& _conf, bool _read_only)
   etype = engine_type::WAL;
   read_only = _read_only;
   fs_log.configure(conf.fs_path + "log");
-  engine_txn_id = 0;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -242,13 +241,14 @@ void wal_engine::txn_end(bool commit) {
 
 void wal_engine::recovery() {
 
-  cout<<"WAL recovery"<<endl;
+  cout << "WAL recovery" << endl;
 
   // Setup recovery
   fs_log.flush();
   fs_log.sync();
   fs_log.disable();
 
+  // Clear off_map and rebuild it
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     vector<table_index*> indices = tab->indices->get_data();
@@ -265,10 +265,8 @@ void wal_engine::recovery() {
   bool undo_mode = false;
 
   std::ifstream log_file(fs_log.log_file_name);
-
-  engine_txn_id = std::count(std::istreambuf_iterator<char>(log_file),
-                             std::istreambuf_iterator<char>(), '\n');
-
+  int total_txns = std::count(std::istreambuf_iterator<char>(log_file),
+                              std::istreambuf_iterator<char>(), '\n');
   log_file.clear();
   log_file.seekg(0, ios::beg);
 
@@ -278,7 +276,7 @@ void wal_engine::recovery() {
 
     entry >> txn_id >> op_type >> table_id;
 
-    if (undo_mode || (engine_txn_id - txn_id < active_txn_threshold)) {
+    if (undo_mode || (total_txns - txn_id < conf.active_txn_threshold)) {
       undo_mode = true;
 
       switch (op_type) {
@@ -335,7 +333,7 @@ void wal_engine::recovery() {
         tuple_str = get_tuple(entry, sptr);
         record* before_rec = deserialize(tuple_str, sptr);
         tuple_str = get_tuple(entry, sptr);
-        record* after_rec = deserialize(entry_str, sptr);
+        record* after_rec = deserialize(tuple_str, sptr);
 
         if (!undo_mode) {
           st = statement(0, operation_type::Delete, table_id, before_rec);

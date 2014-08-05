@@ -94,6 +94,8 @@ class config {
   bool verbose;
   bool recovery;
 
+  int active_txn_threshold;
+
   engine_type etype;
   benchmark_type btype;
 };
