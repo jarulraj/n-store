@@ -1409,7 +1409,8 @@ class btree {
       m_headleaf = m_tailleaf = NULL;
     }
 
-    BTREE_ASSERT(m_stats->itemcount == 0);
+    m_stats->itemcount = 0;
+    //assert(m_stats->itemcount == 0);
   }
 
  private:

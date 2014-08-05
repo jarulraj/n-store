@@ -25,7 +25,7 @@ void lsm_engine::merge_check() {
 }
 
 void lsm_engine::merge(bool force) {
-  //std::cout << "Merging ! " << merge_looper << endl;
+  //std::cout << "Merging ! " << endl;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -417,7 +417,7 @@ void lsm_engine::recovery() {
       case operation_type::Insert: {
         if (!undo_mode)
           LOG_INFO("Redo Insert");
-        else
+          else
           LOG_INFO("Undo Delete");
 
         tab = db->tables->at(table_id);
@@ -433,7 +433,7 @@ void lsm_engine::recovery() {
       case operation_type::Delete: {
         if (!undo_mode)
           LOG_INFO("Redo Delete");
-        else
+          else
           LOG_INFO("Undo Insert");
 
         tab = db->tables->at(table_id);
@@ -449,7 +449,7 @@ void lsm_engine::recovery() {
       case operation_type::Update: {
         if (!undo_mode)
           LOG_INFO("Redo Update");
-        else
+          else
           LOG_INFO("Undo Update");
 
         tab = db->tables->at(table_id);
