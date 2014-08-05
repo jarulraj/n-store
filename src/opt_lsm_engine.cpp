@@ -61,9 +61,6 @@ void opt_lsm_engine::merge(bool force) {
           val = std::string(ptr_buf);
           //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
 
-          std::sscanf((char*) val.c_str(), "%p", &fs_rec);
-          //printf("fs_rec :: %p \n", fs_rec);
-
           storage_offset = tab->fs_data.push_back(val);
 
           for (table_index* index : indices) {

@@ -75,7 +75,8 @@ std::string opt_sp_engine::select(const statement& st) {
 
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
-    std::sscanf((char*) val.data, "%p  ", &select_ptr);
+    memcpy(&select_ptr, val.data, sizeof(record*));
+    //printf("select_ptr :: --%p-- \n", select_ptr);
     value = serialize(select_ptr, st.projection);
   }
 
@@ -96,7 +97,7 @@ int opt_sp_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   struct cow_btval key, val;
-  val.data = new char[64];
+  val.data = new char[sizeof(record*)+1];
 
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
@@ -123,11 +124,13 @@ int opt_sp_engine::insert(const statement& st) {
 
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
-    std::sprintf((char*) val.data, "%p  ", after_rec);
-    val.size = strlen((char*) val.data) + 1;
+    memcpy(val.data, &after_rec, sizeof(record*));
+    val.size = sizeof(record*);
+
     bt->insert(txn_ptr, &key, &val);
   }
 
+  delete ((char*)val.data);
   return EXIT_SUCCESS;
 }
 
@@ -156,7 +159,7 @@ int opt_sp_engine::remove(const statement& st) {
 
   // Free record
   record* before_rec;
-  std::sscanf((char*) val.data, "%p  ", &before_rec);
+  memcpy(&before_rec, val.data, sizeof(record*));
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -203,7 +206,8 @@ int opt_sp_engine::update(const statement& st) {
 
   // Read from current version
   record* before_rec;
-  std::sscanf((char*) val.data, "%p  ", &before_rec);
+  memcpy(&before_rec, val.data, sizeof(record*));
+
   void *before_field, *after_field;
   assert(before_rec->data != NULL);
 
@@ -226,9 +230,9 @@ int opt_sp_engine::update(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
-  update_val.data = new char[64];
-  std::sprintf((char*) update_val.data, "%p  ", after_rec);
-  update_val.size = strlen((char*) val.data) + 1;
+  update_val.data = new char[sizeof(record*)+1];
+  memcpy(update_val.data, &after_rec, sizeof(record*));
+  update_val.size = sizeof(record*);
 
   // Update entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -247,6 +251,7 @@ int opt_sp_engine::update(const statement& st) {
 
   delete rec_ptr;
   delete before_rec;
+  delete ((char*)update_val.data);
   return EXIT_SUCCESS;
 }
 
