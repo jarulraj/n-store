@@ -17,6 +17,7 @@
 #include "pthread.h"
 #include "logger.h"
 #include "plist.h"
+#include "timer.h"
 
 using namespace std;
 

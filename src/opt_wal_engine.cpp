@@ -226,7 +226,7 @@ void opt_wal_engine::txn_end(bool commit) {
 
 void opt_wal_engine::recovery() {
 
-  cout << "OPT WAL recovery" << endl;
+  LOG_INFO("OPT WAL recovery");
 
   vector<char*> undo_log = db->log->get_data();
 
@@ -236,9 +236,11 @@ void opt_wal_engine::recovery() {
   plist<table_index*>* indices;
 
   std::string ptr_str;
-
   record *before_rec, *after_rec;
   field_info finfo;
+
+  timer rec_t;
+  rec_t.start();
 
   for (char* ptr : undo_log) {
     //cout << "entry : --" << ptr << "-- " << endl;
@@ -248,7 +250,7 @@ void opt_wal_engine::recovery() {
 
     switch (op_type) {
       case operation_type::Insert:
-        cout << "Undo Insert" << endl;
+        LOG_INFO("Undo Insert");
         entry >> ptr_str;
         std::sscanf(ptr_str.c_str(), "%p", &after_rec);
 
@@ -273,7 +275,7 @@ void opt_wal_engine::recovery() {
         break;
 
       case operation_type::Delete:
-        cout << "Undo Delete" << endl;
+        LOG_INFO("Undo Delete");
         entry >> ptr_str;
         std::sscanf(ptr_str.c_str(), "%p", &before_rec);
 
@@ -294,7 +296,7 @@ void opt_wal_engine::recovery() {
         break;
 
       case operation_type::Update:
-        cout << "Undo Update" << endl;
+        LOG_INFO("Undo Update");
         int num_fields;
         int field_itr;
 
@@ -361,6 +363,9 @@ void opt_wal_engine::recovery() {
 
   // Clear log
   db->log->clear();
+
+  rec_t.end();
+  cout << "OPT_WAL :: Recovery duration (ms) : " << rec_t.duration() << endl;
 
 }
 

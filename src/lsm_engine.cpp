@@ -363,7 +363,7 @@ void lsm_engine::txn_end(bool commit) {
 
 void lsm_engine::recovery() {
 
-  cout << "LSM recovery" << endl;
+  LOG_INFO("LSM recovery");
 
   // Setup recovery
   fs_log.flush();
@@ -384,6 +384,9 @@ void lsm_engine::recovery() {
   table* tab;
   statement st;
   bool undo_mode = false;
+
+  timer rec_t;
+  rec_t.start();
 
   std::ifstream log_file(fs_log.log_file_name);
   int total_txns = std::count(std::istreambuf_iterator<char>(log_file),
@@ -413,9 +416,9 @@ void lsm_engine::recovery() {
     switch (op_type) {
       case operation_type::Insert: {
         if (!undo_mode)
-          cout << "Redo Insert" << endl;
+          LOG_INFO("Redo Insert");
         else
-          cout << "Undo Delete" << endl;
+          LOG_INFO("Undo Delete");
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -429,9 +432,9 @@ void lsm_engine::recovery() {
 
       case operation_type::Delete: {
         if (!undo_mode)
-          cout << "Redo Delete" << endl;
+          LOG_INFO("Redo Delete");
         else
-          cout << "Undo Insert" << endl;
+          LOG_INFO("Undo Insert");
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -445,9 +448,9 @@ void lsm_engine::recovery() {
 
       case operation_type::Update: {
         if (!undo_mode)
-          cout << "Redo Update" << endl;
+          LOG_INFO("Redo Update");
         else
-          cout << "Undo Update" << endl;
+          LOG_INFO("Undo Update");
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -479,6 +482,9 @@ void lsm_engine::recovery() {
   }
 
   fs_log.close();
+
+  rec_t.end();
+  cout << "LSM :: Recovery duration (ms) : " << rec_t.duration() << endl;
 
 }
 

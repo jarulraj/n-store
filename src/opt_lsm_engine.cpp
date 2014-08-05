@@ -381,7 +381,7 @@ void opt_lsm_engine::txn_end(bool commit) {
 
 void opt_lsm_engine::recovery() {
 
-  cout << "OPT LSM recovery" << endl;
+  LOG_INFO("OPT LSM recovery");
 
   vector<char*> undo_log = db->log->get_data();
 
@@ -394,6 +394,9 @@ void opt_lsm_engine::recovery() {
 
   record *before_rec, *after_rec;
   field_info finfo;
+
+  timer rec_t;
+  rec_t.start();
 
   int total_txns = undo_log.size();
   int txn_cnt = 0;
@@ -411,7 +414,7 @@ void opt_lsm_engine::recovery() {
 
     switch (op_type) {
       case operation_type::Insert:
-        cout << "Undo Insert" << endl;
+        LOG_INFO("Undo Insert");
         entry >> ptr_str;
         std::sscanf(ptr_str.c_str(), "%p", &after_rec);
 
@@ -442,7 +445,7 @@ void opt_lsm_engine::recovery() {
         break;
 
       case operation_type::Delete:
-        cout << "Undo Delete" << endl;
+        LOG_INFO("Undo Delete");
         entry >> ptr_str;
         std::sscanf(ptr_str.c_str(), "%p", &before_rec);
 
@@ -463,7 +466,7 @@ void opt_lsm_engine::recovery() {
         break;
 
       case operation_type::Update:
-        cout << "Undo Update" << endl;
+        LOG_INFO("Undo Update");
         int num_fields;
         int field_itr;
 
@@ -536,5 +539,8 @@ void opt_lsm_engine::recovery() {
 
   // Clear log
   db->log->clear();
+
+  rec_t.end();
+  cout << "OPT_LSM :: Recovery duration (ms) : " << rec_t.duration() << endl;
 
 }

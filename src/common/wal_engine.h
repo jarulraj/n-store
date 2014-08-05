@@ -14,6 +14,7 @@
 #include "database.h"
 #include "pthread.h"
 #include "logger.h"
+#include "timer.h"
 
 using namespace std;
 
