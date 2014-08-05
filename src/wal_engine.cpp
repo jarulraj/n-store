@@ -76,7 +76,7 @@ std::string wal_engine::select(const statement& st) {
 
   storage_offset = table_index->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
-  val = deserialize_to_string(val, st.projection, false);
+  val = deserialize_to_string(val, st.projection);
 
   LOG_INFO("val : %s", val.c_str());
 

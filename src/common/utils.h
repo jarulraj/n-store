@@ -35,8 +35,7 @@ std::string serialize(record* rptr, schema* sptr);
 record* deserialize(std::string entry, schema* sptr);
 
 // string to string
-std::string deserialize_to_string(std::string entry_str, schema* sptr,
-                                  bool prefix);
+std::string deserialize_to_string(std::string entry_str, schema* sptr);
 
 // szudzik hasher
 inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {
