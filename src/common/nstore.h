@@ -11,8 +11,8 @@ using namespace std;
 // Logging
 extern int level;
 
-#define NDEBUG
-#ifdef NDEBUG
+#define NDG
+#ifdef NDG
 #define LOG_ERR(M, ...)
 #define LOG_WARN(M, ...)
 #define LOG_INFO(M, ...)
