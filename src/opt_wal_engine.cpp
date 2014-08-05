@@ -63,8 +63,9 @@ int opt_wal_engine::insert(const statement& st) {
                << " " << after_rec;
 
   entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
@@ -121,8 +122,9 @@ int opt_wal_engine::remove(const statement& st) {
                << " " << before_rec;
 
   entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
@@ -183,8 +185,9 @@ int opt_wal_engine::update(const statement& st) {
 
   // Add log entry
   entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   pmemalloc_activate(entry);
   pm_log->push_back(entry);

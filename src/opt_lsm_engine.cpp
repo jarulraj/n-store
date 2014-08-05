@@ -203,8 +203,9 @@ int opt_lsm_engine::insert(const statement& st) {
                << " " << after_rec << "\n";
 
   entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   // Activate new record
   pmemalloc_activate(after_rec);
@@ -258,8 +259,9 @@ int opt_lsm_engine::remove(const statement& st) {
                  << " " << rec_ptr << "\n";
 
     entry_str = entry_stream.str();
-    char* entry = new char[entry_str.size() + 1];
-    strcpy(entry, entry_str.c_str());
+    size_t entry_str_sz = entry_str.size() + 1;
+    char* entry = new char[entry_str_sz];
+    memcpy(entry, entry_str.c_str(), entry_str_sz);
 
     // Add log entry
     pmemalloc_activate(entry);
@@ -333,8 +335,9 @@ int opt_lsm_engine::update(const statement& st) {
   }
 
   entry_str = entry_stream.str();
-  char* entry = new char[entry_str.size() + 1];
-  strcpy(entry, entry_str.c_str());
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   // Add log entry
   pmemalloc_activate(entry);
