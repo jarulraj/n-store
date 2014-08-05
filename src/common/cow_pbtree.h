@@ -3594,7 +3594,7 @@ class cow_btree {
       return BT_FAIL;
 
     if (persist == false) {
-      compact_path = std::string(path) + ".compact.XXXXXX";
+      compact_path = std::string(path) + ".compact.nvm";
       fd = mkstemp((char*) compact_path.c_str());
       if (fd == -1) {
         cow_btree_txn_abort(_txn);
@@ -3658,7 +3658,7 @@ class cow_btree {
 
     if (persist == false)
       unlink(compact_path.c_str());
-    //cow_btree_close();
+    cow_btree_close();
     mpage_prune();
     return BT_FAIL;
   }

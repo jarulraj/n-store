@@ -14,6 +14,8 @@ void sp_engine::group_commit() {
 
       assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
 
+      //bt->compact();
+
       txn_ptr = bt->txn_begin(0);
       assert(txn_ptr);
 

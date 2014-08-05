@@ -225,7 +225,10 @@ void opt_wal_engine::txn_end(bool commit) {
 }
 
 void opt_wal_engine::recovery() {
-  vector<char*> undo_vec = db->log->get_data();
+
+  LOG_INFO("OPT WAL recovery");
+
+  vector<char*> undo_log = db->log->get_data();
 
   int op_type, txn_id, table_id;
   unsigned int num_indices, index_itr;
@@ -233,19 +236,21 @@ void opt_wal_engine::recovery() {
   plist<table_index*>* indices;
 
   std::string ptr_str;
-
   record *before_rec, *after_rec;
   field_info finfo;
 
-  for (char* ptr : undo_vec) {
-    LOG_INFO("entry : %s ", ptr);
+  timer rec_t;
+  rec_t.start();
+
+  for (char* ptr : undo_log) {
+    //cout << "entry : --" << ptr << "-- " << endl;
     std::stringstream entry(ptr);
 
     entry >> txn_id >> op_type >> table_id;
 
     switch (op_type) {
       case operation_type::Insert:
-        LOG_INFO("Reverting Insert");
+        LOG_INFO("Undo Insert");
         entry >> ptr_str;
         std::sscanf(ptr_str.c_str(), "%p", &after_rec);
 
@@ -258,18 +263,19 @@ void opt_wal_engine::recovery() {
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = serialize(after_rec,
-                                         indices->at(index_itr)->sptr);
+                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
           indices->at(index_itr)->pm_map->erase(key);
         }
 
         // Free after_rec
-        pmemalloc_free(after_rec);
+        after_rec->clear_data();
+        delete after_rec;
         break;
 
       case operation_type::Delete:
-        LOG_INFO("Reverting Delete");
+        LOG_INFO("Undo Delete");
         entry >> ptr_str;
         std::sscanf(ptr_str.c_str(), "%p", &before_rec);
 
@@ -282,7 +288,7 @@ void opt_wal_engine::recovery() {
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = serialize(before_rec,
-                                         indices->at(index_itr)->sptr);
+                                          indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
           indices->at(index_itr)->pm_map->insert(key, before_rec);
@@ -290,15 +296,16 @@ void opt_wal_engine::recovery() {
         break;
 
       case operation_type::Update:
-        LOG_INFO("Reverting Update");
+        LOG_INFO("Undo Update");
         int num_fields;
         int field_itr;
 
-        entry >> num_fields;
+        entry >> num_fields >> ptr_str;
+        std::sscanf(ptr_str.c_str(), "%p", &before_rec);
+        //printf("before rec :: --%p-- \n", before_rec);
 
         for (field_itr = 0; field_itr < num_fields; field_itr++) {
-          entry >> field_itr >> ptr_str;
-          std::sscanf(ptr_str.c_str(), "%p", &before_rec);
+          entry >> field_itr;
 
           tab = db->tables->at(table_id);
           indices = tab->indices;
@@ -311,13 +318,12 @@ void opt_wal_engine::recovery() {
 
             entry >> ptr_str;
             std::sscanf(ptr_str.c_str(), "%p", &before_field);
-            entry >> ptr_str;
-            std::sscanf(ptr_str.c_str(), "%p", &after_field);
 
+            after_field = before_rec->get_pointer(field_itr);
             before_rec->set_pointer(field_itr, before_field);
 
             // Free after_field
-            pmemalloc_free(after_field);
+            delete ((char*)after_field);
           }
           // Data
           else {
@@ -355,7 +361,11 @@ void opt_wal_engine::recovery() {
     delete ptr;
   }
 
+  // Clear log
   db->log->clear();
+
+  rec_t.end();
+  cout << "OPT_WAL :: Recovery duration (ms) : " << rec_t.duration() << endl;
 
 }
 

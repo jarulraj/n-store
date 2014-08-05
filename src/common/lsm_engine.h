@@ -15,6 +15,7 @@
 #include "database.h"
 #include "pthread.h"
 #include "logger.h"
+#include "timer.h"
 
 using namespace std;
 
@@ -35,7 +36,7 @@ class lsm_engine : public engine {
   void txn_begin();
   void txn_end(bool commit);
 
-  void recovery(){}
+  void recovery();
 
   //private:
   const config& conf;

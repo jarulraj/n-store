@@ -10,6 +10,7 @@ class benchmark {
 
   virtual void load(engine* ee) = 0;
   virtual void execute(engine* ee) = 0;
+  virtual void execute_one(engine* ee) = 0;
 
   virtual ~benchmark() {
   }

@@ -24,7 +24,6 @@ wal_engine::wal_engine(const config& _conf, bool _read_only)
   etype = engine_type::WAL;
   read_only = _read_only;
   fs_log.configure(conf.fs_path + "log");
-  engine_txn_id = 0;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -242,11 +241,14 @@ void wal_engine::txn_end(bool commit) {
 
 void wal_engine::recovery() {
 
+  LOG_INFO("WAL recovery");
+
   // Setup recovery
   fs_log.flush();
   fs_log.sync();
   fs_log.disable();
 
+  // Clear off_map and rebuild it
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     vector<table_index*> indices = tab->indices->get_data();
@@ -262,21 +264,22 @@ void wal_engine::recovery() {
   statement st;
   bool undo_mode = false;
 
+  timer rec_t;
+  rec_t.start();
+
   std::ifstream log_file(fs_log.log_file_name);
-
-  engine_txn_id = std::count(std::istreambuf_iterator<char>(log_file),
-                             std::istreambuf_iterator<char>(), '\n');
-
+  int total_txns = std::count(std::istreambuf_iterator<char>(log_file),
+                              std::istreambuf_iterator<char>(), '\n');
   log_file.clear();
   log_file.seekg(0, ios::beg);
 
   while (std::getline(log_file, entry_str)) {
-    cout << "Entry :  " << entry_str.c_str() << endl;
+    //cout << "entry :  " << entry_str.c_str() << endl;
     std::stringstream entry(entry_str);
 
     entry >> txn_id >> op_type >> table_id;
 
-    if (undo_mode || (engine_txn_id - txn_id < active_txn_threshold)) {
+    if (undo_mode || (total_txns - txn_id < conf.active_txn_threshold)) {
       undo_mode = true;
 
       switch (op_type) {
@@ -292,9 +295,9 @@ void wal_engine::recovery() {
     switch (op_type) {
       case operation_type::Insert: {
         if (!undo_mode)
-          cout << "Redo Insert" << endl;
+          LOG_INFO("Redo Insert");
         else
-          cout << "Undo Delete" << endl;
+          LOG_INFO("Undo Delete");
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -308,9 +311,9 @@ void wal_engine::recovery() {
 
       case operation_type::Delete: {
         if (!undo_mode)
-          cout << "Redo Delete" << endl;
+          LOG_INFO("Redo Delete");
         else
-          cout << "Undo Insert" << endl;
+          LOG_INFO("Undo Insert");
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -324,16 +327,16 @@ void wal_engine::recovery() {
 
       case operation_type::Update: {
         if (!undo_mode)
-          cout << "Redo Update" << endl;
+          LOG_INFO("Redo Update");
         else
-          cout << "Undo Update" << endl;
+          LOG_INFO("Undo Update");
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
         tuple_str = get_tuple(entry, sptr);
         record* before_rec = deserialize(tuple_str, sptr);
         tuple_str = get_tuple(entry, sptr);
-        record* after_rec = deserialize(entry_str, sptr);
+        record* after_rec = deserialize(tuple_str, sptr);
 
         if (!undo_mode) {
           st = statement(0, operation_type::Delete, table_id, before_rec);
@@ -358,6 +361,9 @@ void wal_engine::recovery() {
   }
 
   fs_log.close();
+
+  rec_t.end();
+  cout << "WAL :: Recovery duration (ms) : " << rec_t.duration() << endl;
 
 }
 

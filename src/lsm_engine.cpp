@@ -78,7 +78,7 @@ void lsm_engine::merge(bool force) {
 
           storage_offset = tab->fs_data.push_back(val);
 
-          for (table_index* index : indices){
+          for (table_index* index : indices) {
             std::string key_str = serialize(pm_rec, index->sptr);
             key = hash_fn(key_str);
             index->off_map->insert(key, storage_offset);
@@ -132,8 +132,10 @@ lsm_engine::~lsm_engine() {
 
   merge(true);
 
-  fs_log.sync();
-  fs_log.close();
+  if (!conf.recovery) {
+    fs_log.sync();
+    fs_log.close();
+  }
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -208,6 +210,7 @@ int lsm_engine::insert(const statement& st) {
   unsigned int index_itr;
 
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  //LOG_INFO("Key_str :: --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
@@ -249,6 +252,7 @@ int lsm_engine::remove(const statement& st) {
   std::string val;
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
+  //LOG_INFO("Key_str :: --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
@@ -308,12 +312,15 @@ int lsm_engine::update(const statement& st) {
     //LOG_INFO("Key not found in mem table %lu ", key);
     before_rec = rec_ptr;
 
+    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+                 << " " << serialize(before_rec, before_rec->sptr) << " ";
+
   } else {
     existing_rec = true;
     before_rec = indices->at(0)->pm_map->at(key);
 
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-                 << " " << serialize(before_rec, before_rec->sptr) << "\n";
+                 << " " << serialize(before_rec, before_rec->sptr) << " ";
 
     // Update existing record
     for (int field_itr : st.field_ids) {
@@ -326,8 +333,7 @@ int lsm_engine::update(const statement& st) {
     }
   }
 
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(before_rec, before_rec->sptr) << "\n";
+  entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
   entry_str = entry_stream.str();
 
   // Add log entry
@@ -353,5 +359,132 @@ void lsm_engine::txn_end(bool commit) {
 
   if (!read_only)
     merge_check();
+}
+
+void lsm_engine::recovery() {
+
+  LOG_INFO("LSM recovery");
+
+  // Setup recovery
+  fs_log.flush();
+  fs_log.sync();
+  fs_log.disable();
+
+  // Clear pm map and rebuild it
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    vector<table_index*> indices = tab->indices->get_data();
+    for (table_index* index : indices) {
+      index->pm_map->clear();
+    }
+  }
+
+  int op_type, txn_id, table_id;
+  std::string entry_str, tuple_str;
+  table* tab;
+  statement st;
+  bool undo_mode = false;
+
+  timer rec_t;
+  rec_t.start();
+
+  std::ifstream log_file(fs_log.log_file_name);
+  int total_txns = std::count(std::istreambuf_iterator<char>(log_file),
+                              std::istreambuf_iterator<char>(), '\n');
+  log_file.clear();
+  log_file.seekg(0, ios::beg);
+
+  while (std::getline(log_file, entry_str)) {
+    //cout << "entry :  " << entry_str.c_str() << endl;
+    std::stringstream entry(entry_str);
+
+    entry >> txn_id >> op_type >> table_id;
+
+    if (undo_mode || (total_txns - txn_id < conf.active_txn_threshold)) {
+      undo_mode = true;
+
+      switch (op_type) {
+        case operation_type::Insert:
+          op_type = operation_type::Delete;
+          break;
+        case operation_type::Delete:
+          op_type = operation_type::Insert;
+          break;
+      }
+    }
+
+    switch (op_type) {
+      case operation_type::Insert: {
+        if (!undo_mode)
+          LOG_INFO("Redo Insert");
+        else
+          LOG_INFO("Undo Delete");
+
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
+
+        tuple_str = get_tuple(entry, sptr);
+        record* after_rec = deserialize(tuple_str, sptr);
+        st = statement(0, operation_type::Insert, table_id, after_rec);
+        insert(st);
+      }
+        break;
+
+      case operation_type::Delete: {
+        if (!undo_mode)
+          LOG_INFO("Redo Delete");
+        else
+          LOG_INFO("Undo Insert");
+
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
+
+        tuple_str = get_tuple(entry, sptr);
+        record* before_rec = deserialize(tuple_str, sptr);
+        st = statement(0, operation_type::Delete, table_id, before_rec);
+        remove(st);
+      }
+        break;
+
+      case operation_type::Update: {
+        if (!undo_mode)
+          LOG_INFO("Redo Update");
+        else
+          LOG_INFO("Undo Update");
+
+        tab = db->tables->at(table_id);
+        schema* sptr = tab->sptr;
+        tuple_str = get_tuple(entry, sptr);
+        record* before_rec = deserialize(tuple_str, sptr);
+        tuple_str = get_tuple(entry, sptr);
+        record* after_rec = deserialize(tuple_str, sptr);
+
+        if (!undo_mode) {
+          st = statement(0, operation_type::Delete, table_id, before_rec);
+          remove(st);
+          st = statement(0, operation_type::Insert, table_id, after_rec);
+          insert(st);
+        } else {
+          st = statement(0, operation_type::Delete, table_id, after_rec);
+          remove(st);
+          st = statement(0, operation_type::Insert, table_id, before_rec);
+          insert(st);
+        }
+      }
+
+        break;
+
+      default:
+        cout << "Invalid operation type" << op_type << endl;
+        break;
+    }
+
+  }
+
+  fs_log.close();
+
+  rec_t.end();
+  cout << "LSM :: Recovery duration (ms) : " << rec_t.duration() << endl;
+
 }
 

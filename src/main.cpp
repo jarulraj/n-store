@@ -72,12 +72,14 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.ycsb_skew = 1.0;
   state.ycsb_update_one = false;
-  state.ycsb_field_size = 3;
+  state.ycsb_field_size = 100;
   state.ycsb_tuples_per_txn = 2;
-  state.ycsb_num_val_fields = 2;
+  state.ycsb_num_val_fields = 10;
 
   state.tpcc_num_warehouses = 2;
   state.tpcc_stock_level_only = false;
+
+  state.active_txn_threshold = 10;
 
   // Parse args
   while (1) {
@@ -221,7 +223,7 @@ void execute(config& state) {
       wal = new wal_engine(state, state.read_only);
       bh->execute(wal);
 
-      if(state.recovery)
+      if (state.recovery)
         wal->recovery();
 
       delete wal;
@@ -241,7 +243,7 @@ void execute(config& state) {
       sp = new sp_engine(state, state.read_only);
       bh->execute(sp);
 
-      if(state.recovery)
+      if (state.recovery)
         sp->recovery();
 
       delete sp;
@@ -260,7 +262,7 @@ void execute(config& state) {
       lsm = new lsm_engine(state, false);
       bh->execute(lsm);
 
-      if(state.recovery)
+      if (state.recovery)
         lsm->recovery();
 
       delete lsm;
@@ -280,8 +282,10 @@ void execute(config& state) {
       opt_wal = new opt_wal_engine(state, state.read_only);
       bh->execute(opt_wal);
 
-      if(state.recovery)
+      if (state.recovery) {
+        bh->execute_one(opt_wal);
         opt_wal->recovery();
+      }
 
       delete opt_wal;
     }
@@ -300,7 +304,7 @@ void execute(config& state) {
       opt_sp = new opt_sp_engine(state, state.read_only);
       bh->execute(opt_sp);
 
-      if(state.recovery)
+      if (state.recovery)
         opt_sp->recovery();
 
       delete opt_sp;
@@ -322,7 +326,7 @@ void execute(config& state) {
       opt_lsm = new opt_lsm_engine(state, state.read_only);
       bh->execute(opt_lsm);
 
-      if(state.recovery)
+      if (state.recovery)
         opt_lsm->recovery();
 
       delete opt_lsm;
