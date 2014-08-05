@@ -918,7 +918,7 @@ struct cow_btree_txn {
 #define NODEDSZ(cow_node)  ((cow_node)->p.np_dsize)
 
 #define BT_COMMIT_PAGES  64 /* max number of pages to write in one commit */
-#define BT_MAXCACHE_DEF  1024 /* max number of pages to keep in cache -- leave it to the OS */
+#define BT_MAXCACHE_DEF  1024*1024 /* max number of pages to keep in cache -- leave it to the OS */
 
 class cow_btree {
  public:
