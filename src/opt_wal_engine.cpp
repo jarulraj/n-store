@@ -228,7 +228,7 @@ void opt_wal_engine::recovery() {
 
   cout << "OPT WAL recovery" << endl;
 
-  vector<char*> undo_vec = db->log->get_data();
+  vector<char*> undo_log = db->log->get_data();
 
   int op_type, txn_id, table_id;
   unsigned int num_indices, index_itr;
@@ -240,7 +240,7 @@ void opt_wal_engine::recovery() {
   record *before_rec, *after_rec;
   field_info finfo;
 
-  for (char* ptr : undo_vec) {
+  for (char* ptr : undo_log) {
     //cout << "entry : --" << ptr << "-- " << endl;
     std::stringstream entry(ptr);
 

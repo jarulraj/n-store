@@ -38,7 +38,7 @@ class opt_lsm_engine : public engine {
   void txn_begin();
   void txn_end(bool commit);
 
-  void recovery(){}
+  void recovery();
 
   //private:
   const config& conf;
@@ -50,6 +50,8 @@ class opt_lsm_engine : public engine {
 
   std::stringstream entry_stream;
   std::string entry_str;
+
+  std::vector<void*> commit_free_list;
 
   std::atomic_bool ready;
   unsigned long merge_looper = 0;
