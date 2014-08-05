@@ -196,6 +196,40 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
   TIMER(ee->txn_end(true))
 }
 
+void ycsb_benchmark::execute_one(engine* ee) {
+
+  // UPDATE
+  unsigned int usertable_id = 0;
+  schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
+
+  vector<int> field_ids;
+  for (int itr = 1; itr <= conf.ycsb_num_val_fields; itr++)
+    field_ids.push_back(itr);
+
+  std::string updated_val(conf.ycsb_field_size, 'x');
+  int zipf_dist_offset = 0;
+
+  ee->txn_begin();
+
+  for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
+
+    int key = zipf_dist[zipf_dist_offset + stmt_itr];
+
+    record* rec_ptr = new usertable_record(usertable_schema, key, updated_val,
+                                           conf.ycsb_num_val_fields,
+                                           conf.ycsb_update_one);
+
+    statement st(txn_id, operation_type::Update, usertable_id, rec_ptr,
+                 field_ids);
+
+    ee->update(st);
+
+  }
+
+  // Don't finish the transaction
+  //ee->txn_end(true);
+}
+
 void ycsb_benchmark::execute(engine* ee) {
 
   unsigned int usertable_id = 0;

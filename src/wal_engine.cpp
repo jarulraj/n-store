@@ -242,6 +242,8 @@ void wal_engine::txn_end(bool commit) {
 
 void wal_engine::recovery() {
 
+  cout<<"WAL recovery"<<endl;
+
   // Setup recovery
   fs_log.flush();
   fs_log.sync();
@@ -271,7 +273,7 @@ void wal_engine::recovery() {
   log_file.seekg(0, ios::beg);
 
   while (std::getline(log_file, entry_str)) {
-    cout << "Entry :  " << entry_str.c_str() << endl;
+    //cout << "entry :  " << entry_str.c_str() << endl;
     std::stringstream entry(entry_str);
 
     entry >> txn_id >> op_type >> table_id;

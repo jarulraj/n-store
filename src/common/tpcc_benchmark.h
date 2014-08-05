@@ -23,6 +23,7 @@ class tpcc_benchmark : public benchmark {
 
   void load(engine* ee);
   void execute(engine* ee);
+  void execute_one(engine* ee);
 
   void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
 
@@ -51,7 +52,7 @@ class tpcc_benchmark : public benchmark {
   timer tm;
 
   void do_delivery(engine* ee);
-  void do_new_order(engine* ee);
+  void do_new_order(engine* ee, bool finish = true);
   void do_order_status(engine* ee);
   void do_payment(engine* ee);
   void do_stock_level(engine* ee);

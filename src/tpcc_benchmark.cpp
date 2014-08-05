@@ -1401,7 +1401,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
 
 }
 
-void tpcc_benchmark::do_new_order(engine* ee) {
+void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
   /*
    "NEW_ORDER": {
    "getWarehouseTaxRate": "SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?", # w_id
@@ -1655,7 +1655,8 @@ void tpcc_benchmark::do_new_order(engine* ee) {
   if (ol_total > 0)
     LOG_INFO("ol_total :: %d ", ol_total);
 
-  TIMER(ee->txn_end(true));
+  if(finish)
+    TIMER(ee->txn_end(true));
 
 }
 
@@ -2112,6 +2113,13 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   LOG_INFO("i_count :: %d ", i_count);
 
   TIMER(ee->txn_end(true));
+}
+
+void tpcc_benchmark::execute_one(engine* ee) {
+
+  // NEW ORDER
+  do_new_order(ee, false);
+
 }
 
 void tpcc_benchmark::execute(engine* ee) {

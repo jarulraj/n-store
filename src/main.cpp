@@ -221,7 +221,7 @@ void execute(config& state) {
       wal = new wal_engine(state, state.read_only);
       bh->execute(wal);
 
-      if(state.recovery)
+      if (state.recovery)
         wal->recovery();
 
       delete wal;
@@ -241,7 +241,7 @@ void execute(config& state) {
       sp = new sp_engine(state, state.read_only);
       bh->execute(sp);
 
-      if(state.recovery)
+      if (state.recovery)
         sp->recovery();
 
       delete sp;
@@ -260,7 +260,7 @@ void execute(config& state) {
       lsm = new lsm_engine(state, false);
       bh->execute(lsm);
 
-      if(state.recovery)
+      if (state.recovery)
         lsm->recovery();
 
       delete lsm;
@@ -280,8 +280,10 @@ void execute(config& state) {
       opt_wal = new opt_wal_engine(state, state.read_only);
       bh->execute(opt_wal);
 
-      if(state.recovery)
+      if (state.recovery) {
+        bh->execute_one(opt_wal);
         opt_wal->recovery();
+      }
 
       delete opt_wal;
     }
@@ -300,7 +302,7 @@ void execute(config& state) {
       opt_sp = new opt_sp_engine(state, state.read_only);
       bh->execute(opt_sp);
 
-      if(state.recovery)
+      if (state.recovery)
         opt_sp->recovery();
 
       delete opt_sp;
@@ -322,7 +324,7 @@ void execute(config& state) {
       opt_lsm = new opt_lsm_engine(state, state.read_only);
       bh->execute(opt_lsm);
 
-      if(state.recovery)
+      if (state.recovery)
         opt_lsm->recovery();
 
       delete opt_lsm;

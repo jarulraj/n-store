@@ -19,6 +19,7 @@ class ycsb_benchmark : public benchmark {
 
   void load(engine* ee);
   void execute(engine* ee);
+  void execute_one(engine* ee);
 
   void do_update(engine* ee, unsigned int txn_itr, schema* usertable_schema, const vector<int>& field_ids);
   void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
