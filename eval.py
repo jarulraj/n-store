@@ -145,10 +145,9 @@ BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size = 1
 # PLOT
 ###################################################################################                   
 
-def create_ycsb_perf_bar_chart(datasets, workload_mix):
-    fig = plot.figure()
-    ax1 = fig.add_subplot(111)
-     
+def create_ycsb_perf_bar_chart(datasets):
+    fig, axs = plot.subplots(1, 2, sharey=True)
+         
     labels = ("WAL", "SP", "LSM",
               "PM-WAL", "PM-SP", "PM-LSM")
 
@@ -156,53 +155,52 @@ def create_ycsb_perf_bar_chart(datasets, workload_mix):
     N = len(x_values)
     x_labels = ["Low", "High"]
 
+    num_items = len(ENGINES);   
     ind = np.arange(N)  
-    width = 0.05  # the width of the bars
-    offset = 0.15
+    margin = 0.10
+    width = (1.0-2*margin)/num_items      
+    bars = [None] * len(labels) * 2
 
-    for group in xrange(len(datasets)):
+    # WORKLOAD
+    for itr in xrange(len(datasets)): 
+
         # GROUP
-        perf_data = []               
-        LOG.info("GROUP :: %s", datasets[group])
-
-        for line in  xrange(len(datasets[group])):
-            for col in  xrange(len(datasets[group][line])):
-                if col == 1:
-                    perf_data.append(datasets[group][line][col])
-  
-        LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
-                
-        ax1.bar(ind + group * width, perf_data, width, color=OPT_COLORS[group])
+        for group in xrange(len(datasets[itr])):
+            perf_data = []               
+            LOG.info("GROUP :: %s", datasets[itr][group])
     
-    # GRID
-    axes = ax1.get_axes()
-    if workload_mix == "read-only":
-        axes.set_ylim(0, 120000)
-    elif workload_mix == "read-heavy":
-        axes.set_ylim(0, 120000)
-    elif workload_mix == "write-heavy":
-        axes.set_ylim(0, 120000)
-        
-    makeGrid(ax1)
+            for line in  xrange(len(datasets[itr][group])):
+                for col in  xrange(len(datasets[itr][group][line])):
+                    if col == 1:
+                        perf_data.append(datasets[itr][group][line][col])
+      
+            LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
+            
+            bars[group] = axs[itr].bar(ind + margin + (group*width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+            
+        # GRID
+        axes = axs[itr].get_axes()
+        #axes.set_ylim(0, 120000)      
+        makeGrid(axs[itr])
+          
+        # Y-AXIS
+        axs[itr].yaxis.set_major_locator(MaxNLocator(5))
+        axs[itr].minorticks_on()
+            
+        # X-AXIS
+        axs[itr].set_xlabel("Skew", fontproperties=FP)
+        axs[itr].minorticks_on()
+        axs[itr].set_xticklabels(x_labels)
+        axs[itr].set_xticks(ind + 0.5)
+    
+    axs[0].set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
     
     # LEGEND
-    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.1, 1.0, 0.10), loc=1, ncol=2, mode="expand", 
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0,)
-    
-    # Y-AXIS
-    ax1.set_ylabel("Throughput", fontproperties=FP)
-    ax1.yaxis.set_major_locator(MaxNLocator(5))
-    ax1.minorticks_on()
+    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand", 
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
+
         
-    # X-AXIS
-    ax1.set_xlabel("Skew", fontproperties=FP)
-    ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)
-    print (x_values)
-    ax1.set_xticks(ind + width * len(datasets))
-    print(x_labels)
-        
+            
     return (fig)
 
 def create_ycsb_storage_bar_chart(datasets):
@@ -220,8 +218,8 @@ def create_ycsb_storage_bar_chart(datasets):
         x_values = YCSB_SKEW_FACTORS
         N = len(x_values)
         x_labels = ["Low", "High"]
-        num_items = len(ENGINES);
-    
+
+        num_items = len(ENGINES);   
         ind = np.arange(N)  
         margin = 0.10
         width = (1.0-2*margin)/num_items      
@@ -263,7 +261,7 @@ def create_ycsb_storage_bar_chart(datasets):
     
     # LEGEND
     fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand", 
-               fancybox=True, shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
      
         
     return (fig)
@@ -331,9 +329,8 @@ def create_ycsb_nvm_bar_chart(datasets):
     return (fig)
 
 def create_tpcc_perf_bar_chart(datasets):
-    fig = plot.figure()
-    ax1 = fig.add_subplot(111)
-     
+    fig, axs = plot.subplots(1, 2, sharey=True)
+         
     labels = ("WAL", "SP", "LSM",
               "PM-WAL", "PM-SP", "PM-LSM")
 
@@ -341,49 +338,53 @@ def create_tpcc_perf_bar_chart(datasets):
     N = len(x_values)
     x_labels = ["All", "Stock-level"]
 
+    num_items = len(ENGINES);   
     ind = np.arange(N)  
-    width = 0.05  # the width of the bars
-    offset = 0.15
+    margin = 0.10
+    width = (1.0-2*margin)/num_items      
+    bars = [None] * len(labels) * 2
 
-    for group in xrange(len(datasets)):
-        # GROUP
-        perf_data = []               
-        LOG.info("GROUP :: %s", datasets[group])
+    # WORKLOAD
+    for itr in xrange(len(datasets)): 
 
-        datasets[group].reverse()
+        # GROUP    
+        for group in xrange(len(datasets[itr])):
+            perf_data = []               
+            LOG.info("GROUP :: %s", datasets[itr][group])
+    
+            datasets[itr][group].reverse()
+            
+            for line in  xrange(len(datasets[itr][group])):
+                for col in  xrange(len(datasets[itr][group][line])):
+                    if col == 1:
+                        perf_data.append(datasets[itr][group][line][col])
+      
+            LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
+
+            bars[group] = axs[itr].bar(ind + margin + (group*width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+                        
+        # GRID
+        axes = axs[itr].get_axes()
+        #axes.set_ylim(0, 3000)        
+        makeGrid(axs[itr])    
         
-        for line in  xrange(len(datasets[group])):
-            for col in  xrange(len(datasets[group][line])):
-                if col == 1:
-                    perf_data.append(datasets[group][line][col])
-  
-        LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
-                
-        ax1.bar(ind + group * width, perf_data, width, color=OPT_COLORS[group])
-    
-    # GRID
-    axes = ax1.get_axes()
-    axes.set_ylim(0, 3000)        
-    makeGrid(ax1)
-    
+        # Y-AXIS
+        axs[itr].yaxis.set_major_locator(MaxNLocator(5))
+        axs[itr].minorticks_on()
+            
+        # X-AXIS
+        axs[itr].set_xlabel("Workload", fontproperties=FP)
+        axs[itr].minorticks_on()
+        axs[itr].set_xticklabels(x_labels)
+        axs[itr].set_xticks(ind + 0.5)
+        
+
+    axs[0].set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
+
     # LEGEND
-    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.1, 1.0, 0.10), loc=1, ncol=2, mode="expand", 
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0,)
-
-    
-    # Y-AXIS
-    ax1.set_ylabel("Throughput", fontproperties=FP)
-    ax1.yaxis.set_major_locator(MaxNLocator(5))
-    ax1.minorticks_on()
+    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand", 
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
         
-    # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=FP)
-    ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)
-    print (x_values)
-    ax1.set_xticks(ind + width * len(datasets))
-    print(x_labels)
         
     return (fig)
 
@@ -517,17 +518,22 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
 # YCSB PERF -- PLOT
 def ycsb_perf_plot():
     for workload in YCSB_WORKLOAD_MIX:    
+        datasets = [None] * len(LATENCIES)
+        itr = 0
+
         for lat in LATENCIES:
-            datasets = []
+            datasets[itr] = []
         
             for sy in SYSTEMS:    
                 dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(YCSB_PERF_DIR, sy + "/" + workload + "/" + lat + "/performance.csv")))
-                datasets.append(dataFile)
-                       
-            fig = create_ycsb_perf_bar_chart(datasets, workload)
+                datasets[itr].append(dataFile)
             
-            fileName = "ycsb-perf-%s-%s.pdf" % (workload, lat)
-            saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+            itr = itr+1    
+                       
+        fig = create_ycsb_perf_bar_chart(datasets)
+            
+        fileName = "ycsb-perf-%s.pdf" % (workload)
+        saveGraph(fig, fileName, width=len(YCSB_SKEW_FACTORS)*OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
@@ -567,19 +573,24 @@ def ycsb_nvm_plot():
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
-    for lat in LATENCIES:
-        for workload in TPCC_WORKLOAD_MIX:  
 
-            datasets = []
+    for workload in TPCC_WORKLOAD_MIX:  
+        datasets = [None] * len(LATENCIES)
+        itr = 0
 
+        for lat in LATENCIES:
+            datasets[itr] = []   
+        
             for sy in SYSTEMS:    
                 dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/" + lat + "/performance.csv")))
-                datasets.append(dataFile)
+                datasets[itr].append(dataFile)
+                
+            itr = itr + 1        
                        
-        fig = create_tpcc_perf_bar_chart(datasets)
-            
-        fileName = "tpcc-perf-%s.pdf" % (lat)
-        saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+    fig = create_tpcc_perf_bar_chart(datasets)
+                
+    fileName = "tpcc-perf.pdf"
+    saveGraph(fig, fileName, width=len(TPCC_RW_MIXES)*OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
 # TPCC STORAGE -- PLOT               
 def tpcc_storage_plot():    
