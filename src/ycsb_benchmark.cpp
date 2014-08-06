@@ -122,6 +122,13 @@ void ycsb_benchmark::load(engine* ee) {
   ee->txn_begin();
 
   for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++) {
+    
+    if(txn_itr % conf.load_batch_size == 0){
+      ee->txn_end(true);
+      txn_id++;
+      ee->txn_begin();
+    }
+ 
     // LOAD
     int key = txn_itr;
     std::string value = get_rand_astring(conf.ycsb_field_size);
