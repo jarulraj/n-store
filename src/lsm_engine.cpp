@@ -258,7 +258,7 @@ int lsm_engine::remove(const statement& st) {
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0
       && indices->at(0)->off_map->exists(key) == 0) {
-    cout << "not found in either index " << endl;
+    LOG_INFO("not found in either index ");
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
@@ -271,6 +271,11 @@ int lsm_engine::remove(const statement& st) {
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
+  if (indices->at(0)->pm_map->exists(key) != 0) {
+    record* before_rec = indices->at(0)->pm_map->at(key);
+    delete before_rec;
+  }
+
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
@@ -278,11 +283,6 @@ int lsm_engine::remove(const statement& st) {
 
     indices->at(index_itr)->pm_map->erase(key);
     indices->at(index_itr)->off_map->erase(key);
-  }
-
-  if (indices->at(0)->pm_map->exists(key) != 0) {
-    record* before_rec = indices->at(0)->pm_map->at(key);
-    delete before_rec;
   }
 
   return EXIT_SUCCESS;
