@@ -100,6 +100,11 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     conf.db = db;
   }
 
+  if (conf.recovery) {
+    conf.num_keys = 1000;
+    conf.ycsb_per_writes = 0.5;
+  }
+
   // Generate Zipf dist
   zipf(zipf_dist, conf.ycsb_skew, conf.num_keys,
        conf.num_txns * conf.ycsb_tuples_per_txn);

@@ -69,6 +69,14 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
   stock_table_schema = conf.db->tables->at(STOCK_TABLE_ID)->sptr;
 
   uniform(uniform_dist, conf.num_txns);
+
+  if (conf.recovery) {
+    item_count = 10;
+    warehouse_count = 2;
+    districts_per_warehouse = 2;
+    customers_per_district = 30;
+    new_orders_per_district = 10;
+  }
 }
 
 // WAREHOUSE
@@ -1655,7 +1663,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
   if (ol_total > 0)
     LOG_INFO("ol_total :: %d ", ol_total);
 
-  if(finish)
+  if (finish)
     TIMER(ee->txn_end(true));
 
 }
@@ -2008,7 +2016,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
    */
 
   // Hand back all the warehouse, district, and customer data
-  std::string payment_str = warehouse_str + district_str + customer_str ;
+  std::string payment_str = warehouse_str + district_str + customer_str;
 
   TIMER(ee->txn_end(true));
 
