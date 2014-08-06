@@ -47,7 +47,7 @@ inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {
   return ret;
 }
 
-void simple_skew(vector<int>& zipf_dist, int n, int num_values);
+void simple_skew(vector<int>& simple_dist, double alpha, int n, int num_values);
 
 void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values);
 

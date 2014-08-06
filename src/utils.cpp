@@ -307,6 +307,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
       }
     }
 
+    //cout << "zipf_val :: " << zipf_value << endl;
     zipf_dist.push_back(zipf_value);
   }
 
@@ -314,12 +315,13 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 }
 
 // Simple skew generator
-void simple_skew(vector<int>& simple_dist, int n, int num_values) {
+void simple_skew(vector<int>& simple_dist, double alpha, int n,
+                 int num_values) {
   int seed = 0;
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> dis(0, 1);
   double i, z;
-  long bound = n / 10;  // 90% from 10% of values
+  long bound = ((double) n / (100 * alpha));  // 90% from 10% of values
   long val, diff;
 
   diff = n - bound;
@@ -332,6 +334,7 @@ void simple_skew(vector<int>& simple_dist, int n, int num_values) {
     else
       val = bound + z * diff;
 
+    //cout << "simple_val :: " << val << endl;
     simple_dist.push_back(val);
   }
 }

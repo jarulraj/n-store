@@ -105,8 +105,8 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     conf.ycsb_per_writes = 0.5;
   }
 
-  // Generate Zipf dist
-  zipf(zipf_dist, conf.ycsb_skew, conf.num_keys,
+  // Generate skewed dist
+  simple_skew(simple_dist, conf.ycsb_skew, conf.num_keys,
        conf.num_txns * conf.ycsb_tuples_per_txn);
   uniform(uniform_dist, conf.num_txns);
 }
@@ -153,7 +153,7 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,
 
   for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
 
-    int key = zipf_dist[zipf_dist_offset + stmt_itr];
+    int key = simple_dist[zipf_dist_offset + stmt_itr];
 
     record* rec_ptr = new usertable_record(usertable_schema, key, updated_val,
                                            conf.ycsb_num_val_fields,
@@ -185,7 +185,7 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
 
   for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
 
-    int key = zipf_dist[zipf_dist_offset + stmt_itr];
+    int key = simple_dist[zipf_dist_offset + stmt_itr];
 
     record* rec_ptr = new usertable_record(usertable_schema, key, empty,
                                            conf.ycsb_num_val_fields, false);
@@ -216,7 +216,7 @@ void ycsb_benchmark::execute_one(engine* ee) {
 
   for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
 
-    int key = zipf_dist[zipf_dist_offset + stmt_itr];
+    int key = simple_dist[zipf_dist_offset + stmt_itr];
 
     record* rec_ptr = new usertable_record(usertable_schema, key, updated_val,
                                            conf.ycsb_num_val_fields,
