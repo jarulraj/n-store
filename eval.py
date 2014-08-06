@@ -326,7 +326,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     
     # LEGEND
     fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand", 
-               fancybox=True, shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
      
     return (fig)
 
@@ -390,18 +390,23 @@ def create_tpcc_perf_bar_chart(datasets):
 def create_tpcc_storage_bar_chart(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
-     
-    labels = ("WAL", "SP", "LSM",
-              "PM-WAL", "PM-SP", "PM-LSM")
+    
+    labels = ("WAL (FS)", "WAL (PM)",
+          "SP (FS)", "SP (PM)",
+          "LSM (FS)", "LSM (PM)",
+          "PM-WAL (FS)", "PM-WAL (PM)",
+          "PM-SP (FS)", "PM-SP (PM)",
+          "PM-LSM (FS)", "PM-LSM (PM)")
 
     x_values = TPCC_RW_MIXES
     N = len(x_values)
     x_labels = ["All", "Stock-level"]
+    num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    width = 0.05  # the width of the bars
-    offset = 0.15
-    bars = [None] * len(labels)
+    margin = 0.10
+    width = (1.0-2*margin)/num_items      
+    bars = [None] * len(labels) * 2
     
     for group in xrange(len(datasets)):
         # GROUP
@@ -417,8 +422,8 @@ def create_tpcc_storage_bar_chart(datasets, workload_mix):
   
         LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
                 
-        bars[group] = ax1.bar(ind + group * width, fs_data, width, color=OPT_COLORS[group])
-        ax1.bar(ind + group * width, pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch='/')
+        bars[group*2] = ax1.bar(ind + margin + (group*width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+        bars[group*2+1] = ax1.bar(ind + margin + (group*width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2+1])
         
     # GRID
     axes = ax1.get_axes()
@@ -427,8 +432,8 @@ def create_tpcc_storage_bar_chart(datasets, workload_mix):
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.1, 1.0, 0.10), loc=1, ncol=2, mode="expand", 
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0,)
+    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand", 
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
@@ -436,18 +441,12 @@ def create_tpcc_storage_bar_chart(datasets, workload_mix):
     ax1.set_ylabel("Storage (MB)", fontproperties=FP)
     #ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    for tick in ax1.yaxis.get_major_ticks():
-        tick.label.set_fontname(OPT_FONT_NAME)
         
     # X-AXIS
     ax1.set_xlabel("Workload", fontproperties=FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
-    print (x_values)
-    ax1.set_xticks(ind + width * len(x_labels))
-    print(x_labels)
-    for tick in ax1.xaxis.get_major_ticks():
-        tick.label.set_fontname(OPT_FONT_NAME)
+    ax1.set_xticks(ind + 0.5)
         
     return (fig)
 
@@ -455,17 +454,23 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL", "SP", "LSM",
-              "PM-WAL", "PM-SP", "PM-LSM")
+    labels = ("WAL (L)", "WAL (S)",
+          "SP (L)", "SP (S)",
+          "LSM (L)", "LSM (S)",
+          "PM-WAL (L)", "PM-WAL (S)",
+          "PM-SP (L)", "PM-SP (S)",
+          "PM-LSM (L)", "PM-LSM (S)")
+
 
     x_values = TPCC_RW_MIXES
     N = len(x_values)
     x_labels = ["All", "Stock-level"]
+    num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    width = 0.05  # the width of the bars
-    offset = 0.15
-    bars = [None] * len(labels)
+    margin = 0.10
+    width = (1.0-2*margin)/num_items      
+    bars = [None] * len(labels) * 2
         
     for group in xrange(len(datasets)):
         # GROUP
@@ -480,9 +485,9 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
                     s_misses.append(datasets[group][line][col] / (1024 * 1024))
   
         LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
-                
-        bars[group] = ax1.bar(ind + group * width, l_misses, width, color=OPT_COLORS[group])
-        ax1.bar(ind + group * width, s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch='/')
+        
+        bars[group*2] = ax1.bar(ind + margin + (group*width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+        bars[group*2+1] = ax1.bar(ind + margin + (group*width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2+1])
         
     # GRID
     axes = ax1.get_axes()
@@ -491,27 +496,20 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.1, 1.0, 0.10), loc=1, ncol=2, mode="expand", 
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0,)
+    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand", 
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
     ax1.set_ylabel("NVM accesses (M)", fontproperties=FP)
     ax1.set_yscale('log', nonposy='clip')
-    #ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    for tick in ax1.yaxis.get_major_ticks():
-        tick.label.set_fontname(OPT_FONT_NAME)
         
     # X-AXIS
     ax1.set_xlabel("Workload", fontproperties=FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
-    print (x_values)
-    ax1.set_xticks(ind + width * len(x_labels))
-    print(x_labels)
-    for tick in ax1.xaxis.get_major_ticks():
-        tick.label.set_fontname(OPT_FONT_NAME)
+    ax1.set_xticks(ind + 0.5)
         
     return (fig)
 
