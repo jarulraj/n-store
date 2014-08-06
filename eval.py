@@ -744,7 +744,7 @@ def tpcc_nvm_plot():
         datasets = []
     
         for sy in SYSTEMS:    
-            dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(TPCC_STORAGE_DIR, sy + "/storage.csv")))
+            dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(TPCC_NVM_DIR, sy + "/nvm.csv")))
             datasets.append(dataFile)
                                       
     fig = create_tpcc_nvm_bar_chart(datasets, workload)
