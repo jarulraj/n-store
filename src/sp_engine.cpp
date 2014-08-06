@@ -242,16 +242,21 @@ int sp_engine::update(const statement& st) {
 }
 
 void sp_engine::txn_begin() {
-  if (!read_only){
+  if (!read_only) {
     //cout<<"lock"<<endl;
     wrlock(&cow_pbtree_rwlock);
   }
 }
 
 void sp_engine::txn_end(bool commit) {
-  if (!read_only){
+  if (!read_only) {
     //cout<<"unlock"<<endl;
     unlock(&cow_pbtree_rwlock);
   }
 }
 
+void sp_engine::recovery() {
+
+  cout << "SP :: Recovery duration (ms) : " << 0.0 << endl;
+
+}

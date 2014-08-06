@@ -71,11 +71,11 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
   uniform(uniform_dist, conf.num_txns);
 
   if (conf.recovery) {
-    item_count = 10;
+    item_count = 10000;
     warehouse_count = 2;
     districts_per_warehouse = 2;
-    customers_per_district = 30;
-    new_orders_per_district = 10;
+    customers_per_district = 3000;
+    new_orders_per_district = 900;
   }
 }
 
