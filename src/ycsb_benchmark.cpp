@@ -119,11 +119,10 @@ void ycsb_benchmark::load(engine* ee) {
   unsigned int txn_itr;
   status ss(conf.num_keys);
 
+  ee->txn_begin();
+
   for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++) {
-
-    ee->txn_begin();
-
-    // INSERT
+    // LOAD
     int key = txn_itr;
     std::string value = get_rand_astring(conf.ycsb_field_size);
 
@@ -132,13 +131,12 @@ void ycsb_benchmark::load(engine* ee) {
 
     statement st(txn_id, operation_type::Insert, usertable_id, rec_ptr);
 
-    ee->insert(st);
-
-    ee->txn_end(true);
+    ee->load(st);
 
     ss.display();
   }
 
+  ee->txn_end(true);
 }
 
 void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,

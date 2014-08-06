@@ -4,10 +4,10 @@
 
 #include "nstore.h"
 #include "wal_engine.h"
-#include "opt_wal_engine.h"
 #include "sp_engine.h"
-#include "opt_sp_engine.h"
 #include "lsm_engine.h"
+#include "opt_wal_engine.h"
+#include "opt_sp_engine.h"
 #include "opt_lsm_engine.h"
 
 #include "ycsb_benchmark.h"
@@ -43,7 +43,8 @@ static void usage_exit(FILE *out) {
           "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
           "   -z --pm_stats          :  Collect PM stats \n"
           "   -o --tpcc_stock-level  :  TPCC stock level only \n"
-          "   -r --recovery          :  Recovery mode \n");
+          "   -r --recovery          :  Recovery mode \n"
+          "   -b --load-batch-size   :  Load batch size \n");
   exit(-1);
 }
 
@@ -80,11 +81,12 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.tpcc_stock_level_only = false;
 
   state.active_txn_threshold = 10;
+  state.load_batch_size = 50000;
 
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:vwascmhluytzor", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:b:vwascmhluytzor", opts, &idx);
 
     if (c == -1)
       break;
@@ -173,6 +175,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
       case 'r':
         state.recovery = true;
         cout << "recovery " << endl;
+        break;
+      case 'b':
+        state.load_batch_size = atoi(optarg);
+        cout << "load_batch_size: " << state.load_batch_size << endl;
         break;
       case 'h':
         usage_exit(stderr);

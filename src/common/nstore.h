@@ -95,6 +95,7 @@ class config {
   bool recovery;
 
   int active_txn_threshold;
+  int load_batch_size;
 
   engine_type etype;
   benchmark_type btype;

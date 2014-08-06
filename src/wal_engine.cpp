@@ -239,6 +239,34 @@ void wal_engine::txn_begin() {
 void wal_engine::txn_end(bool commit) {
 }
 
+void wal_engine::load(const statement& st) {
+  LOG_INFO("Load");
+  record* after_rec = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
+  plist<table_index*>* indices = tab->indices;
+
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
+
+  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  unsigned long key = hash_fn(key_str);
+
+  std::string after_tuple = serialize(after_rec, after_rec->sptr);
+  off_t storage_offset;
+
+  storage_offset = tab->fs_data.push_back(after_tuple);
+
+  // Add entry in indices
+  for (index_itr = 0; index_itr < num_indices; index_itr++) {
+    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key = hash_fn(key_str);
+
+    indices->at(index_itr)->off_map->insert(key, storage_offset);
+  }
+
+  delete after_rec;
+}
+
 void wal_engine::recovery() {
 
   LOG_INFO("WAL recovery");

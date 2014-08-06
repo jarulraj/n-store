@@ -241,6 +241,39 @@ int sp_engine::update(const statement& st) {
   return EXIT_SUCCESS;
 }
 
+void sp_engine::load(const statement& st) {
+  LOG_INFO("Load");
+  record* after_rec = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
+  plist<table_index*>* indices = tab->indices;
+
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
+  struct cow_btval key, val;
+
+  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
+  key_str = std::to_string(key_id);
+
+  std::string after_tuple = serialize(after_rec, after_rec->sptr);
+
+  // Add entry in indices
+  for (index_itr = 0; index_itr < num_indices; index_itr++) {
+    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
+    key_str = std::to_string(key_id);
+
+    key.data = (void*) key_str.c_str();
+    key.size = key_str.size();
+    val.data = (void*) after_tuple.c_str();
+
+    val.size = after_tuple.size() + 1;
+    bt->insert(txn_ptr, &key, &val);
+  }
+
+  delete after_rec;
+}
+
 void sp_engine::txn_begin() {
   if (!read_only) {
     //cout<<"lock"<<endl;

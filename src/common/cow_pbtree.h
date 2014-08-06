@@ -721,7 +721,7 @@ struct {                \
 struct cow_btval {
   void *data;
   size_t size;
-  int release_data; /* true if data allocated */
+  //int release_data; /* true if data allocated */
   struct mpage *mp; /* ref'd memory page */
 };
 
@@ -918,7 +918,7 @@ struct cow_btree_txn {
 #define NODEDSZ(cow_node)  ((cow_node)->p.np_dsize)
 
 #define BT_COMMIT_PAGES  64 /* max number of pages to write in one commit */
-#define BT_MAXCACHE_DEF  1024*1024 /* max number of pages to keep in cache -- leave it to the OS */
+#define BT_MAXCACHE_DEF  1024*1024 /* max number of pages to keep in cache */
 
 class cow_btree {
  public:
@@ -1126,8 +1126,8 @@ class cow_btree {
     if (btv) {
       if (btv->mp)
         btv->mp->ref--;
-      if (btv->release_data)
-        delete (char*) btv->data;
+      //if (btv->release_data)
+      //  delete (char*) btv->data;
       bzero(btv, sizeof(*btv));
     }
   }
@@ -1619,7 +1619,7 @@ class cow_btree {
     struct bt_meta *_meta;
     ssize_t rc;
 
-    DPRINTF("writing meta page for root page %u", root);
+    DPRINTF("writing meta page for root page %u \n", root);
 
     assert(txn != NULL);
 
@@ -2123,11 +2123,11 @@ class cow_btree {
             return BT_FAIL;
 
           bcopy(NODEDATA(leaf), data->data, data->size);
-          data->release_data = 1;
+          //data->release_data = 1;
           data->mp = NULL;
         } else {
           data->data = NODEDATA(leaf);
-          data->release_data = 0;
+          //data->release_data = 0;
           data->mp = mp;
           mp->ref++;
         }
@@ -2142,7 +2142,7 @@ class cow_btree {
       return BT_FAIL;
 
     data->size = leaf->n_dsize;
-    data->release_data = 1;
+    //data->release_data = 1;
     data->mp = NULL;
     bcopy(NODEDATA(leaf), &pgno, sizeof(pgno));
     for (sz = 0; sz < data->size;) {
@@ -2253,11 +2253,11 @@ class cow_btree {
         pmemalloc_activate(key->data);
       concat_prefix(mp->prefix.str, mp->prefix.len, (char*) NODEKEY(cow_node),
                     cow_node->ksize, (char*) key->data, &key->size);
-      key->release_data = 1;
+      //key->release_data = 1;
     } else {
       key->size = cow_node->ksize;
       key->data = NODEKEY(cow_node);
-      key->release_data = 0;
+      //key->release_data = 0;
       key->mp = mp;
       mp->ref++;
     }
@@ -3400,15 +3400,10 @@ class cow_btree {
     struct mpage *mp;
     struct cow_btval xkey;
 
-    assert(key != NULL);
-    assert(data != NULL);
+    //assert(key != NULL);
+    //assert(data != NULL);
 
     if (txn != NULL && F_ISSET(txn->flags, BT_TXN_RDONLY)) {
-      errno = EINVAL;
-      return BT_FAIL;
-    }
-
-    if (key->size == 0 || key->size > MAXKEYSIZE) {
       errno = EINVAL;
       return BT_FAIL;
     }

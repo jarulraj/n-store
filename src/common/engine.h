@@ -15,6 +15,7 @@ class engine {
   virtual int remove(const statement& st) = 0;
   virtual int update(const statement& st) = 0;
 
+  virtual void load(const statement& st) = 0;
 
   virtual void txn_begin() = 0;
   virtual void txn_end(bool commit) = 0;

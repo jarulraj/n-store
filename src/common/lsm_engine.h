@@ -29,6 +29,8 @@ class lsm_engine : public engine {
   int insert(const statement& t);
   int remove(const statement& t);
 
+  void load(const statement& st);
+
   void group_commit();
   void merge(bool force);
 

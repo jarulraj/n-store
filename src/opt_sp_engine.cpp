@@ -97,7 +97,7 @@ int opt_sp_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   struct cow_btval key, val;
-  val.data = new char[sizeof(record*)+1];
+  val.data = new char[sizeof(record*) + 1];
 
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
@@ -130,7 +130,7 @@ int opt_sp_engine::insert(const statement& st) {
     bt->insert(txn_ptr, &key, &val);
   }
 
-  delete ((char*)val.data);
+  delete ((char*) val.data);
   return EXIT_SUCCESS;
 }
 
@@ -230,7 +230,7 @@ int opt_sp_engine::update(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
-  update_val.data = new char[sizeof(record*)+1];
+  update_val.data = new char[sizeof(record*) + 1];
   memcpy(update_val.data, &after_rec, sizeof(record*));
   update_val.size = sizeof(record*);
 
@@ -251,8 +251,44 @@ int opt_sp_engine::update(const statement& st) {
 
   delete rec_ptr;
   delete before_rec;
-  delete ((char*)update_val.data);
+  delete ((char*) update_val.data);
   return EXIT_SUCCESS;
+}
+
+void opt_sp_engine::load(const statement& st) {
+  LOG_INFO("Load");
+  record* after_rec = st.rec_ptr;
+  table* tab = db->tables->at(st.table_id);
+  plist<table_index*>* indices = tab->indices;
+
+  unsigned int num_indices = tab->num_indices;
+  unsigned int index_itr;
+  struct cow_btval key, val;
+  val.data = new char[sizeof(record*) + 1];
+
+  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
+  key_str = std::to_string(key_id);
+
+  // Activate new record
+  pmemalloc_activate(after_rec);
+  after_rec->persist_data();
+
+  // Add entry in indices
+  for (index_itr = 0; index_itr < num_indices; index_itr++) {
+    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_id = hasher(hash_fn(key_str), st.table_id, index_itr);
+    key_str = std::to_string(key_id);
+
+    key.data = (void*) key_str.c_str();
+    key.size = key_str.size();
+    memcpy(val.data, &after_rec, sizeof(record*));
+    val.size = sizeof(record*);
+
+    bt->insert(txn_ptr, &key, &val);
+  }
+
+  delete ((char*) val.data);
 }
 
 void opt_sp_engine::txn_begin() {
