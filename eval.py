@@ -120,8 +120,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 100000
-YCSB_TXNS = 100000
+YCSB_KEYS = 500000
+YCSB_TXNS = 500000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.1, 0.5]
@@ -136,7 +136,7 @@ TPCC_PERF_DIR = "../results/tpcc/performance/"
 TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
 
-TPCC_TXNS = 10000
+TPCC_TXNS = 100000
 
 FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size = 10)
 BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size = 14)
