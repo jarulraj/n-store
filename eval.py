@@ -97,8 +97,8 @@ OPT_GRAPH_HEIGHT = 300
 OPT_GRAPH_WIDTH = 400
 OPT_LABEL_WEIGHT = 'bold'
 # OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
-OPT_COLORS =('#F15854', '#4D4D4D', '#5DA5DA','#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
-#OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
+OPT_COLORS = ('#F15854', '#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
+# OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
 OPT_GRID_COLOR = 'gray'
 OPT_LEGEND_SHADOW = False
 OPT_MARKERS = (['o', 's', 'v', ">", "h", "v", "^", "x", "d", "<", "|", "8", "|", "_"])
@@ -111,10 +111,10 @@ SDV_SCRIPT = SDV_DIR + "/ivt_pm_sdv.sh"
 NSTORE = "./src/nstore"
 FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
-#PERF = "/usr/bin/perf"
+# PERF = "/usr/bin/perf"
 PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
 NUMACTL = "numactl"
-NUMACTL_FLAGS="--membind=2"
+NUMACTL_FLAGS = "--membind=2"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
@@ -125,21 +125,27 @@ YCSB_TXNS = 500000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.1, 0.5]
+YCSB_RECOVERY_TXNS = [1000, 10000]
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
 TPCC_RW_MIXES = [0.5, 0]
+TPCC_RECOVERY_TXNS = [1000, 10000]
 
 YCSB_PERF_DIR = "../results/ycsb/performance/"
 YCSB_STORAGE_DIR = "../results/ycsb/storage/"
 YCSB_NVM_DIR = "../results/ycsb/nvm/"
+YCSB_RECOVERY_DIR = "../results/ycsb/recovery/"
+
 TPCC_PERF_DIR = "../results/tpcc/performance/"
 TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
+TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
+
 
 TPCC_TXNS = 100000
 
-FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size = 10)
-BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size = 14)
+FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=10)
+BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=14)
 
 ###################################################################################                   
 # PLOT
@@ -158,7 +164,7 @@ def create_ycsb_perf_bar_chart(datasets):
     num_items = len(ENGINES);   
     ind = np.arange(N)  
     margin = 0.10
-    width = (1.0-2*margin)/num_items      
+    width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(labels) * 2
 
     # WORKLOAD
@@ -176,11 +182,11 @@ def create_ycsb_perf_bar_chart(datasets):
       
             LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
             
-            bars[group] = axs[itr].bar(ind + margin + (group*width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+            bars[group] = axs[itr].bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
             
         # GRID
         axes = axs[itr].get_axes()
-        #axes.set_ylim(0, 120000)      
+        # axes.set_ylim(0, 120000)      
         makeGrid(axs[itr])
           
         # Y-AXIS
@@ -196,7 +202,7 @@ def create_ycsb_perf_bar_chart(datasets):
     axs[0].set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
     
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand", 
+    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
         
@@ -222,7 +228,7 @@ def create_ycsb_storage_bar_chart(datasets):
         num_items = len(ENGINES);   
         ind = np.arange(N)  
         margin = 0.10
-        width = (1.0-2*margin)/num_items      
+        width = (1.0 - 2 * margin) / num_items      
         bars = [None] * len(labels) * 2
         
         for group in xrange(len(datasets[itr])):
@@ -239,8 +245,8 @@ def create_ycsb_storage_bar_chart(datasets):
       
             LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
                     
-            bars[group*2] = axs[itr].bar(ind + margin + (group*width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
-            bars[group*2+1] = axs[itr].bar(ind + margin + (group*width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2+1])
+            bars[group * 2] = axs[itr].bar(ind + margin + (group * width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+            bars[group * 2 + 1] = axs[itr].bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
         
             # GRID
             axes = axs[itr].get_axes()      
@@ -260,7 +266,7 @@ def create_ycsb_storage_bar_chart(datasets):
     axs[0].set_ylabel("Storage (MB)", fontproperties=BOLD_FP)
     
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand", 
+    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
      
         
@@ -285,7 +291,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     
         ind = np.arange(N)  
         margin = 0.10
-        width = (1.0-2*margin)/num_items      
+        width = (1.0 - 2 * margin) / num_items      
         bars = [None] * len(labels) * 2
         
         for group in xrange(len(datasets[itr])):
@@ -302,8 +308,8 @@ def create_ycsb_nvm_bar_chart(datasets):
       
             LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
                     
-            bars[group*2] = axs[itr].bar(ind + margin + (group*width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
-            bars[group*2+1] = axs[itr].bar(ind + margin + (group*width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2+1])
+            bars[group * 2] = axs[itr].bar(ind + margin + (group * width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+            bars[group * 2 + 1] = axs[itr].bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
         
             # GRID
             axes = axs[itr].get_axes()      
@@ -323,9 +329,63 @@ def create_ycsb_nvm_bar_chart(datasets):
     axs[0].set_ylabel("PM Accesses (M)", fontproperties=BOLD_FP)
     
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand", 
+    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
      
+    return (fig)
+
+def create_ycsb_recovery_bar_chart(datasets):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+    
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
+ 
+    x_values = YCSB_RECOVERY_TXNS
+    N = len(x_values)
+    x_labels = ["1000", "10000"]
+    num_items = len(ENGINES);
+
+    ind = np.arange(N)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+    bars = [None] * len(labels) * 2
+        
+    for group in xrange(len(datasets)):
+        # GROUP
+        durations = []   
+
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    durations.append(datasets[group][line][col])
+  
+        LOG.info("%s duration = %s ", labels[group], str(durations))
+        
+        bars[group] = ax1.bar(ind + margin + (group * width), durations, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+        
+    # GRID
+    axes = ax1.get_axes()
+    # axes.set_ylim(0, 10000)        
+    makeGrid(ax1)
+    
+    # LEGEND
+    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
+    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
+
+    
+    # Y-AXIS
+    ax1.set_ylabel("Duration (ms)", fontproperties=FP)
+    ax1.set_yscale('log', nonposy='clip')
+    ax1.minorticks_on()
+        
+    # X-AXIS
+    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(ind + 0.5)
+        
     return (fig)
 
 def create_tpcc_perf_bar_chart(datasets):
@@ -341,7 +401,7 @@ def create_tpcc_perf_bar_chart(datasets):
     num_items = len(ENGINES);   
     ind = np.arange(N)  
     margin = 0.10
-    width = (1.0-2*margin)/num_items      
+    width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(labels) * 2
 
     # WORKLOAD
@@ -361,11 +421,11 @@ def create_tpcc_perf_bar_chart(datasets):
       
             LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
 
-            bars[group] = axs[itr].bar(ind + margin + (group*width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+            bars[group] = axs[itr].bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
                         
         # GRID
         axes = axs[itr].get_axes()
-        #axes.set_ylim(0, 3000)        
+        # axes.set_ylim(0, 3000)        
         makeGrid(axs[itr])    
         
         # Y-AXIS
@@ -382,7 +442,7 @@ def create_tpcc_perf_bar_chart(datasets):
     axs[0].set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
 
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand", 
+    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
         
         
@@ -406,7 +466,7 @@ def create_tpcc_storage_bar_chart(datasets, workload_mix):
 
     ind = np.arange(N)  
     margin = 0.10
-    width = (1.0-2*margin)/num_items      
+    width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(labels) * 2
     
     for group in xrange(len(datasets)):
@@ -423,24 +483,24 @@ def create_tpcc_storage_bar_chart(datasets, workload_mix):
   
         LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
                 
-        bars[group*2] = ax1.bar(ind + margin + (group*width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
-        bars[group*2+1] = ax1.bar(ind + margin + (group*width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2+1])
+        bars[group * 2] = ax1.bar(ind + margin + (group * width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
         
     # GRID
     axes = ax1.get_axes()
-    #axes.set_ylim(0, 10000)        
+    # axes.set_ylim(0, 10000)        
     makeGrid(ax1)
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand", 
+    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
     ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (MB)", fontproperties=FP)
-    #ax1.yaxis.set_major_locator(MaxNLocator(5))
+    # ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
         
     # X-AXIS
@@ -470,7 +530,7 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
 
     ind = np.arange(N)  
     margin = 0.10
-    width = (1.0-2*margin)/num_items      
+    width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(labels) * 2
         
     for group in xrange(len(datasets)):
@@ -487,17 +547,17 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
   
         LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
         
-        bars[group*2] = ax1.bar(ind + margin + (group*width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
-        bars[group*2+1] = ax1.bar(ind + margin + (group*width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2+1])
+        bars[group * 2] = ax1.bar(ind + margin + (group * width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
         
     # GRID
     axes = ax1.get_axes()
-    #axes.set_ylim(0, 10000)        
+    # axes.set_ylim(0, 10000)        
     makeGrid(ax1)
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand", 
+    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
@@ -514,6 +574,64 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
         
     return (fig)
 
+def create_tpcc_recovery_bar_chart(datasets):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+    
+    labels = ("WAL", "SP", "LSM",
+              "PM-WAL", "PM-SP", "PM-LSM")
+ 
+    x_values = TPCC_RECOVERY_TXNS
+    N = len(x_values)
+    x_labels = ["1000", "10000"]
+    num_items = len(ENGINES);
+
+    ind = np.arange(N)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+    bars = [None] * len(labels) * 2
+        
+    for group in xrange(len(datasets)):
+        # GROUP
+        durations = []   
+
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    durations.append(datasets[group][line][col])
+  
+        LOG.info("%s duration = %s ", labels[group], str(durations))
+        
+        bars[group] = ax1.bar(ind + margin + (group * width), durations, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
+        
+    # GRID
+    axes = ax1.get_axes()
+    # axes.set_ylim(0, 10000)        
+    makeGrid(ax1)
+    
+    # LEGEND
+    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
+    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
+               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
+
+    
+    # Y-AXIS
+    ax1.set_ylabel("Duration (ms)", fontproperties=FP)
+    ax1.set_yscale('log', nonposy='clip')
+    ax1.minorticks_on()
+        
+    # X-AXIS
+    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(ind + 0.5)
+        
+    return (fig)
+
+###################################################################################                   
+# PLOT HELPERS                  
+###################################################################################                   
+
 
 # YCSB PERF -- PLOT
 def ycsb_perf_plot():
@@ -528,12 +646,12 @@ def ycsb_perf_plot():
                 dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(YCSB_PERF_DIR, sy + "/" + workload + "/" + lat + "/performance.csv")))
                 datasets[itr].append(dataFile)
             
-            itr = itr+1    
+            itr = itr + 1    
                        
         fig = create_ycsb_perf_bar_chart(datasets)
             
         fileName = "ycsb-perf-%s.pdf" % (workload)
-        saveGraph(fig, fileName, width=len(YCSB_SKEW_FACTORS)*OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+        saveGraph(fig, fileName, width=len(YCSB_SKEW_FACTORS) * OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
@@ -547,11 +665,11 @@ def ycsb_storage_plot():
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, sy + "/" + workload + "/storage.csv")))
             datasets[itr].append(dataFile)
 
-        itr = itr+1
+        itr = itr + 1
                                       
     fig = create_ycsb_storage_bar_chart(datasets)                        
     fileName = "ycsb-storage.pdf"
-    saveGraph(fig, fileName, width=len(YCSB_WORKLOAD_MIX)*OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+    saveGraph(fig, fileName, width=len(YCSB_WORKLOAD_MIX) * OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
 # YCSB NVM -- PLOT               
 def ycsb_nvm_plot():    
@@ -565,11 +683,25 @@ def ycsb_nvm_plot():
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/nvm.csv")))
             datasets[itr].append(dataFile)
             
-        itr = itr+1
+        itr = itr + 1
                        
     fig = create_ycsb_nvm_bar_chart(datasets)                        
     fileName = "ycsb-nvm.pdf"
-    saveGraph(fig, fileName, width=len(YCSB_WORKLOAD_MIX)*OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+    saveGraph(fig, fileName, width=len(YCSB_WORKLOAD_MIX) * OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+
+# YCSB RECOVERY -- PLOT
+def  ycsb_recovery_plot():   
+    for txn in YCSB_RECOVERY_TXNS:    
+        datasets = []
+    
+        for sy in SYSTEMS:    
+            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(YCSB_RECOVERY_DIR, sy + "/recovery.csv")))
+            datasets.append(dataFile)
+                                      
+    fig = create_ycsb_recovery_bar_chart(datasets)
+                        
+    fileName = "ycsb-recovery.pdf"
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
@@ -590,7 +722,7 @@ def tpcc_perf_plot():
     fig = create_tpcc_perf_bar_chart(datasets)
                 
     fileName = "tpcc-perf.pdf"
-    saveGraph(fig, fileName, width=len(TPCC_RW_MIXES)*OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+    saveGraph(fig, fileName, width=len(TPCC_RW_MIXES) * OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
 # TPCC STORAGE -- PLOT               
 def tpcc_storage_plot():    
@@ -619,6 +751,21 @@ def tpcc_nvm_plot():
                         
     fileName = "tpcc-nvm.pdf"
     saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
+
+# TPCC RECOVERY -- PLOT
+def  tpcc_recovery_plot():   
+    for txn in TPCC_RECOVERY_TXNS:    
+        datasets = []
+    
+        for sy in SYSTEMS:    
+            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_RECOVERY_DIR, sy + "/recovery.csv")))
+            datasets.append(dataFile)
+                                      
+    fig = create_tpcc_recovery_bar_chart(datasets)
+                        
+    fileName = "tpcc-recovery.pdf"
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
+
                    
 ###################################################################################                   
 # EVAL                   
@@ -985,7 +1132,7 @@ def ycsb_nvm_eval(log_name):
                 llc_l_miss = str(entry[0])
             llc_l_miss = llc_l_miss.replace(",", "")    
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss) + "\n")
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
 
 
         if "LLC-store-misses" in line:
@@ -996,7 +1143,7 @@ def ycsb_nvm_eval(log_name):
                 llc_s_miss = str(entry[0])
             llc_s_miss = llc_s_miss.replace(",", "")    
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_s_miss) + "\n")
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_s_miss))
                                                                 
             result_directory = YCSB_NVM_DIR + engine_type + "/" + workload_type + "/";
             if not os.path.exists(result_directory):
@@ -1006,6 +1153,84 @@ def ycsb_nvm_eval(log_name):
             result_file = open(result_file_name, "a")
             result_file.write(str(skew) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
             result_file.close()    
+
+
+# YCSB RECOVERY -- EVAL
+def ycsb_recovery_eval(log_name):            
+    subprocess.call(['rm', '-rf', YCSB_RECOVERY_DIR])          
+    
+    # CLEANUP
+    def cleanup():
+        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
+
+    txns = YCSB_RECOVERY_TXNS
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+               
+    # RW MIX
+    for txn  in txns:
+        ostr = ("--------------------------------------------------- \n")
+        print (ostr, end="")
+        log_file.write(ostr)
+        ostr = ("TXN :: %.lf \n" % (txn))
+        print (ostr, end="")
+        log_file.write(ostr)                    
+        log_file.flush()
+
+        for eng in engines:
+            cleanup()
+            
+            subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txn), '-y', '-r', eng],
+                            stdout=log_file, stderr=log_file)
+                                  
+    log_file.close()   
+    log_file = open(log_name, "r")    
+
+    # CLEAN UP RESULT DIR
+    subprocess.call(['rm', '-rf', YCSB_RECOVERY_DIR])          
+ 
+    txn = 0.0
+    
+    for line in log_file:                    
+        if "TXN" in line:
+            entry = line.strip().split(' ');
+            txn = entry[2]
+                                               
+        if "Throughput" in line:
+            entry = line.strip().split(':');
+            etypes = entry[0].split(' ');
+            
+            if(etypes[0] == "WAL"):
+                engine_type = "wal"                
+            elif(etypes[0] == "SP"):
+                engine_type = "sp"
+            elif(etypes[0] == "LSM"):
+                engine_type = "lsm"
+            elif(etypes[0] == "OPT_WAL"):
+                engine_type = "opt_wal"
+            elif(etypes[0] == "OPT_SP"):
+                engine_type = "opt_sp"
+            elif(etypes[0] == "OPT_LSM"):
+                engine_type = "opt_lsm"
+                                                        
+     
+        if "Recovery" in line:
+            entry = line.strip().split(' ');
+            duration = str(entry[6])
+                
+            print(engine_type + ", " + str(txn) + " :: " + str(duration))
+                                                                
+            result_directory = YCSB_RECOVERY_DIR + engine_type + "/";
+            if not os.path.exists(result_directory):
+                os.makedirs(result_directory)
+
+            result_file_name = result_directory + "recovery.csv"
+            result_file = open(result_file_name, "a")
+            result_file.write(str(txn) + " , " + str(duration) + "\n")
+            result_file.close()    
+
 
 # TPCC PERF -- EVAL
 def tpcc_perf_eval(enable_sdv, enable_trials, log_name):        
@@ -1341,7 +1566,7 @@ def tpcc_nvm_eval(log_name):
                 llc_s_miss = str(entry[0])
             llc_s_miss = llc_s_miss.replace(",", "")    
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew)  + " :: " + str(llc_s_miss) + "\n")
+            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_s_miss) + "\n")
                                                                 
             result_directory = TPCC_NVM_DIR + engine_type + "/";
             if not os.path.exists(result_directory):
@@ -1352,6 +1577,81 @@ def tpcc_nvm_eval(log_name):
             result_file.write(str(rw_mix) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
             result_file.close()    
 
+# TPCC RECOVERY -- EVAL
+def tpcc_recovery_eval(log_name):            
+    subprocess.call(['rm', '-rf', TPCC_RECOVERY_DIR])          
+    
+    # CLEANUP
+    def cleanup():
+        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
+
+    txns = TPCC_RECOVERY_TXNS
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+               
+    # RW MIX
+    for txn  in txns:
+        ostr = ("--------------------------------------------------- \n")
+        print (ostr, end="")
+        log_file.write(ostr)
+        ostr = ("TXN :: %.lf \n" % (txn))
+        print (ostr, end="")
+        log_file.write(ostr)                    
+        log_file.flush()
+
+        for eng in engines:
+            cleanup()
+            
+            subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txn), '-t', '-r', eng],
+                            stdout=log_file, stderr=log_file)
+                                  
+    log_file.close()   
+    log_file = open(log_name, "r")    
+
+    # CLEAN UP RESULT DIR
+    subprocess.call(['rm', '-rf', TPCC_RECOVERY_DIR])          
+ 
+    txn = 0.0
+    
+    for line in log_file:                    
+        if "TXN" in line:
+            entry = line.strip().split(' ');
+            txn = entry[2]
+                                               
+        if "Throughput" in line:
+            entry = line.strip().split(':');
+            etypes = entry[0].split(' ');
+            
+            if(etypes[0] == "WAL"):
+                engine_type = "wal"                
+            elif(etypes[0] == "SP"):
+                engine_type = "sp"
+            elif(etypes[0] == "LSM"):
+                engine_type = "lsm"
+            elif(etypes[0] == "OPT_WAL"):
+                engine_type = "opt_wal"
+            elif(etypes[0] == "OPT_SP"):
+                engine_type = "opt_sp"
+            elif(etypes[0] == "OPT_LSM"):
+                engine_type = "opt_lsm"
+                                                        
+     
+        if "Recovery" in line:
+            entry = line.strip().split(' ');
+            duration = str(entry[6])
+                
+            print(engine_type + ", " + str(txn) + " :: " + str(duration))
+                                                                
+            result_directory = TPCC_RECOVERY_DIR + engine_type + "/";
+            if not os.path.exists(result_directory):
+                os.makedirs(result_directory)
+
+            result_file_name = result_directory + "recovery.csv"
+            result_file = open(result_file_name, "a")
+            result_file.write(str(txn) + " , " + str(duration) + "\n")
+            result_file.close()    
                           
                 
 ## ==============================================
@@ -1365,19 +1665,27 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run experiments')
     parser.add_argument("-x", "--enable-sdv", help='enable sdv', action='store_true')
     parser.add_argument("-u", "--enable-trials", help='enable trials', action='store_true')
+    parser.add_argument("-l", "--enable-local", help='local mode', action='store_true')
+    
     parser.add_argument("-y", "--ycsb_perf_eval", help='eval ycsb perf', action='store_true')
     parser.add_argument("-s", "--ycsb_storage_eval", help='eval ycsb storage', action='store_true')
     parser.add_argument("-n", "--ycsb_nvm_eval", help='eval ycsb nvm', action='store_true')
+    parser.add_argument("-i", "--ycsb_recovery_eval", help='ycsb_recovery_eval', action='store_true')
+    
     parser.add_argument("-t", "--tpcc_perf_eval", help='eval tpcc perf', action='store_true')
     parser.add_argument("-q", "--tpcc_storage_eval", help='eval tpcc storage', action='store_true')
     parser.add_argument("-r", "--tpcc_nvm_eval", help='eval tpcc nvm', action='store_true')
-    parser.add_argument("-a", "--ycsb_perf_plot", help='plot ycsb perf', action='store_true')
-    parser.add_argument("-b", "--ycsb_storage_plot", help='plot ycsb storage', action='store_true')
-    parser.add_argument("-c", "--ycsb_nvm_plot", help='plot ycsb nvm', action='store_true')
+    parser.add_argument("-j", "--ycsb_recovery_plot", help='ycsb_recovery_plot', action='store_true')
+    
     parser.add_argument("-d", "--tpcc_perf_plot", help='plot tpcc perf', action='store_true')
     parser.add_argument("-e", "--tpcc_storage_plot", help='plot tpcc storage', action='store_true')
     parser.add_argument("-f", "--tpcc_nvm_plot", help='plot tpcc nvm', action='store_true')
-    parser.add_argument("-l", "--enable-local", help='local mode', action='store_true')
+    parser.add_argument("-o", "--tpcc_recovery_eval", help='tpcc_recovery_eval', action='store_true')
+    
+    parser.add_argument("-a", "--ycsb_perf_plot", help='plot ycsb perf', action='store_true')
+    parser.add_argument("-b", "--ycsb_storage_plot", help='plot ycsb storage', action='store_true')
+    parser.add_argument("-c", "--ycsb_nvm_plot", help='plot ycsb nvm', action='store_true')    
+    parser.add_argument("-p", "--tpcc_recovery_plot", help='tpcc_recovery_plot', action='store_true')
     
     args = parser.parse_args()
     
@@ -1387,66 +1695,68 @@ if __name__ == '__main__':
         enable_trials = True
 
     if args.enable_local:
-        NUMACTL_FLAGS="--membind=0"
+        NUMACTL_FLAGS = "--membind=0"
 
     ycsb_perf_log_name = "ycsb_perf.log"
     ycsb_storage_log_name = "ycsb_storage.log"
     ycsb_nvm_log_name = "ycsb_nvm.log"
+    ycsb_recovery_log_name = "ycsb_recovery.log"
+    
     tpcc_perf_log_name = "tpcc_perf.log"
     tpcc_storage_log_name = "tpcc_storage.log"
-    tpcc_nvm_log_name = "tpcc_nvm.log"
+    tpcc_nvm_log_name = "tpcc_nvm.log"   
+    tpcc_recovery_log_name = "tpcc_recovery.log"
     
     ################################ YCSB
     
-    # YCSB PERF -- EVAL
     if args.ycsb_perf_eval:
         ycsb_perf_eval(enable_sdv, enable_trials, ycsb_perf_log_name)
     
-    # YCSB STORAGE -- EVAL
     if args.ycsb_storage_eval:
         ycsb_storage_eval(ycsb_storage_log_name);
              
-    # YCSB NVM -- EVAL
     if args.ycsb_nvm_eval:
         ycsb_nvm_eval(ycsb_nvm_log_name);             
-             
-    # YCSB PERF -- PLOT
+
+    if args.ycsb_recovery_eval:             
+        ycsb_recovery_eval(ycsb_recovery_log_name);             
+                          
     if args.ycsb_perf_plot:      
         ycsb_perf_plot();          
                            
-    # YCSB STORAGE -- PLOT               
     if args.ycsb_storage_plot:                
        ycsb_storage_plot();
        
-    # YCSB NVM -- PLOT               
     if args.ycsb_nvm_plot:                
        ycsb_nvm_plot();                          
 
+    if args.ycsb_recovery_plot:                
+       ycsb_recovery_plot();                          
+
     ################################ TPCC
 
-    # TPCC PERF -- EVAL
     if args.tpcc_perf_eval:
         tpcc_perf_eval(enable_sdv, enable_trials, tpcc_perf_log_name);             
 
-    # TPCC STORAGE -- EVAL
     if args.tpcc_storage_eval:
         tpcc_storage_eval(tpcc_storage_log_name);
              
-    # TPCC NVM -- EVAL
     if args.tpcc_nvm_eval:
         tpcc_nvm_eval(tpcc_nvm_log_name);             
 
-    # TPCC PERF -- PLOT               
+    if args.tpcc_recovery_eval:             
+        tpcc_recovery_eval(tpcc_recovery_log_name);             
+
     if args.tpcc_perf_plot:                
        tpcc_perf_plot();                          
 
-    # TPCC STORAGE -- PLOT               
     if args.tpcc_storage_plot:                
        tpcc_storage_plot();
        
-    # TPCC NVM -- PLOT               
     if args.tpcc_nvm_plot:                
        tpcc_nvm_plot();                          
 
+    if args.tpcc_recovery_plot:                
+       tpcc_recovery_plot();                          
 
 

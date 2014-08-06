@@ -263,3 +263,9 @@ void opt_sp_engine::txn_end(bool commit) {
   unlock(&opt_sp_pbtree_rwlock);
 }
 
+void opt_sp_engine::recovery() {
+
+  cout << "OPT_SP :: Recovery duration (ms) : " << 0.0 << endl;
+
+}
+
