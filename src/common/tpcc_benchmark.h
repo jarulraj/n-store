@@ -89,7 +89,7 @@ class tpcc_benchmark : public benchmark {
   const double item_max_price = 100.0;
   const int item_name_len = 5;
 
-  const int warehouse_count = 2;  // 10
+  const int warehouse_count = 10;  // 10
   const double warehouse_min_tax = 0.0;
   const double warehouse_max_tax = 0.2;
   const double state_len = 16;
