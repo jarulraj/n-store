@@ -19,7 +19,7 @@ using namespace std;
 
 class opt_wal_engine : public engine_api {
  public:
-  opt_wal_engine(const config& _conf, bool _read_only = false);
+  opt_wal_engine(const config& _conf, bool _read_only, unsigned int _tid);
   ~opt_wal_engine();
 
   std::string select(const statement& st);
@@ -52,6 +52,7 @@ class opt_wal_engine : public engine_api {
   int looper = 0;
 
   bool read_only = false;
+  unsigned int tid;
 };
 
 #endif /* OPT_WAL_ENGINE_H_ */

@@ -18,9 +18,10 @@ void wal_engine::group_commit() {
   }
 }
 
-wal_engine::wal_engine(const config& _conf, bool _read_only)
+wal_engine::wal_engine(const config& _conf, bool _read_only, unsigned int _tid)
     : conf(_conf),
-      db(conf.db) {
+      db(conf.db),
+      tid(_tid) {
   etype = engine_type::WAL;
   read_only = _read_only;
   fs_log.configure(conf.fs_path + "log");
@@ -156,7 +157,7 @@ int wal_engine::remove(const statement& st) {
   storage_offset = indices->at(0)->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
 
-  if(val.empty())
+  if (val.empty())
     goto end;
 
   before_rec = deserialize(val, tab->sptr);

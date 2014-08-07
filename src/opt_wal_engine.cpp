@@ -4,13 +4,17 @@
 
 using namespace std;
 
-opt_wal_engine::opt_wal_engine(const config& _conf, bool _read_only)
+opt_wal_engine::opt_wal_engine(const config& _conf, bool _read_only,
+                               unsigned int _tid)
     : conf(_conf),
       db(conf.db),
-      pm_log(db->log) {
+      tid(_tid) {
 
   etype = engine_type::OPT_WAL;
   read_only = _read_only;
+  pm_log = db->log->at(tid);
+
+  cout << "tid :: " << tid << " pm log :: " << pm_log << endl;
 }
 
 opt_wal_engine::~opt_wal_engine() {
@@ -248,17 +252,17 @@ void opt_wal_engine::txn_end(bool commit) {
   commit_free_list.clear();
 
   // Clear log
-  vector<char*> undo_log = db->log->get_data();
+  vector<char*> undo_log = pm_log->get_data();
   for (char* ptr : undo_log)
     delete ptr;
-  db->log->clear();
+  pm_log->clear();
 }
 
 void opt_wal_engine::recovery() {
 
   LOG_INFO("OPT WAL recovery");
 
-  vector<char*> undo_log = db->log->get_data();
+  vector<char*> undo_log = pm_log->get_data();
 
   int op_type, txn_id, table_id;
   unsigned int num_indices, index_itr;
@@ -353,7 +357,7 @@ void opt_wal_engine::recovery() {
             before_rec->set_pointer(field_itr, before_field);
 
             // Free after_field
-            delete ((char*)after_field);
+            delete ((char*) after_field);
           }
           // Data
           else {
@@ -392,7 +396,7 @@ void opt_wal_engine::recovery() {
   }
 
   // Clear log
-  db->log->clear();
+  pm_log->clear();
 
   rec_t.end();
   cout << "OPT_WAL :: Recovery duration (ms) : " << rec_t.duration() << endl;

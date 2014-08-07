@@ -21,7 +21,7 @@ using namespace std;
 
 class opt_sp_engine : public engine_api {
  public:
-  opt_sp_engine(const config& _conf, bool _read_only = false);
+  opt_sp_engine(const config& _conf, bool _read_only, unsigned int _tid);
   ~opt_sp_engine();
 
   std::string select(const statement& st);
@@ -51,6 +51,7 @@ class opt_sp_engine : public engine_api {
   struct cow_btree_txn* txn_ptr;
 
   bool read_only = false;
+  unsigned int tid;
 };
 
 

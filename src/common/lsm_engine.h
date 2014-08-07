@@ -21,7 +21,7 @@ using namespace std;
 
 class lsm_engine : public engine_api {
  public:
-  lsm_engine(const config& _conf, bool _read_only = false);
+  lsm_engine(const config& _conf, bool _read_only, unsigned int _tid);
   ~lsm_engine();
 
   std::string select(const statement& st);
@@ -58,6 +58,7 @@ class lsm_engine : public engine_api {
   unsigned long merge_looper = 0;
 
   bool read_only = false;
+  unsigned int tid;
 };
 
 #endif /* LSM_ENGINE_H_ */

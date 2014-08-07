@@ -20,7 +20,7 @@ using namespace std;
 
 class sp_engine : public engine_api {
  public:
-  sp_engine(const config& _conf, bool _read_only = false);
+  sp_engine(const config& _conf, bool _read_only, unsigned int _tid);
   ~sp_engine();
 
   std::string select(const statement& st);
@@ -51,6 +51,7 @@ class sp_engine : public engine_api {
   struct cow_btree_txn* txn_ptr;
 
   bool read_only = false;
+  unsigned int tid;
 };
 
 #endif /* SP_ENGINE_H_ */

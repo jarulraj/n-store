@@ -15,8 +15,8 @@ class engine_mt : public engine {
         lm(NULL) {
   }
 
-  engine_mt(const config& conf, int tid, lock_manager* _lm)
-      : engine(conf, tid),
+  engine_mt(const config& conf, int tid, bool read_only, lock_manager* _lm)
+      : engine(conf, tid, read_only),
         lm(_lm) {
     //cout<<"MT engine"<<endl;
   }

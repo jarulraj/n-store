@@ -24,10 +24,16 @@ class database {
     tables = _tables;
 
     // LOG
-    plist<char*>* _log = new plist<char*>(&conf.sp->ptrs[conf.sp->itr++],
-                                          &conf.sp->ptrs[conf.sp->itr++]);
-    pmemalloc_activate(_log);
-    log = _log;
+    log = new plist<plist<char*>*>(&conf.sp->ptrs[conf.sp->itr++],
+                                   &conf.sp->ptrs[conf.sp->itr++]);
+    pmemalloc_activate(log);
+
+    for (int e_itr = 0; e_itr < conf.num_executors; e_itr++) {
+      plist<char*>* _log = new plist<char*>(&conf.sp->ptrs[conf.sp->itr++],
+                                            &conf.sp->ptrs[conf.sp->itr++]);
+      pmemalloc_activate(_log);
+      log->push_back(_log);
+    }
 
     // DIRS
     if (conf.etype == engine_type::SP) {
@@ -49,7 +55,7 @@ class database {
       delete table;
 
     delete tables;
-    delete log;
+    delete[] log;
   }
 
   void reset(config& conf) {
@@ -76,7 +82,7 @@ class database {
   }
 
   plist<table*>* tables;
-  plist<char*>* log;
+  plist<plist<char*>*>* log;
 
   // SP and OPT_SP
   cow_pbtree* dirs;

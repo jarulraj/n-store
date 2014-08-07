@@ -32,7 +32,7 @@ class benchmark {
   virtual void handler(engine* ee, unsigned int tid) = 0;
 
   void load(config& conf) {
-    engine* ee = get_engine(conf, 0);
+    engine* ee = get_engine(conf, 0, false);
 
     load(ee);
 
@@ -47,7 +47,7 @@ class benchmark {
   }
 
   void execute_st(config& conf) {
-    engine* ee = get_engine(conf, 0);
+    engine* ee = get_engine(conf, 0, conf.read_only);
     handler(ee, 0);
     delete ee;
 
@@ -60,8 +60,9 @@ class benchmark {
     engine** te = new engine*[num_executors];
 
     for (int i = 0; i < num_thds; i++) {
-      te[i] = get_engine(conf, i);
+      te[i] = get_engine(conf, i, conf.read_only);
       executors.push_back(std::thread(&benchmark::handler, this, te[i], i));
+      //cout<<"executors :: "<<i<<" id :: "<<executors[i].get_id()<<endl;
     }
 
     for (int i = 0; i < num_thds; i++)
@@ -83,7 +84,7 @@ class benchmark {
   virtual ~benchmark() {
   }
 
-  engine* get_engine(config& state, unsigned int tid) {
+  engine* get_engine(config& state, unsigned int tid, bool read_only) {
     engine* ee = NULL;
 
     switch (state.etype) {
@@ -95,9 +96,9 @@ class benchmark {
       case engine_type::OPT_LSM:
 
         if (state.single)
-          ee = new engine(state, tid);
+          ee = new engine(state, tid, read_only);
         else
-          ee = new engine_mt(state, tid, &lm);
+          ee = new engine_mt(state, tid, read_only, &lm);
         break;
 
       default:

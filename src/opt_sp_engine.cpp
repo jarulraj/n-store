@@ -22,11 +22,13 @@ void opt_sp_engine::group_commit() {
   }
 }
 
-opt_sp_engine::opt_sp_engine(const config& _conf, bool _read_only)
+opt_sp_engine::opt_sp_engine(const config& _conf, bool _read_only,
+                             unsigned int _tid)
     : conf(_conf),
       db(conf.db),
       bt(NULL),
-      txn_ptr(NULL) {
+      txn_ptr(NULL),
+      tid(_tid) {
 
   etype = engine_type::OPT_SP;
   read_only = _read_only;

@@ -12,12 +12,11 @@ void sp_engine::group_commit() {
       //cout<<"gc lock"<<endl;
       wrlock(&cow_pbtree_rwlock);
 
-      assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
-
-      //bt->compact();
-
-      txn_ptr = bt->txn_begin(0);
-      assert(txn_ptr);
+      if (tid == 0) {
+        assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+        txn_ptr = bt->txn_begin(0);
+        assert(txn_ptr);
+      }
 
       //cout<<"gc unlock"<<endl;
       unlock(&cow_pbtree_rwlock);
@@ -27,18 +26,21 @@ void sp_engine::group_commit() {
   }
 }
 
-sp_engine::sp_engine(const config& _conf, bool _read_only)
+sp_engine::sp_engine(const config& _conf, bool _read_only, unsigned int _tid)
     : conf(_conf),
       db(conf.db),
       bt(NULL),
-      txn_ptr(NULL) {
+      txn_ptr(NULL),
+      tid(_tid) {
 
   etype = engine_type::SP;
   read_only = _read_only;
 
   bt = db->dirs->t_ptr;
-  txn_ptr = bt->txn_begin(read_only);
-  assert(txn_ptr);
+  if (tid == 0) {
+    txn_ptr = bt->txn_begin(read_only);
+    assert(txn_ptr);
+  }
 
   // Commit only if needed
   if (!read_only) {
@@ -55,9 +57,10 @@ sp_engine::~sp_engine() {
     gc.join();
   }
 
-  if (!read_only && txn_ptr != NULL) {
+  if (!read_only && txn_ptr != NULL && tid == 0) {
     assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
   }
+
   txn_ptr = NULL;
 
 }

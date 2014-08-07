@@ -23,9 +23,7 @@ class engine_api {
 
   virtual ~engine_api() {}
 
-  int txn_counter;
   engine_type etype;
-  unsigned int tid;
 };
 
 #endif  /* ENGINE_API_H_ */

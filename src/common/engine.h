@@ -19,27 +19,27 @@ class engine {
         de(NULL) {
   }
 
-  engine(const config& conf, unsigned int _tid)
+  engine(const config& conf, unsigned int tid, bool read_only)
       : etype(conf.etype) {
 
     switch (conf.etype) {
       case engine_type::WAL:
-        de = new wal_engine(conf, conf.read_only);
+        de = new wal_engine(conf, read_only, tid);
         break;
       case engine_type::SP:
-        de = new sp_engine(conf, conf.read_only);
+        de = new sp_engine(conf, read_only, tid);
         break;
       case engine_type::LSM:
-        de = new lsm_engine(conf, conf.read_only);
+        de = new lsm_engine(conf, read_only, tid);
         break;
       case engine_type::OPT_WAL:
-        de = new opt_wal_engine(conf, conf.read_only);
+        de = new opt_wal_engine(conf, read_only, tid);
         break;
       case engine_type::OPT_SP:
-        de = new opt_sp_engine(conf, conf.read_only);
+        de = new opt_sp_engine(conf, read_only, tid);
         break;
       case engine_type::OPT_LSM:
-        de = new opt_lsm_engine(conf, conf.read_only);
+        de = new opt_lsm_engine(conf, read_only, tid);
         break;
       default:
         cout << "Unknown engine type :: " << etype << endl;
@@ -47,10 +47,9 @@ class engine {
         break;
     }
 
-    de->tid = _tid;
   }
 
-  virtual ~engine(){
+  virtual ~engine() {
     delete de;
   }
 
@@ -70,8 +69,8 @@ class engine {
     return (de->update(st));
   }
 
-  virtual void display(){
-    cout<<"ST"<<endl;
+  virtual void display() {
+    cout << "ST" << endl;
   }
 
   void load(const statement& st) {

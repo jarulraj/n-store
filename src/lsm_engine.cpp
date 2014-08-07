@@ -11,7 +11,8 @@ void lsm_engine::group_commit() {
     //std::cout << "Syncing ! " << endl;
 
     // sync
-    fs_log.sync();
+    if (tid == 0)
+      fs_log.sync();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
@@ -100,9 +101,10 @@ void lsm_engine::merge(bool force) {
   //  fs_log.truncate();
 }
 
-lsm_engine::lsm_engine(const config& _conf, bool _read_only)
+lsm_engine::lsm_engine(const config& _conf, bool _read_only, unsigned int _tid)
     : conf(_conf),
-      db(conf.db) {
+      db(conf.db),
+      tid(_tid) {
 
   etype = engine_type::LSM;
   read_only = _read_only;
@@ -132,17 +134,18 @@ lsm_engine::~lsm_engine() {
 
   merge(true);
 
-  if (!conf.recovery) {
-    fs_log.sync();
-    fs_log.close();
-  }
+  if (tid == 0) {
+    if (!conf.recovery) {
+      fs_log.sync();
+      fs_log.close();
+    }
 
-  vector<table*> tables = db->tables->get_data();
-  for (table* tab : tables) {
-    tab->fs_data.sync();
-    tab->fs_data.close();
+    vector<table*> tables = db->tables->get_data();
+    for (table* tab : tables) {
+      tab->fs_data.sync();
+      tab->fs_data.close();
+    }
   }
-
 }
 
 std::string lsm_engine::select(const statement& st) {

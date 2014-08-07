@@ -89,14 +89,16 @@ void opt_lsm_engine::merge(bool force) {
 
 }
 
-opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only)
+opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only,
+                               unsigned int _tid)
     : conf(_conf),
       db(conf.db),
-      pm_log(db->log) {
+      tid(_tid) {
 
   etype = engine_type::OPT_LSM;
   read_only = _read_only;
   merge_looper = 0;
+  pm_log = db->log->at(tid);
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -375,7 +377,7 @@ int opt_lsm_engine::update(const statement& st) {
 }
 
 void opt_lsm_engine::load(const statement& st) {
-  LOG_INFO("Load");
+  //LOG_INFO("Load");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;
@@ -411,7 +413,7 @@ void opt_lsm_engine::recovery() {
 
   LOG_INFO("OPT LSM recovery");
 
-  vector<char*> undo_log = db->log->get_data();
+  vector<char*> undo_log = pm_log->get_data();
 
   int op_type, txn_id, table_id;
   unsigned int num_indices, index_itr;
@@ -566,7 +568,7 @@ void opt_lsm_engine::recovery() {
   commit_free_list.clear();
 
   // Clear log
-  db->log->clear();
+  pm_log->clear();
 
   rec_t.end();
   cout << "OPT_LSM :: Recovery duration (ms) : " << rec_t.duration() << endl;
