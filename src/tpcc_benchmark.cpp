@@ -17,7 +17,8 @@
 using namespace std;
 
 tpcc_benchmark::tpcc_benchmark(config& _conf)
-    : conf(_conf),
+    : benchmark(_conf),
+      conf(_conf),
       txn_id(0) {
 
   btype = benchmark_type::TPCC;
@@ -1267,7 +1268,7 @@ void tpcc_benchmark::load(engine* ee) {
 
 }
 
-void tpcc_benchmark::do_delivery(engine* ee) {
+void tpcc_benchmark::do_delivery(engine* ee, unsigned int tid) {
   LOG_INFO("Delivery ");
   /*
    "getNewOrder": "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID > -1 LIMIT 1", #
@@ -1424,7 +1425,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
 
 }
 
-void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
+void tpcc_benchmark::do_new_order(engine* ee, unsigned int tid, bool finish) {
   /*
    "NEW_ORDER": {
    "getWarehouseTaxRate": "SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?", # w_id
@@ -1683,7 +1684,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
 
 }
 
-void tpcc_benchmark::do_order_status(engine* ee) {
+void tpcc_benchmark::do_order_status(engine* ee, unsigned int tid) {
   /*
    "ORDER_STATUS": {
    "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?", # w_id, d_id, c_id
@@ -1799,7 +1800,7 @@ void tpcc_benchmark::do_order_status(engine* ee) {
 
 }
 
-void tpcc_benchmark::do_payment(engine* ee) {
+void tpcc_benchmark::do_payment(engine* ee, unsigned int tid) {
 
   /*
    "getWarehouse": "SELECT W_NAME, W_STREET_1, W_STREET_2, W_CITY, W_STATE, W_ZIP FROM WAREHOUSE WHERE W_ID = ?", # w_id
@@ -2037,7 +2038,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
 }
 
-void tpcc_benchmark::do_stock_level(engine* ee) {
+void tpcc_benchmark::do_stock_level(engine* ee, unsigned int tid) {
 
   /*
    "getOId": "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = ? AND D_ID = ?",
@@ -2138,45 +2139,47 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   TIMER(ee->txn_end(true));
 }
 
-void tpcc_benchmark::execute_one(engine* ee) {
+void tpcc_benchmark::sim_crash(engine* ee) {
 
   // NEW ORDER
   do_new_order(ee, false);
 
 }
 
-void tpcc_benchmark::execute(engine* ee) {
-
+void tpcc_benchmark::handler(engine* ee, unsigned int tid) {
+  unsigned int num_thds = conf.num_executors;
+  unsigned int per_thd_txns = conf.num_txns / num_thds;
+  unsigned int start_txn_itr = per_thd_txns * tid;
+  unsigned int end_txn_itr = start_txn_itr + per_thd_txns;
   unsigned int txn_itr;
-  status ss(conf.num_txns);
+  status ss(per_thd_txns);
 
-  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
+  for (txn_itr = start_txn_itr; txn_itr < end_txn_itr; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
     if (conf.tpcc_stock_level_only) {
-      do_stock_level(ee);
+      do_stock_level(ee, tid);
     } else {
 
       if (u <= 0.04) {
         //cout << "stock_level " << endl;
-        do_stock_level(ee);
+        do_stock_level(ee, tid);
       } else if (u <= 0.08) {
         //cout << "delivery " << endl;
-        do_delivery(ee);
+        do_delivery(ee, tid);
       } else if (u <= 0.12) {
         //cout << "order_status " << endl;
-        do_order_status(ee);
+        do_order_status(ee, tid);
       } else if (u <= 0.55) {
         //cout << "payment " << endl;
-        do_payment(ee);
+        do_payment(ee, tid);
       } else {
         //cout << "new_order " << endl;
-        do_new_order(ee);
+        do_new_order(ee, tid);
       }
     }
 
-    ss.display();
+    if(tid == 0)
+      ss.display();
   }
-
-  display_stats(ee, tm.duration(), conf.num_txns);
 }

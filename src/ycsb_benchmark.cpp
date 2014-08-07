@@ -75,7 +75,8 @@ table* create_usertable(config& conf) {
 }
 
 ycsb_benchmark::ycsb_benchmark(config& _conf)
-    : conf(_conf),
+    : benchmark(_conf),
+      conf(_conf),
       txn_id(0) {
 
   btype = benchmark_type::YCSB;
@@ -132,13 +133,13 @@ void ycsb_benchmark::load(engine* ee) {
   ee->txn_begin();
 
   for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++) {
-    
-    if(txn_itr % conf.load_batch_size == 0){
+
+    if (txn_itr % conf.load_batch_size == 0) {
       ee->txn_end(true);
       txn_id++;
       ee->txn_begin();
     }
- 
+
     // LOAD
     int key = txn_itr;
     std::string value = get_rand_astring(conf.ycsb_field_size);
@@ -156,7 +157,7 @@ void ycsb_benchmark::load(engine* ee) {
   ee->txn_end(true);
 }
 
-void ycsb_benchmark::do_update(engine* ee) {
+void ycsb_benchmark::do_update(engine* ee, unsigned int tid) {
 
 // UPDATE
   std::string updated_val(conf.ycsb_field_size, 'x');
@@ -186,7 +187,7 @@ void ycsb_benchmark::do_update(engine* ee) {
   TIMER(ee->txn_end(true))
 }
 
-void ycsb_benchmark::do_read(engine* ee) {
+void ycsb_benchmark::do_read(engine* ee, unsigned int tid) {
 
 // SELECT
   int zipf_dist_offset = txn_id * conf.ycsb_tuples_per_txn;
@@ -212,7 +213,7 @@ void ycsb_benchmark::do_read(engine* ee) {
   TIMER(ee->txn_end(true))
 }
 
-void ycsb_benchmark::execute_one(engine* ee) {
+void ycsb_benchmark::sim_crash(engine* ee) {
 
   // UPDATE
   vector<int> field_ids;
@@ -243,23 +244,25 @@ void ycsb_benchmark::execute_one(engine* ee) {
   //ee->txn_end(true);
 }
 
-void ycsb_benchmark::execute(engine* ee) {
-
-  unsigned int usertable_id = 0;
+void ycsb_benchmark::handler(engine* ee, unsigned int tid) {
+  unsigned int num_thds = conf.num_executors;
+  unsigned int per_thd_txns = conf.num_txns / num_thds;
+  unsigned int start_txn_itr = per_thd_txns * tid;
+  unsigned int end_txn_itr = start_txn_itr + per_thd_txns;
   unsigned int txn_itr;
-  status ss(conf.num_txns);
+  status ss(per_thd_txns);
 
-  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
+  for (txn_itr = start_txn_itr; txn_itr < end_txn_itr; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
     if (u < conf.ycsb_per_writes) {
-      do_update(ee);
+      do_update(ee, tid);
     } else {
-      do_read(ee);
+      do_read(ee, tid);
     }
 
-    ss.display();
+    if(tid == 0)
+      ss.display();
   }
 
-  display_stats(ee, tm.duration(), conf.num_txns);
 }

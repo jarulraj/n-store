@@ -22,8 +22,8 @@ class tpcc_benchmark : public benchmark {
   tpcc_benchmark(config& _conf);
 
   void load(engine* ee);
-  void execute(engine* ee);
-  void execute_one(engine* ee);
+  void handler(engine* ee, unsigned int tid);
+  void sim_crash(engine* ee);
 
   table* create_warehouse();
   table* create_district();
@@ -47,13 +47,12 @@ class tpcc_benchmark : public benchmark {
   benchmark_type btype;
 
   unsigned int txn_id;
-  timer tm;
 
-  void do_delivery(engine* ee);
-  void do_new_order(engine* ee, bool finish = true);
-  void do_order_status(engine* ee);
-  void do_payment(engine* ee);
-  void do_stock_level(engine* ee);
+  void do_delivery(engine* ee, unsigned int tid);
+  void do_new_order(engine* ee, unsigned int tid, bool finish = true);
+  void do_order_status(engine* ee, unsigned int tid);
+  void do_payment(engine* ee, unsigned int tid);
+  void do_stock_level(engine* ee, unsigned int tid);
 
   // Table Ids
   const int ITEM_TABLE_ID = 0;
@@ -87,7 +86,7 @@ class tpcc_benchmark : public benchmark {
   const double item_max_price = 100.0;
   const int item_name_len = 5;
 
-  int warehouse_count = 10;  // 10
+  int warehouse_count = 2;  // 10
   const double warehouse_min_tax = 0.0;
   const double warehouse_max_tax = 0.2;
   const double state_len = 16;

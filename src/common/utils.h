@@ -13,9 +13,9 @@ using namespace std;
 // UTILS
 
 #define TIMER(expr) \
-  { tm.start(); \
+  { tm[tid].start(); \
     {expr;} \
-    tm.end(); }
+    tm[tid].end(); }
 
 // RAND GEN
 std::string get_rand_astring(size_t len);

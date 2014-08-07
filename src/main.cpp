@@ -44,7 +44,8 @@ static void usage_exit(FILE *out) {
           "   -z --pm_stats          :  Collect PM stats \n"
           "   -o --tpcc_stock-level  :  TPCC stock level only \n"
           "   -r --recovery          :  Recovery mode \n"
-          "   -b --load-batch-size   :  Load batch size \n");
+          "   -b --load-batch-size   :  Load batch size \n",
+          "   -i --multi-executors   :  Multiple executors \n");
   exit(-1);
 }
 
@@ -55,6 +56,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.num_keys = 10;
   state.num_txns = 10;
+
+  state.single = true;
   state.num_executors = 1;
 
   state.verbose = false;
@@ -86,7 +89,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:b:vwascmhluytzor", opts, &idx);
+    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:b:vwascmhluytzori", opts,
+                        &idx);
 
     if (c == -1)
       break;
@@ -179,6 +183,11 @@ static void parse_arguments(int argc, char* argv[], config& state) {
       case 'b':
         state.load_batch_size = atoi(optarg);
         cout << "load_batch_size: " << state.load_batch_size << endl;
+        break;
+      case 'i':
+        state.single = false;
+        state.num_executors = 2;
+        cout << "multiple executors " << endl;
         break;
       case 'h':
         usage_exit(stderr);
@@ -289,7 +298,7 @@ void execute(config& state) {
       bh->execute(opt_wal);
 
       if (state.recovery) {
-        bh->execute_one(opt_wal);
+        bh->sim_crash(opt_wal);
         opt_wal->recovery();
       }
 

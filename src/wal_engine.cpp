@@ -20,7 +20,6 @@ void wal_engine::group_commit() {
 wal_engine::wal_engine(const config& _conf, bool _read_only)
     : conf(_conf),
       db(conf.db) {
-
   etype = engine_type::WAL;
   read_only = _read_only;
   fs_log.configure(conf.fs_path + "log");

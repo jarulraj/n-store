@@ -18,11 +18,12 @@ class ycsb_benchmark : public benchmark {
   ycsb_benchmark(config& _conf);
 
   void load(engine* ee);
-  void execute(engine* ee);
-  void execute_one(engine* ee);
+  void handler(engine* ee, unsigned int tid);
 
-  void do_update(engine* ee);
-  void do_read(engine* ee);
+  void sim_crash(engine* ee);
+
+  void do_update(engine* ee, unsigned int tid);
+  void do_read(engine* ee, unsigned int tid);
 
   // Table Ids
   const int USER_TABLE_ID = 0;
@@ -33,13 +34,12 @@ class ycsb_benchmark : public benchmark {
   vector<int> simple_dist;
   vector<double> uniform_dist;
 
+  config& conf;
   vector<int> update_field_ids;
 
-  config& conf;
   benchmark_type btype;
 
   unsigned int txn_id;
-  timer tm;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */

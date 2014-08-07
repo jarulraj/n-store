@@ -72,6 +72,8 @@ class config {
 
   int num_keys;
   int num_txns;
+
+  bool single;
   int num_executors;
 
   bool read_only;
