@@ -6,7 +6,6 @@
 #include <atomic>
 #include <thread>
 
-#include "engine.h"
 #include "nstore.h"
 #include "transaction.h"
 #include "record.h"

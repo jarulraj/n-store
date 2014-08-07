@@ -2,7 +2,6 @@
 #define ENGINE_H_
 
 #include <string>
-
 #include "statement.h"
 #include "nstore.h"
 

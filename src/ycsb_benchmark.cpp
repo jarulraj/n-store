@@ -264,5 +264,4 @@ void ycsb_benchmark::handler(engine* ee, unsigned int tid) {
     if(tid == 0)
       ss.display();
   }
-
 }

@@ -5,8 +5,8 @@
 #include <ctime>
 #include <sstream>
 
-#include "record.h"
 #include "engine.h"
+#include "record.h"
 
 using namespace std;
 
@@ -36,7 +36,6 @@ record* deserialize(std::string entry, schema* sptr);
 
 // string to string
 std::string deserialize_to_string(std::string entry_str, schema* sptr);
-
 
 std::string get_tuple(std::stringstream& entry, schema* sptr);
 
