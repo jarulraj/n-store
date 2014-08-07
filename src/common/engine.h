@@ -3,29 +3,91 @@
 
 #include <string>
 
-#include "statement.h"
-#include "nstore.h"
+#include "wal_engine.h"
+#include "sp_engine.h"
+#include "lsm_engine.h"
+#include "opt_wal_engine.h"
+#include "opt_sp_engine.h"
+#include "opt_lsm_engine.h"
 
 using namespace std;
 
 class engine {
  public:
-  virtual std::string select(const statement& st) = 0;
-  virtual int insert(const statement& st) = 0;
-  virtual int remove(const statement& st) = 0;
-  virtual int update(const statement& st) = 0;
+  engine()
+      : etype(engine_type::WAL),
+        de(NULL) {
+  }
 
-  virtual void load(const statement& st) = 0;
+  engine(const config& conf)
+      : etype(conf.etype) {
 
-  virtual void txn_begin() = 0;
-  virtual void txn_end(bool commit) = 0;
+    switch (conf.etype) {
+      case engine_type::WAL:
+        de = new wal_engine(conf, conf.read_only);
+        break;
+      /*
+      case engine_type::SP:
+        de = new sp_engine(conf, conf.read_only);
+        break;
+      case engine_type::LSM:
+        de = new lsm_engine(conf, conf.read_only);
+        break;
+      case engine_type::OPT_WAL:
+        de = new opt_wal_engine(conf, conf.read_only);
+        break;
+      case engine_type::OPT_SP:
+        de = new opt_sp_engine(conf, conf.read_only);
+        break;
+      case engine_type::OPT_LSM:
+        de = new opt_lsm_engine(conf, conf.read_only);
+        break;
+      */
+      default:
+        cout << "Unknown engine type :: " << etype << endl;
+        exit(EXIT_FAILURE);
+        break;
+    }
+  }
 
-  virtual void recovery() = 0;
+  ~engine() {
+    delete de;
+  }
 
-  virtual ~engine() {}
+  std::string select(const statement& st) {
+    return (de->select(st));
+  }
 
-  int txn_counter;
+  int insert(const statement& st) {
+    return (de->insert(st));
+  }
+
+  int remove(const statement& st) {
+    return (de->remove(st));
+  }
+
+  int update(const statement& st) {
+    return (de->update(st));
+  }
+
+  void load(const statement& st) {
+    de->load(st);
+  }
+
+  void txn_begin() {
+    de->txn_begin();
+  }
+
+  void txn_end(bool commit) {
+    de->txn_end(commit);
+  }
+
+  void recovery() {
+    de->recovery();
+  }
+
   engine_type etype;
+  storage_engine* de;
 };
 
 #endif  /* ENGINE_H_ */

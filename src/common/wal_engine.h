@@ -6,7 +6,6 @@
 #include <atomic>
 #include <thread>
 
-#include "engine.h"
 #include "nstore.h"
 #include "transaction.h"
 #include "record.h"
@@ -15,10 +14,11 @@
 #include "pthread.h"
 #include "logger.h"
 #include "timer.h"
+#include "storage_engine.h"
 
 using namespace std;
 
-class wal_engine : public engine {
+class wal_engine : public storage_engine {
  public:
   wal_engine(const config& _conf, bool _read_only = false);
   ~wal_engine();

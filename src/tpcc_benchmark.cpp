@@ -2178,5 +2178,5 @@ void tpcc_benchmark::execute(engine* ee) {
     ss.display();
   }
 
-  display_stats(ee, tm.duration(), conf.num_txns);
+  display_stats(ee->de, tm.duration(), conf.num_txns);
 }

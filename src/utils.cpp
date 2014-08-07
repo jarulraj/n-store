@@ -228,7 +228,7 @@ std::string get_tuple(std::stringstream& entry, schema* sptr) {
 
 // TIMER
 
-void display_stats(engine* ee, double duration, int num_txns) {
+void display_stats(storage_engine* ee, double duration, int num_txns) {
   double throughput;
 
   switch (ee->etype) {
