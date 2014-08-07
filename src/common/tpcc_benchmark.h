@@ -25,8 +25,6 @@ class tpcc_benchmark : public benchmark {
   void execute(engine* ee);
   void execute_one(engine* ee);
 
-  void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
-
   table* create_warehouse();
   table* create_district();
   table* create_item();

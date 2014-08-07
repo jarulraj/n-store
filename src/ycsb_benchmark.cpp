@@ -52,26 +52,26 @@ table* create_usertable(config& conf) {
   }
 
   // SCHEMA
-  schema* usertable_schema = new schema(cols);
-  pmemalloc_activate(usertable_schema);
+  schema* user_table_schema = new schema(cols);
+  pmemalloc_activate(user_table_schema);
 
-  table* usertable = new table("usertable", usertable_schema, 1, conf);
-  pmemalloc_activate(usertable);
+  table* user_table = new table("user", user_table_schema, 1, conf);
+  pmemalloc_activate(user_table);
 
   // PRIMARY INDEX
   for (int itr = 1; itr <= conf.ycsb_num_val_fields; itr++) {
     cols[itr].enabled = 0;
   }
 
-  schema* usertable_index_schema = new schema(cols);
-  pmemalloc_activate(usertable_index_schema);
+  schema* user_table_index_schema = new schema(cols);
+  pmemalloc_activate(user_table_index_schema);
 
-  table_index* key_index = new table_index(usertable_index_schema,
+  table_index* key_index = new table_index(user_table_index_schema,
                                            conf.ycsb_num_val_fields + 1, conf);
   pmemalloc_activate(key_index);
-  usertable->indices->push_back(key_index);
+  user_table->indices->push_back(key_index);
 
-  return usertable;
+  return user_table;
 }
 
 ycsb_benchmark::ycsb_benchmark(config& _conf)
@@ -100,14 +100,24 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
     conf.db = db;
   }
 
+  user_table_schema = conf.db->tables->at(USER_TABLE_ID)->sptr;
+
   if (conf.recovery) {
     conf.num_keys = 1000;
     conf.ycsb_per_writes = 0.5;
   }
 
+  if (conf.ycsb_update_one == false) {
+    for (int itr = 1; itr <= conf.ycsb_num_val_fields; itr++)
+      update_field_ids.push_back(itr);
+  } else {
+    // Update only first field
+    update_field_ids.push_back(1);
+  }
+
   // Generate skewed dist
   simple_skew(simple_dist, conf.ycsb_skew, conf.num_keys,
-       conf.num_txns * conf.ycsb_tuples_per_txn);
+              conf.num_txns * conf.ycsb_tuples_per_txn);
   uniform(uniform_dist, conf.num_txns);
 }
 
@@ -121,7 +131,7 @@ void ycsb_benchmark::load(engine* ee) {
 
   ee->txn_begin();
 
-  for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++, txn_id++) {
+  for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++) {
     // LOAD
     int key = txn_itr;
     std::string value = get_rand_astring(conf.ycsb_field_size);
@@ -139,14 +149,12 @@ void ycsb_benchmark::load(engine* ee) {
   ee->txn_end(true);
 }
 
-void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,
-                               schema* usertable_schema,
-                               const vector<int>& field_ids) {
+void ycsb_benchmark::do_update(engine* ee) {
 
 // UPDATE
   std::string updated_val(conf.ycsb_field_size, 'x');
-  int zipf_dist_offset = txn_itr * conf.ycsb_tuples_per_txn;
-  unsigned int usertable_id = 0;
+  int zipf_dist_offset = txn_id * conf.ycsb_tuples_per_txn;
+  txn_id++;
   int rc;
 
   TIMER(ee->txn_begin())
@@ -155,12 +163,12 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,
 
     int key = simple_dist[zipf_dist_offset + stmt_itr];
 
-    record* rec_ptr = new usertable_record(usertable_schema, key, updated_val,
+    record* rec_ptr = new usertable_record(user_table_schema, key, updated_val,
                                            conf.ycsb_num_val_fields,
                                            conf.ycsb_update_one);
 
-    statement st(txn_id, operation_type::Update, usertable_id, rec_ptr,
-                 field_ids);
+    statement st(txn_id, operation_type::Update, USER_TABLE_ID, rec_ptr,
+                 update_field_ids);
 
     TIMER(ee->update(st))
 
@@ -171,13 +179,11 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int txn_itr,
   TIMER(ee->txn_end(true))
 }
 
-void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
-                             schema* usertable_schema) {
+void ycsb_benchmark::do_read(engine* ee) {
 
 // SELECT
-  int zipf_dist_offset = txn_itr * conf.ycsb_tuples_per_txn;
-  unsigned int usertable_id = 0;
-  unsigned int usertable_index_id = 0;
+  int zipf_dist_offset = txn_id * conf.ycsb_tuples_per_txn;
+  txn_id++;
   std::string empty;
   int rc;
 
@@ -187,11 +193,11 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
 
     int key = simple_dist[zipf_dist_offset + stmt_itr];
 
-    record* rec_ptr = new usertable_record(usertable_schema, key, empty,
+    record* rec_ptr = new usertable_record(user_table_schema, key, empty,
                                            conf.ycsb_num_val_fields, false);
 
-    statement st(txn_id, operation_type::Select, usertable_id, rec_ptr,
-                 usertable_index_id, usertable_schema);
+    statement st(txn_id, operation_type::Select, USER_TABLE_ID, rec_ptr, 0,
+                 user_table_schema);
 
     TIMER(ee->select(st))
   }
@@ -202,9 +208,6 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int txn_itr,
 void ycsb_benchmark::execute_one(engine* ee) {
 
   // UPDATE
-  unsigned int usertable_id = 0;
-  schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
-
   vector<int> field_ids;
   for (int itr = 1; itr <= conf.ycsb_num_val_fields; itr++)
     field_ids.push_back(itr);
@@ -218,11 +221,11 @@ void ycsb_benchmark::execute_one(engine* ee) {
 
     int key = simple_dist[zipf_dist_offset + stmt_itr];
 
-    record* rec_ptr = new usertable_record(usertable_schema, key, updated_val,
+    record* rec_ptr = new usertable_record(user_table_schema, key, updated_val,
                                            conf.ycsb_num_val_fields,
                                            conf.ycsb_update_one);
 
-    statement st(txn_id, operation_type::Update, usertable_id, rec_ptr,
+    statement st(txn_id, operation_type::Update, USER_TABLE_ID, rec_ptr,
                  field_ids);
 
     ee->update(st);
@@ -237,25 +240,15 @@ void ycsb_benchmark::execute(engine* ee) {
 
   unsigned int usertable_id = 0;
   unsigned int txn_itr;
-  schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
   status ss(conf.num_txns);
 
-  vector<int> field_ids;
-  if (conf.ycsb_update_one == false) {
-    for (int itr = 1; itr <= conf.ycsb_num_val_fields; itr++)
-      field_ids.push_back(itr);
-  } else {
-    // Update only first field
-    field_ids.push_back(1);
-  }
-
-  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++, txn_id++) {
+  for (txn_itr = 0; txn_itr < conf.num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
     if (u < conf.ycsb_per_writes) {
-      do_update(ee, txn_itr, usertable_schema, field_ids);
+      do_update(ee);
     } else {
-      do_read(ee, txn_itr, usertable_schema);
+      do_read(ee);
     }
 
     ss.display();

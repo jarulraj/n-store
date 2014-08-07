@@ -21,11 +21,19 @@ class ycsb_benchmark : public benchmark {
   void execute(engine* ee);
   void execute_one(engine* ee);
 
-  void do_update(engine* ee, unsigned int txn_itr, schema* usertable_schema, const vector<int>& field_ids);
-  void do_read(engine* ee, unsigned int txn_itr, schema* usertable_schema);
+  void do_update(engine* ee);
+  void do_read(engine* ee);
+
+  // Table Ids
+  const int USER_TABLE_ID = 0;
+
+  // Schema
+  schema* user_table_schema;
 
   vector<int> simple_dist;
   vector<double> uniform_dist;
+
+  vector<int> update_field_ids;
 
   config& conf;
   benchmark_type btype;
