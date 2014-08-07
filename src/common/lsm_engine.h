@@ -7,7 +7,7 @@
 #include <sstream>
 #include <atomic>
 
-#include "engine.h"
+#include "engine_api.h"
 #include "nstore.h"
 #include "transaction.h"
 #include "record.h"
@@ -19,7 +19,7 @@
 
 using namespace std;
 
-class lsm_engine : public engine {
+class lsm_engine : public engine_api {
  public:
   lsm_engine(const config& _conf, bool _read_only = false);
   ~lsm_engine();

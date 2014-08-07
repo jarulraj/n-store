@@ -8,7 +8,6 @@
 #include <cassert>
 
 #include "utils.h"
-#include "nstore.h"
 
 using namespace std;
 
@@ -228,10 +227,10 @@ std::string get_tuple(std::stringstream& entry, schema* sptr) {
 
 // TIMER
 
-void display_stats(engine* ee, double duration, int num_txns) {
+void display_stats(engine_type etype, double duration, int num_txns) {
   double throughput;
 
-  switch (ee->etype) {
+  switch (etype) {
     case engine_type::WAL:
       cout << "WAL :: ";
       break;

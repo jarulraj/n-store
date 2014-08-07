@@ -179,9 +179,6 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int tid) {
                  update_field_ids);
 
     TIMER(ee->update(st))
-
-    if (rc < 0)
-      perror("update");
   }
 
   TIMER(ee->txn_end(true))
@@ -251,6 +248,9 @@ void ycsb_benchmark::handler(engine* ee, unsigned int tid) {
   unsigned int end_txn_itr = start_txn_itr + per_thd_txns;
   unsigned int txn_itr;
   status ss(per_thd_txns);
+
+  //cout<<"per thd txns :: "<<per_thd_txns<<endl;
+  //cout<<"tid :: "<<tid<<" engine :: "<<ee<<endl;
 
   for (txn_itr = start_txn_itr; txn_itr < end_txn_itr; txn_itr++) {
     double u = uniform_dist[txn_itr];

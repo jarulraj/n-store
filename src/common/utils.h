@@ -5,7 +5,7 @@
 #include <ctime>
 #include <sstream>
 
-#include "engine.h"
+#include "nstore.h"
 #include "record.h"
 
 using namespace std;
@@ -40,6 +40,13 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr);
 std::string get_tuple(std::stringstream& entry, schema* sptr);
 
 // szudzik hasher
+inline unsigned long hasher(unsigned long a, unsigned long b) {
+  if (a >= b)
+    return (a * a + a + b);
+  else
+    return (a + b * b);
+}
+
 inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {
   unsigned long a_sq = a * a;
   unsigned long ret = (a_sq + b) * (a_sq + b) + c;
@@ -52,7 +59,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values);
 
 void uniform(vector<double>& uniform_dist, int num_values);
 
-void display_stats(engine* ee, double duration, int num_txns);
+void display_stats(engine_type etype, double duration, int num_txns);
 
 void wrlock(pthread_rwlock_t* access);
 

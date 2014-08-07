@@ -7,7 +7,7 @@
 #include <atomic>
 #include <sstream>
 
-#include "engine.h"
+#include "engine_api.h"
 #include "nstore.h"
 #include "transaction.h"
 #include "record.h"
@@ -18,7 +18,7 @@
 
 using namespace std;
 
-class sp_engine : public engine {
+class sp_engine : public engine_api {
  public:
   sp_engine(const config& _conf, bool _read_only = false);
   ~sp_engine();

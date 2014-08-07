@@ -6,6 +6,7 @@
 #include "schema.h"
 #include "field.h"
 #include <cassert>
+#include <climits>
 
 using namespace std;
 
@@ -14,7 +15,8 @@ class record {
   record(schema* _sptr)
       : sptr(_sptr),
         data(NULL),
-        data_len(_sptr->ser_len) {
+        data_len(_sptr->ser_len),
+        hash_id(ULONG_MAX) {
     data = new char[data_len];
   }
 
@@ -140,9 +142,22 @@ class record {
     }
   }
 
+  unsigned long get_hash_id() {
+    if (hash_id == ULONG_MAX) {
+      int c, i = 0;
+      hash_id = 0;
+      while ((c = data[i++]) != NULL) {
+        hash_id = c + (hash_id << 6) + (hash_id << 16) - hash_id;
+      }
+    }
+
+    return hash_id;
+  }
+
   schema* sptr;
   char* data;
   size_t data_len;
+  unsigned long hash_id;
 }
 ;
 

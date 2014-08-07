@@ -5,7 +5,7 @@
 #include <sstream>
 #include <atomic>
 
-#include "engine.h"
+#include "engine_api.h"
 #include "nstore.h"
 #include "transaction.h"
 #include "record.h"
@@ -17,7 +17,7 @@
 
 using namespace std;
 
-class opt_wal_engine : public engine {
+class opt_wal_engine : public engine_api {
  public:
   opt_wal_engine(const config& _conf, bool _read_only = false);
   ~opt_wal_engine();

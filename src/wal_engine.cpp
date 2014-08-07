@@ -11,7 +11,8 @@ void wal_engine::group_commit() {
     //std::cout << "Syncing log !" << endl;
 
     // sync
-    fs_log.sync();
+    if (tid == 0)
+      fs_log.sync();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
   }
@@ -44,17 +45,21 @@ wal_engine::~wal_engine() {
     ready = false;
     gc.join();
 
-    if (!conf.recovery) {
-      fs_log.sync();
-      fs_log.close();
+    if (tid == 0) {
+      if (!conf.recovery) {
+        fs_log.sync();
+        fs_log.close();
+      }
+
+      vector<table*> tables = db->tables->get_data();
+      for (table* tab : tables) {
+        tab->fs_data.sync();
+        tab->fs_data.close();
+      }
     }
 
-    vector<table*> tables = db->tables->get_data();
-    for (table* tab : tables) {
-      tab->fs_data.sync();
-      tab->fs_data.close();
-    }
   }
+
 }
 
 std::string wal_engine::select(const statement& st) {
@@ -145,13 +150,14 @@ int wal_engine::remove(const statement& st) {
   std::string val;
 
   // Check if key does not exist
-  if (indices->at(0)->off_map->exists(key) == 0) {
-    delete rec_ptr;
-    return EXIT_SUCCESS;
-  }
+  if (indices->at(0)->off_map->exists(key) == 0)
+    goto end;
 
   storage_offset = indices->at(0)->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
+
+  if(val.empty())
+    goto end;
 
   before_rec = deserialize(val, tab->sptr);
 
@@ -193,13 +199,14 @@ int wal_engine::update(const statement& st) {
 
   // Check if key does not exist
   if (indices->at(0)->off_map->exists(key) == 0) {
-    delete rec_ptr;
-    return EXIT_SUCCESS;
+    goto end;
   }
 
   storage_offset = indices->at(0)->off_map->at(key);
   val = tab->fs_data.at(storage_offset);
 
+  if (val.empty())
+    goto end;
   //LOG_INFO("val : %s", val.c_str());
   before_rec = deserialize(val, tab->sptr);
 
@@ -228,7 +235,7 @@ int wal_engine::update(const statement& st) {
   tab->fs_data.update(storage_offset, before_tuple);
 
   delete before_rec;
-  delete rec_ptr;
+  end: delete rec_ptr;
   return EXIT_SUCCESS;
 }
 
@@ -323,7 +330,7 @@ void wal_engine::recovery() {
       case operation_type::Insert: {
         if (!undo_mode)
           LOG_INFO("Redo Insert");
-        else
+          else
           LOG_INFO("Undo Delete");
 
         tab = db->tables->at(table_id);
@@ -339,7 +346,7 @@ void wal_engine::recovery() {
       case operation_type::Delete: {
         if (!undo_mode)
           LOG_INFO("Redo Delete");
-        else
+          else
           LOG_INFO("Undo Insert");
 
         tab = db->tables->at(table_id);
@@ -355,7 +362,7 @@ void wal_engine::recovery() {
       case operation_type::Update: {
         if (!undo_mode)
           LOG_INFO("Redo Update");
-        else
+          else
           LOG_INFO("Undo Update");
 
         tab = db->tables->at(table_id);

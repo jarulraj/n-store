@@ -8,7 +8,7 @@
 #include <atomic>
 #include <sstream>
 
-#include "engine.h"
+#include "engine_api.h"
 #include "nstore.h"
 #include "transaction.h"
 #include "record.h"
@@ -19,7 +19,7 @@
 
 using namespace std;
 
-class opt_sp_engine : public engine {
+class opt_sp_engine : public engine_api {
  public:
   opt_sp_engine(const config& _conf, bool _read_only = false);
   ~opt_sp_engine();

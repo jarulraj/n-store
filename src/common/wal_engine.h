@@ -6,6 +6,7 @@
 #include <atomic>
 #include <thread>
 
+#include "engine_api.h"
 #include "nstore.h"
 #include "transaction.h"
 #include "record.h"
@@ -17,7 +18,7 @@
 
 using namespace std;
 
-class wal_engine : public engine {
+class wal_engine : public engine_api {
  public:
   wal_engine(const config& _conf, bool _read_only = false);
   ~wal_engine();
@@ -47,6 +48,7 @@ class wal_engine : public engine {
   std::string entry_str;
 
   std::thread gc;
+  pthread_rwlock_t wal_pbtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::atomic_bool ready;
 
   bool read_only = false;

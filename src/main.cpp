@@ -3,13 +3,6 @@
 #include <cassert>
 
 #include "nstore.h"
-#include "wal_engine.h"
-#include "sp_engine.h"
-#include "lsm_engine.h"
-#include "opt_wal_engine.h"
-#include "opt_sp_engine.h"
-#include "opt_lsm_engine.h"
-
 #include "ycsb_benchmark.h"
 #include "tpcc_benchmark.h"
 #include "utils.h"
@@ -76,9 +69,9 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.ycsb_skew = 1.0;
   state.ycsb_update_one = false;
-  state.ycsb_field_size = 100;
+  state.ycsb_field_size = 3;
   state.ycsb_tuples_per_txn = 2;
-  state.ycsb_num_val_fields = 10;
+  state.ycsb_num_val_fields = 2;
 
   state.tpcc_num_warehouses = 2;
   state.tpcc_stock_level_only = false;
@@ -206,18 +199,14 @@ void execute(config& state) {
 
   // Fix benchmark
   switch (state.btype) {
-    case benchmark_type::YCSB: {
+    case benchmark_type::YCSB:
       LOG_INFO("YCSB");
-
       bh = new ycsb_benchmark(state);
-    }
       break;
 
-    case benchmark_type::TPCC: {
+    case benchmark_type::TPCC:
       LOG_INFO("TPCC");
-
       bh = new tpcc_benchmark(state);
-    }
       break;
 
     default:
@@ -227,125 +216,21 @@ void execute(config& state) {
 
   // Run engine
   switch (state.etype) {
-    case engine_type::WAL: {
-      LOG_INFO("WAL");
-      wal_engine* wal;
+    case engine_type::WAL:
+    case engine_type::SP:
+    case engine_type::LSM:
+    case engine_type::OPT_WAL:
+    case engine_type::OPT_SP:
+    case engine_type::OPT_LSM:
 
-      wal = new wal_engine(state);
-      bh->load(wal);
-      delete wal;
+      if (generate_dataset)
+        bh->load(state);
 
-      wal = new wal_engine(state, state.read_only);
-      bh->execute(wal);
+      bh->execute(state);
 
-      if (state.recovery)
-        wal->recovery();
+      //if(state.recovery)
+      //  sp->recovery();
 
-      delete wal;
-    }
-      break;
-
-    case engine_type::SP: {
-      LOG_INFO("SP");
-      sp_engine* sp;
-
-      if (generate_dataset) {
-        sp = new sp_engine(state);
-        bh->load(sp);
-        delete sp;
-      }
-
-      sp = new sp_engine(state, state.read_only);
-      bh->execute(sp);
-
-      if (state.recovery)
-        sp->recovery();
-
-      delete sp;
-
-    }
-      break;
-
-    case engine_type::LSM: {
-      LOG_INFO("LSM");
-      lsm_engine* lsm;
-
-      lsm = new lsm_engine(state);
-      bh->load(lsm);
-      delete lsm;
-
-      lsm = new lsm_engine(state, false);
-      bh->execute(lsm);
-
-      if (state.recovery)
-        lsm->recovery();
-
-      delete lsm;
-    }
-      break;
-
-    case engine_type::OPT_WAL: {
-      LOG_INFO("OPT WAL");
-      opt_wal_engine* opt_wal;
-
-      if (generate_dataset) {
-        opt_wal = new opt_wal_engine(state);
-        bh->load(opt_wal);
-        delete opt_wal;
-      }
-
-      opt_wal = new opt_wal_engine(state, state.read_only);
-      bh->execute(opt_wal);
-
-      if (state.recovery) {
-        bh->sim_crash(opt_wal);
-        opt_wal->recovery();
-      }
-
-      delete opt_wal;
-    }
-      break;
-
-    case engine_type::OPT_SP: {
-      LOG_INFO("OPT SP");
-      opt_sp_engine* opt_sp;
-
-      if (generate_dataset) {
-        opt_sp = new opt_sp_engine(state);
-        bh->load(opt_sp);
-        delete opt_sp;
-      }
-
-      opt_sp = new opt_sp_engine(state, state.read_only);
-      bh->execute(opt_sp);
-
-      if (state.recovery)
-        opt_sp->recovery();
-
-      delete opt_sp;
-    }
-
-      break;
-
-    case engine_type::OPT_LSM: {
-      LOG_INFO("OPT LSM");
-
-      opt_lsm_engine* opt_lsm;
-
-      if (generate_dataset) {
-        opt_lsm = new opt_lsm_engine(state);
-        bh->load(opt_lsm);
-        delete opt_lsm;
-      }
-
-      opt_lsm = new opt_lsm_engine(state, state.read_only);
-      bh->execute(opt_lsm);
-
-      if (state.recovery)
-        opt_lsm->recovery();
-
-      delete opt_lsm;
-    }
       break;
 
     default:
