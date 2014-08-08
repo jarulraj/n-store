@@ -13,8 +13,6 @@ opt_wal_engine::opt_wal_engine(const config& _conf, bool _read_only,
   etype = engine_type::OPT_WAL;
   read_only = _read_only;
   pm_log = db->log->at(tid);
-
-  cout << "tid :: " << tid << " pm log :: " << pm_log << endl;
 }
 
 opt_wal_engine::~opt_wal_engine() {
