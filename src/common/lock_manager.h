@@ -33,7 +33,7 @@ class lock_manager {
     }
     unlock(&lock_table_rwlock);
 
-    abort++;
+    //abort++;
     return -1;
   }
 
@@ -48,7 +48,7 @@ class lock_manager {
     }
     unlock(&lock_table_rwlock);
 
-    abort++;
+    //abort++;
     return -1;
   }
 

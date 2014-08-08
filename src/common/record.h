@@ -16,7 +16,7 @@ class record {
       : sptr(_sptr),
         data(NULL),
         data_len(_sptr->ser_len),
-        hash_id(ULONG_MAX) {
+        hash_id(0) {
     data = new char[data_len];
   }
 
@@ -143,14 +143,9 @@ class record {
   }
 
   unsigned long get_hash_id() {
-    if (hash_id == ULONG_MAX) {
-      int c, i = 0;
-      hash_id = 0;
-      while ((c = data[i++]) != NULL) {
-        hash_id = c + (hash_id << 6) + (hash_id << 16) - hash_id;
-      }
+    if (hash_id == 0) {
+      hash_id = rand();
     }
-
     return hash_id;
   }
 

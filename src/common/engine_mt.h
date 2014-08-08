@@ -26,8 +26,8 @@ class engine_mt : public engine {
     std::string ret;
     int tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
-    int rc = lm->tuple_rdlock(lock_id);
 
+    int rc = lm->tuple_rdlock(lock_id);
     if (rc == 0) {
       ret = de->select(st);
       lk_vec.push_back(lock_id);
@@ -41,8 +41,8 @@ class engine_mt : public engine {
     int ret = -1;
     int tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
-    int rc = lm->tuple_wrlock(lock_id);
 
+    int rc = lm->tuple_wrlock(lock_id);
     if (rc == 0) {
       ret = de->insert(st);
       lk_vec.push_back(lock_id);
@@ -56,10 +56,12 @@ class engine_mt : public engine {
     int ret = -1;
     int tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
-    int rc = lm->tuple_wrlock(lock_id);
 
-    if (rc == 0)
+    int rc = lm->tuple_wrlock(lock_id);
+    if (rc == 0){
       ret = de->remove(st);
+      lk_vec.push_back(lock_id);
+    }
     else
       release();
 
@@ -70,8 +72,8 @@ class engine_mt : public engine {
     int ret = -1;
     int tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
-    int rc = lm->tuple_wrlock(lock_id);
 
+    int rc = lm->tuple_wrlock(lock_id);
     if (rc == 0) {
       ret = de->update(st);
       lk_vec.push_back(lock_id);
