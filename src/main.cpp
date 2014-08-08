@@ -50,8 +50,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.num_keys = 10;
   state.num_txns = 10;
 
-  state.single = true;
-  state.num_executors = 1;
+  state.single = false;
+  state.num_executors = 4;
 
   state.verbose = false;
 

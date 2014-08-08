@@ -26,6 +26,10 @@ class benchmark {
     single = conf.single;
     num_executors = conf.num_executors;
     num_txns = conf.num_txns;
+
+    for(int i = 0; i < num_executors; i++)
+        tm[i] = timer();
+
   }
 
   virtual void load(engine* ee) = 0;
