@@ -77,11 +77,11 @@ class engine {
     de->load(st);
   }
 
-  void txn_begin() {
+  virtual void txn_begin() {
     de->txn_begin();
   }
 
-  void txn_end(bool commit) {
+  virtual void txn_end(bool commit) {
     de->txn_end(commit);
   }
 

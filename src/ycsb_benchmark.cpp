@@ -178,7 +178,11 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int tid) {
     statement st(txn_id, operation_type::Update, USER_TABLE_ID, rec_ptr,
                  update_field_ids);
 
-    TIMER(ee->update(st))
+    TIMER(rc = ee->update(st))
+    if (rc != 0) {
+      TIMER(ee->txn_end(false))
+      return;
+    }
   }
 
   TIMER(ee->txn_end(true))
@@ -190,7 +194,7 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int tid) {
   int zipf_dist_offset = txn_id * conf.ycsb_tuples_per_txn;
   txn_id++;
   std::string empty;
-  int rc;
+  std::string rc;
 
   TIMER(ee->txn_begin())
 
@@ -261,7 +265,7 @@ void ycsb_benchmark::handler(engine* ee, unsigned int tid) {
       do_read(ee, tid);
     }
 
-    if(tid == 0)
+    if (tid == 0)
       ss.display();
   }
 }

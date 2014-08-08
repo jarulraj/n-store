@@ -22,8 +22,7 @@ struct lock_t {
 class lock_manager {
  public:
 
-  int tuple_rdlock(unsigned int table_id, unsigned int tuple_id) {
-    unsigned long hash = hasher(table_id, tuple_id);
+  int tuple_rdlock(unsigned long hash) {
 
     wrlock(&lock_table_rwlock);
     if (!lock_table[hash].writer) {
@@ -38,8 +37,7 @@ class lock_manager {
     return -1;
   }
 
-  int tuple_wrlock(unsigned int table_id, unsigned int tuple_id) {
-    unsigned long hash = hasher(table_id, tuple_id);
+  int tuple_wrlock(unsigned long hash) {
 
     wrlock(&lock_table_rwlock);
     if (lock_table[hash].readers == 0) {
@@ -54,8 +52,7 @@ class lock_manager {
     return -1;
   }
 
-  int tuple_unlock(unsigned int table_id, unsigned int tuple_id) {
-    unsigned long hash = hasher(table_id, tuple_id);
+  int tuple_unlock(unsigned long hash) {
 
     wrlock(&lock_table_rwlock);
     if (lock_table[hash].locked) {
