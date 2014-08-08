@@ -12,10 +12,10 @@ void opt_sp_engine::group_commit() {
       wrlock(&gc_rwlock);
 
       if (tid == 0) {
-        mt_wrlock(db_dirs_rwlock_ptr);
+        wrlock(db_dirs_rwlock_ptr);
         assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
         txn_ptr = bt->txn_begin(0);
-        mt_unlock(db_dirs_rwlock_ptr);
+        unlock(db_dirs_rwlock_ptr);
         assert(txn_ptr);
       }
 
@@ -37,15 +37,13 @@ opt_sp_engine::opt_sp_engine(const config& _conf, bool _read_only,
   etype = engine_type::OPT_SP;
   read_only = _read_only;
   db_dirs_rwlock_ptr = &db->db_dirs_rwlock_ptr;
-  if (conf.num_executors > 0)
-    multithreaded = true;
 
   bt = db->dirs->t_ptr;
   if (tid == 0) {
-    mt_wrlock(db_dirs_rwlock_ptr);
+    wrlock(db_dirs_rwlock_ptr);
     txn_ptr = bt->txn_begin(read_only);
     assert(txn_ptr);
-    mt_unlock(db_dirs_rwlock_ptr);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   // Commit only if needed
@@ -87,13 +85,13 @@ std::string opt_sp_engine::select(const statement& st) {
   std::string value;
 
   // Read from latest clean version
-  mt_rdlock(db_dirs_rwlock_ptr);
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     memcpy(&select_ptr, val.data, sizeof(record*));
     //printf("select_ptr :: --%p-- \n", select_ptr);
     value = serialize(select_ptr, st.projection);
   }
-  mt_unlock(db_dirs_rwlock_ptr);
+  unlock(db_dirs_rwlock_ptr);
 
   LOG_INFO("val : %s", value.c_str());
   //cout<<"val : " <<value<<endl;
@@ -122,13 +120,13 @@ int opt_sp_engine::insert(const statement& st) {
   key.size = key_str.size();
 
   // Check if key exists in current version
-  mt_rdlock(db_dirs_rwlock_ptr);
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     delete after_rec;
-    mt_unlock(db_dirs_rwlock_ptr);
+    unlock(db_dirs_rwlock_ptr);
     return EXIT_SUCCESS;
   }
-  mt_unlock(db_dirs_rwlock_ptr);
+  unlock(db_dirs_rwlock_ptr);
 
   // Activate new record
   pmemalloc_activate(after_rec);
@@ -145,9 +143,9 @@ int opt_sp_engine::insert(const statement& st) {
     memcpy(val.data, &after_rec, sizeof(record*));
     val.size = sizeof(record*);
 
-    mt_wrlock(db_dirs_rwlock_ptr);
+    wrlock(db_dirs_rwlock_ptr);
     bt->insert(txn_ptr, &key, &val);
-    mt_unlock(db_dirs_rwlock_ptr);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   delete ((char*) val.data);
@@ -172,13 +170,13 @@ int opt_sp_engine::remove(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist
-  mt_rdlock(db_dirs_rwlock_ptr);
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
-    mt_unlock(db_dirs_rwlock_ptr);
+    unlock(db_dirs_rwlock_ptr);
     return EXIT_SUCCESS;
   }
-  mt_unlock(db_dirs_rwlock_ptr);
+  unlock(db_dirs_rwlock_ptr);
 
   // Free record
   record* before_rec;
@@ -193,17 +191,13 @@ int opt_sp_engine::remove(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    mt_wrlock(db_dirs_rwlock_ptr);
+    wrlock(db_dirs_rwlock_ptr);
     bt->remove(txn_ptr, &key, NULL);
-    mt_unlock(db_dirs_rwlock_ptr);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   delete rec_ptr;
-
-  if(!multithreaded){
-    before_rec->clear_data();
-    delete before_rec;
-  }
+  //XXX  before_rec->clear_data(); delete before_rec;
   return EXIT_SUCCESS;
 }
 
@@ -226,13 +220,13 @@ int opt_sp_engine::update(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist in current version
-  mt_rdlock(db_dirs_rwlock_ptr);
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
-    mt_unlock(db_dirs_rwlock_ptr);
+    unlock(db_dirs_rwlock_ptr);
     return EXIT_SUCCESS;
   }
-  mt_unlock(db_dirs_rwlock_ptr);
+  unlock(db_dirs_rwlock_ptr);
 
   // Read from current version
   record* before_rec;
@@ -250,8 +244,7 @@ int opt_sp_engine::update(const statement& st) {
       before_field = before_rec->get_pointer(field_itr);
       after_field = rec_ptr->get_pointer(field_itr);
       pmemalloc_activate(after_field);
-      if(!multithreaded)
-        delete ((char*) before_field);
+      // XXX delete ((char*) before_field);
     }
 
     after_rec->set_data(field_itr, rec_ptr);
@@ -274,17 +267,16 @@ int opt_sp_engine::update(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    mt_wrlock(db_dirs_rwlock_ptr);
+    wrlock(db_dirs_rwlock_ptr);
     bt->insert(txn_ptr, &key, &update_val);
-    mt_unlock(db_dirs_rwlock_ptr);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   //printf("before_rec :: record :: %p \n", before_rec);
   //printf("rec_ptr :: record :: %p \n", rec_ptr);
 
   delete rec_ptr;
-  if(!multithreaded)
-    delete before_rec;
+  //XXX delete before_rec;
   delete ((char*) update_val.data);
   return EXIT_SUCCESS;
 }

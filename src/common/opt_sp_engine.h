@@ -54,23 +54,6 @@ class opt_sp_engine : public engine_api {
   unsigned int tid;
 
   pthread_rwlock_t* db_dirs_rwlock_ptr;
-  bool multithreaded = false;
-
-  // mt_lock wrappers
-  inline void mt_wrlock(pthread_rwlock_t* access) {
-    if (multithreaded)
-      wrlock(access);
-  }
-
-  inline void mt_rdlock(pthread_rwlock_t* access) {
-    if (multithreaded)
-      rdlock(access);
-  }
-
-  inline void mt_unlock(pthread_rwlock_t* access) {
-    if (multithreaded)
-      unlock(access);
-  }
 
 };
 
