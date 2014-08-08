@@ -268,6 +268,7 @@ int opt_sp_engine::update(const statement& st) {
     key.size = key_str.size();
 
     wrlock(db_dirs_rwlock_ptr);
+    bt->remove(txn_ptr, &key, NULL);
     bt->insert(txn_ptr, &key, &update_val);
     unlock(db_dirs_rwlock_ptr);
   }
