@@ -44,7 +44,7 @@ class sp_engine : public engine_api {
   std::hash<std::string> hash_fn;
 
   std::thread gc;
-  pthread_rwlock_t cow_pbtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+  pthread_rwlock_t gc_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::atomic_bool ready;
 
   struct cow_btree* bt;
@@ -54,6 +54,24 @@ class sp_engine : public engine_api {
   unsigned int tid;
 
   pthread_rwlock_t* db_dirs_rwlock_ptr;
+  bool multithreaded = false;
+
+  // mt_lock wrappers
+  inline void mt_wrlock(pthread_rwlock_t* access) {
+    if (multithreaded)
+      wrlock(access);
+  }
+
+  inline void mt_rdlock(pthread_rwlock_t* access) {
+    if (multithreaded)
+      rdlock(access);
+  }
+
+  inline void mt_unlock(pthread_rwlock_t* access) {
+    if (multithreaded)
+      unlock(access);
+  }
+
 };
 
 #endif /* SP_ENGINE_H_ */

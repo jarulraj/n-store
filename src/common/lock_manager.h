@@ -7,20 +7,50 @@
 
 using namespace std;
 
+struct lock_t {
+  lock_t()
+      : locked(false),
+        writer(false),
+        readers(0) {
+  }
+
+  bool locked;
+  bool writer;
+  int readers;
+};
+
 class lock_manager {
  public:
 
-  int tuple_lock(unsigned int table_id, unsigned int tuple_id) {
+  int tuple_rdlock(unsigned int table_id, unsigned int tuple_id) {
     unsigned long hash = hasher(table_id, tuple_id);
 
     wrlock(&lock_table_rwlock);
-    if (lock_table[hash] == false) {
-      lock_table[hash] = true;
+    if (!lock_table[hash].writer) {
+      lock_table[hash].readers++;
+      lock_table[hash].locked = true;
       unlock(&lock_table_rwlock);
       return 0;
     }
     unlock(&lock_table_rwlock);
 
+    abort++;
+    return -1;
+  }
+
+  int tuple_wrlock(unsigned int table_id, unsigned int tuple_id) {
+    unsigned long hash = hasher(table_id, tuple_id);
+
+    wrlock(&lock_table_rwlock);
+    if (lock_table[hash].readers == 0) {
+      lock_table[hash].writer = true;
+      lock_table[hash].locked = true;
+      unlock(&lock_table_rwlock);
+      return 0;
+    }
+    unlock(&lock_table_rwlock);
+
+    abort++;
     return -1;
   }
 
@@ -28,8 +58,16 @@ class lock_manager {
     unsigned long hash = hasher(table_id, tuple_id);
 
     wrlock(&lock_table_rwlock);
-    if (lock_table[hash] == true) {
-      lock_table[hash] = false;
+    if (lock_table[hash].locked) {
+      if (lock_table[hash].readers != 0) {
+        lock_table[hash].readers--;
+
+        if (lock_table[hash].readers == 0)
+          lock_table[hash].locked = false;
+      } else {
+        lock_table[hash].locked = false;
+        lock_table[hash].writer = false;
+      }
       unlock(&lock_table_rwlock);
       return 0;
     }
@@ -39,7 +77,9 @@ class lock_manager {
   }
 
   pthread_rwlock_t lock_table_rwlock = PTHREAD_RWLOCK_INITIALIZER;;
-  std::map<unsigned long, bool> lock_table;
+  std::map<unsigned long, lock_t> lock_table;
+
+  unsigned int abort = 0;
 };
 
 #endif /* LOCK_MANAGER_H_ */

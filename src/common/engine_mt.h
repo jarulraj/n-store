@@ -24,7 +24,7 @@ class engine_mt : public engine {
   std::string select(const statement& st) {
     std::string ret;
     int hash_id = st.rec_ptr->get_hash_id();
-    int rc = lm->tuple_lock(st.table_id, hash_id);
+    int rc = lm->tuple_rdlock(st.table_id, hash_id);
 
     if (rc == 0) {
       ret = de->select(st);
@@ -37,7 +37,7 @@ class engine_mt : public engine {
   int insert(const statement& st) {
     int ret = -1;
     int hash_id = st.rec_ptr->get_hash_id();
-    int rc = lm->tuple_lock(st.table_id, hash_id) ;
+    int rc = lm->tuple_wrlock(st.table_id, hash_id) ;
 
     if (rc == 0) {
       ret = de->insert(st);
@@ -50,7 +50,7 @@ class engine_mt : public engine {
   int remove(const statement& st) {
     int ret = -1;
     int hash_id = st.rec_ptr->get_hash_id();
-    int rc = lm->tuple_lock(st.table_id, hash_id);
+    int rc = lm->tuple_wrlock(st.table_id, hash_id);
 
     if (rc == 0) {
       ret = de->remove(st);
@@ -63,7 +63,7 @@ class engine_mt : public engine {
   int update(const statement& st) {
     int ret = -1;
     int hash_id = st.rec_ptr->get_hash_id();
-    int rc = lm->tuple_lock(st.table_id, hash_id);
+    int rc = lm->tuple_wrlock(st.table_id, hash_id);
 
     if (rc == 0) {
       ret = de->update(st);
@@ -74,7 +74,8 @@ class engine_mt : public engine {
   }
 
   void display(){
-    cout<<"MT"<<endl;
+    cout<<"MT :: ";
+    cout<<"aborts :: "<<lm->abort<<endl;
   }
 
   lock_manager* lm;

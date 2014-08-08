@@ -74,8 +74,10 @@ class benchmark {
 
     display_stats(conf.etype, max_dur, num_txns);
 
-    for (int i = 0; i < num_thds; i++)
+    for (int i = 0; i < num_thds; i++){
+      //te[i]->display();
       delete te[i];
+    }
     delete[] te;
   }
 
