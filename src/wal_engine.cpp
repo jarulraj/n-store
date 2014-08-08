@@ -247,7 +247,7 @@ void wal_engine::txn_end(bool commit) {
 }
 
 void wal_engine::load(const statement& st) {
-  LOG_INFO("Load");
+  //LOG_INFO("Load");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;

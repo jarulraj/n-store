@@ -200,8 +200,10 @@ int opt_sp_engine::remove(const statement& st) {
 
   delete rec_ptr;
 
-  before_rec->clear_data();
-  delete before_rec;
+  if(!multithreaded){
+    before_rec->clear_data();
+    delete before_rec;
+  }
   return EXIT_SUCCESS;
 }
 
@@ -248,7 +250,8 @@ int opt_sp_engine::update(const statement& st) {
       before_field = before_rec->get_pointer(field_itr);
       after_field = rec_ptr->get_pointer(field_itr);
       pmemalloc_activate(after_field);
-      delete ((char*) before_field);
+      if(!multithreaded)
+        delete ((char*) before_field);
     }
 
     after_rec->set_data(field_itr, rec_ptr);
@@ -280,13 +283,14 @@ int opt_sp_engine::update(const statement& st) {
   //printf("rec_ptr :: record :: %p \n", rec_ptr);
 
   delete rec_ptr;
-  delete before_rec;
+  if(!multithreaded)
+    delete before_rec;
   delete ((char*) update_val.data);
   return EXIT_SUCCESS;
 }
 
 void opt_sp_engine::load(const statement& st) {
-  LOG_INFO("Load");
+  //LOG_INFO("Load");
   record* after_rec = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
   plist<table_index*>* indices = tab->indices;

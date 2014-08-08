@@ -1921,7 +1921,7 @@ class cow_btree {
       } else {
         mp = mpages->at(pgno);
 
-        mpage_add(mp);
+        //mpage_add(mp);
       }
     } else {
       DPRINTF("returning page %u from cache \n", pgno);
