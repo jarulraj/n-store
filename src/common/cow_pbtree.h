@@ -1137,12 +1137,14 @@ class cow_btree {
 
     find.pgno = pgno;
     mp = RB_FIND(page_cache, page_cache, &find);
+    /*
     if (mp) {
       stat.hits++;
-      /* Update LRU queue. Move page to the end. */
+      // Update LRU queue. Move page to the end.
       TAILQ_REMOVE(lru_queue, mp, lru_next);
       TAILQ_INSERT_TAIL(lru_queue, mp, lru_next);
     }
+    */
     return mp;
   }
 
@@ -2174,11 +2176,6 @@ class cow_btree {
     //assert(data);
     DPRINTF("===> get key [%.*s]", (int )key->size, (char * )key->data);
 
-    if (key->size == 0 || key->size > MAXKEYSIZE) {
-      errno = EINVAL;
-      return BT_FAIL;
-    }
-
     if ((rc = cow_btree_search_page(_txn, key, NULL, 0, &mp)) != BT_SUCCESS)
       return rc;
 
@@ -2190,7 +2187,7 @@ class cow_btree {
       rc = BT_FAIL;
     }
 
-    mpage_prune();
+    //mpage_prune();
     return rc;
   }
 

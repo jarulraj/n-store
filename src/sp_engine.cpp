@@ -13,8 +13,10 @@ void sp_engine::group_commit() {
       wrlock(&cow_pbtree_rwlock);
 
       if (tid == 0) {
+        wrlock(db_dirs_rwlock_ptr);
         assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
         txn_ptr = bt->txn_begin(0);
+        unlock(db_dirs_rwlock_ptr);
         assert(txn_ptr);
       }
 
@@ -35,11 +37,14 @@ sp_engine::sp_engine(const config& _conf, bool _read_only, unsigned int _tid)
 
   etype = engine_type::SP;
   read_only = _read_only;
+  db_dirs_rwlock_ptr = &db->db_dirs_rwlock_ptr;
 
   bt = db->dirs->t_ptr;
   if (tid == 0) {
+    wrlock(db_dirs_rwlock_ptr);
     txn_ptr = bt->txn_begin(read_only);
     assert(txn_ptr);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   // Commit only if needed
@@ -83,11 +88,13 @@ std::string sp_engine::select(const statement& st) {
   //cout << "Select :: Key : -" << st.key << "-  -" << key_str << "-" << endl;
 
   // Read from latest clean version
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     tuple = std::string((char*) val.data);
     tuple = deserialize_to_string(tuple, st.projection);
     LOG_INFO("val : %s", tuple.c_str());
   }
+  unlock(db_dirs_rwlock_ptr);
 
   //cout<<"val : "<<tuple<<endl;
   delete rec_ptr;
@@ -114,10 +121,13 @@ int sp_engine::insert(const statement& st) {
   key.size = key_str.size();
 
   // Check if key exists in current version
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     delete after_rec;
+    unlock(db_dirs_rwlock_ptr);
     return EXIT_SUCCESS;
   }
+  unlock(db_dirs_rwlock_ptr);
 
   std::string after_tuple = serialize(after_rec, after_rec->sptr);
 
@@ -134,7 +144,10 @@ int sp_engine::insert(const statement& st) {
     //printf("Val :: %s \n", (char*) val.data);
 
     val.size = after_tuple.size() + 1;
+
+    wrlock(db_dirs_rwlock_ptr);
     bt->insert(txn_ptr, &key, &val);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   delete after_rec;
@@ -159,10 +172,13 @@ int sp_engine::remove(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
+    unlock(db_dirs_rwlock_ptr);
     return EXIT_SUCCESS;
   }
+  unlock(db_dirs_rwlock_ptr);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -173,7 +189,9 @@ int sp_engine::remove(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
+    wrlock(db_dirs_rwlock_ptr);
     bt->remove(txn_ptr, &key, NULL);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   delete rec_ptr;
@@ -201,10 +219,13 @@ int sp_engine::update(const statement& st) {
   //cout << "Update :: Key : -" << key_str << endl;
 
   // Check if key does not exist in current version
+  rdlock(db_dirs_rwlock_ptr);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
+    unlock(db_dirs_rwlock_ptr);
     return EXIT_SUCCESS;
   }
+  unlock(db_dirs_rwlock_ptr);
 
   // Read from current version
   std::string before_tuple, after_tuple;
@@ -235,7 +256,10 @@ int sp_engine::update(const statement& st) {
     //printf("Update_val :: %s \n", (char*) update_val.data);
 
     update_val.size = after_tuple.size() + 1;
+
+    wrlock(db_dirs_rwlock_ptr);
     bt->insert(txn_ptr, &key, &update_val);
+    unlock(db_dirs_rwlock_ptr);
   }
 
   delete rec_ptr;

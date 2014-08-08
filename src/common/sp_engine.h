@@ -52,6 +52,8 @@ class sp_engine : public engine_api {
 
   bool read_only = false;
   unsigned int tid;
+
+  pthread_rwlock_t* db_dirs_rwlock_ptr;
 };
 
 #endif /* SP_ENGINE_H_ */
