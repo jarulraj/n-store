@@ -257,7 +257,6 @@ int opt_lsm_engine::remove(const statement& st) {
   rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0
       && indices->at(0)->off_map->exists(key) == 0) {
-    cout << "not found in either index " << endl;
     delete rec_ptr;
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
@@ -337,6 +336,8 @@ int opt_lsm_engine::update(const statement& st) {
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << num_fields << " " << before_rec << " ";
 
+    wrlock(&indices->at(0)->index_rwlock);
+
     for (int field_itr : st.field_ids) {
       // Pointer field
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
@@ -365,8 +366,6 @@ int opt_lsm_engine::update(const statement& st) {
   pm_log->push_back(entry);
 
   if (update_rec) {
-    wrlock(&indices->at(0)->index_rwlock);
-
     for (int field_itr : st.field_ids) {
       // Activate new field and garbage collect previous field
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {

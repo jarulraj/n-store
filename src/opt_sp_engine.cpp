@@ -200,6 +200,7 @@ int opt_sp_engine::remove(const statement& st) {
 
     wrlock(db_dirs_rwlock);
     bt->remove(txn_ptr, &key, NULL);
+    unlock(db_dirs_rwlock);
   }
 
   delete rec_ptr;
