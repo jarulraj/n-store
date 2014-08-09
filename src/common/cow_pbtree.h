@@ -3130,8 +3130,8 @@ class cow_btree {
     cow_btree_del_node(mp, ki);
     meta.entries--;
     rc = cow_btree_rebalance(mp);
-    if (rc != BT_SUCCESS)
-      _txn->flags |= BT_TXN_ERROR;
+    //if (rc != BT_SUCCESS)
+    //  _txn->flags |= BT_TXN_ERROR;
 
     done: if (close_txn) {
       if (rc == BT_SUCCESS)
