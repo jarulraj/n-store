@@ -330,8 +330,6 @@ int opt_lsm_engine::update(const statement& st) {
   } else {
     unlock(&indices->at(0)->index_rwlock);
 
-    wrlock(&indices->at(0)->index_rwlock);
-
     int num_fields = st.field_ids.size();
     update_rec = true;
 
@@ -367,6 +365,8 @@ int opt_lsm_engine::update(const statement& st) {
   pm_log->push_back(entry);
 
   if (update_rec) {
+    wrlock(&indices->at(0)->index_rwlock);
+
     for (int field_itr : st.field_ids) {
       // Activate new field and garbage collect previous field
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
