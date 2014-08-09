@@ -118,7 +118,7 @@ int sp_engine::insert(const statement& st) {
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
 
-  // Check if key exists in current version
+  // Check if key present in current version
   rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     delete after_rec;

@@ -43,10 +43,9 @@ void opt_lsm_engine::merge(bool force) {
         fs_rec = NULL;
 
         // Check if we need to merge
-        if (p_index->off_map->exists(key) != 0) {
+        if (p_index->off_map->at(key, &storage_offset)) {
           //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
 
-          storage_offset = p_index->off_map->at(key);
           val = tab->fs_data.at(storage_offset);
 
           std::sscanf((char*) val.c_str(), "%p", &fs_rec);
@@ -145,16 +144,14 @@ std::string opt_lsm_engine::select(const statement& st) {
 
   // Check if key exists in mem
   rdlock(&table_index->index_rwlock);
-  if (table_index->pm_map->exists(key) != 0) {
+  if (table_index->pm_map->at(key, &pm_rec)) {
     LOG_INFO("Using mem table ");
-    pm_rec = table_index->pm_map->at(key);
     //printf("pm_rec :: %p \n", pm_rec);
   }
 
   // Check if key exists in fs
-  if (table_index->off_map->exists(key) != 0) {
+  if (table_index->off_map->at(key, &storage_offset)) {
     LOG_INFO("Using ss table ");
-    storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
     //assert(!val.empty());
     std::sscanf((char*) val.c_str(), "%p", &fs_rec);
@@ -283,8 +280,7 @@ int opt_lsm_engine::remove(const statement& st) {
 
   record* before_rec = NULL;
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->pm_map->exists(key) != 0) {
-    before_rec = indices->at(0)->pm_map->at(key);
+  if (indices->at(0)->pm_map->at(key, &before_rec)) {
     delete before_rec;
   }
   unlock(&indices->at(0)->index_rwlock);
@@ -322,7 +318,7 @@ int opt_lsm_engine::update(const statement& st) {
 
   // Check if key does not exist
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->pm_map->exists(key) == 0) {
+  if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
     unlock(&indices->at(0)->index_rwlock);
     //LOG_INFO("Key not found in mem table %lu ", key);
     before_rec = rec_ptr;
@@ -335,7 +331,6 @@ int opt_lsm_engine::update(const statement& st) {
     unlock(&indices->at(0)->index_rwlock);
 
     wrlock(&indices->at(0)->index_rwlock);
-    before_rec = indices->at(0)->pm_map->at(key);
 
     int num_fields = st.field_ids.size();
     update_rec = true;

@@ -44,7 +44,7 @@ class benchmark {
   }
 
   void execute(config& conf) {
-    if (single)
+    if (single || conf.read_only)
       execute_st(conf);
     else
       execute_mt(conf);

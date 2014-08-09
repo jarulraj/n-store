@@ -78,12 +78,11 @@ std::string wal_engine::select(const statement& st) {
   off_t storage_offset;
 
   rdlock(&table_index->index_rwlock);
-  if (table_index->off_map->exists(key) == 0) {
+  if ((table_index->off_map->at(key, &storage_offset)) == false) {
     delete rec_ptr;
     unlock(&table_index->index_rwlock);
     return val;
   }
-  storage_offset = table_index->off_map->at(key);
   unlock(&table_index->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
@@ -108,9 +107,9 @@ int wal_engine::insert(const statement& st) {
   LOG_INFO("key_str :: %s", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
-  // Check if key exists
+  // Check if key present
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->off_map->exists(key) != 0) {
+  if (indices->at(0)->off_map->exists(key)) {
     delete after_rec;
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
@@ -161,12 +160,11 @@ int wal_engine::remove(const statement& st) {
 
   // Check if key does not exist
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->off_map->exists(key) == 0){
+  if (indices->at(0)->off_map->at(key, &storage_offset) == false) {
     delete rec_ptr;
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  storage_offset = indices->at(0)->off_map->at(key);
   unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
@@ -210,12 +208,11 @@ int wal_engine::update(const statement& st) {
 
   // Check if key does not exist
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->off_map->exists(key) == 0) {
+  if (indices->at(0)->off_map->at(key, &storage_offset) == false) {
     delete rec_ptr;
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  storage_offset = indices->at(0)->off_map->at(key);
   unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);

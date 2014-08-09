@@ -57,8 +57,7 @@ void lsm_engine::merge(bool force) {
         fs_rec = NULL;
 
         // Check if we need to merge
-        if (p_index->off_map->exists(key) != 0) {
-          storage_offset = p_index->off_map->at(key);
+        if (p_index->off_map->at(key, &storage_offset)) {
           val = tab->fs_data.at(storage_offset);
           fs_rec = deserialize(val, tab->sptr);
 
@@ -164,16 +163,14 @@ std::string lsm_engine::select(const statement& st) {
 
   // Check if key exists in mem
   rdlock(&table_index->index_rwlock);
-  if (table_index->pm_map->exists(key) != 0) {
+  if ((table_index->pm_map->at(key, &pm_rec))) {
     LOG_INFO("Using mem table ");
-    pm_rec = table_index->pm_map->at(key);
     //printf("pm_rec :: %p \n", pm_rec);
   }
 
   // Check if key exists in fs
-  if (table_index->off_map->exists(key) != 0) {
+  if (table_index->off_map->at(key, &storage_offset)) {
     LOG_INFO("Using ss table ");
-    storage_offset = table_index->off_map->at(key);
     val = tab->fs_data.at(storage_offset);
     fs_rec = deserialize(val, tab->sptr);
     //printf("fs_rec :: %p \n", fs_rec);
@@ -285,9 +282,9 @@ int lsm_engine::remove(const statement& st) {
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
+  record* before_rec;
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->pm_map->exists(key) != 0) {
-    record* before_rec = indices->at(0)->pm_map->at(key);
+  if (indices->at(0)->pm_map->at(key, &before_rec)) {
     delete before_rec;
   }
   unlock(&indices->at(0)->index_rwlock);
@@ -327,7 +324,7 @@ int lsm_engine::update(const statement& st) {
 
   // Check if key does not exist
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->pm_map->exists(key) == 0) {
+  if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
     unlock(&indices->at(0)->index_rwlock);
 
     //LOG_INFO("Key not found in mem table %lu ", key);
@@ -344,7 +341,6 @@ int lsm_engine::update(const statement& st) {
     unlock(&indices->at(0)->index_rwlock);
 
     wrlock(&indices->at(0)->index_rwlock);
-    before_rec = indices->at(0)->pm_map->at(key);
 
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << serialize(before_rec, before_rec->sptr) << " ";

@@ -1666,16 +1666,16 @@ class btree {
   }
 
   /// Tries to return value if key is found.
-  data_type at(const key_type &key) const {
-    data_type val;
+  bool at(const key_type &key, data_type* val) const {
     const_iterator itr = find(key);
+    bool found = false;
 
-    if (itr != end())
-      val = itr.data();
-    else
-      val = 0;
+    if (itr != end()) {
+      (*val) = itr.data();
+      found = true;
+    }
 
-    return val;
+    return found;
   }
 
   /// Tries to set value if key is found.
@@ -3974,8 +3974,8 @@ class pbtree {
   }
 
   /// Tries to return value if key is found.
-  data_type at(const key_type &key) const {
-    return tree.at(key);
+  bool at(const key_type &key, data_type* val) {
+    return tree.at(key, val);
   }
 
   /// Tries to update value if key is found.

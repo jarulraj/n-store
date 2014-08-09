@@ -2,7 +2,6 @@
 #define LOCK_MANAGER_H_
 
 #include  <map>
-
 #include "utils.h"
 
 using namespace std;
@@ -22,7 +21,7 @@ struct lock_t {
 class lock_manager {
  public:
 
-  int tuple_rdlock(unsigned long hash) {
+  inline int tuple_rdlock(const unsigned long hash) {
 
     wrlock(&lock_table_rwlock);
     if (!lock_table[hash].writer) {
@@ -37,7 +36,7 @@ class lock_manager {
     return -1;
   }
 
-  int tuple_wrlock(unsigned long hash) {
+  inline int tuple_wrlock(const unsigned long hash) {
 
     wrlock(&lock_table_rwlock);
     if (lock_table[hash].readers == 0) {
@@ -52,7 +51,7 @@ class lock_manager {
     return -1;
   }
 
-  int tuple_unlock(unsigned long hash) {
+  inline int tuple_unlock(const unsigned long hash) {
 
     wrlock(&lock_table_rwlock);
     if (lock_table[hash].locked) {

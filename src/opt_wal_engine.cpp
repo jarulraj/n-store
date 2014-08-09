@@ -33,8 +33,8 @@ std::string opt_wal_engine::select(const statement& st) {
   std::string val;
 
   rdlock(&table_index->index_rwlock);
-  select_ptr = table_index->pm_map->at(key);
-  val = serialize(select_ptr, st.projection);
+  if (table_index->pm_map->at(key, &select_ptr))
+    val = serialize(select_ptr, st.projection);
   unlock(&table_index->index_rwlock);
 
   LOG_INFO("val : %s", val.c_str());
@@ -111,15 +111,15 @@ int opt_wal_engine::remove(const statement& st) {
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
+  record* before_rec = NULL;
 
   // Check if key does not exist
   rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->pm_map->exists(key) == 0) {
+  if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
     delete rec_ptr;
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  record* before_rec = indices->at(0)->pm_map->at(key);
 
   int num_cols = before_rec->sptr->num_columns;
 
@@ -171,10 +171,11 @@ int opt_wal_engine::update(const statement& st) {
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
+  record* before_rec;
 
   rdlock(&indices->at(0)->index_rwlock);
   // Check if key does not exist
-  if (indices->at(0)->pm_map->exists(key) == 0) {
+  if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
     delete rec_ptr;
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
@@ -185,7 +186,6 @@ int opt_wal_engine::update(const statement& st) {
   int num_fields = st.field_ids.size();
 
   wrlock(&indices->at(0)->index_rwlock);
-  record* before_rec = indices->at(0)->pm_map->at(key);
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
