@@ -29,8 +29,6 @@ class usertable_record : public record {
       }
     } else
       set_varchar(1, val);
-
-    hash_id = key;
   }
 
 };
