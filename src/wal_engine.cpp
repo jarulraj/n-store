@@ -239,7 +239,6 @@ int wal_engine::update(const statement& st) {
   fs_log.push_back(entry_str);
 
   // In-place update
-
   LOG_INFO("update offset : %lu", storage_offset);
   tab->fs_data.update(storage_offset, before_tuple);
 

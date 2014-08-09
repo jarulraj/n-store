@@ -263,7 +263,7 @@ int opt_sp_engine::update(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    bt->remove(txn_ptr, &key, NULL);
+    //bt->remove(txn_ptr, &key, NULL);
     bt->insert(txn_ptr, &key, &update_val);
   }
 

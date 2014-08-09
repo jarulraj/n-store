@@ -256,7 +256,7 @@ int sp_engine::update(const statement& st) {
     update_val.size = after_tuple.size() + 1;
 
     wrlock(db_dirs_rwlock);
-    bt->remove(txn_ptr, &key, NULL);
+    //bt->remove(txn_ptr, &key, NULL);
     bt->insert(txn_ptr, &key, &update_val);
     unlock(db_dirs_rwlock);
   }

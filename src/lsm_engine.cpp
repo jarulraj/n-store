@@ -336,15 +336,22 @@ int lsm_engine::update(const statement& st) {
     entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
     entry_str = entry_stream.str();
 
+    for (index_itr = 0; index_itr < num_indices; index_itr++) {
+      key_str = serialize(before_rec, indices->at(index_itr)->sptr);
+      key = hash_fn(key_str);
+
+      wrlock(&indices->at(0)->index_rwlock);
+      indices->at(index_itr)->pm_map->insert(key, before_rec);
+      unlock(&indices->at(0)->index_rwlock);
+    }
   } else {
     existing_rec = true;
     unlock(&indices->at(0)->index_rwlock);
 
-    wrlock(&indices->at(0)->index_rwlock);
-
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << serialize(before_rec, before_rec->sptr) << " ";
 
+    wrlock(&indices->at(0)->index_rwlock);
     // Update existing record
     for (int field_itr : st.field_ids) {
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
@@ -354,27 +361,14 @@ int lsm_engine::update(const statement& st) {
 
       before_rec->set_data(field_itr, rec_ptr);
     }
+    unlock(&indices->at(0)->index_rwlock);
 
     entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
     entry_str = entry_stream.str();
-
-    unlock(&indices->at(0)->index_rwlock);
   }
 
   // Add log entry
   fs_log.push_back(entry_str);
-
-  // Add entry in indices
-  if (existing_rec == false) {
-    for (index_itr = 0; index_itr < num_indices; index_itr++) {
-      key_str = serialize(before_rec, indices->at(index_itr)->sptr);
-      key = hash_fn(key_str);
-
-      wrlock(&indices->at(0)->index_rwlock);
-      indices->at(index_itr)->pm_map->insert(key, before_rec);
-      unlock(&indices->at(0)->index_rwlock);
-    }
-  }
 
   return EXIT_SUCCESS;
 }
