@@ -28,6 +28,8 @@ void lsm_engine::merge_check() {
 void lsm_engine::merge(bool force) {
   //std::cout << "Merging ! " << endl;
 
+  wrlock(&db->engine_rwlock);
+
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     table_index *p_index = tab->indices->at(0);
@@ -92,9 +94,10 @@ void lsm_engine::merge(bool force) {
       // Clear mem table
       for (table_index* index : indices)
         index->pm_map->clear();
-
     }
   }
+
+  unlock(&db->engine_rwlock);
 
   // Truncate log
   //if (force)
@@ -162,6 +165,7 @@ std::string lsm_engine::select(const statement& st) {
   off_t storage_offset;
 
   // Check if key exists in mem
+  rdlock(&table_index->index_rwlock);
   if (table_index->pm_map->exists(key) != 0) {
     LOG_INFO("Using mem table ");
     pm_rec = table_index->pm_map->at(key);
@@ -196,6 +200,8 @@ std::string lsm_engine::select(const statement& st) {
     val = serialize(fs_rec, st.projection);
     delete fs_rec;
   }
+  unlock(&table_index->index_rwlock);
+
 
   LOG_INFO("val : %s", val.c_str());
   //cout << "val : " << val << endl;
@@ -217,11 +223,14 @@ int lsm_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key)
       || indices->at(0)->off_map->exists(key)) {
     delete after_rec;
+    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -237,7 +246,9 @@ int lsm_engine::insert(const statement& st) {
     key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
+    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->insert(key, after_rec);
+    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   return EXIT_SUCCESS;
@@ -259,12 +270,15 @@ int lsm_engine::remove(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0
       && indices->at(0)->off_map->exists(key) == 0) {
     LOG_INFO("not found in either index ");
     delete rec_ptr;
+    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -274,18 +288,22 @@ int lsm_engine::remove(const statement& st) {
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) != 0) {
     record* before_rec = indices->at(0)->pm_map->at(key);
     delete before_rec;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
+    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->erase(key);
     indices->at(index_itr)->off_map->erase(key);
+    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   return EXIT_SUCCESS;
@@ -311,15 +329,24 @@ int lsm_engine::update(const statement& st) {
   entry_stream.str("");
 
   // Check if key does not exist
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0) {
+    unlock(&indices->at(0)->index_rwlock);
+
     //LOG_INFO("Key not found in mem table %lu ", key);
     before_rec = rec_ptr;
 
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << serialize(before_rec, before_rec->sptr) << " ";
 
+    entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
+    entry_str = entry_stream.str();
+
   } else {
     existing_rec = true;
+    unlock(&indices->at(0)->index_rwlock);
+
+    wrlock(&indices->at(0)->index_rwlock);
     before_rec = indices->at(0)->pm_map->at(key);
 
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -334,10 +361,13 @@ int lsm_engine::update(const statement& st) {
 
       before_rec->set_data(field_itr, rec_ptr);
     }
+
+    entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
+    entry_str = entry_stream.str();
+
+    unlock(&indices->at(0)->index_rwlock);
   }
 
-  entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
-  entry_str = entry_stream.str();
 
   // Add log entry
   fs_log.push_back(entry_str);
@@ -348,7 +378,9 @@ int lsm_engine::update(const statement& st) {
       key_str = serialize(before_rec, indices->at(index_itr)->sptr);
       key = hash_fn(key_str);
 
+      wrlock(&indices->at(0)->index_rwlock);
       indices->at(index_itr)->pm_map->insert(key, before_rec);
+      unlock(&indices->at(0)->index_rwlock);
     }
   }
 
@@ -377,11 +409,17 @@ void lsm_engine::load(const statement& st) {
 }
 
 void lsm_engine::txn_begin() {
+  if (!read_only) {
+    rdlock(&db->engine_rwlock);
+  }
 }
 
 void lsm_engine::txn_end(bool commit) {
+  if (!read_only) {
+    unlock(&db->engine_rwlock);
+  }
 
-  if (!read_only)
+  if (!read_only && tid == 0)
     merge_check();
 }
 

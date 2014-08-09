@@ -1917,10 +1917,9 @@ class cow_btree {
         }
 
         mp->pgno = pgno;
-        mpage_add(mp);
+        //mpage_add(mp);
       } else {
         mp = mpages->at(pgno);
-
         //mpage_add(mp);
       }
     } else {

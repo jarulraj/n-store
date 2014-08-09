@@ -37,7 +37,7 @@ sp_engine::sp_engine(const config& _conf, bool _read_only, unsigned int _tid)
 
   etype = engine_type::SP;
   read_only = _read_only;
-  db_dirs_rwlock_ptr = &db->db_dirs_rwlock_ptr;
+  db_dirs_rwlock_ptr = &db->engine_rwlock;
 
   bt = db->dirs->t_ptr;
   if (tid == 0) {

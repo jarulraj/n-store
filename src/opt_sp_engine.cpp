@@ -36,7 +36,7 @@ opt_sp_engine::opt_sp_engine(const config& _conf, bool _read_only,
 
   etype = engine_type::OPT_SP;
   read_only = _read_only;
-  db_dirs_rwlock_ptr = &db->db_dirs_rwlock_ptr;
+  db_dirs_rwlock_ptr = &db->engine_rwlock;
 
   bt = db->dirs->t_ptr;
   if (tid == 0) {
