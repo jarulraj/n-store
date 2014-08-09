@@ -13,6 +13,7 @@ opt_wal_engine::opt_wal_engine(const config& _conf, bool _read_only,
   etype = engine_type::OPT_WAL;
   read_only = _read_only;
   pm_log = db->log->at(tid);
+
 }
 
 opt_wal_engine::~opt_wal_engine() {
@@ -31,8 +32,11 @@ std::string opt_wal_engine::select(const statement& st) {
   unsigned long key = hash_fn(key_str);
   std::string val;
 
+  rdlock(&table_index->index_rwlock);
   select_ptr = table_index->pm_map->at(key);
   val = serialize(select_ptr, st.projection);
+  unlock(&table_index->index_rwlock);
+
   LOG_INFO("val : %s", val.c_str());
 
   //cout<<"val : " <<val<<endl;
@@ -54,10 +58,13 @@ int opt_wal_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) != 0) {
     delete after_rec;
+    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -76,14 +83,18 @@ int opt_wal_engine::insert(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
+  wrlock(&tab->table_rwlock);
   tab->pm_data->push_back(after_rec);
+  unlock(&tab->table_rwlock);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
+    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->insert(key, after_rec);
+    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   return EXIT_SUCCESS;
@@ -102,13 +113,14 @@ int opt_wal_engine::remove(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0) {
     delete rec_ptr;
+    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-
   record* before_rec = indices->at(0)->pm_map->at(key);
-  commit_free_list.push_back(before_rec);
+
   int num_cols = before_rec->sptr->num_columns;
 
   for (int field_itr = 0; field_itr < num_cols; field_itr++) {
@@ -117,6 +129,8 @@ int opt_wal_engine::remove(const statement& st) {
       commit_free_list.push_back(before_field);
     }
   }
+  //XXX commit_free_list.push_back(before_rec);
+  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -131,14 +145,18 @@ int opt_wal_engine::remove(const statement& st) {
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
 
+  wrlock(&tab->table_rwlock);
   tab->pm_data->erase(before_rec);
+  unlock(&tab->table_rwlock);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
+    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->erase(key);
+    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   delete rec_ptr;
@@ -154,16 +172,20 @@ int opt_wal_engine::update(const statement& st) {
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
-  record* before_rec = indices->at(0)->pm_map->at(key);
-
+  rdlock(&indices->at(0)->index_rwlock);
   // Check if key does not exist
-  if (before_rec == 0) {
+  if (indices->at(0)->pm_map->exists(key) == 0) {
     delete rec_ptr;
+    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();
+
+  wrlock(&indices->at(0)->index_rwlock);
+  record* before_rec = indices->at(0)->pm_map->at(key);
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -207,6 +229,8 @@ int opt_wal_engine::update(const statement& st) {
     // Update existing record
     before_rec->set_data(field_itr, rec_ptr);
   }
+
+  unlock(&indices->at(0)->index_rwlock);
 
   delete rec_ptr;
   return EXIT_SUCCESS;

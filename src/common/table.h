@@ -59,6 +59,9 @@ class table {
   storage fs_data;
 
   plist<record*>* pm_data;
+
+  pthread_rwlock_t table_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
 };
 
 #endif /* TABLE_H_ */

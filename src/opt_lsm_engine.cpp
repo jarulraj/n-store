@@ -104,11 +104,13 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only,
   merge_looper = 0;
   pm_log = db->log->at(tid);
 
-  vector<table*> tables = db->tables->get_data();
-  for (table* tab : tables) {
-    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-    // Storing pointer only
-    tab->fs_data.configure(table_file_name, 15, false);
+  if (tid == 0) {
+    vector<table*> tables = db->tables->get_data();
+    for (table* tab : tables) {
+      std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+      // Storing pointer only
+      tab->fs_data.configure(table_file_name, 15, false);
+    }
   }
 
 }

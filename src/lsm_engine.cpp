@@ -114,10 +114,12 @@ lsm_engine::lsm_engine(const config& _conf, bool _read_only, unsigned int _tid)
   fs_log.configure(conf.fs_path + "log");
   merge_looper = 0;
 
-  vector<table*> tables = db->tables->get_data();
-  for (table* tab : tables) {
-    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-    tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
+  if (tid == 0) {
+    vector<table*> tables = db->tables->get_data();
+    for (table* tab : tables) {
+      std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+      tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
+    }
   }
 
   // Logger start
