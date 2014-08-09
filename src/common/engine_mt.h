@@ -24,7 +24,7 @@ class engine_mt : public engine {
 
   std::string select(const statement& st) {
     std::string ret;
-    int tuple_id = st.rec_ptr->get_hash_id();
+    unsigned long tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
 
     int rc = lm->tuple_rdlock(lock_id);
@@ -39,7 +39,7 @@ class engine_mt : public engine {
 
   int insert(const statement& st) {
     int ret = -1;
-    int tuple_id = st.rec_ptr->get_hash_id();
+    unsigned long tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
 
     int rc = lm->tuple_wrlock(lock_id);
@@ -54,7 +54,7 @@ class engine_mt : public engine {
 
   int remove(const statement& st) {
     int ret = -1;
-    int tuple_id = st.rec_ptr->get_hash_id();
+    unsigned long tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
 
     int rc = lm->tuple_wrlock(lock_id);
@@ -70,7 +70,7 @@ class engine_mt : public engine {
 
   int update(const statement& st) {
     int ret = -1;
-    int tuple_id = st.rec_ptr->get_hash_id();
+    unsigned long tuple_id = st.rec_ptr->get_hash_id();
     unsigned long lock_id = hasher(st.table_id, tuple_id);
 
     int rc = lm->tuple_wrlock(lock_id);

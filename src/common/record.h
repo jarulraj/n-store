@@ -3,21 +3,25 @@
 
 #include <iostream>
 #include <string>
-#include "schema.h"
-#include "field.h"
 #include <cassert>
 #include <climits>
+#include <thread>
+
+#include "schema.h"
+#include "field.h"
 
 using namespace std;
 
 class record {
  public:
+
   record(schema* _sptr)
       : sptr(_sptr),
         data(NULL),
         data_len(_sptr->ser_len),
         hash_id(0) {
     data = new char[data_len];
+    hash_id = rand();
   }
 
   ~record() {
@@ -143,9 +147,6 @@ class record {
   }
 
   unsigned long get_hash_id() {
-    if (hash_id == 0) {
-      hash_id = rand();
-    }
     return hash_id;
   }
 
