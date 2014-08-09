@@ -13,10 +13,18 @@ void opt_sp_engine::group_commit() {
 
       if (tid == 0) {
         wrlock(db_dirs_rwlock);
+
         assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
         txn_ptr = bt->txn_begin(0);
-        unlock(db_dirs_rwlock);
         assert(txn_ptr);
+
+        // Clear commit_free list
+        for (void* ptr : db->commit_free_list) {
+          //pmemalloc_free(ptr);
+        }
+        db->commit_free_list.clear();
+
+        unlock(db_dirs_rwlock);
       }
 
       unlock(&gc_rwlock);
@@ -192,11 +200,18 @@ int opt_sp_engine::remove(const statement& st) {
 
     wrlock(db_dirs_rwlock);
     bt->remove(txn_ptr, &key, NULL);
-    unlock(db_dirs_rwlock);
   }
 
   delete rec_ptr;
-  //XXX  before_rec->clear_data(); delete before_rec;
+  wrlock(db_dirs_rwlock);
+  db->commit_free_list.insert(before_rec);
+  for (int field_itr : st.field_ids) {
+    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
+      void* before_field = before_rec->get_pointer(field_itr);
+      db->commit_free_list.insert(before_field);
+    }
+  }
+  unlock(db_dirs_rwlock);
   return EXIT_SUCCESS;
 }
 
@@ -263,7 +278,7 @@ int opt_sp_engine::update(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    //bt->remove(txn_ptr, &key, NULL);
+    bt->remove(txn_ptr, &key, NULL);
     bt->insert(txn_ptr, &key, &update_val);
   }
 
@@ -271,7 +286,7 @@ int opt_sp_engine::update(const statement& st) {
   //printf("rec_ptr :: record :: %p \n", rec_ptr);
 
   delete rec_ptr;
-  //XXX delete before_rec;
+  db->commit_free_list.insert(before_rec);
   delete ((char*) update_val.data);
   unlock(db_dirs_rwlock);
 

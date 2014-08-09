@@ -5,6 +5,7 @@
 #include "table.h"
 #include "plist.h"
 #include "cow_pbtree.h"
+#include <set>
 
 using namespace std;
 
@@ -88,6 +89,7 @@ class database {
   cow_pbtree* dirs;
   pthread_rwlock_t engine_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
+  std::set<void*> commit_free_list;
 };
 
 #endif /* DATABASE_H_ */
