@@ -121,23 +121,19 @@ lsm_engine::lsm_engine(const config& _conf, bool _read_only, unsigned int _tid)
   }
 
   // Logger start
-  if (!read_only) {
+  if (!read_only && tid == 0) {
     gc = std::thread(&lsm_engine::group_commit, this);
   }
 }
 
 lsm_engine::~lsm_engine() {
-
-  if (read_only)
-    return;
-
   // Logger end
-  ready = false;
-  gc.join();
+  if (!read_only && tid == 0) {
+    ready = false;
+    gc.join();
 
-  merge(true);
+    merge(true);
 
-  if (tid == 0) {
     if (!conf.recovery) {
       fs_log.sync();
       fs_log.close();
@@ -201,7 +197,6 @@ std::string lsm_engine::select(const statement& st) {
     delete fs_rec;
   }
   unlock(&table_index->index_rwlock);
-
 
   LOG_INFO("val : %s", val.c_str());
   //cout << "val : " << val << endl;
@@ -367,7 +362,6 @@ int lsm_engine::update(const statement& st) {
 
     unlock(&indices->at(0)->index_rwlock);
   }
-
 
   // Add log entry
   fs_log.push_back(entry_str);

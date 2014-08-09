@@ -14,6 +14,8 @@ void opt_lsm_engine::merge_check() {
 void opt_lsm_engine::merge(bool force) {
   //std::cout << "Merging ! " << merge_looper << endl;
 
+  wrlock(&db->engine_rwlock);
+
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     table_index *p_index = tab->indices->at(0);
@@ -87,6 +89,8 @@ void opt_lsm_engine::merge(bool force) {
   if (force)
     pm_log->clear();
 
+  unlock(&db->engine_rwlock);
+
 }
 
 opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only,
@@ -111,15 +115,15 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only,
 
 opt_lsm_engine::~opt_lsm_engine() {
 
-  if (read_only)
-    return;
+  if (!read_only && tid == 0) {
 
-  merge(true);
+    merge(true);
 
-  vector<table*> tables = db->tables->get_data();
-  for (table* tab : tables) {
-    tab->fs_data.sync();
-    tab->fs_data.close();
+    vector<table*> tables = db->tables->get_data();
+    for (table* tab : tables) {
+      tab->fs_data.sync();
+      tab->fs_data.close();
+    }
   }
 
 }
@@ -138,6 +142,7 @@ std::string opt_lsm_engine::select(const statement& st) {
   off_t storage_offset;
 
   // Check if key exists in mem
+  rdlock(&table_index->index_rwlock);
   if (table_index->pm_map->exists(key) != 0) {
     LOG_INFO("Using mem table ");
     pm_rec = table_index->pm_map->at(key);
@@ -172,6 +177,7 @@ std::string opt_lsm_engine::select(const statement& st) {
 
     val = serialize(fs_rec, st.projection);
   }
+  unlock(&table_index->index_rwlock);
 
   LOG_INFO("val : %s", val.c_str());
   //cout << "val : " << val << endl;
@@ -193,11 +199,14 @@ int opt_lsm_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key)
       || indices->at(0)->off_map->exists(key)) {
     delete after_rec;
+    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -222,7 +231,9 @@ int opt_lsm_engine::insert(const statement& st) {
     key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
+    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->insert(key, after_rec);
+    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   return EXIT_SUCCESS;
@@ -244,42 +255,49 @@ int opt_lsm_engine::remove(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0
       && indices->at(0)->off_map->exists(key) == 0) {
     cout << "not found in either index " << endl;
     delete rec_ptr;
+    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
+
+  // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << rec_ptr << "\n";
+
+  entry_str = entry_stream.str();
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
+
+  // Add log entry
+  pmemalloc_activate(entry);
+  pm_log->push_back(entry);
 
   record* before_rec = NULL;
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) != 0) {
     before_rec = indices->at(0)->pm_map->at(key);
-
-    // Add log entry
-    entry_stream.str("");
-    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-                 << " " << rec_ptr << "\n";
-
-    entry_str = entry_stream.str();
-    size_t entry_str_sz = entry_str.size() + 1;
-    char* entry = new char[entry_str_sz];
-    memcpy(entry, entry_str.c_str(), entry_str_sz);
-
-    // Add log entry
-    pmemalloc_activate(entry);
-    pm_log->push_back(entry);
+    delete before_rec;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
+    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->erase(key);
     indices->at(index_itr)->off_map->erase(key);
+    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
-  delete before_rec;
   return EXIT_SUCCESS;
 }
 
@@ -301,7 +319,9 @@ int opt_lsm_engine::update(const statement& st) {
   bool update_rec = false;
 
   // Check if key does not exist
+  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0) {
+    unlock(&indices->at(0)->index_rwlock);
     //LOG_INFO("Key not found in mem table %lu ", key);
     before_rec = rec_ptr;
 
@@ -310,7 +330,11 @@ int opt_lsm_engine::update(const statement& st) {
                  << st.table_id << " " << before_rec << "\n";
 
   } else {
+    unlock(&indices->at(0)->index_rwlock);
+
+    wrlock(&indices->at(0)->index_rwlock);
     before_rec = indices->at(0)->pm_map->at(key);
+
     int num_fields = st.field_ids.size();
     update_rec = true;
 
@@ -359,6 +383,8 @@ int opt_lsm_engine::update(const statement& st) {
       // Update existing record
       before_rec->set_data(field_itr, rec_ptr);
     }
+
+    unlock(&indices->at(0)->index_rwlock);
   } else {
     // Activate new record
     pmemalloc_activate(before_rec);
@@ -369,7 +395,9 @@ int opt_lsm_engine::update(const statement& st) {
       key_str = serialize(before_rec, indices->at(index_itr)->sptr);
       key = hash_fn(key_str);
 
+      wrlock(&indices->at(index_itr)->index_rwlock);
       indices->at(index_itr)->pm_map->insert(key, before_rec);
+      unlock(&indices->at(index_itr)->index_rwlock);
     }
   }
 
