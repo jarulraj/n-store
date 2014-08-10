@@ -59,20 +59,21 @@ void lsm_engine::merge(bool force) {
         // Check if we need to merge
         if (p_index->off_map->at(key, &storage_offset)) {
           val = tab->fs_data.at(storage_offset);
-          fs_rec = deserialize(val, tab->sptr);
 
-          int num_cols = pm_rec->sptr->num_columns;
-          for (int field_itr = 0; field_itr < num_cols; field_itr++) {
-            fs_rec->set_data(field_itr, pm_rec);
+          if (!val.empty()) {
+            fs_rec = deserialize(val, tab->sptr);
+
+            int num_cols = pm_rec->sptr->num_columns;
+            for (int field_itr = 0; field_itr < num_cols; field_itr++) {
+              fs_rec->set_data(field_itr, pm_rec);
+            }
+
+            val = serialize(fs_rec, tab->sptr);
+            //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
+
+            tab->fs_data.update(storage_offset, val);
+            delete fs_rec;
           }
-
-          val = serialize(fs_rec, tab->sptr);
-          //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
-
-          tab->fs_data.update(storage_offset, val);
-
-          delete fs_rec;
-
         } else {
           // Insert tuple
           val = serialize(pm_rec, tab->sptr);
@@ -159,30 +160,25 @@ std::string lsm_engine::select(const statement& st) {
   std::string key_str = serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
-  off_t storage_offset;
+  off_t storage_offset = -1;
 
-  // Check if key exists in mem
   rdlock(&table_index->index_rwlock);
-  if ((table_index->pm_map->at(key, &pm_rec))) {
-    LOG_INFO("Using mem table ");
-    //printf("pm_rec :: %p \n", pm_rec);
-  }
-
+  // Check if key exists in mem
+  table_index->pm_map->at(key, &pm_rec);
   // Check if key exists in fs
-  if (table_index->off_map->at(key, &storage_offset)) {
-    LOG_INFO("Using ss table ");
+  table_index->off_map->at(key, &storage_offset);
+  unlock(&table_index->index_rwlock);
+
+  if (storage_offset != -1) {
     val = tab->fs_data.at(storage_offset);
-    fs_rec = deserialize(val, tab->sptr);
-    //printf("fs_rec :: %p \n", fs_rec);
+    if (!val.empty())
+      fs_rec = deserialize(val, tab->sptr);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
-    // From Memtable
     val = serialize(pm_rec, st.projection);
   } else if (pm_rec == NULL && fs_rec != NULL) {
-    // From SSTable
     val = serialize(fs_rec, st.projection);
-
     delete fs_rec;
   } else if (pm_rec != NULL && fs_rec != NULL) {
     // Merge
@@ -195,7 +191,6 @@ std::string lsm_engine::select(const statement& st) {
     val = serialize(fs_rec, st.projection);
     delete fs_rec;
   }
-  unlock(&table_index->index_rwlock);
 
   LOG_INFO("val : %s", val.c_str());
   //cout << "val : " << val << endl;
@@ -220,8 +215,8 @@ int lsm_engine::insert(const statement& st) {
   rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key)
       || indices->at(0)->off_map->exists(key)) {
-    delete after_rec;
     unlock(&indices->at(0)->index_rwlock);
+    delete after_rec;
     return EXIT_SUCCESS;
   }
   unlock(&indices->at(0)->index_rwlock);
@@ -267,9 +262,9 @@ int lsm_engine::remove(const statement& st) {
   rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0
       && indices->at(0)->off_map->exists(key) == 0) {
-    LOG_INFO("not found in either index ");
-    delete rec_ptr;
+    //LOG_INFO("not found in either index ");
     unlock(&indices->at(0)->index_rwlock);
+    delete rec_ptr;
     return EXIT_SUCCESS;
   }
   unlock(&indices->at(0)->index_rwlock);
@@ -282,10 +277,10 @@ int lsm_engine::remove(const statement& st) {
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
-  record* before_rec;
+  record* before_rec = NULL;
   rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->at(key, &before_rec)) {
-    // FIXME delete before_rec;
+    delete before_rec;
   }
   unlock(&indices->at(0)->index_rwlock);
 
@@ -316,7 +311,7 @@ int lsm_engine::update(const statement& st) {
   unsigned long key = hash_fn(key_str);
   off_t log_offset;
   std::string val;
-  record* before_rec;
+  record* before_rec = NULL;
   bool existing_rec = false;
   void *before_field, *after_field;
 
@@ -345,13 +340,13 @@ int lsm_engine::update(const statement& st) {
       unlock(&indices->at(0)->index_rwlock);
     }
   } else {
-    existing_rec = true;
     unlock(&indices->at(0)->index_rwlock);
+    existing_rec = true;
 
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << serialize(before_rec, before_rec->sptr) << " ";
 
-    wrlock(&indices->at(0)->index_rwlock);
+    //wrlock(&indices->at(0)->index_rwlock);
     // Update existing record
     for (int field_itr : st.field_ids) {
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
@@ -361,7 +356,7 @@ int lsm_engine::update(const statement& st) {
 
       before_rec->set_data(field_itr, rec_ptr);
     }
-    unlock(&indices->at(0)->index_rwlock);
+    //unlock(&indices->at(0)->index_rwlock);
 
     entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
     entry_str = entry_stream.str();

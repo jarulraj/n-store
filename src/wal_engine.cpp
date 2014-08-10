@@ -168,7 +168,7 @@ int wal_engine::remove(const statement& st) {
   unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
-  if(val.empty())
+  if (val.empty())
     goto end;
   before_rec = deserialize(val, tab->sptr);
 
@@ -192,7 +192,7 @@ int wal_engine::remove(const statement& st) {
 
   before_rec->clear_data();
   delete before_rec;
-  end:delete rec_ptr;
+  end: delete rec_ptr;
   return EXIT_SUCCESS;
 }
 
@@ -219,7 +219,7 @@ int wal_engine::update(const statement& st) {
 
   val = tab->fs_data.at(storage_offset);
   //LOG_INFO("val : %s", val.c_str());
-  if(val.empty())
+  if (val.empty())
     goto end;
 
   before_rec = deserialize(val, tab->sptr);
