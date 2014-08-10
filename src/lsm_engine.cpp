@@ -267,6 +267,8 @@ int lsm_engine::remove(const statement& st) {
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
+  record* before_rec = NULL;
+  indices->at(0)->pm_map->at(key, &before_rec);
   unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
@@ -276,13 +278,6 @@ int lsm_engine::remove(const statement& st) {
 
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
-
-  record* before_rec = NULL;
-  rdlock(&indices->at(0)->index_rwlock);
-  if (indices->at(0)->pm_map->at(key, &before_rec)) {
-    delete before_rec;
-  }
-  unlock(&indices->at(0)->index_rwlock);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -295,6 +290,7 @@ int lsm_engine::remove(const statement& st) {
     unlock(&indices->at(index_itr)->index_rwlock);
   }
 
+  delete before_rec;
   return EXIT_SUCCESS;
 }
 
