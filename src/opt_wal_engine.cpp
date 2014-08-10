@@ -60,8 +60,8 @@ int opt_wal_engine::insert(const statement& st) {
   // Check if key exists
   rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) != 0) {
-    delete after_rec;
     unlock(&indices->at(0)->index_rwlock);
+    delete after_rec;
     return EXIT_SUCCESS;
   }
   unlock(&indices->at(0)->index_rwlock);
@@ -116,10 +116,11 @@ int opt_wal_engine::remove(const statement& st) {
   // Check if key does not exist
   rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
-    delete rec_ptr;
     unlock(&indices->at(0)->index_rwlock);
+    delete rec_ptr;
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   int num_cols = before_rec->sptr->num_columns;
 
@@ -129,8 +130,7 @@ int opt_wal_engine::remove(const statement& st) {
       commit_free_list.push_back(before_field);
     }
   }
-  //XXX commit_free_list.push_back(before_rec);
-  unlock(&indices->at(0)->index_rwlock);
+  //FIXME commit_free_list.push_back(before_rec);
 
   // Add log entry
   entry_stream.str("");
@@ -176,16 +176,14 @@ int opt_wal_engine::update(const statement& st) {
   rdlock(&indices->at(0)->index_rwlock);
   // Check if key does not exist
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
-    delete rec_ptr;
     unlock(&indices->at(0)->index_rwlock);
+    delete rec_ptr;
     return EXIT_SUCCESS;
   }
   unlock(&indices->at(0)->index_rwlock);
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();
-
-  wrlock(&indices->at(0)->index_rwlock);
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -229,8 +227,6 @@ int opt_wal_engine::update(const statement& st) {
     // Update existing record
     before_rec->set_data(field_itr, rec_ptr);
   }
-
-  unlock(&indices->at(0)->index_rwlock);
 
   delete rec_ptr;
   return EXIT_SUCCESS;
