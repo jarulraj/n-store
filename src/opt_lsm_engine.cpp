@@ -140,23 +140,19 @@ std::string opt_lsm_engine::select(const statement& st) {
   std::string key_str = serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
-  off_t storage_offset;
+  off_t storage_offset = -1;
 
-  // Check if key exists in mem
   rdlock(&table_index->index_rwlock);
-  if (table_index->pm_map->at(key, &pm_rec)) {
-    LOG_INFO("Using mem table ");
-    //printf("pm_rec :: %p \n", pm_rec);
-  }
-
+  // Check if key exists in mem
+  table_index->pm_map->at(key, &pm_rec);
   // Check if key exists in fs
-  if (table_index->off_map->at(key, &storage_offset)) {
-    LOG_INFO("Using ss table ");
-    val = tab->fs_data.at(storage_offset);
-    //assert(!val.empty());
-    std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+  table_index->off_map->at(key, &storage_offset);
+  unlock(&table_index->index_rwlock);
 
-    //printf("fs_rec :: %p \n", fs_rec);
+  if (storage_offset != -1) {
+    val = tab->fs_data.at(storage_offset);
+    if (!val.empty())
+      std::sscanf((char*) val.c_str(), "%p", &fs_rec);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
@@ -176,7 +172,6 @@ std::string opt_lsm_engine::select(const statement& st) {
 
     val = serialize(fs_rec, st.projection);
   }
-  unlock(&table_index->index_rwlock);
 
   LOG_INFO("val : %s", val.c_str());
   //cout << "val : " << val << endl;
@@ -336,8 +331,6 @@ int opt_lsm_engine::update(const statement& st) {
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << num_fields << " " << before_rec << " ";
 
-    wrlock(&indices->at(0)->index_rwlock);
-
     for (int field_itr : st.field_ids) {
       // Pointer field
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
@@ -379,8 +372,6 @@ int opt_lsm_engine::update(const statement& st) {
       // Update existing record
       before_rec->set_data(field_itr, rec_ptr);
     }
-
-    unlock(&indices->at(0)->index_rwlock);
   } else {
     // Activate new record
     pmemalloc_activate(before_rec);

@@ -89,11 +89,14 @@ std::string opt_sp_engine::select(const statement& st) {
   // Read from latest clean version
   rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+    unlock(db_dirs_rwlock);
     memcpy(&select_ptr, val.data, sizeof(record*));
     //printf("select_ptr :: --%p-- \n", select_ptr);
     value = serialize(select_ptr, st.projection);
   }
-  unlock(db_dirs_rwlock);
+  else{
+    unlock(db_dirs_rwlock);
+  }
 
   LOG_INFO("val : %s", value.c_str());
   //cout<<"val : " <<value<<endl;
@@ -123,8 +126,8 @@ int opt_sp_engine::insert(const statement& st) {
   // Check if key exists in current version
   rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
-    delete after_rec;
     unlock(db_dirs_rwlock);
+    delete after_rec;
     return EXIT_SUCCESS;
   }
   unlock(db_dirs_rwlock);
@@ -173,8 +176,8 @@ int opt_sp_engine::remove(const statement& st) {
   // Check if key does not exist
   rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
-    delete rec_ptr;
     unlock(db_dirs_rwlock);
+    delete rec_ptr;
     return EXIT_SUCCESS;
   }
   unlock(db_dirs_rwlock);
@@ -220,12 +223,13 @@ int opt_sp_engine::update(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist in current version
-  wrlock(db_dirs_rwlock);
+  rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
     unlock(db_dirs_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(db_dirs_rwlock);
 
   // Read from current version
   record* before_rec;
@@ -266,8 +270,10 @@ int opt_sp_engine::update(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
+    wrlock(db_dirs_rwlock);
     bt->remove(txn_ptr, &key, NULL);
     bt->insert(txn_ptr, &key, &update_val);
+    unlock(db_dirs_rwlock);
   }
 
   //printf("before_rec :: record :: %p \n", before_rec);
@@ -276,7 +282,6 @@ int opt_sp_engine::update(const statement& st) {
   delete rec_ptr;
   delete before_rec;
   delete ((char*) update_val.data);
-  unlock(db_dirs_rwlock);
 
   return EXIT_SUCCESS;
 }

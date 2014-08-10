@@ -79,8 +79,8 @@ std::string wal_engine::select(const statement& st) {
 
   rdlock(&table_index->index_rwlock);
   if ((table_index->off_map->at(key, &storage_offset)) == false) {
-    delete rec_ptr;
     unlock(&table_index->index_rwlock);
+    delete rec_ptr;
     return val;
   }
   unlock(&table_index->index_rwlock);

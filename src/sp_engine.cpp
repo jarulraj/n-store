@@ -88,11 +88,14 @@ std::string sp_engine::select(const statement& st) {
   // Read from latest clean version
   rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+    unlock(db_dirs_rwlock);
     tuple = std::string((char*) val.data);
     tuple = deserialize_to_string(tuple, st.projection);
     LOG_INFO("val : %s", tuple.c_str());
   }
-  unlock(db_dirs_rwlock);
+  else{
+    unlock(db_dirs_rwlock);
+  }
 
   //cout<<"val : "<<tuple<<endl;
   delete rec_ptr;

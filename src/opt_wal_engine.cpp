@@ -33,9 +33,10 @@ std::string opt_wal_engine::select(const statement& st) {
   std::string val;
 
   rdlock(&table_index->index_rwlock);
-  if (table_index->pm_map->at(key, &select_ptr))
-    val = serialize(select_ptr, st.projection);
+  table_index->pm_map->at(key, &select_ptr);
   unlock(&table_index->index_rwlock);
+
+  val = serialize(select_ptr, st.projection);
 
   LOG_INFO("val : %s", val.c_str());
 
