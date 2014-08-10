@@ -128,7 +128,7 @@ YCSB_RW_MIXES = [0, 0.1, 0.5]
 YCSB_RECOVERY_TXNS = [1000, 10000]
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
-TPCC_RW_MIXES = [0.5, 0]
+TPCC_RW_MIXES = [0.5, 0.5]
 TPCC_RECOVERY_TXNS = [1000, 10000]
 
 YCSB_PERF_DIR = "../results/ycsb/performance/"
