@@ -168,6 +168,8 @@ int wal_engine::remove(const statement& st) {
   unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
+  if(val.empty())
+    goto end;
   before_rec = deserialize(val, tab->sptr);
 
   // Add log entry
@@ -188,9 +190,9 @@ int wal_engine::remove(const statement& st) {
     unlock(&indices->at(index_itr)->index_rwlock);
   }
 
-  //FIXME before_rec->clear_data();
-  //FIXME delete before_rec;
-  delete rec_ptr;
+  before_rec->clear_data();
+  delete before_rec;
+  end:delete rec_ptr;
   return EXIT_SUCCESS;
 }
 
@@ -213,9 +215,13 @@ int wal_engine::update(const statement& st) {
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
   //LOG_INFO("val : %s", val.c_str());
+  if(val.empty())
+    goto end;
+
   before_rec = deserialize(val, tab->sptr);
 
   entry_stream.str("");
@@ -228,7 +234,6 @@ int wal_engine::update(const statement& st) {
   for (int field_itr : st.field_ids) {
     before_rec->set_data(field_itr, rec_ptr);
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   // after image
   before_tuple = serialize(before_rec, tab->sptr);
@@ -243,7 +248,7 @@ int wal_engine::update(const statement& st) {
   tab->fs_data.update(storage_offset, before_tuple);
 
   delete before_rec;
-  delete rec_ptr;
+  end: delete rec_ptr;
   return EXIT_SUCCESS;
 }
 
