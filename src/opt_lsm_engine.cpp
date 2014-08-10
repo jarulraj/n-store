@@ -14,8 +14,6 @@ void opt_lsm_engine::merge_check() {
 void opt_lsm_engine::merge(bool force) {
   //std::cout << "Merging ! " << merge_looper << endl;
 
-  wrlock(&db->engine_rwlock);
-
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     table_index *p_index = tab->indices->at(0);
@@ -88,8 +86,6 @@ void opt_lsm_engine::merge(bool force) {
   if (force)
     pm_log->clear();
 
-  unlock(&db->engine_rwlock);
-
 }
 
 opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only,
@@ -103,21 +99,18 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only,
   merge_looper = 0;
   pm_log = db->log->at(tid);
 
-  if (tid == 0) {
-    vector<table*> tables = db->tables->get_data();
-    for (table* tab : tables) {
-      std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-      // Storing pointer only
-      tab->fs_data.configure(table_file_name, 15, false);
-    }
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+    // Storing pointer only
+    tab->fs_data.configure(table_file_name, 15, false);
   }
 
 }
 
 opt_lsm_engine::~opt_lsm_engine() {
 
-  if (!read_only && tid == 0) {
-
+  if (!read_only) {
     merge(true);
 
     vector<table*> tables = db->tables->get_data();
@@ -142,17 +135,15 @@ std::string opt_lsm_engine::select(const statement& st) {
   unsigned long key = hash_fn(key_str);
   off_t storage_offset = -1;
 
-  rdlock(&table_index->index_rwlock);
   // Check if key exists in mem
   table_index->pm_map->at(key, &pm_rec);
+
   // Check if key exists in fs
   table_index->off_map->at(key, &storage_offset);
-  unlock(&table_index->index_rwlock);
 
   if (storage_offset != -1) {
     val = tab->fs_data.at(storage_offset);
-    if (!val.empty())
-      std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+    std::sscanf((char*) val.c_str(), "%p", &fs_rec);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
@@ -174,7 +165,6 @@ std::string opt_lsm_engine::select(const statement& st) {
   }
 
   LOG_INFO("val : %s", val.c_str());
-  //cout << "val : " << val << endl;
 
   return val;
 }
@@ -193,14 +183,11 @@ int opt_lsm_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key)
       || indices->at(0)->off_map->exists(key)) {
     delete after_rec;
-    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -225,9 +212,7 @@ int opt_lsm_engine::insert(const statement& st) {
     key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->insert(key, after_rec);
-    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   return EXIT_SUCCESS;
@@ -245,18 +230,14 @@ int opt_lsm_engine::remove(const statement& st) {
   std::string val;
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
-  //LOG_INFO("Key_str :: --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) == 0
       && indices->at(0)->off_map->exists(key) == 0) {
     delete rec_ptr;
-    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -273,21 +254,17 @@ int opt_lsm_engine::remove(const statement& st) {
   pm_log->push_back(entry);
 
   record* before_rec = NULL;
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->at(key, &before_rec)) {
     delete before_rec;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->erase(key);
     indices->at(index_itr)->off_map->erase(key);
-    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   return EXIT_SUCCESS;
@@ -311,10 +288,7 @@ int opt_lsm_engine::update(const statement& st) {
   bool update_rec = false;
 
   // Check if key does not exist
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
-    unlock(&indices->at(0)->index_rwlock);
-    //LOG_INFO("Key not found in mem table %lu ", key);
     before_rec = rec_ptr;
 
     entry_stream.str("");
@@ -322,8 +296,6 @@ int opt_lsm_engine::update(const statement& st) {
                  << st.table_id << " " << before_rec << "\n";
 
   } else {
-    unlock(&indices->at(0)->index_rwlock);
-
     int num_fields = st.field_ids.size();
     update_rec = true;
 
@@ -336,13 +308,11 @@ int opt_lsm_engine::update(const statement& st) {
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
         before_field = before_rec->get_pointer(field_itr);
         after_field = rec_ptr->get_pointer(field_itr);
-
         entry_stream << field_itr << " " << before_field << " ";
       }
       // Data field
       else {
         std::string before_data = before_rec->get_data(field_itr);
-
         entry_stream << field_itr << " " << " " << before_data << " ";
       }
     }
@@ -382,9 +352,7 @@ int opt_lsm_engine::update(const statement& st) {
       key_str = serialize(before_rec, indices->at(index_itr)->sptr);
       key = hash_fn(key_str);
 
-      wrlock(&indices->at(index_itr)->index_rwlock);
       indices->at(index_itr)->pm_map->insert(key, before_rec);
-      unlock(&indices->at(index_itr)->index_rwlock);
     }
   }
 
@@ -417,18 +385,12 @@ void opt_lsm_engine::load(const statement& st) {
 }
 
 void opt_lsm_engine::txn_begin() {
-  if (!read_only) {
-    rdlock(&db->engine_rwlock);
-  }
 }
 
 void opt_lsm_engine::txn_end(bool commit) {
-  if (!read_only) {
-    unlock(&db->engine_rwlock);
-  }
 
-  if (!read_only && tid == 0)
-    merge_check();
+  merge_check();
+
 }
 
 void opt_lsm_engine::recovery() {

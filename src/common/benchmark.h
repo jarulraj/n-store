@@ -27,8 +27,8 @@ class benchmark {
     num_executors = conf.num_executors;
     num_txns = conf.num_txns;
 
-    for(int i = 0; i < num_executors; i++)
-        tm[i] = timer();
+    for (int i = 0; i < num_executors; i++)
+      tm[i] = timer();
 
   }
 
@@ -44,10 +44,7 @@ class benchmark {
   }
 
   void execute(config& conf) {
-    if (single || conf.read_only)
-      execute_st(conf);
-    else
-      execute_mt(conf);
+    execute_st(conf);
   }
 
   void execute_st(config& conf) {
@@ -78,7 +75,7 @@ class benchmark {
 
     display_stats(conf.etype, max_dur, num_txns);
 
-    for (int i = 0; i < num_thds; i++){
+    for (int i = 0; i < num_thds; i++) {
       //te[i]->display();
       delete te[i];
     }

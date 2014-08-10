@@ -87,7 +87,6 @@ class database {
 
   // SP and OPT_SP
   cow_pbtree* dirs;
-  pthread_rwlock_t engine_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 };
 
 #endif /* DATABASE_H_ */

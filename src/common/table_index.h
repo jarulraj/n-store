@@ -38,8 +38,6 @@ class table_index {
   schema* sptr;
   unsigned int num_fields;
 
-  pthread_rwlock_t index_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-
   pbtree<unsigned long, record*>* pm_map;
   pbtree<unsigned long, off_t>* off_map;
 };

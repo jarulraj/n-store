@@ -28,21 +28,15 @@ std::string opt_wal_engine::select(const statement& st) {
   table_index* table_index = tab->indices->at(st.table_index_id);
   std::string key_str = serialize(rec_ptr, table_index->sptr);
 
-  LOG_INFO("key : %s ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
   std::string val;
 
-  rdlock(&table_index->index_rwlock);
   table_index->pm_map->at(key, &select_ptr);
-  unlock(&table_index->index_rwlock);
-
-  val = serialize(select_ptr, st.projection);
-
+  if (select_ptr)
+    val = serialize(select_ptr, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
-  //cout<<"val : " <<val<<endl;
   delete rec_ptr;
-
   return val;
 }
 
@@ -59,13 +53,10 @@ int opt_wal_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->exists(key) != 0) {
-    unlock(&indices->at(0)->index_rwlock);
     delete after_rec;
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   entry_stream.str("");
@@ -76,7 +67,6 @@ int opt_wal_engine::insert(const statement& st) {
   size_t entry_str_sz = entry_str.size() + 1;
   char* entry = new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
-
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
 
@@ -84,18 +74,14 @@ int opt_wal_engine::insert(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
-  wrlock(&tab->table_rwlock);
   tab->pm_data->push_back(after_rec);
-  unlock(&tab->table_rwlock);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->insert(key, after_rec);
-    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   return EXIT_SUCCESS;
@@ -115,13 +101,10 @@ int opt_wal_engine::remove(const statement& st) {
   record* before_rec = NULL;
 
   // Check if key does not exist
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
-    unlock(&indices->at(0)->index_rwlock);
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   int num_cols = before_rec->sptr->num_columns;
 
@@ -146,22 +129,17 @@ int opt_wal_engine::remove(const statement& st) {
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
 
-  wrlock(&tab->table_rwlock);
   tab->pm_data->erase(before_rec);
-  unlock(&tab->table_rwlock);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->pm_map->erase(key);
-    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   delete rec_ptr;
-
   return EXIT_SUCCESS;
 }
 
@@ -174,14 +152,11 @@ int opt_wal_engine::update(const statement& st) {
   unsigned long key = hash_fn(key_str);
   record* before_rec;
 
-  rdlock(&indices->at(0)->index_rwlock);
   // Check if key does not exist
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
-    unlock(&indices->at(0)->index_rwlock);
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   void *before_field, *after_field;
   int num_fields = st.field_ids.size();

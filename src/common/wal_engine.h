@@ -31,10 +31,8 @@ class wal_engine : public engine_api {
   void load(const statement& t);
 
   void group_commit();
-
   void txn_begin();
   void txn_end(bool commit);
-
   void recovery();
 
   //private:
@@ -43,12 +41,10 @@ class wal_engine : public engine_api {
 
   logger fs_log;
   std::hash<std::string> hash_fn;
-
   std::stringstream entry_stream;
   std::string entry_str;
 
   std::thread gc;
-  pthread_rwlock_t wal_pbtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::atomic_bool ready;
 
   bool read_only = false;

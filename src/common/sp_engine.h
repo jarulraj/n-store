@@ -42,7 +42,6 @@ class sp_engine : public engine_api {
   database* db;
 
   std::hash<std::string> hash_fn;
-
   std::thread gc;
   pthread_rwlock_t gc_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   std::atomic_bool ready;
@@ -52,8 +51,6 @@ class sp_engine : public engine_api {
 
   bool read_only = false;
   unsigned int tid;
-
-  pthread_rwlock_t* db_dirs_rwlock;
 
 };
 

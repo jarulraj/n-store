@@ -25,61 +25,67 @@ class engine_mt : public engine {
 
   std::string select(const statement& st) {
     std::string ret;
-    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
+    /*
+     pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
-      ret = de->select(st);
-    } else if (try_rdlock(tuple_rwlock) == 0) {
-      ret = de->select(st);
-      lk_set.insert(tuple_rwlock);
-    } else
-      release();
+     if (lk_set.find(tuple_rwlock) != lk_set.end()) {
+     ret = de->select(st);
+     } else if (try_rdlock(tuple_rwlock) == 0) {
+     ret = de->select(st);
+     lk_set.insert(tuple_rwlock);
+     } else
+     release();
+     */
 
     return ret;
   }
 
   int insert(const statement& st) {
     int ret = -1;
-    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
+    /*
+     pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
-      ret = de->insert(st);
-    } else if (try_wrlock(tuple_rwlock) == 0) {
-      ret = de->insert(st);
-      lk_set.insert(tuple_rwlock);
-    } else
-      release();
+     if (lk_set.find(tuple_rwlock) != lk_set.end()) {
+     ret = de->insert(st);
+     } else if (try_wrlock(tuple_rwlock) == 0) {
+     ret = de->insert(st);
+     lk_set.insert(tuple_rwlock);
+     } else
+     release();
+     */
 
     return ret;
   }
 
   int remove(const statement& st) {
     int ret = -1;
-    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
+    /*
+     pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
-      ret = de->remove(st);
-    } else if (try_wrlock(tuple_rwlock) == 0) {
-      ret = de->remove(st);
-      lk_set.insert(tuple_rwlock);
-    } else
-      release();
-
+     if (lk_set.find(tuple_rwlock) != lk_set.end()) {
+     ret = de->remove(st);
+     } else if (try_wrlock(tuple_rwlock) == 0) {
+     ret = de->remove(st);
+     lk_set.insert(tuple_rwlock);
+     } else
+     release();
+     */
     return ret;
   }
 
   int update(const statement& st) {
     int ret = -1;
-    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
+    /*
+     pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
-      ret = de->update(st);
-    } else if (try_wrlock(tuple_rwlock) == 0) {
-      ret = de->update(st);
-      lk_set.insert(tuple_rwlock);
-    } else
-      release();
-
+     if (lk_set.find(tuple_rwlock) != lk_set.end()) {
+     ret = de->update(st);
+     } else if (try_wrlock(tuple_rwlock) == 0) {
+     ret = de->update(st);
+     lk_set.insert(tuple_rwlock);
+     } else
+     release();
+     */
     return ret;
   }
 

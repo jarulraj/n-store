@@ -43,14 +43,11 @@ class lsm_engine : public engine_api {
   //private:
   const config& conf;
   database* db;
-  std::vector<std::thread> executors;
 
   logger fs_log;
   std::hash<std::string> hash_fn;
-
   std::stringstream entry_stream;
   std::string entry_str;
-
   std::thread gc;
   pthread_rwlock_t merge_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 

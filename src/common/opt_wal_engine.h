@@ -44,7 +44,6 @@ class opt_wal_engine : public engine_api {
 
   std::stringstream entry_stream;
   std::string entry_str;
-
   std::vector<void*> commit_free_list;
   pthread_rwlock_t log_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 

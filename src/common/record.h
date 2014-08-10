@@ -20,8 +20,6 @@ class record {
         data(NULL),
         data_len(_sptr->ser_len) {
     data = new char[data_len];
-    tuple_rwlock = new pthread_rwlock_t;
-    (*tuple_rwlock) = PTHREAD_RWLOCK_INITIALIZER;
   }
 
   ~record() {
@@ -149,7 +147,6 @@ class record {
   schema* sptr;
   char* data;
   size_t data_len;
-  pthread_rwlock_t* tuple_rwlock;
 }
 ;
 

@@ -5,19 +5,6 @@
 
 using namespace std;
 
-void wal_engine::group_commit() {
-
-  while (ready) {
-    //std::cout << "Syncing log !" << endl;
-
-    // sync
-    if (tid == 0)
-      fs_log.sync();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
-  }
-}
-
 wal_engine::wal_engine(const config& _conf, bool _read_only, unsigned int _tid)
     : conf(_conf),
       db(conf.db),
@@ -26,16 +13,14 @@ wal_engine::wal_engine(const config& _conf, bool _read_only, unsigned int _tid)
   read_only = _read_only;
   fs_log.configure(conf.fs_path + "log");
 
-  if (tid == 0) {
-    vector<table*> tables = db->tables->get_data();
-    for (table* tab : tables) {
-      std::string table_file_name = conf.fs_path + std::string(tab->table_name);
-      tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
-    }
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
   }
 
   // Logger start
-  if (!read_only && tid == 0) {
+  if (!read_only) {
     gc = std::thread(&wal_engine::group_commit, this);
     ready = true;
   }
@@ -44,22 +29,21 @@ wal_engine::wal_engine(const config& _conf, bool _read_only, unsigned int _tid)
 wal_engine::~wal_engine() {
 
   // Logger end
-  if (!read_only && tid == 0) {
+  if (!read_only) {
     ready = false;
     gc.join();
 
-    if (tid == 0) {
-      if (!conf.recovery) {
-        fs_log.sync();
-        fs_log.close();
-      }
-
-      vector<table*> tables = db->tables->get_data();
-      for (table* tab : tables) {
-        tab->fs_data.sync();
-        tab->fs_data.close();
-      }
+    if (!conf.recovery) {
+      fs_log.sync();
+      fs_log.close();
     }
+
+    vector<table*> tables = db->tables->get_data();
+    for (table* tab : tables) {
+      tab->fs_data.sync();
+      tab->fs_data.close();
+    }
+
   }
 
 }
@@ -73,21 +57,16 @@ std::string wal_engine::select(const statement& st) {
   table_index* table_index = tab->indices->at(st.table_index_id);
   std::string key_str = serialize(rec_ptr, table_index->sptr);
 
-  LOG_INFO("val : --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
   off_t storage_offset;
 
-  rdlock(&table_index->index_rwlock);
   if ((table_index->off_map->at(key, &storage_offset)) == false) {
-    unlock(&table_index->index_rwlock);
     delete rec_ptr;
     return val;
   }
-  unlock(&table_index->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
   val = deserialize_to_string(val, st.projection);
-
   LOG_INFO("val : %s", val.c_str());
 
   delete rec_ptr;
@@ -108,13 +87,10 @@ int wal_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key present
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->off_map->exists(key)) {
     delete after_rec;
-    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   // Add log entry
   std::string after_tuple = serialize(after_rec, after_rec->sptr);
@@ -126,17 +102,13 @@ int wal_engine::insert(const statement& st) {
   off_t storage_offset;
 
   storage_offset = tab->fs_data.push_back(after_tuple);
-  LOG_INFO("Insert str :: --%s-- ", after_tuple.c_str());
-  LOG_INFO("Insert offset :: %lu ", storage_offset);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->off_map->insert(key, storage_offset);
-    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   delete after_rec;
@@ -159,17 +131,12 @@ int wal_engine::remove(const statement& st) {
   std::string val;
 
   // Check if key does not exist
-  rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->off_map->at(key, &storage_offset) == false) {
     delete rec_ptr;
-    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
-  if (val.empty())
-    goto end;
   before_rec = deserialize(val, tab->sptr);
 
   // Add log entry
@@ -185,14 +152,12 @@ int wal_engine::remove(const statement& st) {
     key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    wrlock(&indices->at(index_itr)->index_rwlock);
     indices->at(index_itr)->off_map->erase(key);
-    unlock(&indices->at(index_itr)->index_rwlock);
   }
 
   before_rec->clear_data();
   delete before_rec;
-  end: delete rec_ptr;
+  delete rec_ptr;
   return EXIT_SUCCESS;
 }
 
@@ -209,33 +174,23 @@ int wal_engine::update(const statement& st) {
   record* before_rec = NULL;
 
   // Check if key does not exist
-  wrlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->off_map->at(key, &storage_offset) == false) {
     delete rec_ptr;
-    unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
-  //LOG_INFO("val : %s", val.c_str());
-  if (val.empty())
-    goto end;
-
   before_rec = deserialize(val, tab->sptr);
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                << " ";
-  // before image
   entry_stream << serialize(before_rec, tab->sptr) << " ";
 
   // Update existing record
   for (int field_itr : st.field_ids) {
     before_rec->set_data(field_itr, rec_ptr);
   }
-
-  // after image
   before_tuple = serialize(before_rec, tab->sptr);
   entry_stream << before_tuple << "\n";
 
@@ -244,11 +199,11 @@ int wal_engine::update(const statement& st) {
   fs_log.push_back(entry_str);
 
   // In-place update
-  LOG_INFO("update offset : %lu", storage_offset);
+  //LOG_INFO("update offset : %lu", storage_offset);
   tab->fs_data.update(storage_offset, before_tuple);
 
   delete before_rec;
-  end: delete rec_ptr;
+  delete rec_ptr;
   return EXIT_SUCCESS;
 }
 
@@ -284,6 +239,16 @@ void wal_engine::load(const statement& st) {
   }
 
   delete after_rec;
+}
+
+void wal_engine::group_commit() {
+
+  while (ready) {
+    // sync
+    fs_log.sync();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(conf.gc_interval));
+  }
 }
 
 void wal_engine::recovery() {

@@ -11,15 +11,9 @@ void opt_sp_engine::group_commit() {
     if (!read_only && txn_ptr != NULL) {
       wrlock(&gc_rwlock);
 
-      if (tid == 0) {
-        wrlock(db_dirs_rwlock);
-
-        assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
-        txn_ptr = bt->txn_begin(0);
-        assert(txn_ptr);
-
-        unlock(db_dirs_rwlock);
-      }
+      assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
+      txn_ptr = bt->txn_begin(0);
+      assert(txn_ptr);
 
       unlock(&gc_rwlock);
     }
@@ -38,22 +32,16 @@ opt_sp_engine::opt_sp_engine(const config& _conf, bool _read_only,
 
   etype = engine_type::OPT_SP;
   read_only = _read_only;
-  db_dirs_rwlock = &db->engine_rwlock;
 
   bt = db->dirs->t_ptr;
-  if (tid == 0) {
-    wrlock(db_dirs_rwlock);
-    txn_ptr = bt->txn_begin(read_only);
-    assert(txn_ptr);
-    unlock(db_dirs_rwlock);
-  }
+  txn_ptr = bt->txn_begin(read_only);
+  assert(txn_ptr);
 
   // Commit only if needed
   if (!read_only) {
     gc = std::thread(&opt_sp_engine::group_commit, this);
     ready = true;
   }
-
 }
 
 opt_sp_engine::~opt_sp_engine() {
@@ -75,6 +63,7 @@ std::string opt_sp_engine::select(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   record* select_ptr;
   struct cow_btval key, val;
+
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
   std::string key_str = serialize(rec_ptr, table_index->sptr);
@@ -87,15 +76,9 @@ std::string opt_sp_engine::select(const statement& st) {
   std::string value;
 
   // Read from latest clean version
-  rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
-    unlock(db_dirs_rwlock);
     memcpy(&select_ptr, val.data, sizeof(record*));
-    //printf("select_ptr :: --%p-- \n", select_ptr);
     value = serialize(select_ptr, st.projection);
-  }
-  else{
-    unlock(db_dirs_rwlock);
   }
 
   LOG_INFO("val : %s", value.c_str());
@@ -119,18 +102,14 @@ int opt_sp_engine::insert(const statement& st) {
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   key_str = std::to_string(key_id);
-
   key.data = (void*) key_str.c_str();
   key.size = key_str.size();
 
   // Check if key exists in current version
-  rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
-    unlock(db_dirs_rwlock);
     delete after_rec;
     return EXIT_SUCCESS;
   }
-  unlock(db_dirs_rwlock);
 
   // Activate new record
   pmemalloc_activate(after_rec);
@@ -147,9 +126,7 @@ int opt_sp_engine::insert(const statement& st) {
     memcpy(val.data, &after_rec, sizeof(record*));
     val.size = sizeof(record*);
 
-    wrlock(db_dirs_rwlock);
     bt->insert(txn_ptr, &key, &val);
-    unlock(db_dirs_rwlock);
   }
 
   delete ((char*) val.data);
@@ -174,13 +151,10 @@ int opt_sp_engine::remove(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist
-  rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
-    unlock(db_dirs_rwlock);
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
-  unlock(db_dirs_rwlock);
 
   // Free record
   record* before_rec;
@@ -195,9 +169,7 @@ int opt_sp_engine::remove(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    wrlock(db_dirs_rwlock);
     bt->remove(txn_ptr, &key, NULL);
-    unlock(db_dirs_rwlock);
   }
 
   delete rec_ptr;
@@ -223,13 +195,10 @@ int opt_sp_engine::update(const statement& st) {
   key.size = key_str.size();
 
   // Check if key does not exist in current version
-  rdlock(db_dirs_rwlock);
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
     delete rec_ptr;
-    unlock(db_dirs_rwlock);
     return EXIT_SUCCESS;
   }
-  unlock(db_dirs_rwlock);
 
   // Read from current version
   record* before_rec;
@@ -270,14 +239,9 @@ int opt_sp_engine::update(const statement& st) {
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
 
-    wrlock(db_dirs_rwlock);
     bt->remove(txn_ptr, &key, NULL);
     bt->insert(txn_ptr, &key, &update_val);
-    unlock(db_dirs_rwlock);
   }
-
-  //printf("before_rec :: record :: %p \n", before_rec);
-  //printf("rec_ptr :: record :: %p \n", rec_ptr);
 
   delete rec_ptr;
   delete before_rec;
