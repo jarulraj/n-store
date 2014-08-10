@@ -37,7 +37,7 @@ void operator delete(void *p) throw () {
     }
   }
 
-  free(p);
+  //free(p);
 }
 
 void pmemalloc_free(void *abs_ptr_) {
@@ -52,7 +52,7 @@ void pmemalloc_free(void *abs_ptr_) {
     }
   }
 
-  free(abs_ptr_);
+  //free(abs_ptr_);
 }
 
 void* pmemalloc_init(const char *path, size_t size) {

@@ -130,7 +130,7 @@ int opt_wal_engine::remove(const statement& st) {
       commit_free_list.push_back(before_field);
     }
   }
-  //FIXME commit_free_list.push_back(before_rec);
+  commit_free_list.push_back(before_rec);
 
   // Add log entry
   entry_stream.str("");
