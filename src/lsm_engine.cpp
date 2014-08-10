@@ -290,7 +290,7 @@ int lsm_engine::remove(const statement& st) {
     unlock(&indices->at(index_itr)->index_rwlock);
   }
 
-  delete before_rec;
+  //FIXME delete before_rec;
   return EXIT_SUCCESS;
 }
 
