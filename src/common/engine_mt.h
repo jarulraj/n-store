@@ -2,6 +2,7 @@
 #define ENGINE_MT_H_
 
 #include <string>
+#include <set>
 
 #include "engine.h"
 #include "lock_manager.h"
@@ -24,13 +25,13 @@ class engine_mt : public engine {
 
   std::string select(const statement& st) {
     std::string ret;
-    unsigned long tuple_id = st.rec_ptr->get_hash_id();
-    unsigned long lock_id = hasher(st.table_id, tuple_id);
+    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    int rc = lm->tuple_rdlock(lock_id);
-    if (rc == 0) {
+    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
       ret = de->select(st);
-      lk_vec.push_back(lock_id);
+    } else if (try_rdlock(tuple_rwlock) == 0) {
+      ret = de->select(st);
+      lk_set.insert(tuple_rwlock);
     } else
       release();
 
@@ -39,13 +40,13 @@ class engine_mt : public engine {
 
   int insert(const statement& st) {
     int ret = -1;
-    unsigned long tuple_id = st.rec_ptr->get_hash_id();
-    unsigned long lock_id = hasher(st.table_id, tuple_id);
+    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    int rc = lm->tuple_wrlock(lock_id);
-    if (rc == 0) {
+    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
       ret = de->insert(st);
-      lk_vec.push_back(lock_id);
+    } else if (try_wrlock(tuple_rwlock) == 0) {
+      ret = de->insert(st);
+      lk_set.insert(tuple_rwlock);
     } else
       release();
 
@@ -54,15 +55,14 @@ class engine_mt : public engine {
 
   int remove(const statement& st) {
     int ret = -1;
-    unsigned long tuple_id = st.rec_ptr->get_hash_id();
-    unsigned long lock_id = hasher(st.table_id, tuple_id);
+    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    int rc = lm->tuple_wrlock(lock_id);
-    if (rc == 0){
+    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
       ret = de->remove(st);
-      lk_vec.push_back(lock_id);
-    }
-    else
+    } else if (try_wrlock(tuple_rwlock) == 0) {
+      ret = de->remove(st);
+      lk_set.insert(tuple_rwlock);
+    } else
       release();
 
     return ret;
@@ -70,13 +70,13 @@ class engine_mt : public engine {
 
   int update(const statement& st) {
     int ret = -1;
-    unsigned long tuple_id = st.rec_ptr->get_hash_id();
-    unsigned long lock_id = hasher(st.table_id, tuple_id);
+    pthread_rwlock_t* tuple_rwlock = st.rec_ptr->tuple_rwlock;
 
-    int rc = lm->tuple_wrlock(lock_id);
-    if (rc == 0) {
+    if (lk_set.find(tuple_rwlock) != lk_set.end()) {
       ret = de->update(st);
-      lk_vec.push_back(lock_id);
+    } else if (try_wrlock(tuple_rwlock) == 0) {
+      ret = de->update(st);
+      lk_set.insert(tuple_rwlock);
     } else
       release();
 
@@ -94,9 +94,9 @@ class engine_mt : public engine {
   }
 
   void release() {
-    for (unsigned long lk : lk_vec)
-      lm->tuple_unlock(lk);
-    lk_vec.clear();
+    for (pthread_rwlock_t* lk : lk_set)
+      unlock(lk);
+    lk_set.clear();
   }
 
   void display() {
@@ -104,7 +104,7 @@ class engine_mt : public engine {
     cout << "aborts :: " << lm->abort << endl;
   }
 
-  std::vector<unsigned long> lk_vec;
+  std::set<pthread_rwlock_t*> lk_set;
   lock_manager* lm;
 };
 

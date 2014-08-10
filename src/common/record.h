@@ -18,14 +18,14 @@ class record {
   record(schema* _sptr)
       : sptr(_sptr),
         data(NULL),
-        data_len(_sptr->ser_len),
-        hash_id(0) {
+        data_len(_sptr->ser_len) {
     data = new char[data_len];
-    hash_id = rand();
+    tuple_rwlock = new pthread_rwlock_t;
+    (*tuple_rwlock) = PTHREAD_RWLOCK_INITIALIZER;
   }
 
   ~record() {
-    delete data;
+    delete[] data;
   }
 
   // Free non-inlined data
@@ -146,14 +146,10 @@ class record {
     }
   }
 
-  unsigned long get_hash_id() {
-    return hash_id;
-  }
-
   schema* sptr;
   char* data;
   size_t data_len;
-  unsigned long hash_id;
+  pthread_rwlock_t* tuple_rwlock;
 }
 ;
 

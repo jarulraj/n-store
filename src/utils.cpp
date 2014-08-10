@@ -352,28 +352,43 @@ void uniform(vector<double>& uniform_dist, int num_values) {
 
 void wrlock(pthread_rwlock_t* access) {
   int rc = pthread_rwlock_wrlock(access);
-
   if (rc != 0) {
-    printf("wrlock failed \n");
+    perror("wrlock failed \n");
     exit(EXIT_FAILURE);
   }
 }
 
 void rdlock(pthread_rwlock_t* access) {
   int rc = pthread_rwlock_rdlock(access);
-
   if (rc != 0) {
-    printf("rdlock failed \n");
+    perror("rdlock failed \n");
     exit(EXIT_FAILURE);
   }
 }
 
+int try_wrlock(pthread_rwlock_t* access) {
+  int rc = pthread_rwlock_trywrlock(access);
+  if (rc != 0) {
+    perror("trywrlock failed \n");
+    exit(EXIT_FAILURE);
+  }
+
+  return rc;
+}
+
+int try_rdlock(pthread_rwlock_t* access) {
+  int rc = pthread_rwlock_tryrdlock(access);
+  if (rc != 0) {
+    perror("tryrdlock failed \n");
+  }
+
+  return rc;
+}
+
 void unlock(pthread_rwlock_t* access) {
   int rc = pthread_rwlock_unlock(access);
-
   if (rc != 0) {
-    printf("unlock failed \n");
-    exit(EXIT_FAILURE);
+    perror("unlock failed \n");
   }
 }
 

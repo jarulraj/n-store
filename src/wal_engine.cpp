@@ -188,8 +188,8 @@ int wal_engine::remove(const statement& st) {
     unlock(&indices->at(index_itr)->index_rwlock);
   }
 
-  //FIXME before_rec->clear_data();
-  //FIXME delete before_rec;
+  before_rec->clear_data();
+  delete before_rec;
   delete rec_ptr;
   return EXIT_SUCCESS;
 }

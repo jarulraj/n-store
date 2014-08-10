@@ -123,7 +123,7 @@ class storage {
     }
 
     entry_str = std::string(buf);
-    delete buf;
+    delete[] buf;
 
     return entry_str;
   }

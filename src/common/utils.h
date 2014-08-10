@@ -62,9 +62,9 @@ void uniform(vector<double>& uniform_dist, int num_values);
 void display_stats(engine_type etype, double duration, int num_txns);
 
 void wrlock(pthread_rwlock_t* access);
-
-void unlock(pthread_rwlock_t* access);
-
+int try_wrlock(pthread_rwlock_t* access);
 void rdlock(pthread_rwlock_t* access);
+int try_rdlock(pthread_rwlock_t* access);
+void unlock(pthread_rwlock_t* access);
 
 #endif /* UTILS_H_ */
