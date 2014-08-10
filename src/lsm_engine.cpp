@@ -342,7 +342,7 @@ int lsm_engine::update(const statement& st) {
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << serialize(before_rec, before_rec->sptr) << " ";
 
-    //wrlock(&indices->at(0)->index_rwlock);
+    wrlock(&indices->at(0)->index_rwlock);
     // Update existing record
     for (int field_itr : st.field_ids) {
       if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
@@ -352,7 +352,7 @@ int lsm_engine::update(const statement& st) {
 
       before_rec->set_data(field_itr, rec_ptr);
     }
-    //unlock(&indices->at(0)->index_rwlock);
+    unlock(&indices->at(0)->index_rwlock);
 
     entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
     entry_str = entry_stream.str();
