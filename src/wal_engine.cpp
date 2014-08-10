@@ -213,7 +213,6 @@ int wal_engine::update(const statement& st) {
     unlock(&indices->at(0)->index_rwlock);
     return EXIT_SUCCESS;
   }
-  unlock(&indices->at(0)->index_rwlock);
 
   val = tab->fs_data.at(storage_offset);
   //LOG_INFO("val : %s", val.c_str());
@@ -229,6 +228,7 @@ int wal_engine::update(const statement& st) {
   for (int field_itr : st.field_ids) {
     before_rec->set_data(field_itr, rec_ptr);
   }
+  unlock(&indices->at(0)->index_rwlock);
 
   // after image
   before_tuple = serialize(before_rec, tab->sptr);
