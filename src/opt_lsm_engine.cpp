@@ -426,10 +426,17 @@ void opt_lsm_engine::load(const statement& st) {
 }
 
 void opt_lsm_engine::txn_begin() {
+  if (!read_only) {
+    rdlock(&db->engine_rwlock);
+  }
 }
 
 void opt_lsm_engine::txn_end(bool commit) {
-  if (!read_only)
+  if (!read_only) {
+    unlock(&db->engine_rwlock);
+  }
+
+  if (!read_only && tid == 0)
     merge_check();
 }
 
