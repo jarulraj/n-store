@@ -14,6 +14,7 @@ import fnmatch
 import string
 import argparse
 import pylab
+import datetime
 
 import numpy as np
 import matplotlib.pyplot as plot
@@ -142,7 +143,7 @@ TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
 
-TPCC_TXNS = 100000
+TPCC_TXNS = 500000
 
 FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=10)
 BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=14)
@@ -792,6 +793,7 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
     
     # LOG RESULTS
     log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
     
     for nvm_latency in nvm_latencies:
 
@@ -831,6 +833,7 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
         os.chdir(cwd)
  
     # PARSE LOG
+    log_file.write('End :: %s \n' % datetime.datetime.now())
     log_file.close()   
     log_file = open(log_name, "r")    
 
@@ -1027,6 +1030,7 @@ def ycsb_storage_eval(log_name):
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
                    
     # RW MIX
     for rw_mix  in rw_mixes:
@@ -1065,7 +1069,8 @@ def ycsb_nvm_eval(log_name):
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
-                   
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+
     # RW MIX
     for rw_mix  in rw_mixes:
         # SKEW FACTOR
@@ -1251,7 +1256,8 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
-    
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+ 
     for nvm_latency in nvm_latencies:
 
         ostr = ("LATENCY %s \n" % nvm_latency)    
@@ -1292,6 +1298,7 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
         os.chdir(cwd)
 
     # PARSE LOG
+    log_file.write('End :: %s \n' % datetime.datetime.now())
     log_file.close()   
     log_file = open(log_name, "r")    
 
@@ -1446,6 +1453,7 @@ def tpcc_storage_eval(log_name):
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
                    
     # RW MIX
     for rw_mix  in rw_mixes:
@@ -1486,6 +1494,7 @@ def tpcc_nvm_eval(log_name):
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
                
     # RW MIX
     for rw_mix  in rw_mixes:
