@@ -280,7 +280,7 @@ int opt_lsm_engine::remove(const statement& st) {
   record* before_rec = NULL;
   rdlock(&indices->at(0)->index_rwlock);
   if (indices->at(0)->pm_map->at(key, &before_rec)) {
-    // XXX delete before_rec;
+    // FIXME delete before_rec;
   }
   unlock(&indices->at(0)->index_rwlock);
 

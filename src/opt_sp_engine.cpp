@@ -20,7 +20,7 @@ void opt_sp_engine::group_commit() {
 
         // Clear commit_free list
         for (void* ptr : db->commit_free_list) {
-          //pmemalloc_free(ptr);
+          //FIXME pmemalloc_free(ptr);
         }
         db->commit_free_list.clear();
 
@@ -256,7 +256,7 @@ int opt_sp_engine::update(const statement& st) {
       before_field = before_rec->get_pointer(field_itr);
       after_field = rec_ptr->get_pointer(field_itr);
       pmemalloc_activate(after_field);
-      //delete ((char*) before_field);
+      //FIXME delete ((char*) before_field);
     }
 
     after_rec->set_data(field_itr, rec_ptr);
