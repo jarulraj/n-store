@@ -1701,7 +1701,7 @@ class cow_btree {
     struct mpage *mp;
     struct bt_meta *_meta;
     pgno_t meta_pgno, next_pgno;
-    off_t _size;
+    off_t _size = 0;
 
     if (persist == false) {
       if ((_size = lseek(fd, 0, SEEK_END)) == -1)

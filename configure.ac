@@ -10,10 +10,9 @@ AM_INIT_AUTOMAKE([1.0 foreign])
 
 AC_PROG_CC
 
-if test -z $CXXFLAGS; then
-    CXXFLAGS='-ggdb -O0'
-fi
-
+#if test -z $CXXFLAGS; then
+#    CXXFLAGS='-ggdb -O0'
+#fi
 
 AC_PROG_CXX
 AC_PROG_LIBTOOL

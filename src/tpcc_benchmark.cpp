@@ -1825,7 +1825,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
   int d_id = get_rand_int(0, districts_per_warehouse);
   double h_amount = get_rand_double(payment_min_amount, payment_max_amount);
   double h_ts = static_cast<double>(time(NULL));
-  int c_w_id, c_d_id, c_id;
+  int c_w_id, c_d_id, c_id = 0;
   std::string c_name;
   std::string customer_str;
 

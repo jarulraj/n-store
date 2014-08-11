@@ -92,8 +92,13 @@ void pmemalloc_end(const char *path) {
 void pmemalloc_check(const char *path) {
   FILE* pmem_file = fopen(path, "r");
   if (pmem_file != NULL) {
-    fscanf(pmem_file, "Active %lu \n", &pmem_size);
-    fprintf(stdout, "Active %lu \n", pmem_size);
+    int ret = fscanf(pmem_file, "Active %lu \n", &pmem_size);
+    if(ret >= 0){
+      fprintf(stdout, "Active %lu \n", pmem_size);
+    }
+    else{
+      perror("fscanf");
+    }
     fclose(pmem_file);
   }
 }

@@ -271,7 +271,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
   static double c = 0;          // Normalization constant
   double z;          // Uniform random number (0 < z < 1)
   double sum_prob;          // Sum of probabilities
-  double zipf_value;          // Computed exponential value to be returned
+  double zipf_value = 0;          // Computed exponential value to be returned
   int i, j;
 
   double* powers = new double[n + 1];
