@@ -11,7 +11,7 @@ using namespace std;
 
 class database {
  public:
-  database(config& conf, struct static_info* sp)
+  database(config& conf, struct static_info* sp, unsigned int tid)
       : tables(NULL),
         log(NULL),
         dirs(NULL) {
@@ -30,8 +30,9 @@ class database {
 
     // DIRS
     if (conf.etype == engine_type::SP) {
-      dirs = new cow_pbtree(false, (conf.fs_path + "cow.nvm").c_str(),
-      NULL);
+      dirs = new cow_pbtree(
+          false, (conf.fs_path + std::to_string(tid) + "_" + "cow.nvm").c_str(),
+          NULL);
       // No activation
     }
 
@@ -51,11 +52,12 @@ class database {
     delete[] log;
   }
 
-  void reset(config& conf) {
+  void reset(config& conf, unsigned int tid) {
 
     if (conf.etype == engine_type::SP) {
-      dirs = new cow_pbtree(false, (conf.fs_path + "cow.nvm").c_str(),
-      NULL);
+      dirs = new cow_pbtree(
+          false, (conf.fs_path + std::to_string(tid) + "_" + "cow.nvm").c_str(),
+          NULL);
     }
 
     // Clear all table data and indices

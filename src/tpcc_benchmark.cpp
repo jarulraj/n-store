@@ -56,7 +56,7 @@ tpcc_benchmark::tpcc_benchmark(config& _conf, unsigned int tid, database* _db,
   } else {
     cout << "Recovery Mode " <<endl;
     database* db = (database*) sp->ptrs[0];
-    db->reset(conf);
+    db->reset(conf, tid);
   }
 
   item_table_schema = db->tables->at(ITEM_TABLE_ID)->sptr;

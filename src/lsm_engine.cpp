@@ -5,19 +5,21 @@
 
 using namespace std;
 
-lsm_engine::lsm_engine(const config& _conf, database* _db, bool _read_only, unsigned int _tid)
+lsm_engine::lsm_engine(const config& _conf, database* _db, bool _read_only,
+                       unsigned int _tid)
     : conf(_conf),
       db(_db),
       tid(_tid) {
 
   etype = engine_type::LSM;
   read_only = _read_only;
-  fs_log.configure(conf.fs_path + "log");
+  fs_log.configure(conf.fs_path + std::to_string(_tid) + "_" + "log");
   merge_looper = 0;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
-    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+    std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
+        + std::string(tab->table_name);
     tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
   }
 

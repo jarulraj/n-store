@@ -91,7 +91,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf, unsigned int tid, database* _db,
   } else {
     //cout << "Recovery Mode " << endl;
     database* db = (database*) sp->ptrs[0];
-    db->reset(conf);
+    db->reset(conf, tid);
   }
 
   user_table_schema = db->tables->at(USER_TABLE_ID)->sptr;

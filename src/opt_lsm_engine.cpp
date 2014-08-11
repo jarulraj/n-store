@@ -5,7 +5,8 @@
 using namespace std;
 
 opt_lsm_engine::opt_lsm_engine(const config& _conf, database* _db,
-                               bool _read_only, unsigned int _tid)
+bool _read_only,
+                               unsigned int _tid)
     : conf(_conf),
       db(_db),
       tid(_tid) {
@@ -17,7 +18,8 @@ opt_lsm_engine::opt_lsm_engine(const config& _conf, database* _db,
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
-    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+    std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
+        + std::string(tab->table_name);
     // Storing pointer only
     tab->fs_data.configure(table_file_name, 15, false);
   }
