@@ -9,7 +9,7 @@ using namespace std;
 void* pmp;
 struct static_info* sp;
 std::set<void*>* pmem_pool;
-std::mutex pmem_pool_mutex;
+std::recursive_mutex pmem_mutex;
 size_t pmem_size;
 bool pm_stats = false;
 
@@ -27,14 +27,13 @@ void* pmemalloc_reserve(size_t size) {
 
 void operator delete(void *p) throw () {
   if (pm_stats) {
+    pmem_mutex.lock();
     if (pmem_pool->count(p) != 0) {
       size_t len = malloc_usable_size(p);
-      pmem_pool_mutex.lock();
       pmem_pool->erase(p);
-      pmem_pool_mutex.unlock();
-
       pmem_size -= len;
     }
+    pmem_mutex.unlock();
   }
 
   free(p);
@@ -42,14 +41,13 @@ void operator delete(void *p) throw () {
 
 void pmemalloc_free(void *abs_ptr_) {
   if (pm_stats) {
+    pmem_mutex.lock();
     if (pmem_pool->count(abs_ptr_) != 0) {
       size_t len = malloc_usable_size(abs_ptr_);
-      pmem_pool_mutex.lock();
       pmem_pool->erase(abs_ptr_);
-      pmem_pool_mutex.unlock();
-
       pmem_size -= len;
     }
+    pmem_mutex.unlock();
   }
 
   free(abs_ptr_);
@@ -73,9 +71,9 @@ void pmemalloc_activate(void *abs_ptr_) {
   pmem_persist(abs_ptr_, len, 0);
 
   if (pm_stats) {
-    pmem_pool_mutex.lock();
+    pmem_mutex.lock();
     pmem_pool->insert(abs_ptr_);
-    pmem_pool_mutex.unlock();
+    pmem_mutex.unlock();
 
     pmem_size += len;
   }
