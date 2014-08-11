@@ -253,6 +253,15 @@ void lsm_engine::load(const statement& st) {
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
+  // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << serialize(after_rec, after_rec->sptr) << "\n";
+  entry_str = entry_stream.str();
+
+  // Add log entry
+  fs_log.push_back(entry_str);
+
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = serialize(after_rec, indices->at(index_itr)->sptr);

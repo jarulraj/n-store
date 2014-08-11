@@ -53,7 +53,8 @@ void pmemalloc_free(void *abs_ptr_) {
   free(abs_ptr_);
 }
 
-void* pmemalloc_init(__attribute__((unused)) const char *path,__attribute__((unused)) size_t size) {
+void* pmemalloc_init(__attribute__((unused)) const char *path,
+                     __attribute__((unused))   size_t size) {
   pmem_pool = new std::set<void*>();
   pmem_size = 0;
   pmp = (void*) 1;
@@ -79,6 +80,18 @@ void pmemalloc_activate(void *abs_ptr_) {
   }
 }
 
+void pmemalloc_count(void *abs_ptr_) {
+  if (pm_stats) {
+    size_t len = malloc_usable_size(abs_ptr_);
+
+    pmem_mutex.lock();
+    pmem_pool->insert(abs_ptr_);
+    pmem_mutex.unlock();
+
+    pmem_size += len;
+  }
+}
+
 void pmemalloc_end(const char *path) {
   FILE* pmem_file = fopen(path, "w");
   if (pmem_file != NULL) {
@@ -91,10 +104,9 @@ void pmemalloc_check(const char *path) {
   FILE* pmem_file = fopen(path, "r");
   if (pmem_file != NULL) {
     int ret = fscanf(pmem_file, "Active %lu \n", &pmem_size);
-    if(ret >= 0){
+    if (ret >= 0) {
       fprintf(stdout, "Active %lu \n", pmem_size);
-    }
-    else{
+    } else {
       perror("fscanf");
     }
     fclose(pmem_file);

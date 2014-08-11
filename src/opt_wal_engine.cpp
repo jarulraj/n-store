@@ -4,8 +4,8 @@
 
 using namespace std;
 
-opt_wal_engine::opt_wal_engine(const config& _conf, database* _db, bool _read_only,
-                               unsigned int _tid)
+opt_wal_engine::opt_wal_engine(const config& _conf, database* _db,
+                               bool _read_only, unsigned int _tid)
     : conf(_conf),
       db(_db),
       tid(_tid) {
@@ -218,6 +218,18 @@ void opt_wal_engine::load(const statement& st) {
   unsigned int index_itr;
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
+
+  // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << after_rec;
+
+  entry_str = entry_stream.str();
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
+  pmemalloc_activate(entry);
+  pm_log->push_back(entry);
 
   // Activate new record
   pmemalloc_activate(after_rec);

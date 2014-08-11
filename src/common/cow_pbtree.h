@@ -25,10 +25,10 @@
 using namespace std;
 
 /*
-# define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
+ # define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
 fprintf(stderr, __VA_ARGS__); \
 fprintf(stderr, "\n"); } while(0)
-*/
+ */
 
 # define DPRINTF(...)
 
@@ -1141,13 +1141,13 @@ class cow_btree {
     find.pgno = pgno;
     mp = RB_FIND(page_cache, page_cache, &find);
     /*
-    if (mp) {
-      stat.hits++;
-      // Update LRU queue. Move page to the end.
-      TAILQ_REMOVE(lru_queue, mp, lru_next);
-      TAILQ_INSERT_TAIL(lru_queue, mp, lru_next);
-    }
-    */
+     if (mp) {
+     stat.hits++;
+     // Update LRU queue. Move page to the end.
+     TAILQ_REMOVE(lru_queue, mp, lru_next);
+     TAILQ_INSERT_TAIL(lru_queue, mp, lru_next);
+     }
+     */
     return mp;
   }
 
@@ -1194,6 +1194,9 @@ class cow_btree {
     if (persist) {
       pmemalloc_activate(copy);
       pmemalloc_activate(copy->page);
+    } else {
+      pmemalloc_count(copy);
+      pmemalloc_count(copy->page);
     }
 
     bcopy(mp->page, copy->page, head.psize);
@@ -1202,7 +1205,7 @@ class cow_btree {
     copy->parent_index = mp->parent_index;
     copy->pgno = mp->pgno;
 
-    if(persist){
+    if (persist) {
       mpages->insert(copy->pgno, copy);
       pmemalloc_free(mp->page);
     }
@@ -1217,7 +1220,7 @@ class cow_btree {
   void mpage_prune() {
     struct mpage *mp, *next;
 
-    if(persist)
+    if (persist)
       return;
 
     for (mp = TAILQ_FIRST(lru_queue); mp; mp = next) {
@@ -1482,10 +1485,9 @@ class cow_btree {
       if (persist == false) {
         rc = writev(fd, iov, n);
         if (rc != (ssize_t) head.psize * n) {
-          if (rc > 0){
+          if (rc > 0) {
             DPRINTF("short write, filesystem full?");
-          }
-          else{
+          } else {
             DPRINTF("writev: %s", strerror(errno));
           }
           cow_btree_txn_abort(_txn);
@@ -1536,8 +1538,11 @@ class cow_btree {
 
     if ((p = (page*) new char[psize]()) == NULL)
       return -1;
-    if (persist)
+    if (persist) {
       pmemalloc_activate(p);
+    } else {
+      pmemalloc_count(p);
+    }
 
     p->flags = P_HEAD;
 
@@ -1558,7 +1563,7 @@ class cow_btree {
       delete p;
 
       if (rc != (ssize_t) head.psize) {
-        if (rc > 0){
+        if (rc > 0) {
           DPRINTF("short write, filesystem full?");
         }
         return BT_FAIL;
@@ -1635,8 +1640,11 @@ class cow_btree {
 
     if ((mp = cow_btree_new_page(P_META)) == NULL)
       return -1;
-    if (persist)
+    if (persist) {
       pmemalloc_activate(mp);
+    } else {
+      pmemalloc_count(mp);
+    }
 
     meta.prev_meta = meta.root;
     meta.root = root;
@@ -1663,7 +1671,7 @@ class cow_btree {
       SIMPLEQ_REMOVE_HEAD(txn->dirty_queue, next);
 
       if (rc != (ssize_t) head.psize) {
-        if (rc > 0){
+        if (rc > 0) {
           DPRINTF("short write, filesystem full?");
         }
         return BT_FAIL;
@@ -1806,12 +1814,12 @@ class cow_btree {
   void cow_btree_close() {
     if (--ref == 0) {
       DPRINTF("ref is zero, closing btree");
-      if (persist == false){
+      if (persist == false) {
         close(fd);
       }
       mpage_flush();
       //delete page_cache;
-    } else{
+    } else {
       DPRINTF("ref is now %d ", ref);
     }
   }
@@ -1854,11 +1862,10 @@ class cow_btree {
       else
         rc = bt_cmp(key, &nodekey, &mp->prefix);
 
-      if (IS_LEAF(mp)){
+      if (IS_LEAF(mp)) {
         DPRINTF("found leaf index %u [%.*s], rc = %i", i, (int )nodekey.size,
             (char * )nodekey.data, rc);
-      }
-      else{
+      } else {
         DPRINTF("found branch index %u [%.*s -> %u], rc = %i", i,
             (int )cow_node->ksize, (char *)NODEKEY(cow_node),
             cow_node->n_pgno, rc);
@@ -2022,7 +2029,7 @@ class cow_btree {
         }
       }
 
-      if (key){
+      if (key) {
         DPRINTF("following index %u for key %.*s", i, (int )key->size,
             (char * )key->data);
       }
@@ -2259,8 +2266,11 @@ class cow_btree {
       key->data = new char[key->size];
       if (key->data == NULL)
         return -1;
-      if (persist)
+      if (persist){
         pmemalloc_activate(key->data);
+      }else{
+        pmemalloc_count(key->data);
+      }
       concat_prefix(mp->prefix.str, mp->prefix.len, (char*) NODEKEY(cow_node),
                     cow_node->ksize, (char*) key->data, &key->size);
       //key->release_data = 1;
@@ -2447,9 +2457,14 @@ class cow_btree {
       delete mp;
       return NULL;
     }
+
     if (persist) {
       pmemalloc_activate(mp);
       pmemalloc_activate(mp->page);
+    }
+    else{
+      pmemalloc_count(mp);
+      pmemalloc_count(mp->page);
     }
 
     mp->pgno = mp->page->pgno = txn->next_pgno++;
@@ -3036,13 +3051,13 @@ class cow_btree {
       } else if (IS_BRANCH(mp) && NUMKEYS(mp) == 1) {
         DPRINTF("collapsing root page!");
         txn->root = NODEPGNO(NODEPTR(mp, 0));
-        if ((root = cow_btree_get_mpage(txn->root)) == NULL){
+        if ((root = cow_btree_get_mpage(txn->root)) == NULL) {
           return BT_FAIL;
         }
         root->parent = NULL;
         meta.depth--;
         meta.branch_pages--;
-      } else{
+      } else {
         DPRINTF("root page doesn't need rebalancing");
       }
       return BT_SUCCESS;
@@ -3267,6 +3282,7 @@ class cow_btree {
     /* Move half of the keys to the right sibling. */
     if ((copy = (page*) new char[head.psize]) == NULL)
       return BT_FAIL;
+
     if (persist)
       pmemalloc_activate(copy);
     bcopy(mp->page, copy, head.psize);

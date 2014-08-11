@@ -121,11 +121,11 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000000
-YCSB_TXNS = 2000000
-YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
+YCSB_KEYS = 400000
+YCSB_TXNS = 400000
+YCSB_WORKLOAD_MIX = ("read-only", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
-YCSB_RW_MIXES = [0, 0.1, 0.5]
+YCSB_RW_MIXES = [0, 0.5]
 YCSB_RECOVERY_TXNS = [1000, 10000]
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
@@ -265,6 +265,7 @@ def create_ycsb_storage_bar_chart(datasets):
     
     
     axs[0].set_ylabel("Storage (MB)", fontproperties=BOLD_FP)
+    axs[0].set_ylim([0, 10000])
     
     # LEGEND
     fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",

@@ -287,9 +287,23 @@ void opt_lsm_engine::load(const statement& st) {
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
+  // Add log entry
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << after_rec << "\n";
+
+  entry_str = entry_stream.str();
+  size_t entry_str_sz = entry_str.size() + 1;
+  char* entry = new char[entry_str_sz];
+  memcpy(entry, entry_str.c_str(), entry_str_sz);
+
   // Activate new record
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
+
+  // Add log entry
+  pmemalloc_activate(entry);
+  pm_log->push_back(entry);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -448,8 +462,8 @@ void opt_lsm_engine::recovery() {
         }
 
         // Free after_rec
-        for (unsigned int field_itr = 0; field_itr < after_rec->sptr->num_columns;
-            field_itr++) {
+        for (unsigned int field_itr = 0;
+            field_itr < after_rec->sptr->num_columns; field_itr++) {
           if (after_rec->sptr->columns[field_itr].inlined == 0) {
             void* before_field = after_rec->get_pointer(field_itr);
             commit_free_list.push_back(before_field);

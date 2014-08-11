@@ -229,9 +229,15 @@ void wal_engine::load(const statement& st) {
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
+  // Add log entry
   std::string after_tuple = serialize(after_rec, after_rec->sptr);
-  off_t storage_offset;
+  entry_stream.str("");
+  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+               << " " << after_tuple << "\n";
+  entry_str = entry_stream.str();
+  fs_log.push_back(entry_str);
 
+  off_t storage_offset;
   storage_offset = tab->fs_data.push_back(after_tuple);
 
   // Add entry in indices

@@ -25,7 +25,7 @@ class coordinator {
         num_txns(0) {
   }
 
-  coordinator(__attribute__((unused))    config& conf) {
+  coordinator(__attribute__((unused))     config& conf) {
     single = conf.single;
     num_executors = conf.num_executors;
     num_txns = conf.num_txns;
@@ -62,13 +62,13 @@ class coordinator {
     for (unsigned int i = 0; i < num_executors; i++)
       executors[i].join();
 
-    double sum_dur = 0;
+    double max_dur = 0;
     for (unsigned int i = 0; i < num_executors; i++) {
       //cout<<"dur :"<<i<<" :: "<<tm[i].duration()<<endl;
-      sum_dur += tm[i].duration();
+      max_dur = std::max(max_dur, tm[i].duration());
     }
-    //cout<<"avg dur :"<<sum_dur/num_executors<<endl;
-    display_stats(conf.etype, sum_dur / num_executors, num_txns);
+    //cout<<"max dur :"<<max_dur<<endl;
+    display_stats(conf.etype, max_dur, num_txns);
 
     /*
      for (unsigned int i = 0; i < num_executors; i++) {
