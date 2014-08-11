@@ -224,7 +224,6 @@ int opt_sp_engine::update(const statement& st) {
 
   // Activate new record
   pmemalloc_activate(after_rec);
-  after_rec->persist_data();
 
   update_val.data = new char[sizeof(record*) + 1];
   memcpy(update_val.data, &after_rec, sizeof(record*));

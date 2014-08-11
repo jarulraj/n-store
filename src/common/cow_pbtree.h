@@ -1202,8 +1202,10 @@ class cow_btree {
     copy->parent_index = mp->parent_index;
     copy->pgno = mp->pgno;
 
-    if(persist)
+    if(persist){
       mpages->insert(copy->pgno, copy);
+      pmemalloc_free(mp->page);
+    }
 
     return copy;
   }

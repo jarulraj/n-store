@@ -2131,7 +2131,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
     }
   }
 
-  LOG_INFO("i_count :: %d ", items.size());
+  LOG_INFO("i_count :: %lu ", items.size());
 
   TIMER(ee->txn_end(true));
 }
