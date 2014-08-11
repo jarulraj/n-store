@@ -238,7 +238,7 @@ void opt_wal_engine::load(const statement& st) {
 void opt_wal_engine::txn_begin() {
 }
 
-void opt_wal_engine::txn_end(bool commit) {
+void opt_wal_engine::txn_end(__attribute__((unused)) bool commit) {
   // Clear commit_free list
   for (void* ptr : commit_free_list) {
     pmemalloc_free(ptr);
@@ -356,9 +356,7 @@ void opt_wal_engine::recovery() {
           // Data
           else {
             LOG_INFO("Inlined ");
-
             field_type type = finfo.type;
-            size_t field_offset = before_rec->sptr->columns[field_itr].offset;
 
             switch (type) {
               case field_type::INTEGER:

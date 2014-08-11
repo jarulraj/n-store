@@ -214,7 +214,7 @@ int wal_engine::update(const statement& st) {
 void wal_engine::txn_begin() {
 }
 
-void wal_engine::txn_end(bool commit) {
+void wal_engine::txn_end(__attribute__((unused)) bool commit) {
 }
 
 void wal_engine::load(const statement& st) {
@@ -310,10 +310,11 @@ void wal_engine::recovery() {
 
     switch (op_type) {
       case operation_type::Insert: {
-        if (!undo_mode)
+        if (!undo_mode) {
           LOG_INFO("Redo Insert");
-          else
+        } else {
           LOG_INFO("Undo Delete");
+        }
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -326,10 +327,11 @@ void wal_engine::recovery() {
         break;
 
       case operation_type::Delete: {
-        if (!undo_mode)
+        if (!undo_mode) {
           LOG_INFO("Redo Delete");
-          else
+        } else {
           LOG_INFO("Undo Insert");
+        }
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -342,10 +344,11 @@ void wal_engine::recovery() {
         break;
 
       case operation_type::Update: {
-        if (!undo_mode)
+        if (!undo_mode) {
           LOG_INFO("Redo Update");
-          else
+        } else {
           LOG_INFO("Undo Update");
+        }
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;

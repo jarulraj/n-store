@@ -23,28 +23,6 @@ extern int level;
 #define LOG_INFO(M, ...) if(level > 2) fprintf(stderr, "[INFO] [%s :: %s:%d] " M "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 #endif
 
-static struct option opts[] = {
-    { "log-enable", no_argument, NULL, 'a' },
-    { "sp-enable", no_argument, NULL, 's' },
-    { "lsm-enable", no_argument, NULL, 'm' },
-    { "opt-wal-enable", no_argument, NULL, 'w' },
-    { "opt-sp-enable", no_argument, NULL, 'c' },
-    { "opt-lsm-enable", no_argument, NULL, 'l' },
-    { "ycsb", no_argument, NULL, 'y' },
-    { "tpcc", no_argument, NULL, 't' },
-    { "fs-path", optional_argument, NULL, 'f' },
-    { "num-txns", optional_argument, NULL, 'x' },
-    { "num-keys", optional_argument, NULL, 'k' },
-    { "num-executors", optional_argument, NULL, 'e' },
-    { "ycsb_per_writes", optional_argument, NULL, 'w' },
-    { "ycsb_skew", optional_argument, NULL, 'q' },
-    { "gc-interval", optional_argument, NULL, 'g' },
-    { "verbose", no_argument, NULL, 'v' },
-    { "help", no_argument, NULL, 'h' },
-    { "ycsb-update-one", no_argument, NULL, 'u' },
-    { NULL, 0, NULL, 0 }
-};
-
 enum engine_type {
   EE_INVALID,
   WAL,

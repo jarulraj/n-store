@@ -24,9 +24,12 @@
 
 using namespace std;
 
-//# define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
+/*
+# define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
 fprintf(stderr, __VA_ARGS__); \
 fprintf(stderr, "\n"); } while(0)
+*/
+
 # define DPRINTF(...)
 
 // DS MACROS
@@ -1051,8 +1054,8 @@ class cow_btree {
 
   void common_prefix(struct btkey *min, struct btkey *max, struct btkey *pfx) {
     size_t n = 0;
-    char *p1;
-    char *p2;
+    char *p1 = NULL;
+    char *p2 = NULL;
 
     if (min->len == 0 || max->len == 0) {
       pfx->len = 0;
@@ -1477,10 +1480,12 @@ class cow_btree {
       if (persist == false) {
         rc = writev(fd, iov, n);
         if (rc != (ssize_t) head.psize * n) {
-          if (rc > 0)
+          if (rc > 0){
             DPRINTF("short write, filesystem full?");
-          else
+          }
+          else{
             DPRINTF("writev: %s", strerror(errno));
+          }
           cow_btree_txn_abort(_txn);
           return BT_FAIL;
         }
@@ -1551,8 +1556,9 @@ class cow_btree {
       delete p;
 
       if (rc != (ssize_t) head.psize) {
-        if (rc > 0)
+        if (rc > 0){
           DPRINTF("short write, filesystem full?");
+        }
         return BT_FAIL;
       }
 
@@ -1655,8 +1661,9 @@ class cow_btree {
       SIMPLEQ_REMOVE_HEAD(txn->dirty_queue, next);
 
       if (rc != (ssize_t) head.psize) {
-        if (rc > 0)
+        if (rc > 0){
           DPRINTF("short write, filesystem full?");
+        }
         return BT_FAIL;
       }
 
@@ -1797,12 +1804,14 @@ class cow_btree {
   void cow_btree_close() {
     if (--ref == 0) {
       DPRINTF("ref is zero, closing btree");
-      if (persist == false)
+      if (persist == false){
         close(fd);
+      }
       mpage_flush();
       //delete page_cache;
-    } else
+    } else{
       DPRINTF("ref is now %d ", ref);
+    }
   }
 
   /* Search for key within a leaf page, using binary search.
@@ -1843,13 +1852,15 @@ class cow_btree {
       else
         rc = bt_cmp(key, &nodekey, &mp->prefix);
 
-      if (IS_LEAF(mp))
+      if (IS_LEAF(mp)){
         DPRINTF("found leaf index %u [%.*s], rc = %i", i, (int )nodekey.size,
             (char * )nodekey.data, rc);
-      else
+      }
+      else{
         DPRINTF("found branch index %u [%.*s -> %u], rc = %i", i,
             (int )cow_node->ksize, (char *)NODEKEY(cow_node),
             cow_node->n_pgno, rc);
+      }
 
       if (rc == 0)
         break;
@@ -2009,10 +2020,11 @@ class cow_btree {
         }
       }
 
-      if (key)
+      if (key){
         DPRINTF("following index %u for key %.*s", i, (int )key->size,
             (char * )key->data);
-      assert(i >= 0 && i < NUMKEYS(mp));
+      }
+      assert(i < NUMKEYS(mp));
       cow_node = NODEPTR(mp, i);
 
       if (cursor)
@@ -3022,13 +3034,15 @@ class cow_btree {
       } else if (IS_BRANCH(mp) && NUMKEYS(mp) == 1) {
         DPRINTF("collapsing root page!");
         txn->root = NODEPGNO(NODEPTR(mp, 0));
-        if ((root = cow_btree_get_mpage(txn->root)) == NULL)
+        if ((root = cow_btree_get_mpage(txn->root)) == NULL){
           return BT_FAIL;
+        }
         root->parent = NULL;
         meta.depth--;
         meta.branch_pages--;
-      } else
+      } else{
         DPRINTF("root page doesn't need rebalancing");
+      }
       return BT_SUCCESS;
     }
 
@@ -3665,7 +3679,7 @@ class cow_btree {
           meta.prev_meta);
       meta.root = meta.prev_meta;
     } else {
-      int rc = ftruncate(fd, head.psize * meta.root);
+      ftruncate(fd, head.psize * meta.root);
       DPRINTF("truncating file at page %u", meta.root);
     }
 

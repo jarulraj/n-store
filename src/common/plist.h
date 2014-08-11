@@ -100,7 +100,7 @@ class plist {
   // Returns the absolute pointer value
   V at(const int index) const {
     struct node * np = (*head);
-    unsigned int itr = 0;
+    int itr = 0;
 
     while (np != NULL) {
       if (itr == index) {

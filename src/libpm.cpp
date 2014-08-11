@@ -55,7 +55,7 @@ void pmemalloc_free(void *abs_ptr_) {
   free(abs_ptr_);
 }
 
-void* pmemalloc_init(const char *path, size_t size) {
+void* pmemalloc_init(__attribute__((unused)) const char *path,__attribute__((unused)) size_t size) {
   pmem_pool = new std::set<void*>();
   pmem_size = 0;
   pmp = (void*) 1;
@@ -91,9 +91,8 @@ void pmemalloc_end(const char *path) {
 
 void pmemalloc_check(const char *path) {
   FILE* pmem_file = fopen(path, "r");
-  int ret;
   if (pmem_file != NULL) {
-    ret = fscanf(pmem_file, "Active %lu \n", &pmem_size);
+    fscanf(pmem_file, "Active %lu \n", &pmem_size);
     fprintf(stdout, "Active %lu \n", pmem_size);
     fclose(pmem_file);
   }

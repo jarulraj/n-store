@@ -175,8 +175,6 @@ int sp_engine::update(const statement& st) {
 
   before_tuple = std::string((char*) val.data);
   record* before_rec = deserialize(before_tuple, tab->sptr);
-  void *before_field, *after_field;
-  int num_fields = st.field_ids.size();
 
   // Update record
   for (int field_itr : st.field_ids) {
@@ -261,7 +259,7 @@ void sp_engine::txn_begin() {
   }
 }
 
-void sp_engine::txn_end(bool commit) {
+void sp_engine::txn_end(__attribute__((unused)) bool commit) {
   if (!read_only) {
     unlock(&gc_rwlock);
   }

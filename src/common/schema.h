@@ -51,10 +51,10 @@ class schema {
     cout << endl;
   }
 
+  field_info* columns;
   size_t ser_len;
   size_t deser_len;
   unsigned int num_columns;
-  field_info* columns;
 };
 
 #endif /* SCHEMA_H_ */

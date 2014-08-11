@@ -134,11 +134,10 @@ class storage {
 
   //private:
   FILE* storage_file;
+  int storage_file_fd;
   off_t storage_offset;
   size_t max_tuple_size;
-
   std::string storage_file_name;
-  int storage_file_fd;
 };
 
 #endif

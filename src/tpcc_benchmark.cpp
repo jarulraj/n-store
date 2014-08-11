@@ -29,7 +29,7 @@ tpcc_benchmark::tpcc_benchmark(config& _conf, unsigned int tid, database* _db,
 
   // Initialization mode
   if (sp->init == 0) {
-    cout << "Initialization Mode" <<endl;
+    cout << "Initialization Mode" << endl;
 
     sp->ptrs[0] = db;
 
@@ -54,7 +54,7 @@ tpcc_benchmark::tpcc_benchmark(config& _conf, unsigned int tid, database* _db,
 
     sp->init = 1;
   } else {
-    cout << "Recovery Mode " <<endl;
+    cout << "Recovery Mode " << endl;
     database* db = (database*) sp->ptrs[0];
     db->reset(conf, tid);
   }
@@ -157,7 +157,7 @@ table* tpcc_benchmark::create_warehouse() {
   pmemalloc_activate(warehouse);
 
   // PRIMARY INDEX
-  for (int itr = 1; itr < cols.size(); itr++) {
+  for (unsigned int itr = 1; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -257,7 +257,7 @@ table* tpcc_benchmark::create_district() {
   pmemalloc_activate(district);
 
   // PRIMARY INDEX
-  for (int itr = 2; itr < cols.size(); itr++) {
+  for (unsigned int itr = 2; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -332,7 +332,7 @@ table* tpcc_benchmark::create_item() {
   pmemalloc_activate(item);
 
   // PRIMARY INDEX
-  for (int itr = 1; itr < cols.size(); itr++) {
+  for (unsigned int itr = 1; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -475,7 +475,7 @@ table* tpcc_benchmark::create_customer() {
   pmemalloc_activate(customer);
 
   // PRIMARY INDEX
-  for (int itr = 3; itr < cols.size(); itr++) {
+  for (unsigned int itr = 3; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -500,7 +500,7 @@ table* tpcc_benchmark::create_customer() {
   customer->indices->push_back(s_index);
 
   // QUERY SCHEMAS
-  for (int itr = 0; itr < cols.size(); itr++)
+  for (unsigned int itr = 0; itr < cols.size(); itr++)
     cols[itr].enabled = 0;
   cols[3].enabled = 1;
   cols[13].enabled = 1;
@@ -578,7 +578,7 @@ table* tpcc_benchmark::create_history() {
   pmemalloc_activate(history);
 
   // PRIMARY INDEX
-  for (int itr = 5; itr < cols.size(); itr++) {
+  for (unsigned int itr = 5; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -677,7 +677,7 @@ table* tpcc_benchmark::create_stock() {
   pmemalloc_activate(stock);
 
   // PRIMARY INDEX
-  for (int itr = 2; itr < cols.size(); itr++) {
+  for (unsigned int itr = 2; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -690,7 +690,7 @@ table* tpcc_benchmark::create_stock() {
   stock->indices->push_back(p_index);
 
   // QUERY SCHEMA
-  for (int itr = 0; itr < cols.size(); itr++)
+  for (unsigned int itr = 0; itr < cols.size(); itr++)
     cols[itr].enabled = 0;
   cols[2].enabled = 1;
 
@@ -771,7 +771,7 @@ table* tpcc_benchmark::create_orders() {
   pmemalloc_activate(orders);
 
   // PRIMARY INDEX
-  for (int itr = 4; itr < cols.size(); itr++) {
+  for (unsigned int itr = 4; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
   cols[1].enabled = 0;
@@ -939,7 +939,7 @@ table* tpcc_benchmark::create_order_line() {
   pmemalloc_activate(order_line);
 
   // PRIMARY INDEX
-  for (int itr = 4; itr < cols.size(); itr++) {
+  for (unsigned int itr = 4; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -967,10 +967,7 @@ void tpcc_benchmark::load_items(engine* ee) {
   int num_items = item_count;  //100000
 
   schema* item_table_schema = db->tables->at(ITEM_TABLE_ID)->sptr;
-  double tax = 0.1f;
-  double ytd = 30000.00f;  // different from warehouse
-  int next_d_o_id = 3000;
-  unsigned int i_itr;
+  int i_itr;
 
   ee->txn_begin();
 
@@ -1013,7 +1010,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
   schema* new_order_table_schema = db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
   schema* stock_table_schema = db->tables->at(STOCK_TABLE_ID)->sptr;
 
-  unsigned int w_itr, d_itr, c_itr, o_itr, ol_itr, s_i_itr;
+  int w_itr, d_itr, c_itr, o_itr, ol_itr, s_i_itr;
   statement st;
   std::string log_str;
   status ss(num_warehouses * districts_per_warehouse);
@@ -1228,7 +1225,6 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
         ee->txn_begin();
       }
 
-      bool s_original = get_rand_bool(stock_original_ratio);
       int s_quantity = get_rand_int(stock_min_quantity, stock_max_quantity);
       int s_ytd = 0;
       int s_order_cnt = 0;
@@ -1270,7 +1266,7 @@ void tpcc_benchmark::load() {
   delete ee;
 }
 
-void tpcc_benchmark::do_delivery(engine* ee, unsigned int tid) {
+void tpcc_benchmark::do_delivery(engine* ee) {
   LOG_INFO("Delivery ");
   /*
    "getNewOrder": "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID > -1 LIMIT 1", #
@@ -1290,7 +1286,7 @@ void tpcc_benchmark::do_delivery(engine* ee, unsigned int tid) {
   txn_id++;
   TIMER(ee->txn_begin());
 
-  unsigned int d_itr;
+  int d_itr;
 
   int w_id = get_rand_int(0, warehouse_count);
   int o_carrier_id = get_rand_int(orders_min_carrier_id, orders_max_carrier_id);
@@ -1347,9 +1343,6 @@ void tpcc_benchmark::do_delivery(engine* ee, unsigned int tid) {
 
     // updateOrders
 
-    int o_carrier_id = get_rand_int(orders_min_carrier_id,
-                                    orders_max_carrier_id);
-
     rec_ptr->set_int(5, o_carrier_id);
     field_ids = {5};  // carried id
 
@@ -1364,6 +1357,7 @@ void tpcc_benchmark::do_delivery(engine* ee, unsigned int tid) {
     rec_ptr = new order_line_record(order_line_table_schema, o_id, d_itr, w_id,
                                     0, 0, 0, ol_ts, 0, 0, empty);
 
+    rec_ptr->set_double(6, ol_delivery_ts);
     field_ids = {6};  // ol_ts
 
     st = statement(txn_id, operation_type::Update, ORDER_LINE_TABLE_ID, rec_ptr,
@@ -1427,7 +1421,7 @@ void tpcc_benchmark::do_delivery(engine* ee, unsigned int tid) {
 
 }
 
-void tpcc_benchmark::do_new_order(engine* ee, unsigned int tid, bool finish) {
+void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
   /*
    "NEW_ORDER": {
    "getWarehouseTaxRate": "SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?", # w_id
@@ -1586,7 +1580,7 @@ void tpcc_benchmark::do_new_order(engine* ee, unsigned int tid, bool finish) {
   // ----------------
   // ITEMS
   int ol_total = 0;
-  for (int i_itr = 0; i_itr < i_ids.size(); i_itr++) {
+  for (unsigned int i_itr = 0; i_itr < i_ids.size(); i_itr++) {
 
     int ol_i_id = i_ids[i_itr];
     int ol_supply_w_id = i_w_ids[i_itr];
@@ -1686,7 +1680,7 @@ void tpcc_benchmark::do_new_order(engine* ee, unsigned int tid, bool finish) {
 
 }
 
-void tpcc_benchmark::do_order_status(engine* ee, unsigned int tid) {
+void tpcc_benchmark::do_order_status(engine* ee) {
   /*
    "ORDER_STATUS": {
    "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?", # w_id, d_id, c_id
@@ -1707,7 +1701,7 @@ void tpcc_benchmark::do_order_status(engine* ee, unsigned int tid) {
   txn_id++;
   TIMER(ee->txn_begin());
 
-  unsigned int d_itr;
+  unsigned int d_itr = 0;
 
   int w_id = get_rand_int(0, warehouse_count);
   int d_id = get_rand_int(0, districts_per_warehouse);
@@ -1802,7 +1796,7 @@ void tpcc_benchmark::do_order_status(engine* ee, unsigned int tid) {
 
 }
 
-void tpcc_benchmark::do_payment(engine* ee, unsigned int tid) {
+void tpcc_benchmark::do_payment(engine* ee) {
 
   /*
    "getWarehouse": "SELECT W_NAME, W_STREET_1, W_STREET_2, W_CITY, W_STATE, W_ZIP FROM WAREHOUSE WHERE W_ID = ?", # w_id
@@ -2040,7 +2034,7 @@ void tpcc_benchmark::do_payment(engine* ee, unsigned int tid) {
 
 }
 
-void tpcc_benchmark::do_stock_level(engine* ee, unsigned int tid) {
+void tpcc_benchmark::do_stock_level(engine* ee) {
 
   /*
    "getOId": "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = ? AND D_ID = ?",
@@ -2159,24 +2153,24 @@ void tpcc_benchmark::execute() {
     double u = uniform_dist[txn_itr];
 
     if (conf.tpcc_stock_level_only) {
-      do_stock_level(ee, tid);
+      do_stock_level(ee);
     } else {
 
       if (u <= 0.04) {
         //cout << "stock_level " << endl;
-        do_stock_level(ee, tid);
+        do_stock_level(ee);
       } else if (u <= 0.08) {
         //cout << "delivery " << endl;
-        do_delivery(ee, tid);
+        do_delivery(ee);
       } else if (u <= 0.12) {
         //cout << "order_status " << endl;
-        do_order_status(ee, tid);
+        do_order_status(ee);
       } else if (u <= 0.55) {
         //cout << "payment " << endl;
-        do_payment(ee, tid);
+        do_payment(ee);
       } else {
         //cout << "new_order " << endl;
-        do_new_order(ee, tid);
+        do_new_order(ee);
       }
     }
 

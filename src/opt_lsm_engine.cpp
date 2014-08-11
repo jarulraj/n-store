@@ -144,7 +144,6 @@ int opt_lsm_engine::remove(const statement& st) {
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
-  off_t log_offset;
   std::string val;
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
@@ -199,7 +198,6 @@ int opt_lsm_engine::update(const statement& st) {
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
-  off_t log_offset;
   std::string val;
   record* before_rec;
   void *before_field, *after_field;
@@ -389,7 +387,7 @@ void opt_lsm_engine::merge(bool force) {
 void opt_lsm_engine::txn_begin() {
 }
 
-void opt_lsm_engine::txn_end(bool commit) {
+void opt_lsm_engine::txn_end(__attribute__((unused)) bool commit) {
 
   merge_check();
 
@@ -450,7 +448,7 @@ void opt_lsm_engine::recovery() {
         }
 
         // Free after_rec
-        for (int field_itr = 0; field_itr < after_rec->sptr->num_columns;
+        for (unsigned int field_itr = 0; field_itr < after_rec->sptr->num_columns;
             field_itr++) {
           if (after_rec->sptr->columns[field_itr].inlined == 0) {
             void* before_field = after_rec->get_pointer(field_itr);
@@ -500,12 +498,12 @@ void opt_lsm_engine::recovery() {
           // Pointer
           if (finfo.inlined == 0) {
             LOG_INFO("Pointer ");
-            void *before_field, *after_field;
+            void *before_field;
 
             entry >> ptr_str;
             std::sscanf(ptr_str.c_str(), "%p", &before_field);
 
-            after_field = before_rec->get_pointer(field_itr);
+            //after_field = before_rec->get_pointer(field_itr);
             before_rec->set_pointer(field_itr, before_field);
 
             //commit_free_list.push_back(after_field);
@@ -513,9 +511,7 @@ void opt_lsm_engine::recovery() {
           // Data
           else {
             LOG_INFO("Inlined ");
-
             field_type type = finfo.type;
-            size_t field_offset = before_rec->sptr->columns[field_itr].offset;
 
             switch (type) {
               case field_type::INTEGER:

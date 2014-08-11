@@ -14,7 +14,7 @@ using namespace std;
 #define ALIGN 64  /* assumes 64B cache line size */
 #define DEBUG
 
-static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
+static inline void pmem_flush_cache(void *addr, size_t len, __attribute__((unused)) int flags) {
   uintptr_t uptr;
 
   /* loop through 64B-aligned chunks covering the given range */

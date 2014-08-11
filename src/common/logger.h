@@ -114,11 +114,11 @@ class logger {
 
   //private:
   FILE* log_file;
+  int log_file_fd;
   off_t log_offset;
   bool can_log = true;
 
   std::string log_file_name;
-  int log_file_fd;
 };
 
 #endif

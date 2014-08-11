@@ -3,6 +3,7 @@
 bin_PROGRAMS = nstore pmem_check
 
 AM_CPPFLAGS = -I$(srcdir)/common -Wno-pointer-arith 
+AM_CXXFLAGS = -Wall -Wextra -Werror 
 AM_LDFLAGS  = $(PTHREAD_CFLAGS)
 LIBS = -lrt 
 

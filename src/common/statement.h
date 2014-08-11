@@ -61,13 +61,12 @@ class statement {
         projection(_projection) {
   }
 
-//private:
   int transaction_id;
   operation_type op_type;
 
   // Insert and Delete
-  record* rec_ptr;
   int table_id;
+  record* rec_ptr;
 
   // Update
   vector<int> field_ids;

@@ -4,7 +4,6 @@
 
 #include "nstore.h"
 #include "utils.h"
-
 #include "libpm.h"
 #include "coordinator.h"
 
@@ -36,10 +35,32 @@ static void usage_exit(FILE *out) {
           "   -z --pm_stats          :  Collect PM stats \n"
           "   -o --tpcc_stock-level  :  TPCC stock level only \n"
           "   -r --recovery          :  Recovery mode \n"
-          "   -b --load-batch-size   :  Load batch size \n",
+          "   -b --load-batch-size   :  Load batch size \n"
           "   -i --multi-executors   :  Multiple executors \n");
-  exit(-1);
+  exit(EXIT_FAILURE);
 }
+
+static struct option opts[] = {
+    { "log-enable", no_argument, NULL, 'a' },
+    { "sp-enable", no_argument, NULL, 's' },
+    { "lsm-enable", no_argument, NULL, 'm' },
+    { "opt-wal-enable", no_argument, NULL, 'w' },
+    { "opt-sp-enable", no_argument, NULL, 'c' },
+    { "opt-lsm-enable", no_argument, NULL, 'l' },
+    { "ycsb", no_argument, NULL, 'y' },
+    { "tpcc", no_argument, NULL, 't' },
+    { "fs-path", optional_argument, NULL, 'f' },
+    { "num-txns", optional_argument, NULL, 'x' },
+    { "num-keys", optional_argument, NULL, 'k' },
+    { "num-executors", optional_argument, NULL, 'e' },
+    { "ycsb_per_writes", optional_argument, NULL, 'w' },
+    { "ycsb_skew", optional_argument, NULL, 'q' },
+    { "gc-interval", optional_argument, NULL, 'g' },
+    { "verbose", no_argument, NULL, 'v' },
+    { "help", no_argument, NULL, 'h' },
+    { "ycsb-update-one", no_argument, NULL, 'u' },
+    { NULL, 0, NULL, 0 }
+};
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 

@@ -25,18 +25,18 @@ class coordinator {
         num_txns(0) {
   }
 
-  coordinator(config& conf) {
+  coordinator(__attribute__((unused)) config& conf) {
     single = conf.single;
     num_executors = conf.num_executors;
     num_txns = conf.num_txns;
 
-    for (int i = 0; i < num_executors; i++) {
+    for (unsigned int i = 0; i < num_executors; i++) {
       tm.push_back(timer());
       sps.push_back(static_info());
     }
   }
 
-  void execute_bh(benchmark* bh, config conf) {
+  void execute_bh(benchmark* bh) {
     // Load
     bh->load();
 
@@ -48,25 +48,25 @@ class coordinator {
     std::vector<std::thread> executors;
     benchmark** partitions = new benchmark*[num_executors];
 
-    for (int i = 0; i < num_executors; i++) {
+    for (unsigned int i = 0; i < num_executors; i++) {
       database* db = new database(conf, &sps[i], i);
       pmemalloc_activate(db);
 
       partitions[i] = get_benchmark(conf, i, db);
       executors.push_back(
-          std::thread(&coordinator::execute_bh, this, partitions[i], conf));
+          std::thread(&coordinator::execute_bh, this, partitions[i]));
     }
 
-    for (int i = 0; i < num_executors; i++)
+    for (unsigned int i = 0; i < num_executors; i++)
       executors[i].join();
 
     double max_dur = 0;
-    for (int i = 0; i < num_executors; i++) {
+    for (unsigned int i = 0; i < num_executors; i++) {
       max_dur = std::max(max_dur, tm[i].duration());
     }
     display_stats(conf.etype, max_dur, num_txns);
 
-    for (int i = 0; i < num_executors; i++) {
+    for (unsigned int i = 0; i < num_executors; i++) {
       delete partitions[i];
     }
 

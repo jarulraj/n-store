@@ -19,7 +19,8 @@ using namespace std;
 
 class tpcc_benchmark : public benchmark {
  public:
-  tpcc_benchmark(config& _conf, unsigned int tid, database* _db, timer* _tm, struct static_info* _sp);
+  tpcc_benchmark(config& _conf, unsigned int tid, database* _db, timer* _tm,
+                 struct static_info* _sp);
 
   void load();
   void execute();
@@ -47,11 +48,11 @@ class tpcc_benchmark : public benchmark {
   unsigned int txn_id;
   unsigned int num_txns;
 
-  void do_delivery(engine* ee, unsigned int tid);
-  void do_new_order(engine* ee, unsigned int tid, bool finish = true);
-  void do_order_status(engine* ee, unsigned int tid);
-  void do_payment(engine* ee, unsigned int tid);
-  void do_stock_level(engine* ee, unsigned int tid);
+  void do_delivery(engine* ee);
+  void do_new_order(engine* ee, bool finish = true);
+  void do_order_status(engine* ee);
+  void do_payment(engine* ee);
+  void do_stock_level(engine* ee);
 
   // Table Ids
   const int ITEM_TABLE_ID = 0;
@@ -117,7 +118,7 @@ class tpcc_benchmark : public benchmark {
   const int orders_min_carrier_id = 1;
   const int orders_max_carrier_id = 10;
 
-  int new_orders_per_district = 900; // 900
+  int new_orders_per_district = 900;  // 900
 
   const int order_line_init_quantity = 5;
   const int order_line_max_ol_quantity = 10;

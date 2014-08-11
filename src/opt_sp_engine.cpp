@@ -292,7 +292,7 @@ void opt_sp_engine::txn_begin() {
   }
 }
 
-void opt_sp_engine::txn_end(bool commit) {
+void opt_sp_engine::txn_end(__attribute__((unused)) bool commit) {
   if (!read_only) {
     unlock(&gc_rwlock);
   }

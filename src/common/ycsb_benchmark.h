@@ -26,8 +26,8 @@ class ycsb_benchmark : public benchmark {
 
   void sim_crash();
 
-  void do_update(engine* ee, unsigned int tid);
-  void do_read(engine* ee, unsigned int tid);
+  void do_update(engine* ee);
+  void do_read(engine* ee);
 
   // Table Ids
   const int USER_TABLE_ID = 0;

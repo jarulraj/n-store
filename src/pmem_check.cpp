@@ -19,7 +19,6 @@ char Usage[] = "pmem_check <path>"; /* for USAGE() */
 
 int main(int argc, char *argv[]) {
   const char *path;
-  int opt;
 
   if (optind >= argc)
     printf("No path given \nUsage:: %s \n", Usage);

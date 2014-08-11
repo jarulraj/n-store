@@ -12,7 +12,7 @@ class timer {
  public:
 
   timer() {
-    total = (struct timeval ) { 0 };
+    total = timeval();
   }
 
   double duration() {
@@ -35,7 +35,7 @@ class timer {
   }
 
   void reset(){
-    total = (struct timeval ) { 0 };
+    total = timeval();
   }
 
   timeval t1, t2, diff;

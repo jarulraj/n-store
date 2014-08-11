@@ -146,7 +146,6 @@ int lsm_engine::remove(const statement& st) {
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
-  off_t log_offset;
   std::string val;
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
@@ -196,11 +195,9 @@ int lsm_engine::update(const statement& st) {
 
   std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
-  off_t log_offset;
   std::string val;
   record* before_rec = NULL;
-  bool existing_rec = false;
-  void *before_field, *after_field;
+  void *before_field;
 
   entry_stream.str("");
 
@@ -360,7 +357,7 @@ void lsm_engine::merge(bool force) {
 void lsm_engine::txn_begin() {
 }
 
-void lsm_engine::txn_end(bool commit) {
+void lsm_engine::txn_end(__attribute__((unused)) bool commit) {
   if (!read_only)
     merge_check();
 }
@@ -419,10 +416,11 @@ void lsm_engine::recovery() {
 
     switch (op_type) {
       case operation_type::Insert: {
-        if (!undo_mode)
+        if (!undo_mode) {
           LOG_INFO("Redo Insert");
-          else
+        } else {
           LOG_INFO("Undo Delete");
+        }
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -435,10 +433,11 @@ void lsm_engine::recovery() {
         break;
 
       case operation_type::Delete: {
-        if (!undo_mode)
+        if (!undo_mode) {
           LOG_INFO("Redo Delete");
-          else
+        } else {
           LOG_INFO("Undo Insert");
+        }
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
@@ -451,10 +450,11 @@ void lsm_engine::recovery() {
         break;
 
       case operation_type::Update: {
-        if (!undo_mode)
+        if (!undo_mode) {
           LOG_INFO("Redo Update");
-          else
+        } else {
           LOG_INFO("Undo Update");
+        }
 
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;

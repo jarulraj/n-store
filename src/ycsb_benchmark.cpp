@@ -118,9 +118,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf, unsigned int tid, database* _db,
 void ycsb_benchmark::load() {
   engine* ee = new engine(conf, tid, db, false);
 
-  unsigned int usertable_id = 0;
-  unsigned int usertable_index_id = 0;
-  schema* usertable_schema = db->tables->at(usertable_id)->sptr;
+  schema* usertable_schema = db->tables->at(USER_TABLE_ID)->sptr;
   unsigned int txn_itr;
   status ss(num_keys);
 
@@ -141,7 +139,7 @@ void ycsb_benchmark::load() {
     record* rec_ptr = new usertable_record(usertable_schema, key, value,
                                            conf.ycsb_num_val_fields, false);
 
-    statement st(txn_id, operation_type::Insert, usertable_id, rec_ptr);
+    statement st(txn_id, operation_type::Insert, USER_TABLE_ID, rec_ptr);
 
     ee->load(st);
 
@@ -154,7 +152,7 @@ void ycsb_benchmark::load() {
   delete ee;
 }
 
-void ycsb_benchmark::do_update(engine* ee, unsigned int tid) {
+void ycsb_benchmark::do_update(engine* ee) {
 
 // UPDATE
   std::string updated_val(conf.ycsb_field_size, 'x');
@@ -185,7 +183,7 @@ void ycsb_benchmark::do_update(engine* ee, unsigned int tid) {
   TIMER(ee->txn_end(true))
 }
 
-void ycsb_benchmark::do_read(engine* ee, unsigned int tid) {
+void ycsb_benchmark::do_read(engine* ee) {
 
 // SELECT
   int zipf_dist_offset = txn_id * conf.ycsb_tuples_per_txn;
@@ -252,9 +250,9 @@ void ycsb_benchmark::execute() {
     double u = uniform_dist[txn_itr];
 
     if (u < conf.ycsb_per_writes) {
-      do_update(ee, tid);
+      do_update(ee);
     } else {
-      do_read(ee, tid);
+      do_read(ee);
     }
 
     if (tid == 0)

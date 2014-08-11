@@ -67,7 +67,7 @@ std::string serialize(record* rptr, schema* sptr) {
   std::stringstream output;
   unsigned int num_columns = sptr->num_columns;
 
-  for (int itr = 0; itr < num_columns; itr++) {
+  for (unsigned int itr = 0; itr < num_columns; itr++) {
     field_info finfo = sptr->columns[itr];
     bool enabled = finfo.enabled;
 
@@ -118,7 +118,7 @@ record* deserialize(std::string entry_str, schema* sptr) {
   record* rec_ptr = new record(sptr);
   std::stringstream input(entry_str);
 
-  for (int itr = 0; itr < num_columns; itr++) {
+  for (unsigned int itr = 0; itr < num_columns; itr++) {
     field_info finfo = sptr->columns[itr];
     bool enabled = finfo.enabled;
 
@@ -168,13 +168,12 @@ std::string deserialize_to_string(std::string entry_str, schema* sptr) {
   std::stringstream entry(entry_str), output;
   std::string vc_str;
 
-  for (int itr = 0; itr < num_columns; itr++) {
+  for (unsigned int itr = 0; itr < num_columns; itr++) {
     field_info finfo = sptr->columns[itr];
     bool enabled = finfo.enabled;
 
     if (enabled) {
       char type = finfo.type;
-      size_t offset = finfo.offset;
 
       switch (type) {
         case field_type::INTEGER: {
@@ -217,7 +216,7 @@ std::string get_tuple(std::stringstream& entry, schema* sptr) {
 
   std::string tuple, field;
 
-  for (int col = 0; col < sptr->num_columns; col++) {
+  for (unsigned int col = 0; col < sptr->num_columns; col++) {
     entry >> field;
     tuple += field + " ";
   }

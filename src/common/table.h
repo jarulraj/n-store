@@ -11,7 +11,7 @@ using namespace std;
 class table {
  public:
   table(const std::string& name_str, schema* _sptr, unsigned int _num_indices,
-        config& conf, struct static_info* sp)
+        __attribute__((unused)) config& conf, struct static_info* sp)
       : table_name(NULL),
         sptr(_sptr),
         max_tuple_size(_sptr->deser_len),
