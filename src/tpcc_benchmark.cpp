@@ -29,7 +29,7 @@ tpcc_benchmark::tpcc_benchmark(config& _conf, unsigned int tid, database* _db,
 
   // Initialization mode
   if (sp->init == 0) {
-    cout << "Initialization Mode" << endl;
+    //cout << "Initialization Mode" << endl;
 
     sp->ptrs[0] = db;
 
@@ -54,7 +54,7 @@ tpcc_benchmark::tpcc_benchmark(config& _conf, unsigned int tid, database* _db,
 
     sp->init = 1;
   } else {
-    cout << "Recovery Mode " << endl;
+    //cout << "Recovery Mode " << endl;
     database* db = (database*) sp->ptrs[0];
     db->reset(conf, tid);
   }
@@ -1210,7 +1210,8 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
 
       ee->txn_end(true);
 
-      ss.display();
+      if(tid == 0)
+        ss.display();
     }
 
     txn_id++;
@@ -1672,8 +1673,9 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
 
   ol_total *= (1 - c_discount) * (1 + w_tax + d_tax);
 
-  if (ol_total > 0)
+  if (ol_total > 0){
     LOG_INFO("ol_total :: %d ", ol_total);
+  }
 
   if (finish)
     TIMER(ee->txn_end(true));
@@ -2129,8 +2131,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
     }
   }
 
-  int i_count = items.size();
-  LOG_INFO("i_count :: %d ", i_count);
+  LOG_INFO("i_count :: %d ", items.size());
 
   TIMER(ee->txn_end(true));
 }
