@@ -71,7 +71,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.num_txns = 10;
 
   state.single = false;
-  state.num_executors = 2;
+  state.num_executors = 8;
 
   state.verbose = false;
 

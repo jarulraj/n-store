@@ -60,17 +60,21 @@ class coordinator {
     for (unsigned int i = 0; i < num_executors; i++)
       executors[i].join();
 
-    double max_dur = 0;
+    double sum_dur = 0;
     for (unsigned int i = 0; i < num_executors; i++) {
-      max_dur = std::max(max_dur, tm[i].duration());
+        //cout<<"dur :"<<i<<" :: "<<tm[i].duration()<<endl;
+        sum_dur += tm[i].duration();
     }
-    display_stats(conf.etype, max_dur, num_txns);
+    //cout<<"avg dur :"<<sum_dur/num_executors<<endl;
+    display_stats(conf.etype, sum_dur/num_executors, num_txns);
 
+    /*
     for (unsigned int i = 0; i < num_executors; i++) {
       delete partitions[i];
     }
 
     delete[] partitions;
+    */
   }
 
   benchmark* get_benchmark(config& state, unsigned int tid, database* db) {
