@@ -35,7 +35,7 @@ lsm_engine::~lsm_engine() {
     ready = false;
     gc.join();
 
-    merge(true);
+    //merge(true);
 
     if (!conf.recovery) {
       fs_log.sync();
@@ -61,15 +61,16 @@ std::string lsm_engine::select(const statement& st) {
   std::string key_str = serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
-  off_t storage_offset = -1;
+  bool fs_storage = false;
+  off_t storage_offset = 0;
 
   // Check if key exists in mem
   table_index->pm_map->at(key, &pm_rec);
 
   // Check if key exists in fs
-  table_index->off_map->at(key, &storage_offset);
+  fs_storage = table_index->off_map->at(key, &storage_offset);
 
-  if (storage_offset != -1) {
+  if (fs_storage) {
     val = tab->fs_data.at(storage_offset);
     if (!val.empty())
       fs_rec = deserialize(val, tab->sptr);
@@ -108,7 +109,6 @@ int lsm_engine::insert(const statement& st) {
   unsigned int index_itr;
 
   std::string key_str = serialize(after_rec, indices->at(0)->sptr);
-  //LOG_INFO("Key_str :: --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists

@@ -78,7 +78,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.gc_interval = 5;
   state.ycsb_per_writes = 0.1;
 
-  state.merge_interval = 10000;
+  state.merge_interval = 100000;
   state.merge_ratio = 0.2;
 
   state.etype = engine_type::WAL;
@@ -87,7 +87,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.read_only = false;
   state.recovery = false;
 
-  state.ycsb_skew = 1.0;
+  state.ycsb_skew = 0.1;
   state.ycsb_update_one = false;
   state.ycsb_field_size = 100;
   state.ycsb_tuples_per_txn = 2;

@@ -29,7 +29,7 @@ bool _read_only,
 opt_lsm_engine::~opt_lsm_engine() {
 
   if (!read_only) {
-    merge(true);
+    //merge(true);
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
