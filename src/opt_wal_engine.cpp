@@ -4,15 +4,15 @@
 
 using namespace std;
 
-opt_wal_engine::opt_wal_engine(const config& _conf, bool _read_only,
+opt_wal_engine::opt_wal_engine(const config& _conf, database* _db, bool _read_only,
                                unsigned int _tid)
     : conf(_conf),
-      db(conf.db),
+      db(_db),
       tid(_tid) {
 
   etype = engine_type::OPT_WAL;
   read_only = _read_only;
-  pm_log = db->log->at(tid);
+  pm_log = db->log;
 
 }
 

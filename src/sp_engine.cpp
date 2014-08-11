@@ -4,9 +4,9 @@
 
 using namespace std;
 
-sp_engine::sp_engine(const config& _conf, bool _read_only, unsigned int _tid)
+sp_engine::sp_engine(const config& _conf, database* _db,bool _read_only, unsigned int _tid)
     : conf(_conf),
-      db(conf.db),
+      db(_db),
       bt(NULL),
       txn_ptr(NULL),
       tid(_tid) {

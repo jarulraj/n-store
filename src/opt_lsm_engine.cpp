@@ -4,100 +4,16 @@
 
 using namespace std;
 
-void opt_lsm_engine::merge_check() {
-  if (++merge_looper % conf.merge_interval == 0) {
-    merge(false);
-    merge_looper = 0;
-  }
-}
-
-void opt_lsm_engine::merge(bool force) {
-  //std::cout << "Merging ! " << merge_looper << endl;
-
-  vector<table*> tables = db->tables->get_data();
-  for (table* tab : tables) {
-    table_index *p_index = tab->indices->at(0);
-    vector<table_index*> indices = tab->indices->get_data();
-
-    pbtree<unsigned long, record*>* pm_map = p_index->pm_map;
-
-    size_t compact_threshold = conf.merge_ratio * p_index->off_map->size();
-    bool compact = (pm_map->size() > compact_threshold);
-
-    // Check if need to merge
-    if (force || compact) {
-      pbtree<unsigned long, record*>::const_iterator itr;
-      record *pm_rec, *fs_rec;
-      unsigned long key;
-      off_t storage_offset;
-      std::string val;
-      char ptr_buf[32];
-
-      // All tuples in table
-      for (itr = pm_map->begin(); itr != pm_map->end(); itr++) {
-        key = (*itr).first;
-        pm_rec = (*itr).second;
-
-        fs_rec = NULL;
-
-        // Check if we need to merge
-        if (p_index->off_map->at(key, &storage_offset)) {
-          //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
-
-          val = tab->fs_data.at(storage_offset);
-
-          std::sscanf((char*) val.c_str(), "%p", &fs_rec);
-          //printf("fs_rec :: %p \n", fs_rec);
-
-          int num_cols = pm_rec->sptr->num_columns;
-          for (int field_itr = 0; field_itr < num_cols; field_itr++) {
-            fs_rec->set_data(field_itr, pm_rec);
-          }
-
-        } else {
-          // Insert tuple
-          std::sprintf(ptr_buf, "%p", pm_rec);
-          val = std::string(ptr_buf);
-          //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
-
-          storage_offset = tab->fs_data.push_back(val);
-
-          for (table_index* index : indices) {
-            std::string key_str = serialize(pm_rec, index->sptr);
-            key = hash_fn(key_str);
-            index->off_map->insert(key, storage_offset);
-          }
-        }
-      }
-
-      // Clear mem table
-      for (table_index* index : indices)
-        index->pm_map->clear();
-    }
-  }
-
-  // Clear commit_free list
-  for (void* ptr : commit_free_list) {
-    pmemalloc_free(ptr);
-  }
-  commit_free_list.clear();
-
-  // Truncate log
-  if (force)
-    pm_log->clear();
-
-}
-
-opt_lsm_engine::opt_lsm_engine(const config& _conf, bool _read_only,
-                               unsigned int _tid)
+opt_lsm_engine::opt_lsm_engine(const config& _conf, database* _db,
+                               bool _read_only, unsigned int _tid)
     : conf(_conf),
-      db(conf.db),
+      db(_db),
       tid(_tid) {
 
   etype = engine_type::OPT_LSM;
   read_only = _read_only;
   merge_looper = 0;
-  pm_log = db->log->at(tid);
+  pm_log = db->log;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -382,6 +298,90 @@ void opt_lsm_engine::load(const statement& st) {
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
   }
+}
+
+void opt_lsm_engine::merge_check() {
+  if (++merge_looper % conf.merge_interval == 0) {
+    merge(false);
+    merge_looper = 0;
+  }
+}
+
+void opt_lsm_engine::merge(bool force) {
+  //std::cout << "Merging ! " << merge_looper << endl;
+
+  vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    table_index *p_index = tab->indices->at(0);
+    vector<table_index*> indices = tab->indices->get_data();
+
+    pbtree<unsigned long, record*>* pm_map = p_index->pm_map;
+
+    size_t compact_threshold = conf.merge_ratio * p_index->off_map->size();
+    bool compact = (pm_map->size() > compact_threshold);
+
+    // Check if need to merge
+    if (force || compact) {
+      pbtree<unsigned long, record*>::const_iterator itr;
+      record *pm_rec, *fs_rec;
+      unsigned long key;
+      off_t storage_offset;
+      std::string val;
+      char ptr_buf[32];
+
+      // All tuples in table
+      for (itr = pm_map->begin(); itr != pm_map->end(); itr++) {
+        key = (*itr).first;
+        pm_rec = (*itr).second;
+
+        fs_rec = NULL;
+
+        // Check if we need to merge
+        if (p_index->off_map->at(key, &storage_offset)) {
+          //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
+
+          val = tab->fs_data.at(storage_offset);
+
+          std::sscanf((char*) val.c_str(), "%p", &fs_rec);
+          //printf("fs_rec :: %p \n", fs_rec);
+
+          int num_cols = pm_rec->sptr->num_columns;
+          for (int field_itr = 0; field_itr < num_cols; field_itr++) {
+            fs_rec->set_data(field_itr, pm_rec);
+          }
+
+        } else {
+          // Insert tuple
+          std::sprintf(ptr_buf, "%p", pm_rec);
+          val = std::string(ptr_buf);
+          //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
+
+          storage_offset = tab->fs_data.push_back(val);
+
+          for (table_index* index : indices) {
+            std::string key_str = serialize(pm_rec, index->sptr);
+            key = hash_fn(key_str);
+            index->off_map->insert(key, storage_offset);
+          }
+        }
+      }
+
+      // Clear mem table
+      for (table_index* index : indices)
+        index->pm_map->clear();
+    }
+  }
+
+  // Clear commit_free list
+  for (void* ptr : commit_free_list) {
+    pmemalloc_free(ptr);
+  }
+  commit_free_list.clear();
+
+  // Truncate log
+  if (force)
+    pm_log->clear();
+
 }
 
 void opt_lsm_engine::txn_begin() {

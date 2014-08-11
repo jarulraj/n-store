@@ -1,14 +1,6 @@
 // YCSB BENCHMARK
 
 #include "ycsb_benchmark.h"
-#include "field.h"
-#include "record.h"
-#include "statement.h"
-#include "utils.h"
-#include "nstore.h"
-#include "status.h"
-#include "libpm.h"
-#include "plist.h"
 
 using namespace std;
 
@@ -55,7 +47,7 @@ table* create_usertable(config& conf) {
   schema* user_table_schema = new schema(cols);
   pmemalloc_activate(user_table_schema);
 
-  table* user_table = new table("user", user_table_schema, 1, conf);
+  table* user_table = new table("user", user_table_schema, 1, conf, sp);
   pmemalloc_activate(user_table);
 
   // PRIMARY INDEX
@@ -67,44 +59,45 @@ table* create_usertable(config& conf) {
   pmemalloc_activate(user_table_index_schema);
 
   table_index* key_index = new table_index(user_table_index_schema,
-                                           conf.ycsb_num_val_fields + 1, conf);
+                                           conf.ycsb_num_val_fields + 1, conf,
+                                           sp);
   pmemalloc_activate(key_index);
   user_table->indices->push_back(key_index);
 
   return user_table;
 }
 
-ycsb_benchmark::ycsb_benchmark(config& _conf)
-    : benchmark(_conf),
+ycsb_benchmark::ycsb_benchmark(config& _conf, unsigned int tid, database* _db,
+                               timer* _tm, struct static_info* _sp)
+    : benchmark(_conf, tid, _db, _tm, _sp),
       conf(_conf),
       txn_id(0) {
 
   btype = benchmark_type::YCSB;
 
-  // Initialization mode
-  if (conf.sp->init == 0) {
-    //cout << "Initialization Mode" << endl;
+  // Partition workload
+  num_keys = conf.num_keys / conf.num_executors;
+  num_txns = conf.num_txns / conf.num_executors;
 
-    database* db = new database(conf);
-    conf.sp->ptrs[0] = db;
-    pmemalloc_activate(db);
-    conf.db = db;
+  // Initialization mode
+  if (sp->init == 0) {
+    //cout << "Initialization Mode" << endl;
+    sp->ptrs[0] = _db;
 
     table* usertable = create_usertable(conf);
     db->tables->push_back(usertable);
 
-    conf.sp->init = 1;
+    sp->init = 1;
   } else {
     //cout << "Recovery Mode " << endl;
-    database* db = (database*) conf.sp->ptrs[0];
+    database* db = (database*) sp->ptrs[0];
     db->reset(conf);
-    conf.db = db;
   }
 
-  user_table_schema = conf.db->tables->at(USER_TABLE_ID)->sptr;
+  user_table_schema = db->tables->at(USER_TABLE_ID)->sptr;
 
   if (conf.recovery) {
-    conf.num_keys = 1000;
+    num_keys = 1000;
     conf.ycsb_per_writes = 0.5;
   }
 
@@ -117,22 +110,23 @@ ycsb_benchmark::ycsb_benchmark(config& _conf)
   }
 
   // Generate skewed dist
-  simple_skew(simple_dist, conf.ycsb_skew, conf.num_keys,
-              conf.num_txns * conf.ycsb_tuples_per_txn);
-  uniform(uniform_dist, conf.num_txns);
+  simple_skew(simple_dist, conf.ycsb_skew, num_keys,
+              num_txns * conf.ycsb_tuples_per_txn);
+  uniform(uniform_dist, num_txns);
 }
 
-void ycsb_benchmark::load(engine* ee) {
+void ycsb_benchmark::load() {
+  engine* ee = new engine(conf, tid, db, false);
 
   unsigned int usertable_id = 0;
   unsigned int usertable_index_id = 0;
-  schema* usertable_schema = conf.db->tables->at(usertable_id)->sptr;
+  schema* usertable_schema = db->tables->at(usertable_id)->sptr;
   unsigned int txn_itr;
-  status ss(conf.num_keys);
+  status ss(num_keys);
 
   ee->txn_begin();
 
-  for (txn_itr = 0; txn_itr < conf.num_keys; txn_itr++) {
+  for (txn_itr = 0; txn_itr < num_keys; txn_itr++) {
 
     if (txn_itr % conf.load_batch_size == 0) {
       ee->txn_end(true);
@@ -151,10 +145,13 @@ void ycsb_benchmark::load(engine* ee) {
 
     ee->load(st);
 
-    ss.display();
+    if (tid == 0)
+      ss.display();
   }
 
   ee->txn_end(true);
+
+  delete ee;
 }
 
 void ycsb_benchmark::do_update(engine* ee, unsigned int tid) {
@@ -214,7 +211,8 @@ void ycsb_benchmark::do_read(engine* ee, unsigned int tid) {
   TIMER(ee->txn_end(true))
 }
 
-void ycsb_benchmark::sim_crash(engine* ee) {
+void ycsb_benchmark::sim_crash() {
+  engine* ee = new engine(conf, tid, db, conf.read_only);
 
   // UPDATE
   vector<int> field_ids;
@@ -242,21 +240,15 @@ void ycsb_benchmark::sim_crash(engine* ee) {
   }
 
   // Don't finish the transaction
-  //ee->txn_end(true);
+  delete ee;
 }
 
-void ycsb_benchmark::handler(engine* ee, unsigned int tid) {
-  unsigned int num_thds = conf.num_executors;
-  unsigned int per_thd_txns = conf.num_txns / num_thds;
-  unsigned int start_txn_itr = per_thd_txns * tid;
-  unsigned int end_txn_itr = start_txn_itr + per_thd_txns;
+void ycsb_benchmark::execute() {
+  engine* ee = new engine(conf, tid, db, conf.read_only);
   unsigned int txn_itr;
-  status ss(per_thd_txns);
+  status ss(num_txns);
 
-  //cout<<"per thd txns :: "<<per_thd_txns<<endl;
-  //cout<<"tid :: "<<tid<<" engine :: "<<ee->de<< endl;
-
-  for (txn_itr = start_txn_itr; txn_itr < end_txn_itr; txn_itr++) {
+  for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
     if (u < conf.ycsb_per_writes) {
@@ -268,4 +260,6 @@ void ycsb_benchmark::handler(engine* ee, unsigned int tid) {
     if (tid == 0)
       ss.display();
   }
+
+  delete ee;
 }

@@ -5,17 +5,19 @@
 
 using namespace std;
 
-wal_engine::wal_engine(const config& _conf, bool _read_only, unsigned int _tid)
+wal_engine::wal_engine(const config& _conf, database* _db, bool _read_only,
+                       unsigned int _tid)
     : conf(_conf),
-      db(conf.db),
+      db(_db),
       tid(_tid) {
   etype = engine_type::WAL;
   read_only = _read_only;
-  fs_log.configure(conf.fs_path + "log");
+  fs_log.configure(conf.fs_path + std::to_string(_tid) + "_" + "log");
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
-    std::string table_file_name = conf.fs_path + std::string(tab->table_name);
+    std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
+        + std::string(tab->table_name);
     tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
   }
 
@@ -54,6 +56,7 @@ std::string wal_engine::select(const statement& st) {
 
   record* rec_ptr = st.rec_ptr;
   table* tab = db->tables->at(st.table_id);
+
   table_index* table_index = tab->indices->at(st.table_index_id);
   std::string key_str = serialize(rec_ptr, table_index->sptr);
 
@@ -70,6 +73,7 @@ std::string wal_engine::select(const statement& st) {
   LOG_INFO("val : %s", val.c_str());
 
   delete rec_ptr;
+
   return val;
 }
 

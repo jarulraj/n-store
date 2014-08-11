@@ -1,36 +1,37 @@
 // TPCC BENCHMARK
 
-#include "common/tpcc_benchmark.h"
+#include "tpcc_benchmark.h"
 
 #include <sys/types.h>
 #include <ctime>
 #include <iostream>
 #include <string>
 
-#include "common/field.h"
-#include "common/libpm.h"
-#include "common/plist.h"
-#include "common/schema.h"
-#include "common/table.h"
-#include "common/table_index.h"
+#include "field.h"
+#include "libpm.h"
+#include "plist.h"
+#include "schema.h"
+#include "table.h"
+#include "table_index.h"
 
 using namespace std;
 
-tpcc_benchmark::tpcc_benchmark(config& _conf)
-    : benchmark(_conf),
+tpcc_benchmark::tpcc_benchmark(config& _conf, unsigned int tid, database* _db,
+                               timer* _tm, struct static_info* _sp)
+    : benchmark(_conf, tid, _db, _tm, _sp),
       conf(_conf),
       txn_id(0) {
 
   btype = benchmark_type::TPCC;
 
-  // Initialization mode
-  if (conf.sp->init == 0) {
-    //cout << "Initialization Mode" );
+  // Partition workload
+  num_txns = conf.num_txns / conf.num_executors;
 
-    database* db = new database(conf);
-    conf.sp->ptrs[0] = db;
-    pmemalloc_activate(db);
-    conf.db = db;
+  // Initialization mode
+  if (sp->init == 0) {
+    cout << "Initialization Mode" <<endl;
+
+    sp->ptrs[0] = db;
 
     table* item_table = create_item();
     db->tables->push_back(item_table);
@@ -51,25 +52,24 @@ tpcc_benchmark::tpcc_benchmark(config& _conf)
     table* stock_table = create_stock();
     db->tables->push_back(stock_table);
 
-    conf.sp->init = 1;
+    sp->init = 1;
   } else {
-    //cout << "Recovery Mode " );
-    database* db = (database*) conf.sp->ptrs[0];
+    cout << "Recovery Mode " <<endl;
+    database* db = (database*) sp->ptrs[0];
     db->reset(conf);
-    conf.db = db;
   }
 
-  item_table_schema = conf.db->tables->at(ITEM_TABLE_ID)->sptr;
-  warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
-  district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
-  customer_table_schema = conf.db->tables->at(CUSTOMER_TABLE_ID)->sptr;
-  history_table_schema = conf.db->tables->at(HISTORY_TABLE_ID)->sptr;
-  orders_table_schema = conf.db->tables->at(ORDERS_TABLE_ID)->sptr;
-  order_line_table_schema = conf.db->tables->at(ORDER_LINE_TABLE_ID)->sptr;
-  new_order_table_schema = conf.db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
-  stock_table_schema = conf.db->tables->at(STOCK_TABLE_ID)->sptr;
+  item_table_schema = db->tables->at(ITEM_TABLE_ID)->sptr;
+  warehouse_table_schema = db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
+  district_table_schema = db->tables->at(DISTRICT_TABLE_ID)->sptr;
+  customer_table_schema = db->tables->at(CUSTOMER_TABLE_ID)->sptr;
+  orders_table_schema = db->tables->at(ORDERS_TABLE_ID)->sptr;
+  order_line_table_schema = db->tables->at(ORDER_LINE_TABLE_ID)->sptr;
+  new_order_table_schema = db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
+  history_table_schema = db->tables->at(HISTORY_TABLE_ID)->sptr;
+  stock_table_schema = db->tables->at(STOCK_TABLE_ID)->sptr;
 
-  uniform(uniform_dist, conf.num_txns);
+  uniform(uniform_dist, num_txns);
 
   if (conf.recovery) {
     item_count = 10000;
@@ -153,11 +153,11 @@ table* tpcc_benchmark::create_warehouse() {
   schema* warehouse_schema = new schema(cols);
   pmemalloc_activate(warehouse_schema);
 
-  table* warehouse = new table("warehouse", warehouse_schema, 1, conf);
+  table* warehouse = new table("warehouse", warehouse_schema, 1, conf, sp);
   pmemalloc_activate(warehouse);
 
   // PRIMARY INDEX
-  for (int itr = 1; itr <= cols.size(); itr++) {
+  for (int itr = 1; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -165,7 +165,7 @@ table* tpcc_benchmark::create_warehouse() {
   pmemalloc_activate(warehouse_index_schema);
 
   table_index* key_index = new table_index(warehouse_index_schema, cols.size(),
-                                           conf);
+                                           conf, sp);
   pmemalloc_activate(key_index);
   warehouse->indices->push_back(key_index);
 
@@ -253,11 +253,11 @@ table* tpcc_benchmark::create_district() {
   schema* district_schema = new schema(cols);
   pmemalloc_activate(district_schema);
 
-  table* district = new table("district", district_schema, 1, conf);
+  table* district = new table("district", district_schema, 1, conf, sp);
   pmemalloc_activate(district);
 
   // PRIMARY INDEX
-  for (int itr = 2; itr <= cols.size(); itr++) {
+  for (int itr = 2; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -265,7 +265,7 @@ table* tpcc_benchmark::create_district() {
   pmemalloc_activate(district_index_schema);
 
   table_index* key_index = new table_index(district_index_schema, cols.size(),
-                                           conf);
+                                           conf, sp);
   pmemalloc_activate(key_index);
   district->indices->push_back(key_index);
 
@@ -328,19 +328,19 @@ table* tpcc_benchmark::create_item() {
   schema* item_schema = new schema(cols);
   pmemalloc_activate(item_schema);
 
-  table* item = new table("item", item_schema, 1, conf);
+  table* item = new table("item", item_schema, 1, conf, sp);
   pmemalloc_activate(item);
 
   // PRIMARY INDEX
-  for (int itr = 1; itr <= cols.size(); itr++) {
+  for (int itr = 1; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
   schema* item_index_schema = new schema(cols);
   pmemalloc_activate(item_index_schema);
 
-  table_index* key_index = new table_index(item_index_schema, cols.size(),
-                                           conf);
+  table_index* key_index = new table_index(item_index_schema, cols.size(), conf,
+                                           sp);
   pmemalloc_activate(key_index);
   item->indices->push_back(key_index);
 
@@ -471,11 +471,11 @@ table* tpcc_benchmark::create_customer() {
   schema* customer_schema = new schema(cols);
   pmemalloc_activate(customer_schema);
 
-  table* customer = new table("customer", customer_schema, 2, conf);
+  table* customer = new table("customer", customer_schema, 2, conf, sp);
   pmemalloc_activate(customer);
 
   // PRIMARY INDEX
-  for (int itr = 3; itr <= cols.size(); itr++) {
+  for (int itr = 3; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -483,7 +483,7 @@ table* tpcc_benchmark::create_customer() {
   pmemalloc_activate(customer_index_schema);
 
   table_index* p_index = new table_index(customer_index_schema, cols.size(),
-                                         conf);
+                                         conf, sp);
   pmemalloc_activate(p_index);
   customer->indices->push_back(p_index);
 
@@ -495,12 +495,12 @@ table* tpcc_benchmark::create_customer() {
   pmemalloc_activate(customer_name_index_schema);
 
   table_index* s_index = new table_index(customer_name_index_schema,
-                                         cols.size(), conf);
+                                         cols.size(), conf, sp);
   pmemalloc_activate(s_index);
   customer->indices->push_back(s_index);
 
   // QUERY SCHEMAS
-  for (int itr = 0; itr <= cols.size(); itr++)
+  for (int itr = 0; itr < cols.size(); itr++)
     cols[itr].enabled = 0;
   cols[3].enabled = 1;
   cols[13].enabled = 1;
@@ -574,11 +574,11 @@ table* tpcc_benchmark::create_history() {
   schema* history_schema = new schema(cols);
   pmemalloc_activate(history_schema);
 
-  table* history = new table("history", history_schema, 1, conf);
+  table* history = new table("history", history_schema, 1, conf, sp);
   pmemalloc_activate(history);
 
   // PRIMARY INDEX
-  for (int itr = 5; itr <= cols.size(); itr++) {
+  for (int itr = 5; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
@@ -586,7 +586,7 @@ table* tpcc_benchmark::create_history() {
   pmemalloc_activate(history_index_schema);
 
   table_index* p_index = new table_index(history_index_schema, cols.size(),
-                                         conf);
+                                         conf, sp);
   pmemalloc_activate(p_index);
   history->indices->push_back(p_index);
 
@@ -673,23 +673,24 @@ table* tpcc_benchmark::create_stock() {
   schema* stock_schema = new schema(cols);
   pmemalloc_activate(stock_schema);
 
-  table* stock = new table("stock", stock_schema, 1, conf);
+  table* stock = new table("stock", stock_schema, 1, conf, sp);
   pmemalloc_activate(stock);
 
   // PRIMARY INDEX
-  for (int itr = 2; itr <= cols.size(); itr++) {
+  for (int itr = 2; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
   schema* stock_index_schema = new schema(cols);
   pmemalloc_activate(stock_index_schema);
 
-  table_index* p_index = new table_index(stock_index_schema, cols.size(), conf);
+  table_index* p_index = new table_index(stock_index_schema, cols.size(), conf,
+                                         sp);
   pmemalloc_activate(p_index);
   stock->indices->push_back(p_index);
 
   // QUERY SCHEMA
-  for (int itr = 0; itr <= cols.size(); itr++)
+  for (int itr = 0; itr < cols.size(); itr++)
     cols[itr].enabled = 0;
   cols[2].enabled = 1;
 
@@ -766,11 +767,11 @@ table* tpcc_benchmark::create_orders() {
   schema* orders_schema = new schema(cols);
   pmemalloc_activate(orders_schema);
 
-  table* orders = new table("orders", orders_schema, 2, conf);
+  table* orders = new table("orders", orders_schema, 2, conf, sp);
   pmemalloc_activate(orders);
 
   // PRIMARY INDEX
-  for (int itr = 4; itr <= cols.size(); itr++) {
+  for (int itr = 4; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
   cols[1].enabled = 0;
@@ -778,7 +779,7 @@ table* tpcc_benchmark::create_orders() {
   schema* p_index_schema = new schema(cols);
   pmemalloc_activate(p_index_schema);
 
-  table_index* p_index = new table_index(p_index_schema, cols.size(), conf);
+  table_index* p_index = new table_index(p_index_schema, cols.size(), conf, sp);
   pmemalloc_activate(p_index);
   orders->indices->push_back(p_index);
 
@@ -789,7 +790,7 @@ table* tpcc_benchmark::create_orders() {
   schema* s_index_schema = new schema(cols);
   pmemalloc_activate(s_index_schema);
 
-  table_index* s_index = new table_index(s_index_schema, cols.size(), conf);
+  table_index* s_index = new table_index(s_index_schema, cols.size(), conf, sp);
   pmemalloc_activate(s_index);
   orders->indices->push_back(s_index);
 
@@ -839,7 +840,7 @@ table* tpcc_benchmark::create_new_order() {
   schema* new_order_schema = new schema(cols);
   pmemalloc_activate(new_order_schema);
 
-  table* new_order = new table("new_order", new_order_schema, 1, conf);
+  table* new_order = new table("new_order", new_order_schema, 1, conf, sp);
   pmemalloc_activate(new_order);
 
   // PRIMARY INDEX
@@ -850,7 +851,7 @@ table* tpcc_benchmark::create_new_order() {
   pmemalloc_activate(new_order_index_schema);
 
   table_index* new_order_index = new table_index(new_order_index_schema,
-                                                 cols.size(), conf);
+                                                 cols.size(), conf, sp);
   pmemalloc_activate(new_order_index);
   new_order->indices->push_back(new_order_index);
 
@@ -934,18 +935,18 @@ table* tpcc_benchmark::create_order_line() {
   schema* order_line_schema = new schema(cols);
   pmemalloc_activate(order_line_schema);
 
-  table* order_line = new table("order_line", order_line_schema, 2, conf);
+  table* order_line = new table("order_line", order_line_schema, 2, conf, sp);
   pmemalloc_activate(order_line);
 
   // PRIMARY INDEX
-  for (int itr = 4; itr <= cols.size(); itr++) {
+  for (int itr = 4; itr < cols.size(); itr++) {
     cols[itr].enabled = 0;
   }
 
   schema* p_index_schema = new schema(cols);
   pmemalloc_activate(p_index_schema);
 
-  table_index* p_index = new table_index(p_index_schema, cols.size(), conf);
+  table_index* p_index = new table_index(p_index_schema, cols.size(), conf, sp);
   pmemalloc_activate(p_index);
   order_line->indices->push_back(p_index);
 
@@ -955,7 +956,7 @@ table* tpcc_benchmark::create_order_line() {
   schema* s_index_schema = new schema(cols);
   pmemalloc_activate(s_index_schema);
 
-  table_index* s_index = new table_index(s_index_schema, cols.size(), conf);
+  table_index* s_index = new table_index(s_index_schema, cols.size(), conf, sp);
   pmemalloc_activate(s_index);
   order_line->indices->push_back(s_index);
 
@@ -965,7 +966,7 @@ table* tpcc_benchmark::create_order_line() {
 void tpcc_benchmark::load_items(engine* ee) {
   int num_items = item_count;  //100000
 
-  schema* item_table_schema = conf.db->tables->at(ITEM_TABLE_ID)->sptr;
+  schema* item_table_schema = db->tables->at(ITEM_TABLE_ID)->sptr;
   double tax = 0.1f;
   double ytd = 30000.00f;  // different from warehouse
   int next_d_o_id = 3000;
@@ -975,7 +976,7 @@ void tpcc_benchmark::load_items(engine* ee) {
 
   for (i_itr = 0; i_itr < num_items; i_itr++) {
 
-    if(i_itr % conf.load_batch_size == 0){
+    if (i_itr % conf.load_batch_size == 0) {
       ee->txn_end(true);
       txn_id++;
       ee->txn_begin();
@@ -1003,15 +1004,14 @@ void tpcc_benchmark::load_items(engine* ee) {
 void tpcc_benchmark::load_warehouses(engine* ee) {
   int num_warehouses = warehouse_count;
 
-  schema* warehouse_table_schema = conf.db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
-  schema* district_table_schema = conf.db->tables->at(DISTRICT_TABLE_ID)->sptr;
-  schema* customer_table_schema = conf.db->tables->at(CUSTOMER_TABLE_ID)->sptr;
-  schema* history_table_schema = conf.db->tables->at(HISTORY_TABLE_ID)->sptr;
-  schema* orders_table_schema = conf.db->tables->at(ORDERS_TABLE_ID)->sptr;
-  schema* order_line_table_schema = conf.db->tables->at(ORDER_LINE_TABLE_ID)
-      ->sptr;
-  schema* new_order_table_schema = conf.db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
-  schema* stock_table_schema = conf.db->tables->at(STOCK_TABLE_ID)->sptr;
+  schema* warehouse_table_schema = db->tables->at(WAREHOUSE_TABLE_ID)->sptr;
+  schema* district_table_schema = db->tables->at(DISTRICT_TABLE_ID)->sptr;
+  schema* customer_table_schema = db->tables->at(CUSTOMER_TABLE_ID)->sptr;
+  schema* history_table_schema = db->tables->at(HISTORY_TABLE_ID)->sptr;
+  schema* orders_table_schema = db->tables->at(ORDERS_TABLE_ID)->sptr;
+  schema* order_line_table_schema = db->tables->at(ORDER_LINE_TABLE_ID)->sptr;
+  schema* new_order_table_schema = db->tables->at(NEW_ORDER_TABLE_ID)->sptr;
+  schema* stock_table_schema = db->tables->at(STOCK_TABLE_ID)->sptr;
 
   unsigned int w_itr, d_itr, c_itr, o_itr, ol_itr, s_i_itr;
   statement st;
@@ -1131,7 +1131,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       for (o_itr = 0; o_itr < customers_per_district; o_itr++) {
         txn_id++;
 
-        if(o_itr % conf.load_batch_size == 0){
+        if (o_itr % conf.load_batch_size == 0) {
           ee->txn_end(true);
           txn_id++;
           ee->txn_begin();
@@ -1222,7 +1222,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
     // STOCK
     for (s_i_itr = 0; s_i_itr < item_count; s_i_itr++) {
 
-      if(s_i_itr % conf.load_batch_size == 0){
+      if (s_i_itr % conf.load_batch_size == 0) {
         ee->txn_end(true);
         txn_id++;
         ee->txn_begin();
@@ -1258,7 +1258,8 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
   }
 }
 
-void tpcc_benchmark::load(engine* ee) {
+void tpcc_benchmark::load() {
+  engine* ee = new engine(conf, tid, db, false);
 
   LOG_INFO("Load items ");
   load_items(ee);
@@ -1266,6 +1267,7 @@ void tpcc_benchmark::load(engine* ee) {
   LOG_INFO("Load warehouses ");
   load_warehouses(ee);
 
+  delete ee;
 }
 
 void tpcc_benchmark::do_delivery(engine* ee, unsigned int tid) {
@@ -2139,22 +2141,21 @@ void tpcc_benchmark::do_stock_level(engine* ee, unsigned int tid) {
   TIMER(ee->txn_end(true));
 }
 
-void tpcc_benchmark::sim_crash(engine* ee) {
+void tpcc_benchmark::sim_crash() {
+  engine* ee = new engine(conf, tid, db, false);
 
   // NEW ORDER
   do_new_order(ee, false);
 
+  delete ee;
 }
 
-void tpcc_benchmark::handler(engine* ee, unsigned int tid) {
-  unsigned int num_thds = conf.num_executors;
-  unsigned int per_thd_txns = conf.num_txns / num_thds;
-  unsigned int start_txn_itr = per_thd_txns * tid;
-  unsigned int end_txn_itr = start_txn_itr + per_thd_txns;
+void tpcc_benchmark::execute() {
+  engine* ee = new engine(conf, tid, db, false);
   unsigned int txn_itr;
-  status ss(per_thd_txns);
+  status ss(num_txns);
 
-  for (txn_itr = start_txn_itr; txn_itr < end_txn_itr; txn_itr++) {
+  for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
     if (conf.tpcc_stock_level_only) {
@@ -2179,7 +2180,9 @@ void tpcc_benchmark::handler(engine* ee, unsigned int tid) {
       }
     }
 
-    if(tid == 0)
+    if (tid == 0)
       ss.display();
   }
+
+  delete ee;
 }

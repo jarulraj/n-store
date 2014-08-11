@@ -3,11 +3,10 @@
 #include <cassert>
 
 #include "nstore.h"
-#include "ycsb_benchmark.h"
-#include "tpcc_benchmark.h"
 #include "utils.h"
 
 #include "libpm.h"
+#include "coordinator.h"
 
 using namespace std;
 
@@ -50,8 +49,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.num_keys = 10;
   state.num_txns = 10;
 
-  state.single =true;
-  state.num_executors = 1;
+  state.single = false;
+  state.num_executors = 2;
 
   state.verbose = false;
 
@@ -192,53 +191,6 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   }
 }
 
-void execute(config& state) {
-
-  bool generate_dataset = !sp->init;
-  benchmark* bh = NULL;
-
-  // Fix benchmark
-  switch (state.btype) {
-    case benchmark_type::YCSB:
-      LOG_INFO("YCSB");
-      bh = new ycsb_benchmark(state);
-      break;
-
-    case benchmark_type::TPCC:
-      LOG_INFO("TPCC");
-      bh = new tpcc_benchmark(state);
-      break;
-
-    default:
-      cout << "Unknown benchmark type :: " << state.btype << endl;
-      break;
-  }
-
-  // Run engine
-  switch (state.etype) {
-    case engine_type::WAL:
-    case engine_type::SP:
-    case engine_type::LSM:
-    case engine_type::OPT_WAL:
-    case engine_type::OPT_SP:
-    case engine_type::OPT_LSM:
-
-      if (generate_dataset)
-        bh->load(state);
-
-      bh->execute(state);
-
-      //if(state.recovery)
-      //  sp->recovery();
-
-      break;
-
-    default:
-      cout << "Unknown engine type :: " << state.etype << endl;
-      break;
-  }
-}
-
 int main(int argc, char **argv) {
   const char* path = "/mnt/pmfs/n-store/zfile";
 
@@ -251,9 +203,10 @@ int main(int argc, char **argv) {
 // Start
   config state;
   parse_arguments(argc, argv, state);
-  state.sp = sp;
+  //state.sp = sp;
 
-  execute(state);
+  coordinator cc(state);
+  cc.execute(state);
 
   pmemalloc_end(path);
 

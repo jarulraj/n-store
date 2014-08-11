@@ -11,7 +11,7 @@ using namespace std;
 class table {
  public:
   table(const std::string& name_str, schema* _sptr, unsigned int _num_indices,
-        config& conf)
+        config& conf, struct static_info* sp)
       : table_name(NULL),
         sptr(_sptr),
         max_tuple_size(_sptr->deser_len),
@@ -24,12 +24,11 @@ class table {
     memcpy(table_name, name_str.c_str(), len + 1);
     pmemalloc_activate(table_name);
 
-    pm_data = new plist<record*>(&conf.sp->ptrs[conf.sp->itr++],
-                                 &conf.sp->ptrs[conf.sp->itr++]);
+    pm_data = new plist<record*>(&sp->ptrs[sp->itr++], &sp->ptrs[sp->itr++]);
     pmemalloc_activate(pm_data);
 
-    indices = new plist<table_index*>(&conf.sp->ptrs[conf.sp->itr++],
-                                      &conf.sp->ptrs[conf.sp->itr++]);
+    indices = new plist<table_index*>(&sp->ptrs[sp->itr++],
+                                      &sp->ptrs[sp->itr++]);
     pmemalloc_activate(indices);
 
   }

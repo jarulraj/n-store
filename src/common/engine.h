@@ -19,27 +19,27 @@ class engine {
         de(NULL) {
   }
 
-  engine(const config& conf, unsigned int tid, bool read_only)
+  engine(const config& conf, unsigned int tid, database* db, bool read_only)
       : etype(conf.etype) {
 
     switch (conf.etype) {
       case engine_type::WAL:
-        de = new wal_engine(conf, read_only, tid);
+        de = new wal_engine(conf, db, read_only, tid);
         break;
       case engine_type::SP:
-        de = new sp_engine(conf, read_only, tid);
+        de = new sp_engine(conf, db, read_only, tid);
         break;
       case engine_type::LSM:
-        de = new lsm_engine(conf, read_only, tid);
+        de = new lsm_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_WAL:
-        de = new opt_wal_engine(conf, read_only, tid);
+        de = new opt_wal_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_SP:
-        de = new opt_sp_engine(conf, read_only, tid);
+        de = new opt_sp_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_LSM:
-        de = new opt_lsm_engine(conf, read_only, tid);
+        de = new opt_lsm_engine(conf, db, read_only, tid);
         break;
       default:
         cout << "Unknown engine type :: " << etype << endl;

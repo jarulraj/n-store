@@ -21,7 +21,7 @@ using namespace std;
 
 class lsm_engine : public engine_api {
  public:
-  lsm_engine(const config& _conf, bool _read_only, unsigned int _tid);
+  lsm_engine(const config& _conf, database* _db, bool _read_only, unsigned int _tid);
   ~lsm_engine();
 
   std::string select(const statement& st);

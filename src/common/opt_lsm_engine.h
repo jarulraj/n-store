@@ -23,7 +23,7 @@ using namespace std;
 
 class opt_lsm_engine : public engine_api {
  public:
-  opt_lsm_engine(const config& _conf, bool _read_only, unsigned int _tid);
+  opt_lsm_engine(const config& _conf, database* _db, bool _read_only, unsigned int _tid);
   ~opt_lsm_engine();
 
   std::string select(const statement& st);

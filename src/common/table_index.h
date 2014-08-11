@@ -11,16 +11,17 @@ using namespace std;
 class table_index {
  public:
 
-  table_index(schema* _sptr, unsigned int _num_fields, config& conf)
+  table_index(schema* _sptr, unsigned int _num_fields, config& conf,
+              struct static_info* sp)
       : sptr(_sptr),
         num_fields(_num_fields),
         pm_map(NULL),
         off_map(NULL) {
 
-    pm_map = new pbtree<unsigned long, record*>(&conf.sp->ptrs[conf.sp->itr++]);
+    pm_map = new pbtree<unsigned long, record*>(&sp->ptrs[sp->itr++]);
     pmemalloc_activate(pm_map);
 
-    off_map = new pbtree<unsigned long, off_t>(&conf.sp->ptrs[conf.sp->itr++]);
+    off_map = new pbtree<unsigned long, off_t>(&sp->ptrs[sp->itr++]);
     pmemalloc_activate(off_map);
 
     if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM) {

@@ -5,22 +5,26 @@
 #include <cstring>
 #include <vector>
 
-#include "nstore.h"
 #include "benchmark.h"
-#include "database.h"
-#include "engine.h"
-#include "timer.h"
+#include "field.h"
+#include "record.h"
+#include "statement.h"
+#include "utils.h"
+#include "nstore.h"
+#include "status.h"
+#include "libpm.h"
+#include "plist.h"
 
 using namespace std;
 
 class ycsb_benchmark : public benchmark {
  public:
-  ycsb_benchmark(config& _conf);
+  ycsb_benchmark(config& _conf, unsigned int tid, database* _db, timer* _tm, struct static_info* _sp);
 
-  void load(engine* ee);
-  void handler(engine* ee, unsigned int tid);
+  void load();
+  void execute();
 
-  void sim_crash(engine* ee);
+  void sim_crash();
 
   void do_update(engine* ee, unsigned int tid);
   void do_read(engine* ee, unsigned int tid);
@@ -40,6 +44,8 @@ class ycsb_benchmark : public benchmark {
   benchmark_type btype;
 
   unsigned int txn_id;
+  unsigned int num_keys;
+  unsigned int num_txns;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */

@@ -19,21 +19,19 @@ using namespace std;
 
 class tpcc_benchmark : public benchmark {
  public:
-  tpcc_benchmark(config& _conf);
+  tpcc_benchmark(config& _conf, unsigned int tid, database* _db, timer* _tm, struct static_info* _sp);
 
-  void load(engine* ee);
-  void handler(engine* ee, unsigned int tid);
-  void sim_crash(engine* ee);
+  void load();
+  void execute();
+  void sim_crash();
 
   table* create_warehouse();
   table* create_district();
   table* create_item();
   table* create_customer();
 
-  void load_warehouses(engine* ee);
-  void load_district(engine* ee);
   void load_items(engine* ee);
-  void load_customer(engine* ee);
+  void load_warehouses(engine* ee);
 
   table* create_history();
   table* create_stock();
@@ -47,6 +45,7 @@ class tpcc_benchmark : public benchmark {
   benchmark_type btype;
 
   unsigned int txn_id;
+  unsigned int num_txns;
 
   void do_delivery(engine* ee, unsigned int tid);
   void do_new_order(engine* ee, unsigned int tid, bool finish = true);
@@ -86,7 +85,7 @@ class tpcc_benchmark : public benchmark {
   const double item_max_price = 100.0;
   const int item_name_len = 5;
 
-  int warehouse_count = 2;  // 10
+  int warehouse_count = 1;  // 10
   const double warehouse_min_tax = 0.0;
   const double warehouse_max_tax = 0.2;
   const double state_len = 16;

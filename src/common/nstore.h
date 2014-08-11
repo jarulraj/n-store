@@ -66,9 +66,7 @@ class database;
 class config {
  public:
   std::string fs_path;
-
-  struct static_info* sp;
-  database* db;
+  struct static_info* _sp;
 
   int num_keys;
   int num_txns;

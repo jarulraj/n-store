@@ -20,7 +20,7 @@ using namespace std;
 
 class wal_engine : public engine_api {
  public:
-  wal_engine(const config& _conf, bool _read_only, unsigned int _tid);
+  wal_engine(const config& _conf, database* _db, bool _read_only, unsigned int _tid);
   ~wal_engine();
 
   std::string select(const statement& st);

@@ -11,30 +11,22 @@ using namespace std;
 
 class database {
  public:
-  database(config& conf)
+  database(config& conf, struct static_info* sp)
       : tables(NULL),
         log(NULL),
         dirs(NULL) {
 
-    conf.sp->itr++;
+    sp->itr++;
 
     // TABLES
-    plist<table*>* _tables = new plist<table*>(&conf.sp->ptrs[conf.sp->itr++],
-                                               &conf.sp->ptrs[conf.sp->itr++]);
+    plist<table*>* _tables = new plist<table*>(&sp->ptrs[sp->itr++],
+                                               &sp->ptrs[sp->itr++]);
     pmemalloc_activate(_tables);
     tables = _tables;
 
     // LOG
-    log = new plist<plist<char*>*>(&conf.sp->ptrs[conf.sp->itr++],
-                                   &conf.sp->ptrs[conf.sp->itr++]);
+    log = new plist<char*>(&sp->ptrs[sp->itr++], &sp->ptrs[sp->itr++]);
     pmemalloc_activate(log);
-
-    for (int e_itr = 0; e_itr < conf.num_executors; e_itr++) {
-      plist<char*>* _log = new plist<char*>(&conf.sp->ptrs[conf.sp->itr++],
-                                            &conf.sp->ptrs[conf.sp->itr++]);
-      pmemalloc_activate(_log);
-      log->push_back(_log);
-    }
 
     // DIRS
     if (conf.etype == engine_type::SP) {
@@ -44,7 +36,7 @@ class database {
     }
 
     if (conf.etype == engine_type::OPT_SP) {
-      dirs = new cow_pbtree(true, NULL, &conf.sp->ptrs[conf.sp->itr++]);
+      dirs = new cow_pbtree(true, NULL, &sp->ptrs[sp->itr++]);
       pmemalloc_activate(dirs);
     }
   }
@@ -83,7 +75,7 @@ class database {
   }
 
   plist<table*>* tables;
-  plist<plist<char*>*>* log;
+  plist<char*>* log;
 
   // SP and OPT_SP
   cow_pbtree* dirs;
