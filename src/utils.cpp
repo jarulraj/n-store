@@ -319,7 +319,7 @@ void simple_skew(vector<int>& simple_dist, double alpha, int n,
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> dis(0, 1);
   double i, z;
-  long bound = ((double) n / (100 * alpha));  // 90% from 10% of values
+  long bound = 10;  // alpha fraction goes to skewed values
   long val, diff;
 
   diff = n - bound;
@@ -327,12 +327,12 @@ void simple_skew(vector<int>& simple_dist, double alpha, int n,
   for (i = 0; i < num_values; i++) {
     z = dis(gen);
 
-    if (z < 0.9)
+    if (z < alpha)
       val = z * bound;
     else
       val = bound + z * diff;
 
-    //cout << "simple_val :: " << val << endl;
+    //cout << "simple_val :: " << val << " bound : "<<bound<<" alpha : "<<alpha<< " z : "<<z<<endl;
     simple_dist.push_back(val);
   }
 }

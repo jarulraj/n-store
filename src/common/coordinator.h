@@ -25,7 +25,7 @@ class coordinator {
         num_txns(0) {
   }
 
-  coordinator(__attribute__((unused)) config& conf) {
+  coordinator(__attribute__((unused))    config& conf) {
     single = conf.single;
     num_executors = conf.num_executors;
     num_txns = conf.num_txns;
@@ -53,28 +53,30 @@ class coordinator {
       pmemalloc_activate(db);
 
       partitions[i] = get_benchmark(conf, i, db);
+    }
+
+    for (unsigned int i = 0; i < num_executors; i++)
       executors.push_back(
           std::thread(&coordinator::execute_bh, this, partitions[i]));
-    }
 
     for (unsigned int i = 0; i < num_executors; i++)
       executors[i].join();
 
     double sum_dur = 0;
     for (unsigned int i = 0; i < num_executors; i++) {
-        //cout<<"dur :"<<i<<" :: "<<tm[i].duration()<<endl;
-        sum_dur += tm[i].duration();
+      //cout<<"dur :"<<i<<" :: "<<tm[i].duration()<<endl;
+      sum_dur += tm[i].duration();
     }
     //cout<<"avg dur :"<<sum_dur/num_executors<<endl;
-    display_stats(conf.etype, sum_dur/num_executors, num_txns);
+    display_stats(conf.etype, sum_dur / num_executors, num_txns);
 
     /*
-    for (unsigned int i = 0; i < num_executors; i++) {
-      delete partitions[i];
-    }
+     for (unsigned int i = 0; i < num_executors; i++) {
+     delete partitions[i];
+     }
 
-    delete[] partitions;
-    */
+     delete[] partitions;
+     */
   }
 
   benchmark* get_benchmark(config& state, unsigned int tid, database* db) {
