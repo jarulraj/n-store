@@ -121,8 +121,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 400000
-YCSB_TXNS = 400000
+YCSB_KEYS = 500000
+YCSB_TXNS = 500000
 YCSB_WORKLOAD_MIX = ("read-only", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
 YCSB_RW_MIXES = [0, 0.5]
