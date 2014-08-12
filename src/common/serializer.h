@@ -8,7 +8,7 @@ using namespace std;
 class serializer {
  public:
 
-  std::stringstream output, input;
+  std::stringstream output, input, iput;
 
   // SER + DESER
   std::string serialize(record* rptr, schema* sptr) {
@@ -111,58 +111,6 @@ class serializer {
     }
 
     return rec_ptr;
-  }
-
-  std::string deserialize_to_string(std::string entry_str, schema* sptr) {
-    if (entry_str.empty())
-      return "";
-
-    unsigned int num_columns = sptr->num_columns;
-    input.str(entry_str);
-    output.str(std::string());
-
-    std::string vc_str;
-
-    for (unsigned int itr = 0; itr < num_columns; itr++) {
-      field_info finfo = sptr->columns[itr];
-      bool enabled = finfo.enabled;
-
-      if (enabled) {
-        char type = finfo.type;
-
-        switch (type) {
-          case field_type::INTEGER: {
-            int ival;
-            input >> ival;
-            output << ival;
-          }
-            break;
-
-          case field_type::DOUBLE: {
-            double dval;
-            input >> dval;
-            output << dval;
-          }
-            break;
-
-          case field_type::VARCHAR: {
-            input >> vc_str;
-            output << vc_str;
-          }
-            break;
-
-          default:
-            cout << "invalid type : --" << type << "--" << endl;
-            cout << "entry : --" << entry_str << "--" << endl;
-            exit(EXIT_FAILURE);
-            break;
-        }
-
-        output << " ";
-      }
-    }
-
-    return output.str();
   }
 
 };

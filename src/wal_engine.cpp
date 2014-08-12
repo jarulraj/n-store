@@ -69,11 +69,12 @@ std::string wal_engine::select(const statement& st) {
   }
 
   val = tab->fs_data.at(storage_offset);
-  val = sr.deserialize_to_string(val, st.projection);
+  record* select_rec = sr.deserialize(val, tab->sptr);
+  val = sr.serialize(select_rec, tab->sptr);
   LOG_INFO("val : %s", val.c_str());
 
   delete rec_ptr;
-
+  delete select_rec;
   return val;
 }
 

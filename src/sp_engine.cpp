@@ -59,8 +59,10 @@ std::string sp_engine::select(const statement& st) {
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     tuple = std::string((char*) val.data);
-    tuple = sr.deserialize_to_string(tuple, st.projection);
+    record* select_rec = sr.deserialize(tuple, tab->sptr);
+    tuple = sr.serialize(select_rec, tab->sptr);
     LOG_INFO("val : %s", tuple.c_str());
+    delete select_rec;
   }
 
   delete rec_ptr;
