@@ -1411,17 +1411,17 @@ def tpcc_nvm_eval(log_name):
             etypes = entry[0].split(' ');
             
             if(etypes[0] == "WAL"):
-                engine_type = "wal"                
+                engine_type = 0                
             elif(etypes[0] == "SP"):
-                engine_type = "sp"
+                engine_type = 1
             elif(etypes[0] == "LSM"):
-                engine_type = "lsm"
+                engine_type = 2
             elif(etypes[0] == "OPT_WAL"):
-                engine_type = "opt_wal"
+                engine_type = 3
             elif(etypes[0] == "OPT_SP"):
-                engine_type = "opt_sp"
+                engine_type = 4
             elif(etypes[0] == "OPT_LSM"):
-                engine_type = "opt_lsm"
+                engine_type = 5
                                                         
         if "LLC-load-misses" in line:
             entry = line.strip().split(' ');
@@ -1431,7 +1431,7 @@ def tpcc_nvm_eval(log_name):
                 llc_l_miss = str(entry[0])
             llc_l_miss = llc_l_miss.replace(",", "")    
                 
-            print(engine_type + " , " + str(skew) + " :: " + str(llc_l_miss))
+            print(str(engine_type) + " , " + str(skew) + " l_miss :: " + str(llc_l_miss))
 
 
         if "LLC-store-misses" in line:
@@ -1442,28 +1442,15 @@ def tpcc_nvm_eval(log_name):
                 llc_s_miss = str(entry[0])
             llc_s_miss = llc_s_miss.replace(",", "")    
                 
-            print(engine_type + " , " + str(skew) + " :: " + str(llc_s_miss) + "\n")
+            print(str(engine_type) + " , " + str(skew) + " s_miss :: " + str(llc_s_miss) + "\n")
                                                                 
             result_directory = TPCC_NVM_DIR;
             if not os.path.exists(result_directory):
                 os.makedirs(result_directory)
                 
-            if(engine_type == "-a"):
-                e_type = 0                
-            elif(engine_type == "-s"):
-                e_type = 1
-            elif(engine_type == "-m"):
-                e_type = 2
-            elif(engine_type == "-w"):
-                e_type = 3
-            elif(engine_type == "-c"):
-                e_type = 4
-            elif(engine_type == "-l"):
-                e_type = 5    
-
             result_file_name = result_directory + "nvm.csv"
             result_file = open(result_file_name, "a")
-            result_file.write(str(e_type) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
+            result_file.write(str(engine_type) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
             result_file.close()    
 
 # TPCC RECOVERY -- EVAL
