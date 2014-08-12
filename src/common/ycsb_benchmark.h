@@ -36,7 +36,7 @@ class ycsb_benchmark : public benchmark {
   // Schema
   schema* user_table_schema;
 
-  vector<int> simple_dist;
+  vector<int> zipf_dist;
   vector<double> uniform_dist;
 
   config conf;
