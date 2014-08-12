@@ -433,7 +433,6 @@ def create_tpcc_storage_bar_chart(datasets):
     margin = 0.10
     width = (2.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
-    group = 0
     
     # LINE       
     for line in  xrange(len(ENGINES)):
@@ -492,7 +491,6 @@ def create_tpcc_nvm_bar_chart(datasets):
     margin = 0.10
     width = (2.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
-    group = 0
         
     # LINE    
     for line in  xrange(len(ENGINES)):
@@ -508,8 +506,8 @@ def create_tpcc_nvm_bar_chart(datasets):
                 s_misses.append(datasets[line][col] / (1024 * 1024))
     
     
-    bars[group * 2] = ax1.bar(ind + margin + (group * width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
-    bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
+        bars[line * 2] = ax1.bar(ind + margin + (line * width), l_misses, width, color=OPT_COLORS[line], hatch=OPT_PATTERNS[line * 2])
+        bars[line * 2 + 1] = ax1.bar(ind + margin + (line * width), s_misses, width, bottom=l_misses, color=OPT_COLORS[line], hatch=OPT_PATTERNS[line * 2 + 1])
         
     # GRID
     axes = ax1.get_axes()
@@ -518,8 +516,8 @@ def create_tpcc_nvm_bar_chart(datasets):
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
+    #ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
+    #           shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
