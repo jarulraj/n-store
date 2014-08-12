@@ -112,7 +112,7 @@ SDV_SCRIPT = SDV_DIR + "/ivt_pm_sdv.sh"
 NSTORE = "./src/nstore"
 FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
-# PERF = "/usr/bin/perf"
+#PERF = "/usr/bin/perf"
 PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
 NUMACTL = "numactl"
 NUMACTL_FLAGS = "--membind=2"
@@ -143,7 +143,7 @@ TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
 
-TPCC_TXNS = 50000
+TPCC_TXNS = 500000
 
 FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=10)
 BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=14)
@@ -391,14 +391,15 @@ def create_ycsb_recovery_bar_chart(datasets):
     return (fig)
 
 def create_tpcc_perf_bar_chart(datasets):
-    fig, axs = plot.subplots(1, 2, sharey=True)
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
          
     labels = ("WAL", "SP", "LSM",
               "PM-WAL", "PM-SP", "PM-LSM")
 
-    x_values = TPCC_RW_MIXES
+    x_values = LATENCIES
     N = len(x_values)
-    x_labels = ["All", "Stock-level"]
+    x_labels = ["2X", "8X"]
 
     num_items = len(ENGINES);   
     ind = np.arange(N)  
@@ -406,42 +407,38 @@ def create_tpcc_perf_bar_chart(datasets):
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(labels) * 2
 
-    # WORKLOAD
-    for itr in xrange(len(datasets)): 
 
-        # GROUP    
-        for group in xrange(len(datasets[itr])):
-            perf_data = []               
-            LOG.info("GROUP :: %s", datasets[itr][group])
-    
-            datasets[itr][group].reverse()
-            
-            for line in  xrange(len(datasets[itr][group])):
-                for col in  xrange(len(datasets[itr][group][line])):
-                    if col == 1:
-                        perf_data.append(datasets[itr][group][line][col])
-      
-            LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
+    # GROUP    
+    for group in xrange(len(datasets)):
+        perf_data = []               
+        LOG.info("GROUP :: %s", datasets[group])
+        
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    perf_data.append(datasets[group][line][col])
+  
+        LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
 
-            bars[group] = axs[itr].bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
                         
-        # GRID
-        axes = axs[itr].get_axes()
-        # axes.set_ylim(0, 3000)        
-        makeGrid(axs[itr])    
+    # GRID
+    axes = ax1.get_axes()
+    # axes.set_ylim(0, 3000)        
+    makeGrid(ax1)    
+    
+    # Y-AXIS
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
         
-        # Y-AXIS
-        axs[itr].yaxis.set_major_locator(MaxNLocator(5))
-        axs[itr].minorticks_on()
-            
-        # X-AXIS
-        axs[itr].set_xlabel("Workload", fontproperties=FP)
-        axs[itr].minorticks_on()
-        axs[itr].set_xticklabels(x_labels)
-        axs[itr].set_xticks(ind + 0.5)
+    # X-AXIS
+    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(ind + 0.5)
         
 
-    axs[0].set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
+    ax1.set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
 
     # LEGEND
     fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
@@ -450,47 +447,45 @@ def create_tpcc_perf_bar_chart(datasets):
         
     return (fig)
 
-def create_tpcc_storage_bar_chart(datasets, workload_mix):
+def create_tpcc_storage_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
     
-    labels = ("WAL (FS)", "WAL (PM)",
-          "SP (FS)", "SP (PM)",
-          "LSM (FS)", "LSM (PM)",
-          "PM-WAL (FS)", "PM-WAL (PM)",
-          "PM-SP (FS)", "PM-SP (PM)",
-          "PM-LSM (FS)", "PM-LSM (PM)")
+    labels = ("WAL (FS)",
+          "SP (FS)",
+          "LSM (FS)",
+          "PM-WAL (FS)",
+          "PM-SP (FS)",
+          "PM-LSM (FS)")
 
     x_values = TPCC_RW_MIXES
     N = len(x_values)
-    x_labels = ["All", "Stock-level"]
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
     margin = 0.10
-    width = (1.0 - 2 * margin) / num_items      
+    width = (2.0 - 2 * margin) / num_items      
     bars = [None] * len(labels) * 2
     group = 0
     
-    # GROUP
-    fs_data = []       
-    pm_data = [] 
-    
-    for line in  xrange(len(datasets)):
+    # LINE       
+    for line in  xrange(len(ENGINES)):
+        fs_data = []       
+        pm_data = [] 
+        
+        LOG.info("LINE :: %s", datasets[line])
+
         for col in  xrange(len(datasets[line])):
             if col == 1:
                 fs_data.append(datasets[line][col] / (1024 * 1024))
             if col == 2:
                 pm_data.append(datasets[line][col] / (1024 * 1024))
-    
-    LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
-            
-    bars[group * 2] = ax1.bar(ind + margin + (group * width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
-    bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
+                
+        bars[line * 2] = ax1.bar(ind + margin + (line * width), fs_data, width, color=OPT_COLORS[line], hatch=OPT_PATTERNS[line * 2])
+        bars[line * 2+ 1] = ax1.bar(ind + margin + (line * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[line], hatch=OPT_PATTERNS[line * 2 + 1])
         
     # GRID
     axes = ax1.get_axes()
-    # axes.set_ylim(0, 10000)        
     makeGrid(ax1)
     
     # LEGEND
@@ -507,48 +502,53 @@ def create_tpcc_storage_bar_chart(datasets, workload_mix):
         
     # X-AXIS
     ax1.set_xlabel("Workload", fontproperties=FP)
-    ax1.minorticks_on()
+    ax1.minorticks_off()
     ax1.set_xticklabels(x_labels)
-    ax1.set_xticks(ind + 0.5)
+    ax1.tick_params(\
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom='off',      # ticks along the bottom edge are off
+    top='off',         # ticks along the top edge are off
+    labelbottom='off')
+    #ax1.set_xticks(ind + 0.5)
         
     return (fig)
 
-def create_tpcc_nvm_bar_chart(datasets, workload_mix):
+def create_tpcc_nvm_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL (L)", "WAL (S)",
-          "SP (L)", "SP (S)",
-          "LSM (L)", "LSM (S)",
-          "PM-WAL (L)", "PM-WAL (S)",
-          "PM-SP (L)", "PM-SP (S)",
-          "PM-LSM (L)", "PM-LSM (S)")
+    labels = ("WAL (L)", 
+          "SP (L)", 
+          "LSM (L)", 
+          "PM-WAL (L)", 
+          "PM-SP (L)", 
+          "PM-LSM (L)")
 
 
     x_values = TPCC_RW_MIXES
     N = len(x_values)
-    x_labels = ["All", "Stock-level"]
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
     margin = 0.10
-    width = (1.0 - 2 * margin) / num_items      
+    width = (2.0 - 2 * margin) / num_items      
     bars = [None] * len(labels) * 2
     group = 0
-
         
-    # GROUP
-    l_misses = []       
-    s_misses = [] 
-    
-    for line in  xrange(len(datasets[group])):
-        for col in  xrange(len(datasets[group][line])):
+    # LINE    
+    for line in  xrange(len(ENGINES)):
+        l_misses = []       
+        s_misses = [] 
+
+        LOG.info("LINE :: %s", datasets[line])
+
+        for col in  xrange(len(datasets[line])):
             if col == 1:
-                l_misses.append(datasets[group][line][col] / (1024 * 1024))
+                l_misses.append(datasets[line][col] / (1024 * 1024))
             if col == 2:
-                s_misses.append(datasets[group][line][col] / (1024 * 1024))
+                s_misses.append(datasets[line][col] / (1024 * 1024))
     
-    LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
     
     bars[group * 2] = ax1.bar(ind + margin + (group * width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
     bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
@@ -571,9 +571,15 @@ def create_tpcc_nvm_bar_chart(datasets, workload_mix):
         
     # X-AXIS
     ax1.set_xlabel("Workload", fontproperties=FP)
-    ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)
-    ax1.set_xticks(ind + 0.5)
+    #ax1.minorticks_on()
+    ax1.tick_params(\
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom='off',      # ticks along the bottom edge are off
+    top='off',         # ticks along the top edge are off
+    labelbottom='off')
+    #ax1.set_xticklabels(x_labels)
+    #ax1.set_xticks(ind + 0.5)
         
     return (fig)
 
@@ -709,12 +715,11 @@ def  ycsb_recovery_plot():
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
 
-    for lat in LATENCIES:
-        datasets = []   
-    
-        for sy in SYSTEMS:    
-            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/performance.csv")))
-            datasets.append(dataFile)
+    datasets = []   
+
+    for sy in SYSTEMS:    
+        dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/performance.csv")))
+        datasets.append(dataFile)
                        
     fig = create_tpcc_perf_bar_chart(datasets)
                 
@@ -725,11 +730,10 @@ def tpcc_perf_plot():
 def tpcc_storage_plot():    
     datasets = []
 
-    for sy in SYSTEMS:    
-        dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(TPCC_STORAGE_DIR, sy + "/storage.csv")))
-        datasets.append(dataFile)
+    dataFile = loadDataFile(6, 3, os.path.realpath(os.path.join(TPCC_STORAGE_DIR, "storage.csv")))
+    datasets = dataFile
                                       
-    fig = create_tpcc_storage_bar_chart(datasets, workload)
+    fig = create_tpcc_storage_bar_chart(datasets)
                         
     fileName = "tpcc-storage.pdf"
     saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
@@ -738,11 +742,10 @@ def tpcc_storage_plot():
 def tpcc_nvm_plot():    
     datasets = []
     
-    for sy in SYSTEMS:    
-        dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(TPCC_NVM_DIR, sy + "/nvm.csv")))
-        datasets.append(dataFile)
-                                      
-    fig = create_tpcc_nvm_bar_chart(datasets, workload)
+    dataFile = loadDataFile(6, 3, os.path.realpath(os.path.join(TPCC_NVM_DIR, "nvm.csv")))
+    datasets = dataFile
+                                        
+    fig = create_tpcc_nvm_bar_chart(datasets)
                         
     fileName = "tpcc-nvm.pdf"
     saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
@@ -1392,17 +1395,17 @@ def tpcc_storage_eval(log_name):
         log_file.flush()
     
         if(engine_type == "-a"):
-            engine_type = "wal"                
+            e_type = 0                
         elif(engine_type == "-s"):
-            engine_type = "sp"
+            e_type = 1
         elif(engine_type == "-m"):
-            engine_type = "lsm"
+            e_type = 2
         elif(engine_type == "-w"):
-            engine_type = "opt_wal"
+            e_type = 3
         elif(engine_type == "-c"):
-            engine_type = "opt_sp"
+            e_type = 4
         elif(engine_type == "-l"):
-            engine_type = "opt_lsm"
+            e_type = 5
                   
         result_directory = TPCC_STORAGE_DIR ;
         if not os.path.exists(result_directory):
@@ -1411,7 +1414,7 @@ def tpcc_storage_eval(log_name):
         result_file_name = result_directory + "storage.csv"
         result_file = open(result_file_name, "a")
         print(str(engine_type) + " , " + str(fs_st) + " , " + str(pm_st))
-        result_file.write(str(engine_type) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
+        result_file.write(str(e_type) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
         result_file.close()    
 
         
@@ -1502,10 +1505,23 @@ def tpcc_nvm_eval(log_name):
             result_directory = TPCC_NVM_DIR;
             if not os.path.exists(result_directory):
                 os.makedirs(result_directory)
+                
+            if(engine_type == "-a"):
+                e_type = 0                
+            elif(engine_type == "-s"):
+                e_type = 1
+            elif(engine_type == "-m"):
+                e_type = 2
+            elif(engine_type == "-w"):
+                e_type = 3
+            elif(engine_type == "-c"):
+                e_type = 4
+            elif(engine_type == "-l"):
+                e_type = 5    
 
             result_file_name = result_directory + "nvm.csv"
             result_file = open(result_file_name, "a")
-            result_file.write(str(engine_type) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
+            result_file.write(str(e_type) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
             result_file.close()    
 
 # TPCC RECOVERY -- EVAL
