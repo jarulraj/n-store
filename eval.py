@@ -121,11 +121,11 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 500000
-YCSB_TXNS = 500000
-YCSB_WORKLOAD_MIX = ("read-only", "write-heavy")
+YCSB_KEYS = 200000
+YCSB_TXNS = 400000
+YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
-YCSB_RW_MIXES = [0, 0.5]
+YCSB_RW_MIXES = [0, 0.1, 0.5]
 YCSB_RECOVERY_TXNS = [1000, 10000]
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
@@ -1095,7 +1095,7 @@ def ycsb_nvm_eval(log_name):
             log_file.flush()
     
             for eng in engines:
-                cleanup()
+                cleanup(log_file)
                 subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NUMACTL, NUMACTL_FLAGS, NSTORE,
                                  '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng],
                                 stdout=log_file, stderr=log_file)
