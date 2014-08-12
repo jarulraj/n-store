@@ -235,8 +235,6 @@ void opt_wal_engine::load(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
-  tab->pm_data->push_back(after_rec);
-
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
