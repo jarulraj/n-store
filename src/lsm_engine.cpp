@@ -35,7 +35,7 @@ lsm_engine::~lsm_engine() {
     ready = false;
     gc.join();
 
-    //merge(true);
+    merge(true);
 
     if (!conf.recovery) {
       fs_log.sync();

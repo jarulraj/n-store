@@ -20,7 +20,7 @@ using namespace std;
 
 class tpcc_benchmark : public benchmark {
  public:
-  tpcc_benchmark(config& _conf, unsigned int tid, database* _db, timer* _tm,
+  tpcc_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm,
                  struct static_info* _sp);
 
   void load();
@@ -43,7 +43,7 @@ class tpcc_benchmark : public benchmark {
 
   vector<double> uniform_dist;
 
-  config& conf;
+  config conf;
   benchmark_type btype;
 
   serializer sr;

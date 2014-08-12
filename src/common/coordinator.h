@@ -25,13 +25,13 @@ class coordinator {
         num_txns(0) {
   }
 
-  coordinator(__attribute__((unused))     config& conf) {
+  coordinator(const config conf) {
     single = conf.single;
     num_executors = conf.num_executors;
     num_txns = conf.num_txns;
 
     for (unsigned int i = 0; i < num_executors; i++) {
-      tm.push_back(timer());
+      tms.push_back(timer());
       sps.push_back(static_info());
     }
   }
@@ -44,15 +44,12 @@ class coordinator {
     bh->execute();
   }
 
-  void execute(config& conf) {
+  void execute(const config conf) {
     std::vector<std::thread> executors;
     benchmark** partitions = new benchmark*[num_executors];
 
     for (unsigned int i = 0; i < num_executors; i++) {
-      database* db = new database(conf, &sps[i], i);
-      pmemalloc_activate(db);
-
-      partitions[i] = get_benchmark(conf, i, db);
+      partitions[i] = get_benchmark(conf, i);
     }
 
     for (unsigned int i = 0; i < num_executors; i++)
@@ -64,10 +61,10 @@ class coordinator {
 
     double max_dur = 0;
     for (unsigned int i = 0; i < num_executors; i++) {
-      //cout<<"dur :"<<i<<" :: "<<tm[i].duration()<<endl;
-      max_dur = std::max(max_dur, tm[i].duration());
+      cout<<"dur :"<<i<<" :: "<<tms[i].duration()<<endl;
+      max_dur = std::max(max_dur, tms[i].duration());
     }
-    //cout<<"max dur :"<<max_dur<<endl;
+    cout<<"max dur :"<<max_dur<<endl;
     display_stats(conf.etype, max_dur, num_txns);
 
     /*
@@ -79,19 +76,19 @@ class coordinator {
      */
   }
 
-  benchmark* get_benchmark(config& state, unsigned int tid, database* db) {
+  benchmark* get_benchmark(const config state, unsigned int tid) {
     benchmark* bh = NULL;
 
     // Fix benchmark
     switch (state.btype) {
       case benchmark_type::YCSB:
         LOG_INFO("YCSB");
-        bh = new ycsb_benchmark(state, tid, db, &tm[tid], &sps[tid]);
+        bh = new ycsb_benchmark(state, tid, NULL, NULL, NULL);
         break;
 
       case benchmark_type::TPCC:
         LOG_INFO("TPCC");
-        bh = new tpcc_benchmark(state, tid, db, &tm[tid], &sps[tid]);
+        bh = new tpcc_benchmark(state, tid, NULL, NULL, NULL);
         break;
 
       default:
@@ -107,7 +104,7 @@ class coordinator {
   unsigned int num_txns;
 
   std::vector<struct static_info> sps;
-  std::vector<timer> tm;
+  std::vector<timer> tms;
 };
 
 #endif /* COORDINATOR_H_ */
