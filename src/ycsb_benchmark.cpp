@@ -74,10 +74,6 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
       txn_id(0) {
 
   btype = benchmark_type::YCSB;
-  tm = new timer();
-  sp = new static_info();
-  db = new database(conf, sp, tid);
-  pmemalloc_activate(db);
 
   // Partition workload
   num_keys = conf.num_keys / conf.num_executors;

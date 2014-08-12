@@ -11,7 +11,7 @@ using namespace std;
 
 class database {
  public:
-  database(config& conf, struct static_info* sp, unsigned int tid)
+  database(config conf, struct static_info* sp, unsigned int tid)
       : tables(NULL),
         log(NULL),
         dirs(NULL) {

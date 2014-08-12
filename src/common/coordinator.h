@@ -49,7 +49,8 @@ class coordinator {
     benchmark** partitions = new benchmark*[num_executors];
 
     for (unsigned int i = 0; i < num_executors; i++) {
-      partitions[i] = get_benchmark(conf, i);
+      database* db = new database(conf, sp, i);
+      partitions[i] = get_benchmark(conf, i, db);
     }
 
     for (unsigned int i = 0; i < num_executors; i++)
@@ -76,19 +77,19 @@ class coordinator {
      */
   }
 
-  benchmark* get_benchmark(const config state, unsigned int tid) {
+  benchmark* get_benchmark(const config state, unsigned int tid, database* db) {
     benchmark* bh = NULL;
 
     // Fix benchmark
     switch (state.btype) {
       case benchmark_type::YCSB:
         LOG_INFO("YCSB");
-        bh = new ycsb_benchmark(state, tid, NULL, NULL, NULL);
+        bh = new ycsb_benchmark(state, tid, db, &tms[tid], &sps[tid]);
         break;
 
       case benchmark_type::TPCC:
         LOG_INFO("TPCC");
-        bh = new tpcc_benchmark(state, tid, NULL, NULL, NULL);
+        bh = new tpcc_benchmark(state, tid, db, &tms[tid], &sps[tid]);
         break;
 
       default:

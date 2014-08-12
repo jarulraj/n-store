@@ -49,9 +49,6 @@ class ycsb_benchmark : public benchmark {
   unsigned int num_keys;
   unsigned int num_txns;
 
-  database* db;
-  struct static_info* sp;
-  timer* tm;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */
