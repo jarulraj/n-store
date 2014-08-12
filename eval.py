@@ -143,7 +143,7 @@ TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
 
-TPCC_TXNS = 500000
+TPCC_TXNS = 50000
 
 FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=10)
 BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=14)
@@ -709,17 +709,12 @@ def  ycsb_recovery_plot():
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
 
-    datasets = [None] * len(LATENCIES)
-    itr = 0
-
     for lat in LATENCIES:
-        datasets[itr] = []   
+        datasets = []   
     
         for sy in SYSTEMS:    
-            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/" + lat + "/performance.csv")))
-            datasets[itr].append(dataFile)
-            
-        itr = itr + 1        
+            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/performance.csv")))
+            datasets.append(dataFile)
                        
     fig = create_tpcc_perf_bar_chart(datasets)
                 
@@ -1272,23 +1267,11 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
             os.chdir(cwd)
                    
         for trial in range(num_trials):
-            # RW MIX
-            for rw_mix  in rw_mixes:            
-                ostr = ("--------------------------------------------------- \n")
-                print (ostr, end="")
-                log_file.write(ostr)
-                ostr = ("TRIAL :: %d RW MIX :: %.1f \n" % (trial, rw_mix))
-                print (ostr, end="")
-                log_file.write(ostr)                    
-                log_file.flush()
-                           
-                for eng in engines:
-                    cleanup(log_file)
+            
+            for eng in engines:
+                cleanup(log_file)
 
-                    if rw_mix == 0.0:
-                        subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', '-o', eng], stdout=log_file)
-                    else:    
-                        subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', eng], stdout=log_file)
 
     # RESET
     if enable_sdv :
@@ -1341,7 +1324,7 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
             elif(engine_type[0] == "OPT_LSM"):
                 engine_type[0] = "opt_lsm"
                                        
-            key = (rw_mix, latency, engine_type[0]);
+            key = (latency, engine_type[0]);
             if key in tput:
                 tput[key].append(val)
             else:
@@ -1360,15 +1343,10 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
         sdev[key] = round(sdev[key], 3)
         sdev[key] = str(sdev[key]).rjust(10)
         
-        nvm_latency = str(key[1]);
-        engine_type = str(key[2]);            
+        nvm_latency = str(key[0]);
+        engine_type = str(key[1]);            
               
-        if(key[0] == '0.0'):
-            workload_type = 'stock-level'
-        elif(key[0] == '0.5'):
-            workload_type = 'all'
-            
-        result_directory = TPCC_PERF_DIR + engine_type + "/" + nvm_latency + "/";
+        result_directory = TPCC_PERF_DIR + engine_type + "/";
         if not os.path.exists(result_directory):
             os.makedirs(result_directory)
 
@@ -1383,8 +1361,8 @@ def tpcc_storage_eval(log_name):
     txns = TPCC_TXNS
             
     # GET STATS
-    def get_stats(engine_type, rw_mix):
-        print ("eng : %s rw_mix : %lf" % (engine_type, rw_mix))
+    def get_stats(engine_type):
+        print ("eng : %s " % (engine_type))
                 
         subprocess.call(['ls', '-larth', FS_PATH ], stdout=log_file)
         find_cmd = subprocess.Popen(['find', FS_PATH , '-name', '*.nvm', '-exec', 'ls', '-lart', '{}', ';'], stdout=subprocess.PIPE)
@@ -1448,7 +1426,7 @@ def tpcc_storage_eval(log_name):
         cleanup(log_file)        
         subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', '-z', eng], stdout=log_file)
             
-        get_stats(eng, rw_mix)
+        get_stats(eng)
 
 
 # TPCC NVM -- EVAL
@@ -1508,7 +1486,7 @@ def tpcc_nvm_eval(log_name):
                 llc_l_miss = str(entry[0])
             llc_l_miss = llc_l_miss.replace(",", "")    
                 
-            print(engine_type + " , " + str(skew) + " :: " + str(llc_l_miss) + "\n")
+            print(engine_type + " , " + str(skew) + " :: " + str(llc_l_miss))
 
 
         if "LLC-store-misses" in line:
