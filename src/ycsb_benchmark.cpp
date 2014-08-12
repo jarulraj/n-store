@@ -67,13 +67,17 @@ table* create_usertable(config& conf) {
   return user_table;
 }
 
-ycsb_benchmark::ycsb_benchmark(config& _conf, unsigned int tid, database* _db,
+ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
                                timer* _tm, struct static_info* _sp)
-    : benchmark(_conf, tid, _db, _tm, _sp),
+    : benchmark(tid, _db, _tm, _sp),
       conf(_conf),
       txn_id(0) {
 
   btype = benchmark_type::YCSB;
+  tm = new timer();
+  sp = new static_info();
+  db = new database(conf, sp, tid);
+  pmemalloc_activate(db);
 
   // Partition workload
   num_keys = conf.num_keys / conf.num_executors;
@@ -247,6 +251,8 @@ void ycsb_benchmark::execute() {
   unsigned int txn_itr;
   status ss(num_txns);
 
+  cout<<"num_txns :: "<<num_txns<<endl;
+
   for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
 
@@ -259,6 +265,8 @@ void ycsb_benchmark::execute() {
     if (tid == 0)
       ss.display();
   }
+
+  cout<<"duration :: "<<tm->duration()<<endl;
 
   delete ee;
 }

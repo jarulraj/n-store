@@ -16,9 +16,9 @@
 
 using namespace std;
 
-tpcc_benchmark::tpcc_benchmark(config& _conf, unsigned int tid, database* _db,
+tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
                                timer* _tm, struct static_info* _sp)
-    : benchmark(_conf, tid, _db, _tm, _sp),
+    : benchmark(tid, _db, _tm, _sp),
       conf(_conf),
       txn_id(0) {
 

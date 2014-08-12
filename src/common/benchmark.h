@@ -12,7 +12,7 @@ using namespace std;
 
 class benchmark {
  public:
-  benchmark(__attribute__((unused)) config& conf, unsigned int _tid, database* _db, timer* _tm,
+  benchmark(unsigned int _tid, database* _db, timer* _tm,
             struct static_info* _sp) {
     tid = _tid;
     tm = _tm;

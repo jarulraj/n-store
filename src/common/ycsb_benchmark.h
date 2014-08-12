@@ -14,12 +14,13 @@
 #include "status.h"
 #include "libpm.h"
 #include "plist.h"
+#include "timer.h"
 
 using namespace std;
 
 class ycsb_benchmark : public benchmark {
  public:
-  ycsb_benchmark(config& _conf, unsigned int tid, database* _db, timer* _tm, struct static_info* _sp);
+  ycsb_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm, struct static_info* _sp);
 
   void load();
   void execute();
@@ -38,7 +39,7 @@ class ycsb_benchmark : public benchmark {
   vector<int> simple_dist;
   vector<double> uniform_dist;
 
-  config& conf;
+  config conf;
   vector<int> update_field_ids;
 
   benchmark_type btype;
@@ -46,6 +47,10 @@ class ycsb_benchmark : public benchmark {
   unsigned int txn_id;
   unsigned int num_keys;
   unsigned int num_txns;
+
+  database* db;
+  struct static_info* sp;
+  timer* tm;
 };
 
 #endif /* YCSB_BENCHMARK_H_ */
