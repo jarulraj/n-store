@@ -18,6 +18,7 @@ class serializer {
     char* data = rptr->data;
     unsigned int num_columns = sptr->num_columns;
 
+    output.clear();
     output.str(std::string());
 
     for (unsigned int itr = 0; itr < num_columns; itr++) {
@@ -69,6 +70,7 @@ class serializer {
 
     unsigned int num_columns = sptr->num_columns;
     record* rec_ptr = new record(sptr);
+    input.clear();
     input.str(entry_str);
 
     for (unsigned int itr = 0; itr < num_columns; itr++) {
@@ -113,8 +115,60 @@ class serializer {
     return rec_ptr;
   }
 
+  std::string project(std::string entry_str, schema* sptr) {
+    if (entry_str.empty())
+      return "";
+
+    unsigned int num_columns = sptr->num_columns;
+    input.clear();
+    input.str(entry_str);
+    output.clear();
+    output.str(std::string());
+
+    std::string vc_str;
+
+    for (unsigned int itr = 0; itr < num_columns; itr++) {
+      field_info finfo = sptr->columns[itr];
+      bool enabled = finfo.enabled;
+
+      if (enabled) {
+        char type = finfo.type;
+
+        switch (type) {
+          case field_type::INTEGER: {
+            int ival;
+            input >> ival;
+            output << ival;
+          }
+            break;
+
+          case field_type::DOUBLE: {
+            double dval;
+            input >> dval;
+            output << dval;
+          }
+            break;
+
+          case field_type::VARCHAR: {
+            input >> vc_str;
+            output << vc_str;
+          }
+            break;
+
+          default:
+            cout << "invalid type : --" << type << "--" << endl;
+            cout << "entry : --" << entry_str << "--" << endl;
+            exit(EXIT_FAILURE);
+            break;
+        }
+
+        output << " ";
+      }
+    }
+
+    return output.str();
+  }
+
 };
-
-
 
 #endif /* SERIALIZER_H_ */
