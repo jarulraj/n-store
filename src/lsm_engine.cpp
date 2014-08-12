@@ -58,7 +58,7 @@ std::string lsm_engine::select(const statement& st) {
   record *pm_rec = NULL, *fs_rec = NULL;
   table *tab = db->tables->at(st.table_id);
   table_index *table_index = tab->indices->at(st.table_index_id);
-  std::string key_str = serialize(rec_ptr, table_index->sptr);
+  std::string key_str = sr.serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
   bool fs_storage = false;
@@ -73,13 +73,13 @@ std::string lsm_engine::select(const statement& st) {
   if (fs_storage) {
     val = tab->fs_data.at(storage_offset);
     if (!val.empty())
-      fs_rec = deserialize(val, tab->sptr);
+      fs_rec = sr.deserialize(val, tab->sptr);
   }
 
   if (pm_rec != NULL && fs_rec == NULL) {
-    val = serialize(pm_rec, st.projection);
+    val = sr.serialize(pm_rec, st.projection);
   } else if (pm_rec == NULL && fs_rec != NULL) {
-    val = serialize(fs_rec, st.projection);
+    val = sr.serialize(fs_rec, st.projection);
     delete fs_rec;
   } else if (pm_rec != NULL && fs_rec != NULL) {
     // Merge
@@ -89,7 +89,7 @@ std::string lsm_engine::select(const statement& st) {
         fs_rec->set_data(field_itr, pm_rec);
     }
 
-    val = serialize(fs_rec, st.projection);
+    val = sr.serialize(fs_rec, st.projection);
     delete fs_rec;
   }
 
@@ -108,7 +108,7 @@ int lsm_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
@@ -121,7 +121,7 @@ int lsm_engine::insert(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(after_rec, after_rec->sptr) << "\n";
+               << " " << sr.serialize(after_rec, after_rec->sptr) << "\n";
   entry_str = entry_stream.str();
 
   // Add log entry
@@ -129,7 +129,7 @@ int lsm_engine::insert(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
@@ -148,7 +148,7 @@ int lsm_engine::remove(const statement& st) {
   unsigned int index_itr;
   std::string val;
 
-  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   //LOG_INFO("Key_str :: --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
@@ -166,14 +166,14 @@ int lsm_engine::remove(const statement& st) {
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(rec_ptr, rec_ptr->sptr) << "\n";
+               << " " << sr.serialize(rec_ptr, rec_ptr->sptr) << "\n";
 
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->erase(key);
@@ -193,7 +193,7 @@ int lsm_engine::update(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
   std::string val;
   record* before_rec = NULL;
@@ -206,20 +206,20 @@ int lsm_engine::update(const statement& st) {
     before_rec = rec_ptr;
 
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-                 << " " << serialize(before_rec, before_rec->sptr) << " ";
+                 << " " << sr.serialize(before_rec, before_rec->sptr) << " ";
 
-    entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
+    entry_stream << sr.serialize(before_rec, before_rec->sptr) << "\n";
     entry_str = entry_stream.str();
 
     for (index_itr = 0; index_itr < num_indices; index_itr++) {
-      key_str = serialize(before_rec, indices->at(index_itr)->sptr);
+      key_str = sr.serialize(before_rec, indices->at(index_itr)->sptr);
       key = hash_fn(key_str);
 
       indices->at(index_itr)->pm_map->insert(key, before_rec);
     }
   } else {
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-                 << " " << serialize(before_rec, before_rec->sptr) << " ";
+                 << " " << sr.serialize(before_rec, before_rec->sptr) << " ";
 
     // Update existing record
     for (int field_itr : st.field_ids) {
@@ -231,7 +231,7 @@ int lsm_engine::update(const statement& st) {
       before_rec->set_data(field_itr, rec_ptr);
     }
 
-    entry_stream << serialize(before_rec, before_rec->sptr) << "\n";
+    entry_stream << sr.serialize(before_rec, before_rec->sptr) << "\n";
     entry_str = entry_stream.str();
   }
 
@@ -250,13 +250,13 @@ void lsm_engine::load(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Add log entry
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << serialize(after_rec, after_rec->sptr) << "\n";
+               << " " << sr.serialize(after_rec, after_rec->sptr) << "\n";
   entry_str = entry_stream.str();
 
   // Add log entry
@@ -264,7 +264,7 @@ void lsm_engine::load(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
@@ -322,14 +322,14 @@ void lsm_engine::merge(bool force) {
           val = tab->fs_data.at(storage_offset);
 
           if (!val.empty()) {
-            fs_rec = deserialize(val, tab->sptr);
+            fs_rec = sr.deserialize(val, tab->sptr);
 
             int num_cols = pm_rec->sptr->num_columns;
             for (int field_itr = 0; field_itr < num_cols; field_itr++) {
               fs_rec->set_data(field_itr, pm_rec);
             }
 
-            val = serialize(fs_rec, tab->sptr);
+            val = sr.serialize(fs_rec, tab->sptr);
             //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
 
             tab->fs_data.update(storage_offset, val);
@@ -337,13 +337,13 @@ void lsm_engine::merge(bool force) {
           }
         } else {
           // Insert tuple
-          val = serialize(pm_rec, tab->sptr);
+          val = sr.serialize(pm_rec, tab->sptr);
           //LOG_INFO("Merge :: insert new :: val :: %s ", val.c_str());
 
           storage_offset = tab->fs_data.push_back(val);
 
           for (table_index* index : indices) {
-            std::string key_str = serialize(pm_rec, index->sptr);
+            std::string key_str = sr.serialize(pm_rec, index->sptr);
             key = hash_fn(key_str);
             index->off_map->insert(key, storage_offset);
           }
@@ -435,7 +435,7 @@ void lsm_engine::recovery() {
         schema* sptr = tab->sptr;
 
         tuple_str = get_tuple(entry, sptr);
-        record* after_rec = deserialize(tuple_str, sptr);
+        record* after_rec = sr.deserialize(tuple_str, sptr);
         st = statement(0, operation_type::Insert, table_id, after_rec);
         insert(st);
       }
@@ -452,7 +452,7 @@ void lsm_engine::recovery() {
         schema* sptr = tab->sptr;
 
         tuple_str = get_tuple(entry, sptr);
-        record* before_rec = deserialize(tuple_str, sptr);
+        record* before_rec = sr.deserialize(tuple_str, sptr);
         st = statement(0, operation_type::Delete, table_id, before_rec);
         remove(st);
       }
@@ -468,9 +468,9 @@ void lsm_engine::recovery() {
         tab = db->tables->at(table_id);
         schema* sptr = tab->sptr;
         tuple_str = get_tuple(entry, sptr);
-        record* before_rec = deserialize(tuple_str, sptr);
+        record* before_rec = sr.deserialize(tuple_str, sptr);
         tuple_str = get_tuple(entry, sptr);
-        record* after_rec = deserialize(tuple_str, sptr);
+        record* after_rec = sr.deserialize(tuple_str, sptr);
 
         if (!undo_mode) {
           st = statement(0, operation_type::Delete, table_id, before_rec);

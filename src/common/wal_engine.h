@@ -15,6 +15,7 @@
 #include "pthread.h"
 #include "logger.h"
 #include "timer.h"
+#include "serializer.h"
 
 using namespace std;
 
@@ -49,6 +50,7 @@ class wal_engine : public engine_api {
 
   bool read_only = false;
   unsigned int tid;
+  serializer sr;
 };
 
 #endif /* WAL_ENGINE_H_ */

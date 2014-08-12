@@ -26,14 +26,14 @@ std::string opt_wal_engine::select(const statement& st) {
   record* select_ptr = NULL;
   table* tab = db->tables->at(st.table_id);
   table_index* table_index = tab->indices->at(st.table_index_id);
-  std::string key_str = serialize(rec_ptr, table_index->sptr);
+  std::string key_str = sr.serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
   std::string val;
 
   table_index->pm_map->at(key, &select_ptr);
   if (select_ptr)
-    val = serialize(select_ptr, st.projection);
+    val = sr.serialize(select_ptr, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
   delete rec_ptr;
@@ -49,7 +49,7 @@ int opt_wal_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key exists
@@ -78,7 +78,7 @@ int opt_wal_engine::insert(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
@@ -96,7 +96,7 @@ int opt_wal_engine::remove(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
   record* before_rec = NULL;
 
@@ -133,7 +133,7 @@ int opt_wal_engine::remove(const statement& st) {
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->erase(key);
@@ -148,7 +148,7 @@ int opt_wal_engine::update(const statement& st) {
   record* rec_ptr = st.rec_ptr;
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
 
-  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
   record* before_rec;
 
@@ -216,7 +216,7 @@ void opt_wal_engine::load(const statement& st) {
 
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
-  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Add log entry
@@ -239,7 +239,7 @@ void opt_wal_engine::load(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
@@ -302,7 +302,7 @@ void opt_wal_engine::recovery() {
 
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = serialize(after_rec,
+          std::string key_str = sr.serialize(after_rec,
                                           indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
@@ -327,7 +327,7 @@ void opt_wal_engine::recovery() {
 
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = serialize(before_rec,
+          std::string key_str = sr.serialize(before_rec,
                                           indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 

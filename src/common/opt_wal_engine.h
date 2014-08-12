@@ -14,6 +14,7 @@
 #include "pthread.h"
 #include "plist.h"
 #include "timer.h"
+#include "serializer.h"
 
 using namespace std;
 
@@ -52,6 +53,8 @@ class opt_wal_engine : public engine_api {
 
   bool read_only = false;
   unsigned int tid;
+
+  serializer sr;
 };
 
 #endif /* OPT_WAL_ENGINE_H_ */

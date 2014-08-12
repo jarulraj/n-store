@@ -14,6 +14,7 @@
 #include "database.h"
 #include "engine.h"
 #include "timer.h"
+#include "serializer.h"
 
 using namespace std;
 
@@ -44,6 +45,8 @@ class tpcc_benchmark : public benchmark {
 
   config& conf;
   benchmark_type btype;
+
+  serializer sr;
 
   unsigned int txn_id;
   unsigned int num_txns;

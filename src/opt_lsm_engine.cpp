@@ -48,7 +48,7 @@ std::string opt_lsm_engine::select(const statement& st) {
   record *pm_rec = NULL, *fs_rec = NULL;
   table *tab = db->tables->at(st.table_id);
   table_index *table_index = tab->indices->at(st.table_index_id);
-  std::string key_str = serialize(rec_ptr, table_index->sptr);
+  std::string key_str = sr.serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
   off_t storage_offset = -1;
@@ -66,10 +66,10 @@ std::string opt_lsm_engine::select(const statement& st) {
 
   if (pm_rec != NULL && fs_rec == NULL) {
     // From Memtable
-    val = serialize(pm_rec, st.projection);
+    val = sr.serialize(pm_rec, st.projection);
   } else if (pm_rec == NULL && fs_rec != NULL) {
     // From SSTable
-    val = serialize(fs_rec, st.projection);
+    val = sr.serialize(fs_rec, st.projection);
 
   } else if (pm_rec != NULL && fs_rec != NULL) {
     // Merge
@@ -79,7 +79,7 @@ std::string opt_lsm_engine::select(const statement& st) {
         fs_rec->set_data(field_itr, pm_rec);
     }
 
-    val = serialize(fs_rec, st.projection);
+    val = sr.serialize(fs_rec, st.projection);
   }
 
   LOG_INFO("val : %s", val.c_str());
@@ -96,7 +96,7 @@ int opt_lsm_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   //LOG_INFO("Key_str :: --%s-- ", key_str.c_str());
   unsigned long key = hash_fn(key_str);
 
@@ -127,7 +127,7 @@ int opt_lsm_engine::insert(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
@@ -146,7 +146,7 @@ int opt_lsm_engine::remove(const statement& st) {
   unsigned int index_itr;
   std::string val;
 
-  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Check if key does not exist
@@ -177,7 +177,7 @@ int opt_lsm_engine::remove(const statement& st) {
 
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(rec_ptr, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->erase(key);
@@ -196,7 +196,7 @@ int opt_lsm_engine::update(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(rec_ptr, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
   std::string val;
   record* before_rec;
@@ -265,7 +265,7 @@ int opt_lsm_engine::update(const statement& st) {
 
     // Add entry in indices
     for (index_itr = 0; index_itr < num_indices; index_itr++) {
-      key_str = serialize(before_rec, indices->at(index_itr)->sptr);
+      key_str = sr.serialize(before_rec, indices->at(index_itr)->sptr);
       key = hash_fn(key_str);
 
       indices->at(index_itr)->pm_map->insert(key, before_rec);
@@ -284,7 +284,7 @@ void opt_lsm_engine::load(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
 
-  std::string key_str = serialize(after_rec, indices->at(0)->sptr);
+  std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
   // Add log entry
@@ -307,7 +307,7 @@ void opt_lsm_engine::load(const statement& st) {
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
-    key_str = serialize(after_rec, indices->at(index_itr)->sptr);
+    key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
     indices->at(index_itr)->pm_map->insert(key, after_rec);
@@ -373,7 +373,7 @@ void opt_lsm_engine::merge(bool force) {
           storage_offset = tab->fs_data.push_back(val);
 
           for (table_index* index : indices) {
-            std::string key_str = serialize(pm_rec, index->sptr);
+            std::string key_str = sr.serialize(pm_rec, index->sptr);
             key = hash_fn(key_str);
             index->off_map->insert(key, storage_offset);
           }
@@ -454,7 +454,7 @@ void opt_lsm_engine::recovery() {
 
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = serialize(after_rec,
+          std::string key_str = sr.serialize(after_rec,
                                           indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
@@ -485,7 +485,7 @@ void opt_lsm_engine::recovery() {
 
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
-          std::string key_str = serialize(before_rec,
+          std::string key_str = sr.serialize(before_rec,
                                           indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 

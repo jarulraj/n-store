@@ -16,6 +16,7 @@
 #include "pthread.h"
 #include "logger.h"
 #include "timer.h"
+#include "serializer.h"
 
 using namespace std;
 
@@ -56,6 +57,8 @@ class lsm_engine : public engine_api {
 
   bool read_only = false;
   unsigned int tid;
+
+  serializer sr;
 };
 
 #endif /* LSM_ENGINE_H_ */

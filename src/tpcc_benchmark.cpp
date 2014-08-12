@@ -986,7 +986,7 @@ void tpcc_benchmark::load_items(engine* ee) {
     record* rec_ptr = new item_record(item_table_schema, i_itr, i_im_id, name,
                                       price);
 
-    std::string key_str = serialize(rec_ptr, item_table_schema);
+    std::string key_str = sr.serialize(rec_ptr, item_table_schema);
     //LOG_INFO("item :: %s ", key_str.c_str());
 
     statement st(txn_id, operation_type::Insert, ITEM_TABLE_ID, rec_ptr);
@@ -1030,7 +1030,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      w_tax,
                                                      warehouse_initial_ytd);
 
-    log_str = serialize(warehouse_rec_ptr, warehouse_table_schema);
+    log_str = sr.serialize(warehouse_rec_ptr, warehouse_table_schema);
     //LOG_INFO("warehouse :: %s ", log_str.c_str());
 
     st = statement(txn_id, operation_type::Insert, WAREHOUSE_TABLE_ID,
@@ -1057,7 +1057,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      district_initial_ytd,
                                                      next_d_o_id);
 
-      log_str = serialize(district_rec_ptr, district_table_schema);
+      log_str = sr.serialize(district_rec_ptr, district_table_schema);
       //LOG_INFO("district :: %s", log_str.c_str());
 
       st = statement(txn_id, operation_type::Insert, DISTRICT_TABLE_ID,
@@ -1089,7 +1089,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
             customers_init_balance, customers_init_ytd,
             customers_init_payment_cnt, customers_init_delivery_cnt, c_name);
 
-        log_str = serialize(customer_rec_ptr, customer_table_schema);
+        log_str = sr.serialize(customer_rec_ptr, customer_table_schema);
         //LOG_INFO("customer :: %s", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, CUSTOMER_TABLE_ID,
@@ -1111,7 +1111,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                      history_init_amount,
                                                      h_data);
 
-        log_str = serialize(history_rec_ptr, history_table_schema);
+        log_str = sr.serialize(history_rec_ptr, history_table_schema);
         //LOG_INFO("history :: %s ", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, HISTORY_TABLE_ID,
@@ -1150,7 +1150,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                    o_carrier_id, o_ol_cnt,
                                                    orders_init_all_local);
 
-        log_str = serialize(orders_rec_ptr, orders_table_schema);
+        log_str = sr.serialize(orders_rec_ptr, orders_table_schema);
         //LOG_INFO("orders ::%s", log_str.c_str());
 
         st = statement(txn_id, operation_type::Insert, ORDERS_TABLE_ID,
@@ -1166,7 +1166,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
           record* new_order_rec_ptr = new new_order_record(
               new_order_table_schema, o_itr, d_itr, w_itr);
 
-          log_str = serialize(new_order_rec_ptr, new_order_table_schema);
+          log_str = sr.serialize(new_order_rec_ptr, new_order_table_schema);
           LOG_INFO("new_order ::%s", log_str.c_str());
 
           st = statement(txn_id, operation_type::Insert, NEW_ORDER_TABLE_ID,
@@ -1197,7 +1197,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
               order_line_table_schema, o_itr, d_itr, w_itr, ol_itr, ol_i_id,
               ol_supply_w_id, ol_delivery_ts, ol_quantity, ol_amount, ol_data);
 
-          log_str = serialize(order_line_rec_ptr, order_line_table_schema);
+          log_str = sr.serialize(order_line_rec_ptr, order_line_table_schema);
           //LOG_INFO("order_line ::%s", log_str.c_str());
 
           st = statement(txn_id, operation_type::Insert, ORDER_LINE_TABLE_ID,
@@ -1241,7 +1241,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
                                                s_order_cnt, s_remote_cnt,
                                                s_data);
 
-      log_str = serialize(stock_rec_ptr, stock_table_schema);
+      log_str = sr.serialize(stock_rec_ptr, stock_table_schema);
       //LOG_INFO("stock ::%s", log_str.c_str());
 
       st = statement(txn_id, operation_type::Insert, STOCK_TABLE_ID,
@@ -1312,7 +1312,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     LOG_INFO("new_order :: %s", new_order_str.c_str());
 
     // deleteNewOrder
-    rec_ptr = deserialize(new_order_str, new_order_table_schema);
+    rec_ptr = sr.deserialize(new_order_str, new_order_table_schema);
 
     int o_id = std::stoi(rec_ptr->get_data(0));
     LOG_INFO("o_id :: %d ", o_id);
@@ -1336,7 +1336,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     }
     LOG_INFO("orders :: %s ", orders_str.c_str());
 
-    rec_ptr = deserialize(orders_str, orders_table_schema);
+    rec_ptr = sr.deserialize(orders_str, orders_table_schema);
 
     int c_id = std::stoi(rec_ptr->get_data(1));
 
@@ -1381,7 +1381,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     }
     LOG_INFO("order_line :: %s ", order_line_str.c_str());
 
-    rec_ptr = deserialize(order_line_str, order_line_table_schema);
+    rec_ptr = sr.deserialize(order_line_str, order_line_table_schema);
 
     double ol_amount = std::stod(rec_ptr->get_data(8));
     LOG_INFO("ol_amount :: %.2lf ", ol_amount);
@@ -1403,7 +1403,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
     }
     LOG_INFO("customer :: %s ", customer_str.c_str());
 
-    rec_ptr = deserialize(customer_str, customer_table_schema);
+    rec_ptr = sr.deserialize(customer_str, customer_table_schema);
 
     double orig_balance = std::stod(rec_ptr->get_data(16));  // balance
     LOG_INFO("orig_balance :: %.2lf ", orig_balance);
@@ -1491,7 +1491,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
   }
   LOG_INFO("warehouse ::  %s", warehouse_str.c_str());
 
-  rec_ptr = deserialize(warehouse_str, warehouse_table_schema);
+  rec_ptr = sr.deserialize(warehouse_str, warehouse_table_schema);
 
   double w_tax = std::stod(rec_ptr->get_data(7));
 
@@ -1512,7 +1512,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
   }
   LOG_INFO("district :: %s ", district_str.c_str());
 
-  rec_ptr = deserialize(district_str, district_table_schema);
+  rec_ptr = sr.deserialize(district_str, district_table_schema);
 
   double d_tax = std::stod(rec_ptr->get_data(8));
   int d_next_o_id = std::stoi(rec_ptr->get_data(10));
@@ -1552,7 +1552,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
   }
   LOG_INFO("customer :: %s ", customer_str.c_str());
 
-  rec_ptr = deserialize(customer_str, customer_table_schema);
+  rec_ptr = sr.deserialize(customer_str, customer_table_schema);
 
   double c_discount = std::stod(rec_ptr->get_data(15));
   LOG_INFO("c_discount :: %.2lf ", c_discount);
@@ -1602,7 +1602,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
     }
     LOG_INFO("item :: %s ", item_str.c_str());
 
-    rec_ptr = deserialize(item_str, item_table_schema);
+    rec_ptr = sr.deserialize(item_str, item_table_schema);
 
     std::string i_name = rec_ptr->get_data(2);
     double i_price = std::stod(rec_ptr->get_data(3));
@@ -1623,7 +1623,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
     }
     LOG_INFO("stock :: %s", stock_str.c_str());
 
-    rec_ptr = deserialize(stock_str, stock_table_schema);
+    rec_ptr = sr.deserialize(stock_str, stock_table_schema);
 
     int s_quantity = std::stoi(rec_ptr->get_data(2));
     int s_ytd = std::stoi(rec_ptr->get_data(13));
@@ -1745,7 +1745,7 @@ void tpcc_benchmark::do_order_status(engine* ee) {
     }
     LOG_INFO("customer by name :: %s ", customer_str.c_str());
 
-    rec_ptr = deserialize(customer_str, customer_table_schema);
+    rec_ptr = sr.deserialize(customer_str, customer_table_schema);
 
     c_id = std::stoi(rec_ptr->get_data(0));
 
@@ -1770,7 +1770,7 @@ void tpcc_benchmark::do_order_status(engine* ee) {
 
   LOG_INFO("orders :: %s ", orders_str.c_str());
 
-  rec_ptr = deserialize(orders_str, orders_table_schema);
+  rec_ptr = sr.deserialize(orders_str, orders_table_schema);
 
   c_id = std::stoi(rec_ptr->get_data(0));
 
@@ -1878,14 +1878,14 @@ void tpcc_benchmark::do_payment(engine* ee) {
     }
     LOG_INFO("customer by name :: %s", customer_str.c_str());
 
-    rec_ptr = deserialize(customer_str, customer_table_schema);
+    rec_ptr = sr.deserialize(customer_str, customer_table_schema);
 
     c_id = std::stoi(rec_ptr->get_data(0));
 
     LOG_INFO("c_id :: %d ", c_id);
   }
 
-  rec_ptr = deserialize(customer_str, customer_table_schema);
+  rec_ptr = sr.deserialize(customer_str, customer_table_schema);
 
   int c_balance = std::stoi(rec_ptr->get_data(16));
   int c_ytd_payment = std::stoi(rec_ptr->get_data(17));
@@ -1915,7 +1915,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
   }
   LOG_INFO("warehouse :: %s ", warehouse_str.c_str());
 
-  rec_ptr = deserialize(warehouse_str, warehouse_table_schema);
+  rec_ptr = sr.deserialize(warehouse_str, warehouse_table_schema);
 
   double w_ytd = std::stod(rec_ptr->get_data(8));
 
@@ -1950,7 +1950,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
   LOG_INFO("district :: %s ", district_str.c_str());
 
-  rec_ptr = deserialize(district_str, district_table_schema);
+  rec_ptr = sr.deserialize(district_str, district_table_schema);
 
   double d_ytd = std::stod(rec_ptr->get_data(9));
 
@@ -2074,7 +2074,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
   }
   LOG_INFO("district :: %s ", district_str.c_str());
 
-  rec_ptr = deserialize(district_str, district_table_schema);
+  rec_ptr = sr.deserialize(district_str, district_table_schema);
 
   int d_next_o_id = std::stoi(rec_ptr->get_data(10));
 
@@ -2100,7 +2100,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
 
     LOG_INFO("order_line :: %s ", order_line_str.c_str());
 
-    rec_ptr = deserialize(order_line_str, order_line_table_schema);
+    rec_ptr = sr.deserialize(order_line_str, order_line_table_schema);
 
     int s_i_id = std::stoi(rec_ptr->get_data(4));
 
@@ -2120,7 +2120,7 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
     }
     LOG_INFO("stock :: %s ", stock_str.c_str());
 
-    rec_ptr = deserialize(stock_str, stock_table_schema);
+    rec_ptr = sr.deserialize(stock_str, stock_table_schema);
 
     int s_quantity = std::stoi(rec_ptr->get_data(2));
 

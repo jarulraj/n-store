@@ -28,15 +28,6 @@ int get_rand_int(int i_min, int i_max);
 
 int get_rand_int_excluding(int i_min, int i_max, int excl);
 
-// record* to string
-std::string serialize(record* rptr, schema* sptr);
-
-// string to record*
-record* deserialize(std::string entry, schema* sptr);
-
-// string to string
-std::string deserialize_to_string(std::string entry_str, schema* sptr);
-
 std::string get_tuple(std::stringstream& entry, schema* sptr);
 
 // szudzik hasher

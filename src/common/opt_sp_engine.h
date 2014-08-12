@@ -16,6 +16,7 @@
 #include "database.h"
 #include "pthread.h"
 #include "cow_pbtree.h"
+#include "serializer.h"
 
 using namespace std;
 
@@ -53,6 +54,7 @@ class opt_sp_engine : public engine_api {
   bool read_only = false;
   unsigned int tid;
 
+  serializer sr;
 };
 
 

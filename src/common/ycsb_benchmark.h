@@ -14,6 +14,7 @@
 #include "status.h"
 #include "libpm.h"
 #include "plist.h"
+#include "serializer.h"
 
 using namespace std;
 
@@ -40,6 +41,7 @@ class ycsb_benchmark : public benchmark {
 
   config& conf;
   vector<int> update_field_ids;
+  serializer sr;
 
   benchmark_type btype;
 

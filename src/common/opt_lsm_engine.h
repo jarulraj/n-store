@@ -18,6 +18,7 @@
 #include "logger.h"
 #include "plist.h"
 #include "timer.h"
+#include "serializer.h"
 
 using namespace std;
 
@@ -60,6 +61,8 @@ class opt_lsm_engine : public engine_api {
 
   bool read_only = false;
   unsigned int tid;
+
+  serializer sr;
 };
 
 #endif /* OPT_LSM_ENGINE_H_ */
