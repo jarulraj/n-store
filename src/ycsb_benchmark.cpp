@@ -77,17 +77,7 @@ ycsb_benchmark::ycsb_benchmark(config& _conf, unsigned int tid, database* _db,
 
   // Partition workload
   num_keys = conf.num_keys / conf.num_executors;
-  assert(conf.ycsb_skew >= 0.0 && conf.ycsb_skew <= 1.0);
-
-  double default_fraction = 1.0 / conf.num_executors;
-  double skewed_fraction = std::min(0.4, default_fraction + conf.ycsb_skew);
-
-  if (tid == 0) {
-    num_txns = skewed_fraction * conf.num_txns;
-  } else {
-    num_txns = ((1 - skewed_fraction) * conf.num_txns)
-        / (conf.num_executors - 1);
-  }
+  num_txns = conf.num_txns / conf.num_executors;
 
   // Initialization mode
   if (sp->init == 0) {
