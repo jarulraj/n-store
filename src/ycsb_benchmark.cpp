@@ -97,8 +97,10 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
   user_table_schema = db->tables->at(USER_TABLE_ID)->sptr;
 
   if (conf.recovery) {
+    num_txns = conf.num_txns;
     num_keys = 1000;
     conf.ycsb_per_writes = 0.5;
+    conf.ycsb_tuples_per_txn = 100;
   }
 
   if (conf.ycsb_update_one == false) {
@@ -111,7 +113,7 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
 
   // Generate skewed dist
   zipf(zipf_dist, conf.ycsb_skew, num_keys,
-              num_txns * conf.ycsb_tuples_per_txn);
+       num_txns * conf.ycsb_tuples_per_txn);
   uniform(uniform_dist, num_txns);
 
 }
@@ -212,6 +214,7 @@ void ycsb_benchmark::do_read(engine* ee) {
 
 void ycsb_benchmark::sim_crash() {
   engine* ee = new engine(conf, tid, db, conf.read_only);
+  unsigned int txn_itr;
 
   // UPDATE
   vector<int> field_ids;
@@ -221,24 +224,37 @@ void ycsb_benchmark::sim_crash() {
   std::string updated_val(conf.ycsb_field_size, 'x');
   int zipf_dist_offset = 0;
 
-  ee->txn_begin();
-
-  for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
-
-    int key = zipf_dist[zipf_dist_offset + stmt_itr];
-
-    record* rec_ptr = new usertable_record(user_table_schema, key, updated_val,
-                                           conf.ycsb_num_val_fields,
-                                           conf.ycsb_update_one);
-
-    statement st(txn_id, operation_type::Update, USER_TABLE_ID, rec_ptr,
-                 field_ids);
-
-    ee->update(st);
-
+  // No recovery needed
+  if (conf.etype == engine_type::SP || conf.etype == engine_type::OPT_SP){
+    ee->recovery();
+    return;
   }
 
-  // Don't finish the transaction
+  // Always in sync
+  if (conf.etype == engine_type::OPT_WAL || conf.etype == engine_type::OPT_LSM)
+    num_txns = 1;
+
+  ee->txn_begin();
+
+  for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
+    for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
+
+      int key = zipf_dist[zipf_dist_offset + stmt_itr];
+
+      record* rec_ptr = new usertable_record(user_table_schema, key,
+                                             updated_val,
+                                             conf.ycsb_num_val_fields,
+                                             conf.ycsb_update_one);
+
+      statement st(txn_id, operation_type::Update, USER_TABLE_ID, rec_ptr,
+                   field_ids);
+
+      ee->update(st);
+    }
+  }
+
+  // Recover
+  ee->recovery();
   delete ee;
 }
 
@@ -247,7 +263,7 @@ void ycsb_benchmark::execute() {
   unsigned int txn_itr;
   status ss(num_txns);
 
-  cout<<"num_txns :: "<<num_txns<<endl;
+  cout << "num_txns :: " << num_txns << endl;
 
   for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
@@ -262,7 +278,7 @@ void ycsb_benchmark::execute() {
       ss.display();
   }
 
-  cout<<"duration :: "<<tm->duration()<<endl;
+  cout << "duration :: " << tm->duration() << endl;
 
   delete ee;
 }

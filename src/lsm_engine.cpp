@@ -253,14 +253,16 @@ void lsm_engine::load(const statement& st) {
   std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
-  // Add log entry
-  entry_stream.str("");
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << sr.serialize(after_rec, after_rec->sptr) << "\n";
-  entry_str = entry_stream.str();
+  if (!conf.recovery) {
+    // Add log entry
+    entry_stream.str("");
+    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+                 << " " << sr.serialize(after_rec, after_rec->sptr) << "\n";
+    entry_str = entry_stream.str();
 
-  // Add log entry
-  fs_log.push_back(entry_str);
+    // Add log entry
+    fs_log.push_back(entry_str);
+  }
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -367,8 +369,10 @@ void lsm_engine::txn_begin() {
 }
 
 void lsm_engine::txn_end(__attribute__((unused)) bool commit) {
-  if (!read_only)
-    merge_check();
+  if (read_only)
+    return;
+
+  merge_check();
 }
 
 void lsm_engine::recovery() {
@@ -376,7 +380,6 @@ void lsm_engine::recovery() {
   LOG_INFO("LSM recovery");
 
   // Setup recovery
-  fs_log.flush();
   fs_log.sync();
   fs_log.disable();
 
@@ -404,7 +407,9 @@ void lsm_engine::recovery() {
   log_file.clear();
   log_file.seekg(0, ios::beg);
 
+  int entry_itr = 0;
   while (std::getline(log_file, entry_str)) {
+    entry_itr++;
     //cout << "entry :  " << entry_str.c_str() << endl;
     std::stringstream entry(entry_str);
 
@@ -498,6 +503,7 @@ void lsm_engine::recovery() {
 
   rec_t.end();
   cout << "LSM :: Recovery duration (ms) : " << rec_t.duration() << endl;
+  cout << "entries :: " << entry_itr << endl;
 
 }
 

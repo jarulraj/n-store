@@ -35,10 +35,11 @@ wal_engine::~wal_engine() {
     ready = false;
     gc.join();
 
-    if (!conf.recovery) {
-      fs_log.sync();
-      fs_log.close();
-    }
+    if (conf.recovery)
+      return;
+
+    fs_log.sync();
+    fs_log.close();
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
@@ -230,13 +231,16 @@ void wal_engine::load(const statement& st) {
   std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
 
-  // Add log entry
   std::string after_tuple = sr.serialize(after_rec, after_rec->sptr);
-  entry_stream.str("");
-  entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
-               << " " << after_tuple << "\n";
-  entry_str = entry_stream.str();
-  fs_log.push_back(entry_str);
+
+  if (!conf.recovery) {
+    // Add log entry
+    entry_stream.str("");
+    entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
+                 << " " << after_tuple << "\n";
+    entry_str = entry_stream.str();
+    fs_log.push_back(entry_str);
+  }
 
   off_t storage_offset;
   storage_offset = tab->fs_data.push_back(after_tuple);
@@ -267,7 +271,6 @@ void wal_engine::recovery() {
   LOG_INFO("WAL recovery");
 
   // Setup recovery
-  fs_log.flush();
   fs_log.sync();
   fs_log.disable();
 
@@ -296,7 +299,9 @@ void wal_engine::recovery() {
   log_file.clear();
   log_file.seekg(0, ios::beg);
 
+  int entry_itr = 0;
   while (std::getline(log_file, entry_str)) {
+    entry_itr++;
     //cout << "entry :  " << entry_str.c_str() << endl;
     std::stringstream entry(entry_str);
 
@@ -386,10 +391,8 @@ void wal_engine::recovery() {
 
   }
 
-  fs_log.close();
-
   rec_t.end();
   cout << "WAL :: Recovery duration (ms) : " << rec_t.duration() << endl;
-
+  cout << "entries :: " << entry_itr << endl;
 }
 

@@ -42,6 +42,17 @@ class coordinator {
 
     // Execute
     bh->execute();
+
+  }
+
+  void eval(const config conf){
+    if(!conf.recovery){
+      execute(conf);
+    }
+    else{
+      recover(conf);
+    }
+
   }
 
   void execute(const config conf) {
@@ -75,6 +86,19 @@ class coordinator {
 
      delete[] partitions;
      */
+  }
+
+  void recover(const config conf){
+
+    database* db = new database(conf, sp, 0);
+    benchmark* bh = get_benchmark(conf, 0, db);
+
+    // Load
+    bh->load();
+
+    // Crash and recover
+    bh->sim_crash();
+
   }
 
   benchmark* get_benchmark(const config state, unsigned int tid, database* db) {

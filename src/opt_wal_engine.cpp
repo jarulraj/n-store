@@ -5,7 +5,8 @@
 using namespace std;
 
 opt_wal_engine::opt_wal_engine(const config& _conf, database* _db,
-                               bool _read_only, unsigned int _tid)
+bool _read_only,
+                               unsigned int _tid)
     : conf(_conf),
       db(_db),
       tid(_tid) {
@@ -249,6 +250,10 @@ void opt_wal_engine::txn_begin() {
 }
 
 void opt_wal_engine::txn_end(__attribute__((unused)) bool commit) {
+
+  if (read_only)
+    return;
+
   // Clear commit_free list
   for (void* ptr : commit_free_list) {
     pmemalloc_free(ptr);
@@ -260,6 +265,7 @@ void opt_wal_engine::txn_end(__attribute__((unused)) bool commit) {
   for (char* ptr : undo_log)
     delete ptr;
   pm_log->clear();
+
 }
 
 void opt_wal_engine::recovery() {
@@ -301,7 +307,7 @@ void opt_wal_engine::recovery() {
         // Remove entry in indices
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = sr.serialize(after_rec,
-                                          indices->at(index_itr)->sptr);
+                                             indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
           indices->at(index_itr)->pm_map->erase(key);
@@ -326,7 +332,7 @@ void opt_wal_engine::recovery() {
         // Fix entry in indices to point to before_rec
         for (index_itr = 0; index_itr < num_indices; index_itr++) {
           std::string key_str = sr.serialize(before_rec,
-                                          indices->at(index_itr)->sptr);
+                                             indices->at(index_itr)->sptr);
           unsigned long key = hash_fn(key_str);
 
           indices->at(index_itr)->pm_map->insert(key, before_rec);

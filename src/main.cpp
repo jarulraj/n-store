@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
   //state.sp = sp;
 
   coordinator cc(state);
-  cc.execute(state);
+  cc.eval(state);
 
   pmemalloc_end(path);
 

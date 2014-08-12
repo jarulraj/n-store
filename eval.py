@@ -323,7 +323,7 @@ def create_ycsb_recovery_bar_chart(datasets):
      
     x_values = YCSB_RECOVERY_TXNS
     N = len(x_values)
-    x_labels = ["1000", "10000"]
+    x_labels = x_values
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
@@ -545,7 +545,7 @@ def create_tpcc_recovery_bar_chart(datasets):
      
     x_values = TPCC_RECOVERY_TXNS
     N = len(x_values)
-    x_labels = ["1000", "10000"]
+    x_labels = TPCC_RECOVERY_TXNS
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
@@ -1145,9 +1145,9 @@ def ycsb_recovery_eval(log_name):
         if "TXN" in line:
             entry = line.strip().split(' ');
             txn = entry[2]
-                                               
-        if "Throughput" in line:
-            entry = line.strip().split(':');
+     
+        if "Recovery" in line:
+            entry = line.strip().split(' ');
             etypes = entry[0].split(' ');
             
             if(etypes[0] == "WAL"):
@@ -1162,10 +1162,7 @@ def ycsb_recovery_eval(log_name):
                 engine_type = "opt_sp"
             elif(etypes[0] == "OPT_LSM"):
                 engine_type = "opt_lsm"
-                                                        
-     
-        if "Recovery" in line:
-            entry = line.strip().split(' ');
+      
             duration = str(entry[6])
                 
             print(engine_type + ", " + str(txn) + " :: " + str(duration))
@@ -1490,8 +1487,10 @@ def tpcc_recovery_eval(log_name):
             entry = line.strip().split(' ');
             txn = entry[2]
                                                
-        if "Throughput" in line:
-            entry = line.strip().split(':');
+        if "Recovery" in line:
+            entry = line.strip().split(' ');
+            duration = str(entry[6])
+ 
             etypes = entry[0].split(' ');
             
             if(etypes[0] == "WAL"):
@@ -1506,11 +1505,6 @@ def tpcc_recovery_eval(log_name):
                 engine_type = "opt_sp"
             elif(etypes[0] == "OPT_LSM"):
                 engine_type = "opt_lsm"
-                                                        
-     
-        if "Recovery" in line:
-            entry = line.strip().split(' ');
-            duration = str(entry[6])
                 
             print(engine_type + ", " + str(txn) + " :: " + str(duration))
                                                                 

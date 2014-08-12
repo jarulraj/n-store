@@ -72,8 +72,9 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
   uniform(uniform_dist, num_txns);
 
   if (conf.recovery) {
-    item_count = 10000;
-    warehouse_count = 2;
+    num_txns = conf.num_txns;
+    item_count = 1000;
+    warehouse_count = 1;
     districts_per_warehouse = 2;
     customers_per_district = 3000;
     new_orders_per_district = 900;
@@ -1210,7 +1211,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
 
       ee->txn_end(true);
 
-      if(tid == 0)
+      if (tid == 0)
         ss.display();
     }
 
@@ -1673,7 +1674,7 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
 
   ol_total *= (1 - c_discount) * (1 + w_tax + d_tax);
 
-  if (ol_total > 0){
+  if (ol_total > 0) {
     LOG_INFO("ol_total :: %d ", ol_total);
   }
 
@@ -2138,10 +2139,25 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
 
 void tpcc_benchmark::sim_crash() {
   engine* ee = new engine(conf, tid, db, false);
+  unsigned int txn_itr;
+
+  // No recovery needed
+  if (conf.etype == engine_type::SP || conf.etype == engine_type::OPT_SP) {
+    ee->recovery();
+    return;
+  }
+
+  // Always in sync
+  if (conf.etype == engine_type::OPT_WAL || conf.etype == engine_type::OPT_LSM)
+    num_txns = 1;
 
   // NEW ORDER
-  do_new_order(ee, false);
+  for (txn_itr = 0; txn_itr < num_txns; txn_itr++){
+    do_new_order(ee, false);
+  }
 
+  // Recover
+  ee->recovery();
   delete ee;
 }
 
