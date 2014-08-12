@@ -773,16 +773,34 @@ def  tpcc_recovery_plot():
 # EVAL                   
 ###################################################################################                   
 
+# CLEANUP PMFS
+
+SDV_DEVEL = "/data/devel/sdv-tools/"
+FS_ABS_PATH = "/mnt/pmfs/"
+
+def cleanup(log_file):
+    # LOCAL
+    if enable_local:        
+        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)    
+           
+    # PMFS            
+    else:
+        cwd = os.getcwd()
+        os.chdir(SDV_DEVEL)
+        subprocess.call(['sudo', 'umount', '/mnt/pmfs'], stdout=log_file)
+        subprocess.call(['sudo', 'bash', 'mount_pmfs.sh'], stdout=log_file)        
+        os.chdir(FS_ABS_PATH)
+        subprocess.call(['sudo', 'mkdir', 'n-store'], stdout=log_file)
+        subprocess.call(['sudo', 'chown', 'user', 'n-store'], stdout=log_file)
+        os.chdir(cwd)    
+
+
 # YCSB PERF -- EVAL
 def ycsb_perf_eval(enable_sdv, enable_trials, log_name):        
     dram_latency = 100
     keys = YCSB_KEYS
     txns = YCSB_TXNS
-                    
-     # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
-    
+                        
     num_trials = 1 
     if enable_trials: 
         num_trials = 3
@@ -823,7 +841,7 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
                     log_file.flush()
                                
                     for eng in engines:
-                        cleanup()
+                        cleanup(log_file)
                         subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng], stdout=log_file)
 
     # RESET
@@ -958,11 +976,7 @@ def ycsb_storage_eval(log_name):
     subprocess.call(['rm', '-rf', YCSB_STORAGE_DIR])          
     keys = YCSB_KEYS 
     txns = YCSB_TXNS
-    
-     # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
-        
+            
     # GET STATS
     def get_stats(engine_type, rw_mix, skew_factor):
         print ("eng : %s rw_mix : %lf" % (engine_type, rw_mix))
@@ -1046,7 +1060,7 @@ def ycsb_storage_eval(log_name):
             log_file.flush()
     
             for eng in engines:
-                cleanup()
+                cleanup(log_file)
                 subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-z', eng], stdout=log_file)
                 get_stats(eng, rw_mix, skew_factor)
 
@@ -1059,10 +1073,6 @@ def ycsb_nvm_eval(log_name):
 
     PERF_STAT = "stat"    
     PERF_STAT_FLAGS = "-e LLC-load-misses,LLC-store-misses"
-
-     # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
 
     rw_mixes = YCSB_RW_MIXES
     skew_factors = YCSB_SKEW_FACTORS
@@ -1165,10 +1175,6 @@ def ycsb_nvm_eval(log_name):
 def ycsb_recovery_eval(log_name):            
     subprocess.call(['rm', '-rf', YCSB_RECOVERY_DIR])          
     
-    # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
-
     txns = YCSB_RECOVERY_TXNS
     engines = ENGINES   
 
@@ -1186,7 +1192,7 @@ def ycsb_recovery_eval(log_name):
         log_file.flush()
 
         for eng in engines:
-            cleanup()
+            cleanup(log_file)
             
             subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txn), '-y', '-r', eng],
                             stdout=log_file, stderr=log_file)
@@ -1242,11 +1248,7 @@ def ycsb_recovery_eval(log_name):
 def tpcc_perf_eval(enable_sdv, enable_trials, log_name):        
     dram_latency = 100
     txns = TPCC_TXNS
-                    
-     # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
-    
+                        
     num_trials = 1 
     if enable_trials: 
         num_trials = 3
@@ -1284,7 +1286,7 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
                 log_file.flush()
                            
                 for eng in engines:
-                    cleanup()
+                    cleanup(log_file)
 
                     if rw_mix == 0.0:
                         subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', '-o', eng], stdout=log_file)
@@ -1382,11 +1384,7 @@ def tpcc_perf_eval(enable_sdv, enable_trials, log_name):
 def tpcc_storage_eval(log_name):            
     subprocess.call(['rm', '-rf', TPCC_STORAGE_DIR])          
     txns = TPCC_TXNS
-    
-     # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
-        
+            
     # GET STATS
     def get_stats(engine_type, rw_mix):
         print ("eng : %s rw_mix : %lf" % (engine_type, rw_mix))
@@ -1467,7 +1465,7 @@ def tpcc_storage_eval(log_name):
         log_file.flush()
 
         for eng in engines:
-            cleanup()
+            cleanup(log_file)
             
             if rw_mix == 0.0:
                 subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txns), '-t', '-z', '-o', eng], stdout=log_file)
@@ -1485,10 +1483,6 @@ def tpcc_nvm_eval(log_name):
 
     PERF_STAT = "stat"    
     PERF_STAT_FLAGS = "-e LLC-load-misses,LLC-store-misses"
-
-     # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
 
     rw_mixes = TPCC_RW_MIXES
     engines = ENGINES   
@@ -1508,7 +1502,7 @@ def tpcc_nvm_eval(log_name):
         log_file.flush()
 
         for eng in engines:
-            cleanup()
+            cleanup(log_file)
             
             if rw_mix == 0.0:
                 subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-t', '-o', eng],
@@ -1591,10 +1585,6 @@ def tpcc_nvm_eval(log_name):
 def tpcc_recovery_eval(log_name):            
     subprocess.call(['rm', '-rf', TPCC_RECOVERY_DIR])          
     
-    # CLEANUP
-    def cleanup():
-        subprocess.call(["rm -f " + FS_PATH + "./*"], shell=True)        
-
     txns = TPCC_RECOVERY_TXNS
     engines = ENGINES   
 
@@ -1612,7 +1602,7 @@ def tpcc_recovery_eval(log_name):
         log_file.flush()
 
         for eng in engines:
-            cleanup()
+            cleanup(log_file)
             
             subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-x', str(txn), '-t', '-r', eng],
                             stdout=log_file, stderr=log_file)
@@ -1671,6 +1661,7 @@ if __name__ == '__main__':
     
     enable_sdv = False
     enable_trials = False
+    enable_local = False
     
     parser = argparse.ArgumentParser(description='Run experiments')
     parser.add_argument("-x", "--enable-sdv", help='enable sdv', action='store_true')
@@ -1705,6 +1696,7 @@ if __name__ == '__main__':
         enable_trials = True
 
     if args.enable_local:
+        enable_local = True
         NUMACTL_FLAGS = "--membind=0"
 
     ycsb_perf_log_name = "ycsb_perf.log"
