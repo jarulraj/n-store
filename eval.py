@@ -142,6 +142,7 @@ TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
+LABELS = ("WAL", "SP", "LSM", "PM-WAL", "PM-SP", "PM-LSM")
 
 TPCC_TXNS = 1000000
 
@@ -153,11 +154,9 @@ BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=14)
 ###################################################################################                   
 
 def create_ycsb_perf_bar_chart(datasets):
-    fig, axs = plot.subplots(1, 2, sharey=True)
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
          
-    labels = ("WAL", "SP", "LSM",
-              "PM-WAL", "PM-SP", "PM-LSM")
-
     x_values = YCSB_SKEW_FACTORS
     N = len(x_values)
     x_labels = ["Low", "High"]
@@ -166,44 +165,42 @@ def create_ycsb_perf_bar_chart(datasets):
     ind = np.arange(N)  
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
-    bars = [None] * len(labels) * 2
+    bars = [None] * len(LABELS) * 2
 
-    # WORKLOAD
-    for itr in xrange(len(datasets)): 
+    # GROUP
+    for group in xrange(len(datasets)):
+        perf_data = []               
 
-        # GROUP
-        for group in xrange(len(datasets[itr])):
-            perf_data = []               
-            LOG.info("GROUP :: %s", datasets[itr][group])
-    
-            for line in  xrange(len(datasets[itr][group])):
-                for col in  xrange(len(datasets[itr][group][line])):
-                    if col == 1:
-                        perf_data.append(datasets[itr][group][line][col])
+        # LINE
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    perf_data.append(datasets[group][line][col])
+  
+        LOG.info("%s perf_data = %s ", LABELS[group], str(perf_data))
+        
+        bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        
+    # GRID
+    axes = ax1.get_axes()
+    # axes.set_ylim(0, 120000)      
+    makeGrid(ax1)
       
-            LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
-            
-            bars[group] = axs[itr].bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
-            
-        # GRID
-        axes = axs[itr].get_axes()
-        # axes.set_ylim(0, 120000)      
-        makeGrid(axs[itr])
-          
-        # Y-AXIS
-        axs[itr].yaxis.set_major_locator(MaxNLocator(5))
-        axs[itr].minorticks_on()
-            
-        # X-AXIS
-        axs[itr].set_xlabel("Skew", fontproperties=FP)
-        axs[itr].minorticks_on()
-        axs[itr].set_xticklabels(x_labels)
-        axs[itr].set_xticks(ind + 0.5)
+    # Y-AXIS
+    #ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+    ax1.set_yscale('log', nonposy='clip')
+        
+    # X-AXIS
+    ax1.set_xlabel("Skew", fontproperties=BOLD_FP)
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(ind + 0.5)
     
-    axs[0].set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
+    ax1.set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
     
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
+    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
         
@@ -211,127 +208,111 @@ def create_ycsb_perf_bar_chart(datasets):
     return (fig)
 
 def create_ycsb_storage_bar_chart(datasets):
-    fig, axs = plot.subplots(1, 3, sharey=True)
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+    
+    x_values = YCSB_SKEW_FACTORS
+    N = len(x_values)
+    x_labels = ["Low", "High"]
 
-    # WORKLOAD
-    for itr in xrange(len(datasets)): 
-        labels = ("WAL (FS)", "WAL (PM)",
-                  "SP (FS)", "SP (PM)",
-                  "LSM (FS)", "LSM (PM)",
-                  "PM-WAL (FS)", "PM-WAL (PM)",
-                  "PM-SP (FS)", "PM-SP (PM)",
-                  "PM-LSM (FS)", "PM-LSM (PM)")
-    
-        x_values = YCSB_SKEW_FACTORS
-        N = len(x_values)
-        x_labels = ["Low", "High"]
+    num_items = len(ENGINES);   
+    ind = np.arange(N)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+    bars = [None] * len(LABELS) * 2
 
-        num_items = len(ENGINES);   
-        ind = np.arange(N)  
-        margin = 0.10
-        width = (1.0 - 2 * margin) / num_items      
-        bars = [None] * len(labels) * 2
-        
-        for group in xrange(len(datasets[itr])):
-            # GROUP
-            fs_data = []       
-            pm_data = [] 
-    
-            for line in  xrange(len(datasets[itr][group])):
-                for col in  xrange(len(datasets[itr][group][line])):
-                    if col == 1:
-                        fs_data.append(1 + datasets[itr][group][line][col] / (1024 * 1024))
-                    if col == 2:
-                        pm_data.append(1 + datasets[itr][group][line][col] / (1024 * 1024))
-      
-            LOG.info("%s fs_data = %s pm_data = %s ", labels[group], str(fs_data), str(pm_data))
-                    
-            bars[group * 2] = axs[itr].bar(ind + margin + (group * width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
-            bars[group * 2 + 1] = axs[itr].bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
-        
-            # GRID
-            axes = axs[itr].get_axes()      
-            makeGrid(axs[itr])
+    # GROUP    
+    for group in xrange(len(datasets)):
+        fs_data = []       
+        pm_data = [] 
+
+        # LINE
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    fs_data.append(1 + datasets[group][line][col] / (1024 * 1024))
+                if col == 2:
+                    pm_data.append(1 + datasets[group][line][col] / (1024 * 1024))
+  
+        LOG.info("%s fs_data = %s pm_data = %s ", LABELS[group], str(fs_data), str(pm_data))
                 
-            # Y-AXIS    
-            axs[itr].set_yscale('log', nonposy='clip')
-            axs[itr].minorticks_on()
-                
-            # X-AXIS
-            axs[itr].set_xlabel("Skew", fontproperties=BOLD_FP)     
-            axs[itr].minorticks_on()
-            axs[itr].set_xticklabels(x_labels)
-            axs[itr].set_xticks(ind + 0.5)
+        bars[group * 2] = ax1.bar(ind + margin + (group * width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
     
-    
-    axs[0].set_ylabel("Storage (MB)", fontproperties=BOLD_FP)
-    axs[0].set_ylim([0, 10000])
+    # GRID
+    axes = ax1.get_axes()      
+    makeGrid(ax1)
+        
+    # Y-AXIS    
+    ax1.set_yscale('log', nonposy='clip')
+    ax1.minorticks_on()
+        
+    # X-AXIS
+    ax1.set_xlabel("Skew", fontproperties=BOLD_FP)     
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(ind + 0.5)
+        
+    ax1.set_ylabel("Storage (MB)", fontproperties=BOLD_FP)
+    ax1.set_ylim([0, 10000])
     
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
+    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
      
         
     return (fig)
 
 def create_ycsb_nvm_bar_chart(datasets):
-    fig, axs = plot.subplots(1, 3, sharey=True)
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)   
 
-    # WORKLOAD
-    for itr in xrange(len(datasets)): 
-        labels = ("WAL (L)", "WAL (S)",
-                  "SP (L)", "SP (S)",
-                  "LSM (L)", "LSM (S)",
-                  "PM-WAL (L)", "PM-WAL (S)",
-                  "PM-SP (L)", "PM-SP (S)",
-                  "PM-LSM (L)", "PM-LSM (S)")
+            
+    x_values = YCSB_SKEW_FACTORS
+    N = len(x_values)
+    x_labels = ["Low", "High"]
+    num_items = len(ENGINES);
+
+    ind = np.arange(N)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+    bars = [None] * len(LABELS) * 2
     
-        x_values = YCSB_SKEW_FACTORS
-        N = len(x_values)
-        x_labels = ["Low", "High"]
-        num_items = len(ENGINES);
-    
-        ind = np.arange(N)  
-        margin = 0.10
-        width = (1.0 - 2 * margin) / num_items      
-        bars = [None] * len(labels) * 2
-        
-        for group in xrange(len(datasets[itr])):
-            # GROUP
-            l_misses = []       
-            s_misses = [] 
-    
-            for line in  xrange(len(datasets[itr][group])):
-                for col in  xrange(len(datasets[itr][group][line])):
-                    if col == 1:
-                        l_misses.append(1 + datasets[itr][group][line][col] / (1024 * 1024))
-                    if col == 2:
-                        s_misses.append(1 + datasets[itr][group][line][col] / (1024 * 1024))
-      
-            LOG.info("%s l_misses = %s s_misses = %s ", labels[group], str(l_misses), str(s_misses))
-                    
-            bars[group * 2] = axs[itr].bar(ind + margin + (group * width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
-            bars[group * 2 + 1] = axs[itr].bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
-        
-            # GRID
-            axes = axs[itr].get_axes()      
-            makeGrid(axs[itr])
+    for group in xrange(len(datasets)):
+        # GROUP
+        l_misses = []       
+        s_misses = [] 
+
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    l_misses.append(1 + datasets[group][line][col] / (1024 * 1024))
+                if col == 2:
+                    s_misses.append(1 + datasets[group][line][col] / (1024 * 1024))
+  
+        LOG.info("%s l_misses = %s s_misses = %s ", LABELS[group], str(l_misses), str(s_misses))
                 
-            # Y-AXIS    
-            axs[itr].set_yscale('log', nonposy='clip')
-            axs[itr].minorticks_on()
-                
-            # X-AXIS
-            axs[itr].set_xlabel("Skew", fontproperties=BOLD_FP)     
-            axs[itr].minorticks_on()
-            axs[itr].set_xticklabels(x_labels)
-            axs[itr].set_xticks(ind + 0.5)
+        bars[group * 2] = ax1.bar(ind + margin + (group * width), l_misses, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
     
+    # GRID
+    axes = ax1.get_axes()      
+    makeGrid(ax1)
+        
+    # Y-AXIS    
+    ax1.set_yscale('log', nonposy='clip')
+    ax1.minorticks_on()
+        
+    # X-AXIS
+    ax1.set_xlabel("Skew", fontproperties=BOLD_FP)     
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(ind + 0.5)
     
-    axs[0].set_ylabel("PM Accesses (M)", fontproperties=BOLD_FP)
+    ax1.set_ylabel("PM Accesses (M)", fontproperties=BOLD_FP)
     
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
+    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
      
     return (fig)
@@ -339,10 +320,7 @@ def create_ycsb_nvm_bar_chart(datasets):
 def create_ycsb_recovery_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
-    
-    labels = ("WAL", "SP", "LSM",
-              "PM-WAL", "PM-SP", "PM-LSM")
- 
+     
     x_values = YCSB_RECOVERY_TXNS
     N = len(x_values)
     x_labels = ["1000", "10000"]
@@ -351,7 +329,7 @@ def create_ycsb_recovery_bar_chart(datasets):
     ind = np.arange(N)  
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
-    bars = [None] * len(labels) * 2
+    bars = [None] * len(LABELS) * 2
         
     for group in xrange(len(datasets)):
         # GROUP
@@ -362,7 +340,7 @@ def create_ycsb_recovery_bar_chart(datasets):
                 if col == 1:
                     durations.append(datasets[group][line][col])
   
-        LOG.info("%s duration = %s ", labels[group], str(durations))
+        LOG.info("%s duration = %s ", LABELS[group], str(durations))
         
         bars[group] = ax1.bar(ind + margin + (group * width), durations, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
         
@@ -373,17 +351,17 @@ def create_ycsb_recovery_bar_chart(datasets):
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
+    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
-    ax1.set_ylabel("Duration (ms)", fontproperties=FP)
+    ax1.set_ylabel("Duration (ms)", fontproperties=BOLD_FP)
     ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.set_xlabel("Workload", fontproperties=BOLD_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
@@ -394,9 +372,6 @@ def create_tpcc_perf_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
          
-    labels = ("WAL", "SP", "LSM",
-              "PM-WAL", "PM-SP", "PM-LSM")
-
     x_values = LATENCIES
     N = len(x_values)
     x_labels = ["2X", "8X"]
@@ -405,8 +380,7 @@ def create_tpcc_perf_bar_chart(datasets):
     ind = np.arange(N)  
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
-    bars = [None] * len(labels) * 2
-
+    bars = [None] * len(LABELS) * 2
 
     # GROUP    
     for group in xrange(len(datasets)):
@@ -418,7 +392,7 @@ def create_tpcc_perf_bar_chart(datasets):
                 if col == 1:
                     perf_data.append(datasets[group][line][col])
   
-        LOG.info("%s perf_data = %s ", labels[group], str(perf_data))
+        LOG.info("%s perf_data = %s ", LABELS[group], str(perf_data))
 
         bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
                         
@@ -432,7 +406,7 @@ def create_tpcc_perf_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.set_xlabel("Workload", fontproperties=BOLD_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
@@ -441,7 +415,7 @@ def create_tpcc_perf_bar_chart(datasets):
     ax1.set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
 
     # LEGEND
-    fig.legend(bars, labels, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
+    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
         
         
@@ -451,13 +425,6 @@ def create_tpcc_storage_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
     
-    labels = ("WAL (FS)",
-          "SP (FS)",
-          "LSM (FS)",
-          "PM-WAL (FS)",
-          "PM-SP (FS)",
-          "PM-LSM (FS)")
-
     x_values = TPCC_RW_MIXES
     N = len(x_values)
     num_items = len(ENGINES);
@@ -465,7 +432,7 @@ def create_tpcc_storage_bar_chart(datasets):
     ind = np.arange(N)  
     margin = 0.10
     width = (2.0 - 2 * margin) / num_items      
-    bars = [None] * len(labels) * 2
+    bars = [None] * len(LABELS) * 2
     group = 0
     
     # LINE       
@@ -490,20 +457,19 @@ def create_tpcc_storage_bar_chart(datasets):
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
+    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
     ax1.set_yscale('log', nonposy='clip')
-    ax1.set_ylabel("Storage (MB)", fontproperties=FP)
+    ax1.set_ylabel("Storage (MB)", fontproperties=BOLD_FP)
     # ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.set_xlabel("Workload", fontproperties=BOLD_FP)
     ax1.minorticks_off()
-    ax1.set_xticklabels(x_labels)
     ax1.tick_params(\
     axis='x',          # changes apply to the x-axis
     which='both',      # both major and minor ticks are affected
@@ -518,14 +484,6 @@ def create_tpcc_nvm_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
-    labels = ("WAL (L)", 
-          "SP (L)", 
-          "LSM (L)", 
-          "PM-WAL (L)", 
-          "PM-SP (L)", 
-          "PM-LSM (L)")
-
-
     x_values = TPCC_RW_MIXES
     N = len(x_values)
     num_items = len(ENGINES);
@@ -533,7 +491,7 @@ def create_tpcc_nvm_bar_chart(datasets):
     ind = np.arange(N)  
     margin = 0.10
     width = (2.0 - 2 * margin) / num_items      
-    bars = [None] * len(labels) * 2
+    bars = [None] * len(LABELS) * 2
     group = 0
         
     # LINE    
@@ -560,17 +518,17 @@ def create_tpcc_nvm_bar_chart(datasets):
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
+    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
-    ax1.set_ylabel("NVM accesses (M)", fontproperties=FP)
+    ax1.set_ylabel("NVM accesses (M)", fontproperties=BOLD_FP)
     ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.set_xlabel("Workload", fontproperties=BOLD_FP)
     #ax1.minorticks_on()
     ax1.tick_params(\
     axis='x',          # changes apply to the x-axis
@@ -586,10 +544,7 @@ def create_tpcc_nvm_bar_chart(datasets):
 def create_tpcc_recovery_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
-    
-    labels = ("WAL", "SP", "LSM",
-              "PM-WAL", "PM-SP", "PM-LSM")
- 
+     
     x_values = TPCC_RECOVERY_TXNS
     N = len(x_values)
     x_labels = ["1000", "10000"]
@@ -598,7 +553,7 @@ def create_tpcc_recovery_bar_chart(datasets):
     ind = np.arange(N)  
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
-    bars = [None] * len(labels) * 2
+    bars = [None] * len(LABELS) * 2
         
     for group in xrange(len(datasets)):
         # GROUP
@@ -609,7 +564,7 @@ def create_tpcc_recovery_bar_chart(datasets):
                 if col == 1:
                     durations.append(datasets[group][line][col])
   
-        LOG.info("%s duration = %s ", labels[group], str(durations))
+        LOG.info("%s duration = %s ", LABELS[group], str(durations))
         
         bars[group] = ax1.bar(ind + margin + (group * width), durations, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2])
         
@@ -620,17 +575,17 @@ def create_tpcc_recovery_bar_chart(datasets):
     
     # LEGEND
     FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, labels, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
+    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
                shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
 
     
     # Y-AXIS
-    ax1.set_ylabel("Duration (ms)", fontproperties=FP)
+    ax1.set_ylabel("Duration (ms)", fontproperties=BOLD_FP)
     ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=FP)
+    ax1.set_xlabel("Workload", fontproperties=BOLD_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
@@ -645,58 +600,45 @@ def create_tpcc_recovery_bar_chart(datasets):
 # YCSB PERF -- PLOT
 def ycsb_perf_plot():
     for workload in YCSB_WORKLOAD_MIX:    
-        datasets = [None] * len(LATENCIES)
-        itr = 0
 
         for lat in LATENCIES:
-            datasets[itr] = []
+            datasets = []
         
             for sy in SYSTEMS:    
                 dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(YCSB_PERF_DIR, sy + "/" + workload + "/" + lat + "/performance.csv")))
-                datasets[itr].append(dataFile)
+                datasets.append(dataFile)
+                                   
+            fig = create_ycsb_perf_bar_chart(datasets)
             
-            itr = itr + 1    
-                       
-        fig = create_ycsb_perf_bar_chart(datasets)
-            
-        fileName = "ycsb-perf-%s.pdf" % (workload)
-        saveGraph(fig, fileName, width=len(YCSB_SKEW_FACTORS) * OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+            fileName = "ycsb-perf-%s-%s.pdf" % (workload, lat)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
-    datasets = [None] * len(YCSB_WORKLOAD_MIX)
-    itr = 0
-
     for workload in YCSB_WORKLOAD_MIX:    
-        datasets[itr] = []
+        datasets = []
                 
         for sy in SYSTEMS:    
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, sy + "/" + workload + "/storage.csv")))
-            datasets[itr].append(dataFile)
+            datasets.append(dataFile)
 
-        itr = itr + 1
                                       
-    fig = create_ycsb_storage_bar_chart(datasets)                        
-    fileName = "ycsb-storage.pdf"
-    saveGraph(fig, fileName, width=len(YCSB_WORKLOAD_MIX) * OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+        fig = create_ycsb_storage_bar_chart(datasets)                        
+        fileName = "ycsb-storage-%s.pdf" % (workload)
+        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
 # YCSB NVM -- PLOT               
 def ycsb_nvm_plot():    
-    datasets = [None] * len(YCSB_WORKLOAD_MIX)
-    itr = 0
-
     for workload in YCSB_WORKLOAD_MIX: 
-        datasets[itr] = []   
+        datasets = []   
     
         for sy in SYSTEMS:    
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/nvm.csv")))
-            datasets[itr].append(dataFile)
-            
-        itr = itr + 1
+            datasets.append(dataFile)            
                        
-    fig = create_ycsb_nvm_bar_chart(datasets)                        
-    fileName = "ycsb-nvm.pdf"
-    saveGraph(fig, fileName, width=len(YCSB_WORKLOAD_MIX) * OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+        fig = create_ycsb_nvm_bar_chart(datasets)                        
+        fileName = "ycsb-nvm-%s.pdf" % (workload)
+        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
 # YCSB RECOVERY -- PLOT
 def  ycsb_recovery_plot():   
