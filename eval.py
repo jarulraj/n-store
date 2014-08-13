@@ -79,7 +79,7 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 4000000
+YCSB_KEYS = 2000000
 YCSB_TXNS = 8000000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 1.0]
