@@ -112,7 +112,7 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
   }
 
   // Generate skewed dist
-  zipf(zipf_dist, conf.ycsb_skew, num_keys,
+  simple_skew(zipf_dist, conf.ycsb_skew, num_keys,
        num_txns * conf.ycsb_tuples_per_txn);
   uniform(uniform_dist, num_txns);
 
