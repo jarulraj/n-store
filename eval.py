@@ -93,17 +93,19 @@ def saveGraph(fig, output, width, height):
 # # CONFIGURATION
 
 BASE_DIR = os.path.dirname(__file__)
-OPT_FONT_NAME = 'Droid Sans'
+OPT_FONT_NAME = 'Helvetica'
 OPT_GRAPH_HEIGHT = 300
 OPT_GRAPH_WIDTH = 400
 OPT_LABEL_WEIGHT = 'bold'
 # OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
-OPT_COLORS = ('#F15854', '#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
+#OPT_COLORS = ('#F15854', '#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
+OPT_COLORS = ('#F15854', '#60BD68', '#5DA5DA', '#D24322', '#87BD61', '#5E85DA', '#DECF3F', '#B2912F', '#F17CB0')
 # OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
 OPT_GRID_COLOR = 'gray'
 OPT_LEGEND_SHADOW = False
 OPT_MARKERS = (['o', 's', 'v', ">", "h", "v", "^", "x", "d", "<", "|", "8", "|", "_"])
-OPT_PATTERNS = ([ "//" , "O" , "\\" , "+" , "-" , "*", "/", "o", ".", "x" , "\\\\" , "//" ])
+#OPT_PATTERNS = ([ "//" , "O" , "\\" , "+" , "-" , "*", "/", "o", ".", "x" , "\\\\" , "//" ])
+OPT_PATTERNS = ([ "//", "//", ".", ".", "\\" , "\\" , "x", "x", "\\\\", "\\\\" , "o" , "o" ])
 
 
 # # NSTORE
@@ -146,12 +148,44 @@ LABELS = ("WAL", "SP", "LSM", "PM-WAL", "PM-SP", "PM-LSM")
 
 TPCC_TXNS = 1000000
 
-FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=10)
-BOLD_FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT, size=14)
+# SET FONT
+from matplotlib import rc
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+## for Palatino and other serif fonts use:
+#rc('font',**{'family':'serif','serif':['Palatino']})
+rc('text', usetex=True)
+
+OPT_FONT_SIZE = 14
+
+FP = FontProperties(weight=OPT_LABEL_WEIGHT, size=10)
+BOLD_FP = FontProperties(weight=OPT_LABEL_WEIGHT, size=OPT_FONT_SIZE)
 
 ###################################################################################                   
 # PLOT
 ###################################################################################                   
+
+def create_legend():
+    fig = pylab.figure()
+    ax1 = fig.add_subplot(111)
+
+    figlegend = pylab.figure(figsize=(9,0.5))
+
+    num_items = len(ENGINES);   
+    ind = np.arange(1)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+      
+    bars = [None] * len(LABELS) * 2
+
+    for group in xrange(len(ENGINES)):        
+        data = [1]
+        bars[group] = ax1.bar(ind + margin + (group * width), data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        
+    # LEGEND
+    figlegend.legend(bars, LABELS, prop=BOLD_FP, loc=1, ncol=6, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3)
+
+    figlegend.savefig('legend.pdf')
 
 def create_ycsb_perf_bar_chart(datasets):
     fig = plot.figure()
@@ -159,7 +193,7 @@ def create_ycsb_perf_bar_chart(datasets):
          
     x_values = YCSB_SKEW_FACTORS
     N = len(x_values)
-    x_labels = ["Low", "High"]
+    x_labels = ["Low Skew", "High Skew"]
 
     num_items = len(ENGINES);   
     ind = np.arange(N)  
@@ -192,17 +226,11 @@ def create_ycsb_perf_bar_chart(datasets):
     ax1.set_yscale('log', nonposy='clip')
         
     # X-AXIS
-    ax1.set_xlabel("Skew", fontproperties=BOLD_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
-    
+              
     ax1.set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
-    
-    # LEGEND
-    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-
         
             
     return (fig)
@@ -213,7 +241,7 @@ def create_ycsb_storage_bar_chart(datasets):
     
     x_values = YCSB_SKEW_FACTORS
     N = len(x_values)
-    x_labels = ["Low", "High"]
+    x_labels = ["Low Skew", "High Skew"]
 
     num_items = len(ENGINES);   
     ind = np.arange(N)  
@@ -236,8 +264,8 @@ def create_ycsb_storage_bar_chart(datasets):
   
         LOG.info("%s fs_data = %s pm_data = %s ", LABELS[group], str(fs_data), str(pm_data))
                 
-        bars[group * 2] = ax1.bar(ind + margin + (group * width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
-        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1])
+        bars[group * 2] = ax1.bar(ind + margin + (group * width), fs_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2], linewidth=2)
+        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2 + 1],  linewidth=2)
     
     # GRID
     axes = ax1.get_axes()      
@@ -248,19 +276,15 @@ def create_ycsb_storage_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Skew", fontproperties=BOLD_FP)     
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
         
     ax1.set_ylabel("Storage (MB)", fontproperties=BOLD_FP)
     ax1.set_ylim([0, 10000])
-    
-    # LEGEND
-    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-     
-        
+    for tick in ax1.xaxis.get_major_ticks():
+        tick.label.set_fontsize(OPT_FONT_SIZE)   
+            
     return (fig)
 
 def create_ycsb_nvm_bar_chart(datasets):
@@ -270,7 +294,7 @@ def create_ycsb_nvm_bar_chart(datasets):
             
     x_values = YCSB_SKEW_FACTORS
     N = len(x_values)
-    x_labels = ["Low", "High"]
+    x_labels = ["Low Skew", "High Skew"]
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
@@ -310,11 +334,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     ax1.set_xticks(ind + 0.5)
     
     ax1.set_ylabel("PM Accesses (M)", fontproperties=BOLD_FP)
-    
-    # LEGEND
-    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.07, 1.05, 0.75, 0.05), loc=1, ncol=6, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-     
+         
     return (fig)
 
 def create_ycsb_recovery_bar_chart(datasets):
@@ -348,12 +368,6 @@ def create_ycsb_recovery_bar_chart(datasets):
     axes = ax1.get_axes()
     # axes.set_ylim(0, 10000)        
     makeGrid(ax1)
-    
-    # LEGEND
-    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-
     
     # Y-AXIS
     ax1.set_ylabel("Duration (ms)", fontproperties=BOLD_FP)
@@ -412,12 +426,7 @@ def create_tpcc_perf_bar_chart(datasets):
     ax1.set_xticks(ind + 0.5)
         
 
-    ax1.set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)
-
-    # LEGEND
-    fig.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.12, 1.05, 0.7, 0.05), loc=1, ncol=6, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-        
+    ax1.set_ylabel("Throughput (Tps)", fontproperties=BOLD_FP)        
         
     return (fig)
 
@@ -453,13 +462,7 @@ def create_tpcc_storage_bar_chart(datasets):
     # GRID
     axes = ax1.get_axes()
     makeGrid(ax1)
-    
-    # LEGEND
-    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-
-    
+        
     # Y-AXIS
     ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (MB)", fontproperties=BOLD_FP)
@@ -514,11 +517,6 @@ def create_tpcc_nvm_bar_chart(datasets):
     # axes.set_ylim(0, 10000)        
     makeGrid(ax1)
     
-    # LEGEND
-    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    #ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
-    #           shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-
     
     # Y-AXIS
     ax1.set_ylabel("NVM accesses (M)", fontproperties=BOLD_FP)
@@ -571,11 +569,6 @@ def create_tpcc_recovery_bar_chart(datasets):
     # axes.set_ylim(0, 10000)        
     makeGrid(ax1)
     
-    # LEGEND
-    FP = FontProperties(family=OPT_FONT_NAME, weight=OPT_LABEL_WEIGHT)
-    ax1.legend(bars, LABELS, prop=FP, bbox_to_anchor=(0.0, 1.25, 1.0, 0.25), loc=1, ncol=2, mode="expand",
-               shadow=OPT_LEGEND_SHADOW, borderaxespad=0.0)
-
     
     # Y-AXIS
     ax1.set_ylabel("Duration (ms)", fontproperties=BOLD_FP)
@@ -1625,4 +1618,6 @@ if __name__ == '__main__':
     if args.tpcc_recovery_plot:                
        tpcc_recovery_plot();                          
 
+
+    create_legend()
 
