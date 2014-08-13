@@ -53,8 +53,9 @@ OPT_GRAPH_WIDTH = 400
 # OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
 #OPT_COLORS = ('#F15854', '#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
 
-OPT_COLORS = ('#F15854', '#60BD68', '#95CBE9', '#DC5C05', '#53A400', '#049ce6')
-COLOR_MAP = ('#CC6666', '#9C9F84', '#F7DCB4', '#5C755E', '#663333', '#A97D5D')
+#OPT_COLORS = ('#F15854', '#60BD68', '#95CBE9', '#DC5C05', '#53A400', '#049ce6')
+COLOR_MAP = ('#F15854', '#9C9F84', '#F7DCB4', '#991809', '#5C755E', '#A97D5D')
+OPT_COLORS = COLOR_MAP
 
 OPT_GRID_COLOR = 'gray'
 OPT_LEGEND_SHADOW = False
@@ -189,7 +190,7 @@ def create_legend():
         
     # LEGEND
     figlegend.legend(bars, LABELS, prop=LABEL_FP, loc=1, ncol=6, mode="expand", shadow=OPT_LEGEND_SHADOW, 
-                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3)
+                     frameon=True, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('legend.pdf')
 
@@ -228,8 +229,7 @@ def create_ycsb_perf_bar_chart(datasets):
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    ax1.set_yscale('log', nonposy='clip')
-    axes.set_ylim(1000, 10000000)      
+    ax1.set_ylim(1, 1800000) 
         
     # X-AXIS
     ax1.minorticks_on()
@@ -263,9 +263,9 @@ def create_ycsb_storage_bar_chart(datasets):
         for line in  xrange(len(datasets[group])):
             for col in  xrange(len(datasets[group][line])):
                 if col == 1:
-                    fs_data.append(1 + datasets[group][line][col] / (1024 * 1024))
+                    fs_data.append(1 + datasets[group][line][col] / (1024 * 1024 * 1024))
                 if col == 2:
-                    pm_data.append(1 + datasets[group][line][col] / (1024 * 1024))
+                    pm_data.append(1 + datasets[group][line][col] / (1024 * 1024 * 1024))
   
         LOG.info("%s fs_data = %s pm_data = %s ", LABELS[group], str(fs_data), str(pm_data))
                 
@@ -277,17 +277,16 @@ def create_ycsb_storage_bar_chart(datasets):
     makeGrid(ax1)
             
     # Y-AXIS    
-    ax1.set_yscale('log', nonposy='clip')
+    #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
-    axes.set_ylim(1, 1000)      
+    ax1.set_ylim([0, 120])
         
     # X-AXIS
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
         
-    ax1.set_ylabel("Storage (MB)", fontproperties=LABEL_FP)
-    ax1.set_ylim([0, 10000])
+    ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
             
     return (fig)
 
@@ -328,8 +327,9 @@ def create_ycsb_nvm_bar_chart(datasets):
     makeGrid(ax1)
         
     # Y-AXIS    
-    ax1.set_yscale('log', nonposy='clip')
+    #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
+    ax1.set_ylim([0, 4000])
         
     # X-AXIS
     ax1.minorticks_on()
@@ -346,7 +346,7 @@ def create_ycsb_recovery_bar_chart(datasets):
      
     x_values = YCSB_RECOVERY_TXNS
     N = len(x_values)
-    x_labels = x_values
+    x_labels = ["1000 txns", "10000 txns"]
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
@@ -443,7 +443,7 @@ def create_tpcc_storage_bar_chart(datasets):
 
     ind = np.arange(N)  
     margin = 0.10
-    width = (1 - 2 * margin) / num_items      
+    width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
     
     # LINE       
@@ -455,9 +455,9 @@ def create_tpcc_storage_bar_chart(datasets):
 
         for col in  xrange(len(datasets[line])):
             if col == 1:
-                fs_data.append(datasets[line][col] / (1024 * 1024))
+                fs_data.append(datasets[line][col] / (1024 * 1024 * 1024))
             if col == 2:
-                pm_data.append(datasets[line][col] / (1024 * 1024))
+                pm_data.append(datasets[line][col] / (1024 * 1024 * 1024))
                 
         bars[line * 2] = ax1.bar(ind + margin + (line * width), fs_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
         bars[line * 2+ 1] = ax1.bar(ind + margin + (line * width), pm_data, width, bottom=fs_data, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
@@ -467,8 +467,8 @@ def create_tpcc_storage_bar_chart(datasets):
     makeGrid(ax1)
         
     # Y-AXIS
-    ax1.set_yscale('log', nonposy='clip')
-    ax1.set_ylabel("Storage (MB)", fontproperties=LABEL_FP)
+    #ax1.set_yscale('log', nonposy='clip')
+    ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
     # ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
         
@@ -481,7 +481,8 @@ def create_tpcc_storage_bar_chart(datasets):
     bottom='off',      # ticks along the bottom edge are off
     top='off',         # ticks along the top edge are off
     labelbottom='off')
-    
+    ax1.set_xticks(ind + 0.5)
+
         
     return (fig)
 
@@ -495,7 +496,7 @@ def create_tpcc_nvm_bar_chart(datasets):
 
     ind = np.arange(N)  
     margin = 0.10
-    width = (2.0 - 2 * margin) / num_items      
+    width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
         
     # LINE    
@@ -523,7 +524,7 @@ def create_tpcc_nvm_bar_chart(datasets):
     
     # Y-AXIS
     ax1.set_ylabel("NVM accesses (M)", fontproperties=LABEL_FP)
-    ax1.set_yscale('log', nonposy='clip')
+    #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
         
     # X-AXIS
@@ -535,8 +536,6 @@ def create_tpcc_nvm_bar_chart(datasets):
     bottom='off',      # ticks along the bottom edge are off
     top='off',         # ticks along the top edge are off
     labelbottom='off')
-    #ax1.set_xticklabels(x_labels)
-    #ax1.set_xticks(ind + 0.5)
         
     return (fig)
 
@@ -546,7 +545,8 @@ def create_tpcc_recovery_bar_chart(datasets):
      
     x_values = TPCC_RECOVERY_TXNS
     N = len(x_values)
-    x_labels = TPCC_RECOVERY_TXNS
+    x_labels = ["1000 txns", "10000 txns"]
+    
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
