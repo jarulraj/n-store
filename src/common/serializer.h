@@ -119,54 +119,20 @@ class serializer {
     if (entry_str.empty())
       return "";
 
-    unsigned int num_columns = sptr->num_columns;
     input.clear();
     input.str(entry_str);
-    output.clear();
-    output.str(std::string());
+    std::string field_str, tuple_str;
+    unsigned int itr = 0;
 
-    std::string vc_str;
-
-    for (unsigned int itr = 0; itr < num_columns; itr++) {
-      field_info finfo = sptr->columns[itr];
+    while (getline(input, field_str, ' ')) {
+      field_info finfo = sptr->columns[itr++];
       bool enabled = finfo.enabled;
 
-      if (enabled) {
-        char type = finfo.type;
-
-        switch (type) {
-          case field_type::INTEGER: {
-            int ival;
-            input >> ival;
-            output << ival;
-          }
-            break;
-
-          case field_type::DOUBLE: {
-            double dval;
-            input >> dval;
-            output << dval;
-          }
-            break;
-
-          case field_type::VARCHAR: {
-            input >> vc_str;
-            output << vc_str;
-          }
-            break;
-
-          default:
-            cout << "invalid type : --" << type << "--" << endl;
-            cout << "entry : --" << entry_str << "--" << endl;
-            exit(EXIT_FAILURE);
-            break;
-        }
-
-        output << " ";
-      }
+      if (enabled)
+        tuple_str += field_str + " ";
     }
 
-    return output.str();
+    return tuple_str;
   }
 
 };
