@@ -49,7 +49,6 @@ BASE_DIR = os.path.dirname(__file__)
 OPT_FONT_NAME = 'Arial'
 OPT_GRAPH_HEIGHT = 300
 OPT_GRAPH_WIDTH = 400
-OPT_LABEL_WEIGHT = 'bold'
 # OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
 # OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
 #OPT_COLORS = ('#F15854', '#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
@@ -105,11 +104,6 @@ LABELS = ("WAL", "SP", "LSM", "PM-WAL", "PM-SP", "PM-LSM")
 TPCC_TXNS = 1000000
 
 # SET FONT
-from matplotlib import rc
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-## for Palatino and other serif fonts use:
-#rc('font',**{'family':'serif','serif':['Palatino']})
-rc('text', usetex=True)
 
 LABEL_FONT_SIZE = 14
 TICK_FONT_SIZE = 10
@@ -117,8 +111,8 @@ TICK_FONT_SIZE = 10
 AXIS_LINEWIDTH = 1.3
 BAR_LINEWIDTH = 1.2
 
-TICK_FP = FontProperties(weight=OPT_LABEL_WEIGHT, size=TICK_FONT_SIZE)
-LABEL_FP = FontProperties(weight=OPT_LABEL_WEIGHT, size=LABEL_FONT_SIZE)
+TICK_FP = FontProperties(family=OPT_FONT_NAME, weight='regular', size=TICK_FONT_SIZE)
+LABEL_FP = FontProperties(family=OPT_FONT_NAME, weight='medium', size=LABEL_FONT_SIZE)
 
 ###################################################################################                   
 # UTILS
@@ -240,8 +234,7 @@ def create_ycsb_perf_bar_chart(datasets):
     # X-AXIS
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
-    ax1.set_xticks(ind + 0.5)
-              
+    ax1.set_xticks(ind + 0.5)              
     ax1.set_ylabel("Throughput (Tps)", fontproperties=LABEL_FP)
         
             
@@ -295,8 +288,6 @@ def create_ycsb_storage_bar_chart(datasets):
         
     ax1.set_ylabel("Storage (MB)", fontproperties=LABEL_FP)
     ax1.set_ylim([0, 10000])
-    for tick in ax1.xaxis.get_major_ticks():
-        tick.label.set_fontsize(TICK_FONT_SIZE)   
             
     return (fig)
 
@@ -490,7 +481,7 @@ def create_tpcc_storage_bar_chart(datasets):
     bottom='off',      # ticks along the bottom edge are off
     top='off',         # ticks along the top edge are off
     labelbottom='off')
-    #ax1.set_xticks(ind + 0.5)
+    
         
     return (fig)
 
