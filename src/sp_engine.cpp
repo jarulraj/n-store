@@ -23,7 +23,7 @@ sp_engine::sp_engine(const config& _conf, database* _db, bool _read_only,
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
         + std::string(tab->table_name);
-    tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size, true);
   }
 
   // Commit only if needed

@@ -22,21 +22,20 @@ class storage {
         max_tuple_size(0) {
   }
 
-  void configure(std::string _name, size_t _tuple_size, bool overwrite) {
+  void configure(std::string _name, size_t _tuple_size, bool append) {
     storage_file_name = _name + ".nvm";
     max_tuple_size = _tuple_size;
 
-    // write/update mode
-    if (overwrite) {
-      storage_file = fopen(storage_file_name.c_str(), "w+");
-    } else {
-      if (access(storage_file_name.c_str(), F_OK) != -1) {
-        // file exists - read/update mode
+    // file exists - read/update mode
+    if (access(storage_file_name.c_str(), F_OK) != -1) {
+      if (!append) {
         storage_file = fopen(storage_file_name.c_str(), "r+");
       } else {
-        // new file - write/update mode
-        storage_file = fopen(storage_file_name.c_str(), "w+");
+        storage_file = fopen(storage_file_name.c_str(), "a+");
       }
+    } else {
+      // new file - write/update mode
+      storage_file = fopen(storage_file_name.c_str(), "w+");
     }
 
     if (storage_file != NULL) {
@@ -112,7 +111,7 @@ class storage {
 
   std::string at(off_t storage_offset) {
     std::string entry_str;
-    char* buf = new char[max_tuple_size+1];
+    char* buf = new char[max_tuple_size + 1];
     int rc;
 
     fseek(storage_file, storage_offset, SEEK_SET);
@@ -132,7 +131,7 @@ class storage {
     fclose(storage_file);
   }
 
-  //private:
+//private:
   FILE* storage_file;
   int storage_file_fd;
   off_t storage_offset;
