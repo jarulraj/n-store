@@ -113,7 +113,7 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
 
   // Generate skewed dist
   simple_skew(zipf_dist, conf.ycsb_skew, num_keys,
-       num_txns * conf.ycsb_tuples_per_txn);
+              num_txns * conf.ycsb_tuples_per_txn);
   uniform(uniform_dist, num_txns);
 
 }
@@ -225,7 +225,7 @@ void ycsb_benchmark::sim_crash() {
   int zipf_dist_offset = 0;
 
   // No recovery needed
-  if (conf.etype == engine_type::SP || conf.etype == engine_type::OPT_SP){
+  if (conf.etype == engine_type::SP || conf.etype == engine_type::OPT_SP) {
     ee->recovery();
     return;
   }

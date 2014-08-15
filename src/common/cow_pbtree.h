@@ -1171,9 +1171,11 @@ class cow_btree {
 
   void mpage_del(struct mpage *mp) {
     assert(RB_REMOVE(page_cache, page_cache, mp) == mp);
-    assert(stat.cache_size > 0);
-    stat.cache_size--;
-    TAILQ_REMOVE(lru_queue, mp, lru_next);
+
+    if (stat.cache_size > 0) {
+      stat.cache_size--;
+      TAILQ_REMOVE(lru_queue, mp, lru_next);
+    }
   }
 
   void mpage_flush() {
@@ -2266,9 +2268,9 @@ class cow_btree {
       key->data = new char[key->size];
       if (key->data == NULL)
         return -1;
-      if (persist){
+      if (persist) {
         pmemalloc_activate(key->data);
-      }else{
+      } else {
         pmemalloc_count(key->data);
       }
       concat_prefix(mp->prefix.str, mp->prefix.len, (char*) NODEKEY(cow_node),
@@ -2461,8 +2463,7 @@ class cow_btree {
     if (persist) {
       pmemalloc_activate(mp);
       pmemalloc_activate(mp->page);
-    }
-    else{
+    } else {
       pmemalloc_count(mp);
       pmemalloc_count(mp->page);
     }

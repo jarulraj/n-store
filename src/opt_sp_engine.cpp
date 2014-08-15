@@ -82,7 +82,6 @@ std::string opt_sp_engine::select(const statement& st) {
   }
 
   LOG_INFO("val : %s", value.c_str());
-  //cout<<"val : " <<value<<endl;
 
   delete rec_ptr;
   return value;
@@ -97,7 +96,6 @@ int opt_sp_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   struct cow_btval key, val;
-  val.data = new char[sizeof(record*) + 1];
 
   std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
@@ -115,6 +113,10 @@ int opt_sp_engine::insert(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
+  val.data = new char[sizeof(record*) + 1];
+  memcpy(val.data, &after_rec, sizeof(record*));
+  val.size = sizeof(record*);
+
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
@@ -123,8 +125,6 @@ int opt_sp_engine::insert(const statement& st) {
 
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
-    memcpy(val.data, &after_rec, sizeof(record*));
-    val.size = sizeof(record*);
 
     bt->insert(txn_ptr, &key, &val);
   }
@@ -258,7 +258,6 @@ void opt_sp_engine::load(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   struct cow_btval key, val;
-  val.data = new char[sizeof(record*) + 1];
 
   std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
@@ -268,6 +267,10 @@ void opt_sp_engine::load(const statement& st) {
   pmemalloc_activate(after_rec);
   after_rec->persist_data();
 
+  val.data = new char[sizeof(record*) + 1];
+  memcpy(val.data, &after_rec, sizeof(record*));
+  val.size = sizeof(record*);
+
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
@@ -276,8 +279,6 @@ void opt_sp_engine::load(const statement& st) {
 
     key.data = (void*) key_str.c_str();
     key.size = key_str.size();
-    memcpy(val.data, &after_rec, sizeof(record*));
-    val.size = sizeof(record*);
 
     bt->insert(txn_ptr, &key, &val);
   }
