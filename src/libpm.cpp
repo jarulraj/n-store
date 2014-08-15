@@ -34,7 +34,6 @@ void operator delete(void *p) throw () {
   free(p);
 }
 
-/*
 void *operator new[](std::size_t sz) throw (std::bad_alloc) {
   void* ret = calloc(1, sz);
   return ret;
@@ -53,7 +52,6 @@ void operator delete[](void *p) throw () {
 
   free(p);
 }
-*/
 
 void* pmemalloc_reserve(size_t size) {
   void* ret = malloc(size);
