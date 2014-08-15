@@ -100,7 +100,7 @@ TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
-LABELS = ("WAL", "SP", "LSM", "PM-WAL", "PM-SP", "PM-LSM")
+LABELS = ("InP", "CoW", "LOG", "NVM-InP", "NVM-CoW", "NVM-LOG")
 
 TPCC_TXNS = 1000000
 
@@ -175,7 +175,7 @@ def create_legend():
     fig = pylab.figure()
     ax1 = fig.add_subplot(111)
 
-    figlegend = pylab.figure(figsize=(9,0.5))
+    figlegend = pylab.figure(figsize=(5,4))
 
     num_items = len(ENGINES);   
     ind = np.arange(1)  
@@ -189,7 +189,7 @@ def create_legend():
         bars[group] = ax1.bar(ind + margin + (group * width), data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
         
     # LEGEND
-    figlegend.legend(bars, LABELS, prop=LABEL_FP, loc=1, ncol=6, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+    figlegend.legend(bars, LABELS, prop=LABEL_FP, loc=1, ncol=3, mode="expand", shadow=OPT_LEGEND_SHADOW, 
                      frameon=True, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('legend.pdf')
@@ -229,7 +229,7 @@ def create_ycsb_perf_bar_chart(datasets):
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    ax1.set_ylim(1, 1800000) 
+    #ax1.set_ylim(1, 2400000) 
         
     # X-AXIS
     ax1.minorticks_on()
