@@ -20,11 +20,6 @@ void* operator new(size_t sz) throw (bad_alloc) {
   return ret;
 }
 
-void* pmemalloc_reserve(size_t size) {
-  void* ret = malloc(size);
-  return ret;
-}
-
 void operator delete(void *p) throw () {
   if (pm_stats) {
     pmem_mutex.lock();
@@ -37,6 +32,32 @@ void operator delete(void *p) throw () {
   }
 
   free(p);
+}
+
+/*
+void *operator new[](std::size_t sz) throw (std::bad_alloc) {
+  void* ret = calloc(1, sz);
+  return ret;
+}
+
+void operator delete[](void *p) throw () {
+  if (pm_stats) {
+    pmem_mutex.lock();
+    if (pmem_pool->count(p) != 0) {
+      size_t len = malloc_usable_size(p);
+      pmem_pool->erase(p);
+      pmem_size -= len;
+    }
+    pmem_mutex.unlock();
+  }
+
+  free(p);
+}
+*/
+
+void* pmemalloc_reserve(size_t size) {
+  void* ret = malloc(size);
+  return ret;
 }
 
 void pmemalloc_free(void *abs_ptr_) {
@@ -54,7 +75,7 @@ void pmemalloc_free(void *abs_ptr_) {
 }
 
 void* pmemalloc_init(__attribute__((unused)) const char *path,
-                     __attribute__((unused))   size_t size) {
+                     __attribute__((unused))      size_t size) {
   pmem_pool = new std::set<void*>();
   pmem_size = 0;
   pmp = (void*) 1;
