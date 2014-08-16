@@ -17,12 +17,13 @@
 using namespace std;
 
 tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
-                               timer* _tm, struct static_info* _sp)
-    : benchmark(tid, _db, _tm, _sp),
+                               timer* _tm)
+    : benchmark(tid, _db, _tm),
       conf(_conf),
       txn_id(0) {
 
   btype = benchmark_type::TPCC;
+  sp = conf.sp;
 
   // Partition workload
   num_txns = conf.num_txns / conf.num_executors;
@@ -80,6 +81,18 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
     new_orders_per_district = 900;
   }
 }
+
+void tpcc_benchmark::reset() {
+  if(sp->init == 0)
+    return;
+
+  cout << "Recovery Mode " << endl;
+
+  cout<<"DB  :: "<<db<<endl;
+
+  db->reset(conf, tid);
+}
+
 
 // WAREHOUSE
 class warehouse_record : public record {
@@ -2152,7 +2165,7 @@ void tpcc_benchmark::sim_crash() {
     num_txns = 1;
 
   // NEW ORDER
-  for (txn_itr = 0; txn_itr < num_txns; txn_itr++){
+  for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
     do_new_order(ee, false);
   }
 

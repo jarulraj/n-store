@@ -20,10 +20,11 @@ using namespace std;
 
 class ycsb_benchmark : public benchmark {
  public:
-  ycsb_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm, struct static_info* _sp);
+  ycsb_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm);
 
   void load();
   void execute();
+  void reset();
 
   void sim_crash();
 

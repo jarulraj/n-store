@@ -39,12 +39,12 @@ enum benchmark_type {
   TPCC
 };
 
-class database;
+class benchmark;
 
 class config {
  public:
-  std::string fs_path;
-  struct static_info* _sp;
+  struct static_info* sp;
+  benchmark** partitions;
 
   int num_keys;
   int num_txns;
@@ -77,6 +77,8 @@ class config {
 
   engine_type etype;
   benchmark_type btype;
+
+  char fs_path[2048];
 };
 
 #endif /* NSTORE_H_ */
