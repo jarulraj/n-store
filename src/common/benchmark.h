@@ -12,17 +12,17 @@ using namespace std;
 
 class benchmark {
  public:
-  benchmark(unsigned int _tid, database* _db, timer* _tm)
-      : sp(NULL) {
+  benchmark(unsigned int _tid, database* _db, timer* _tm,
+            struct static_info* _sp) {
     tid = _tid;
     tm = _tm;
     db = _db;
+    sp = _sp;
   }
 
   virtual void load() = 0;
   virtual void execute() = 0;
   virtual void sim_crash() = 0;
-  virtual void reset() = 0;
 
   virtual ~benchmark() {
   }

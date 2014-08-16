@@ -172,7 +172,6 @@ int wal_engine::update(const statement& st) {
   plist<table_index*>* indices = db->tables->at(st.table_id)->indices;
 
   std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
-
   unsigned long key = hash_fn(key_str);
   off_t storage_offset;
   std::string val, before_tuple;

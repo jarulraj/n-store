@@ -949,7 +949,7 @@ class cow_btree {
     if (persist == false) {
       mpages = NULL;
     } else {
-      mpages = new ptree<pgno_t, mpage*>(&sp->ptrs[get_next_pp()]);
+      mpages = new ptree<pgno_t, mpage*>(&sp->ptrs[sp->itr++]);
       DPRINTF("pages : %p ", mpages);
 
       pmemalloc_activate(mpages);
@@ -980,9 +980,6 @@ class cow_btree {
 
     if ((lru_queue = new struct lru_queue()) == NULL)
       goto fail;
-
-    cout << "LRU QUEUE :: " << lru_queue << endl;
-
     if (persist)
       pmemalloc_activate(lru_queue);
     TAILQ_INIT(lru_queue);
@@ -1000,8 +997,7 @@ class cow_btree {
 
     return BT_SUCCESS;
 
-    fail:
-    //delete lru_queue;
+    fail: delete lru_queue;
     delete page_cache;
     return BT_FAIL;
   }
@@ -1028,7 +1024,6 @@ class cow_btree {
 
     persist = _persist;
     size = 0;
-    stat.cache_size = 0;
 
     if (persist == false) {
       if (F_ISSET(_flags, BT_RDONLY))
@@ -1145,12 +1140,14 @@ class cow_btree {
 
     find.pgno = pgno;
     mp = RB_FIND(page_cache, page_cache, &find);
-    if (mp) {
-      stat.hits++;
-      // Update LRU queue. Move page to the end.
-      TAILQ_REMOVE(lru_queue, mp, lru_next);
-      TAILQ_INSERT_TAIL(lru_queue, mp, lru_next);
-    }
+    /*
+     if (mp) {
+     stat.hits++;
+     // Update LRU queue. Move page to the end.
+     TAILQ_REMOVE(lru_queue, mp, lru_next);
+     TAILQ_INSERT_TAIL(lru_queue, mp, lru_next);
+     }
+     */
     return mp;
   }
 

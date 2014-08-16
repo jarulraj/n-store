@@ -22,96 +22,73 @@ class coordinator {
   coordinator()
       : single(true),
         num_executors(1),
-        num_txns(0),
-        recovery_mode(true),
-        load(false) {
+        num_txns(0) {
   }
 
-  coordinator(const config conf)
-      : recovery_mode(true),
-        load(false) {
+  coordinator(const config conf) {
     single = conf.single;
     num_executors = conf.num_executors;
     num_txns = conf.num_txns;
 
     for (unsigned int i = 0; i < num_executors; i++) {
       tms.push_back(timer());
+      sps.push_back(static_info());
     }
   }
 
   void execute_bh(benchmark* bh) {
-    // Reset
-    bh->reset();
-
     // Load
-    if (load)
-      bh->load();
+    bh->load();
 
     // Execute
     bh->execute();
+
   }
 
-  void eval(config conf) {
-    if (!conf.recovery) {
+  void eval(const config conf){
+    if(!conf.recovery){
       execute(conf);
-    } else {
+    }
+    else{
       recover(conf);
     }
 
   }
 
-  void execute(config& conf) {
+  void execute(const config conf) {
     std::vector<std::thread> executors;
+    benchmark** partitions = new benchmark*[num_executors];
 
-    if (sp->init == 0) {
-      //cout << "Initialization Mode" << endl;
-
-      benchmark** partitions = new benchmark*[num_executors];
-      pmemalloc_activate(partitions);
-
-      for (unsigned int i = 0; i < num_executors; i++) {
-        database* db = new database(conf, sp, i);
-        pmemalloc_activate(db);
-
-        partitions[i] = get_benchmark(conf, i, db);
-        pmemalloc_activate(partitions[i]);
-      }
-
-      sp->ptrs[0] = partitions;
-      sp->itr = 1;
-      conf.partitions = partitions;
-
-      recovery_mode = false;
-    } else {
-      //cout << "Recovery Mode " << endl;
-      recovery_mode = true;
-
-      conf.partitions = (benchmark**) sp->ptrs[0];
+    for (unsigned int i = 0; i < num_executors; i++) {
+      database* db = new database(conf, sp, i);
+      partitions[i] = get_benchmark(conf, i, db);
     }
-
-    load = check_load(conf);
 
     for (unsigned int i = 0; i < num_executors; i++)
       executors.push_back(
-          std::thread(&coordinator::execute_bh, this, conf.partitions[i]));
+          std::thread(&coordinator::execute_bh, this, partitions[i]));
 
     for (unsigned int i = 0; i < num_executors; i++)
       executors[i].join();
 
     double max_dur = 0;
     for (unsigned int i = 0; i < num_executors; i++) {
-      cout << "dur :" << i << " :: " << tms[i].duration() << endl;
+      cout<<"dur :"<<i<<" :: "<<tms[i].duration()<<endl;
       max_dur = std::max(max_dur, tms[i].duration());
     }
-    cout << "max dur :" << max_dur << endl;
+    cout<<"max dur :"<<max_dur<<endl;
     display_stats(conf.etype, max_dur, num_txns);
 
-    if(sp->init == 0)
-      sp->init = 1;
+    /*
+     for (unsigned int i = 0; i < num_executors; i++) {
+     delete partitions[i];
+     }
 
+     delete[] partitions;
+     */
   }
 
-  void recover(const config conf) {
+  void recover(const config conf){
 
     database* db = new database(conf, sp, 0);
     benchmark* bh = get_benchmark(conf, 0, db);
@@ -131,12 +108,12 @@ class coordinator {
     switch (state.btype) {
       case benchmark_type::YCSB:
         LOG_INFO("YCSB");
-        bh = new ycsb_benchmark(state, tid, db, &tms[tid]);
+        bh = new ycsb_benchmark(state, tid, db, &tms[tid], &sps[tid]);
         break;
 
       case benchmark_type::TPCC:
         LOG_INFO("TPCC");
-        bh = new tpcc_benchmark(state, tid, db, &tms[tid]);
+        bh = new tpcc_benchmark(state, tid, db, &tms[tid], &sps[tid]);
         break;
 
       default:
@@ -147,22 +124,11 @@ class coordinator {
     return bh;
   }
 
-  bool check_load(const config conf) {
-    if (!recovery_mode)
-      return true;
-
-    if (recovery_mode) {
-      if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM)
-        return true;
-    }
-
-    return false;
-  }
-
   bool single;
   unsigned int num_executors;
-  unsigned int num_txns;bool recovery_mode;bool load;
+  unsigned int num_txns;
 
+  std::vector<struct static_info> sps;
   std::vector<timer> tms;
 };
 

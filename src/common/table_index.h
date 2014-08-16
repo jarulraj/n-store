@@ -18,10 +18,10 @@ class table_index {
         pm_map(NULL),
         off_map(NULL) {
 
-    pm_map = new pbtree<unsigned long, record*>(&sp->ptrs[get_next_pp()]);
+    pm_map = new pbtree<unsigned long, record*>(&sp->ptrs[sp->itr++]);
     pmemalloc_activate(pm_map);
 
-    off_map = new pbtree<unsigned long, off_t>(&sp->ptrs[get_next_pp()]);
+    off_map = new pbtree<unsigned long, off_t>(&sp->ptrs[sp->itr++]);
     pmemalloc_activate(off_map);
 
     if (conf.etype == engine_type::WAL || conf.etype == engine_type::LSM) {

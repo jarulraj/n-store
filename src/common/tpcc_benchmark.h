@@ -20,12 +20,12 @@ using namespace std;
 
 class tpcc_benchmark : public benchmark {
  public:
-  tpcc_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm);
+  tpcc_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm,
+                 struct static_info* _sp);
 
   void load();
   void execute();
   void sim_crash();
-  void reset();
 
   table* create_warehouse();
   table* create_district();
