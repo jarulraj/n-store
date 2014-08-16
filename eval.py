@@ -279,7 +279,7 @@ def create_ycsb_storage_bar_chart(datasets):
     # Y-AXIS    
     #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
-    ax1.set_ylim([0, 120])
+    #ax1.set_ylim([0, 120])
         
     # X-AXIS
     ax1.minorticks_on()
@@ -329,7 +329,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     # Y-AXIS    
     #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
-    ax1.set_ylim([0, 4000])
+    #ax1.set_ylim([0, 4000])
         
     # X-AXIS
     ax1.minorticks_on()
