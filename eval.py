@@ -175,7 +175,7 @@ def create_legend():
     fig = pylab.figure()
     ax1 = fig.add_subplot(111)
 
-    figlegend = pylab.figure(figsize=(5,4))
+    figlegend = pylab.figure(figsize=(11, 0.5))
 
     num_items = len(ENGINES);   
     ind = np.arange(1)  
@@ -189,8 +189,8 @@ def create_legend():
         bars[group] = ax1.bar(ind + margin + (group * width), data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
         
     # LEGEND
-    figlegend.legend(bars, LABELS, prop=LABEL_FP, loc=1, ncol=3, mode="expand", shadow=OPT_LEGEND_SHADOW, 
-                     frameon=True, borderaxespad=0.0, handleheight=2, handlelength=3.5)
+    figlegend.legend(bars, LABELS, prop=LABEL_FP, loc=1, ncol=6, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('legend.pdf')
 
