@@ -39,11 +39,7 @@ lsm_engine::~lsm_engine() {
 
     if (!conf.recovery) {
       fs_log.sync();
-
-      if(conf.storage_stats)
-        fs_log.truncate_chunk();
-      else
-        fs_log.close();
+      fs_log.close();
     }
 
     vector<table*> tables = db->tables->get_data();

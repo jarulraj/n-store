@@ -1172,7 +1172,7 @@ class cow_btree {
   void mpage_del(struct mpage *mp) {
     assert(RB_REMOVE(page_cache, page_cache, mp) == mp);
 
-    if (stat.cache_size > 0 && !lru_queue) {
+    if (stat.cache_size > 0) {
       stat.cache_size--;
       TAILQ_REMOVE(lru_queue, mp, lru_next);
     }
@@ -1196,6 +1196,9 @@ class cow_btree {
     if (persist) {
       pmemalloc_activate(copy);
       pmemalloc_activate(copy->page);
+    } else {
+      pmemalloc_count(copy);
+      pmemalloc_count(copy->page);
     }
 
     bcopy(mp->page, copy->page, head.psize);
@@ -1321,16 +1324,16 @@ class cow_btree {
   struct cow_btree_txn* txn_begin(int rdonly) {
     struct cow_btree_txn *_txn;
 
-    DPRINTF("META ROOT %u \n", meta.root);
+    DPRINTF("META ROOT %u", meta.root);
 
     if (!rdonly && txn != NULL) {
-      DPRINTF("write transaction already begun \n");
+      DPRINTF("write transaction already begun");
       errno = EBUSY;
       return NULL;
     }
 
     if ((_txn = new cow_btree_txn()) == NULL) {
-      DPRINTF("new: %s \n", strerror(errno));
+      DPRINTF("new: %s", strerror(errno));
       return NULL;
     }
 
@@ -1350,24 +1353,22 @@ class cow_btree {
 
       SIMPLEQ_INIT(_txn->dirty_queue);
 
-      DPRINTF("taking write lock on fd %d", fd);
-      /*
-       if (persist == false) {
-       if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-       printf("flock: %s", strerror(errno));
-       errno = EBUSY;
-       delete _txn->dirty_queue;
-       delete _txn;
-       return NULL;
-       }
-       }
-       */
+      DPRINTF("taking write lock on txn %p", _txn);
+      if (persist == false) {
+        if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+          DPRINTF("flock: %s", strerror(errno));
+          errno = EBUSY;
+          delete _txn->dirty_queue;
+          delete _txn;
+          return NULL;
+        }
+      }
       txn = _txn;
     }
 
     cow_btree_ref();
 
-    DPRINTF("Read meta \n");
+    DPRINTF("Read meta ");
 
     if (cow_btree_read_meta(&_txn->next_pgno) != BT_SUCCESS) {
       cow_btree_txn_abort(_txn);
@@ -1541,6 +1542,8 @@ class cow_btree {
       return -1;
     if (persist) {
       pmemalloc_activate(p);
+    } else {
+      pmemalloc_count(p);
     }
 
     p->flags = P_HEAD;
@@ -1641,6 +1644,8 @@ class cow_btree {
       return -1;
     if (persist) {
       pmemalloc_activate(mp);
+    } else {
+      pmemalloc_count(mp);
     }
 
     meta.prev_meta = meta.root;
@@ -1710,13 +1715,11 @@ class cow_btree {
     pgno_t meta_pgno, next_pgno;
     off_t _size = 0;
 
-    DPRINTF("cow_btree_read_meta: \n");
-
     if (persist == false) {
       if ((_size = lseek(fd, 0, SEEK_END)) == -1)
         goto fail;
 
-      DPRINTF("cow_btree_read_meta: size = %ld \n", _size);
+      DPRINTF("cow_btree_read_meta: size = %ld", _size);
 
       if (_size == head.psize) { /* there is only the header */
         if (p_next != NULL)
@@ -1726,7 +1729,7 @@ class cow_btree {
 
       next_pgno = _size / head.psize;
 
-      DPRINTF("size :: %lu %d next_pgno : %d \n", _size, head.psize, next_pgno);
+      DPRINTF("size :: %lu %d next_pgno : %d ", _size, head.psize, next_pgno);
     } else {
 
       DPRINTF("pages size : %d ", mpages->size);
@@ -1747,7 +1750,7 @@ class cow_btree {
     }
 
     meta_pgno = next_pgno - 1;
-    DPRINTF("meta_pgno : %d \n", meta_pgno);
+    DPRINTF("meta_pgno : %d ", meta_pgno);
 
     if (persist == false) {
       if (_size % head.psize != 0) {
@@ -1773,7 +1776,7 @@ class cow_btree {
       size = _size;
     }
 
-    DPRINTF("Copying meta \n");
+    DPRINTF("Copying meta ");
 
     while (meta_pgno > 0) {
       if ((mp = cow_btree_get_mpage(meta_pgno)) == NULL) {
@@ -2267,8 +2270,9 @@ class cow_btree {
         return -1;
       if (persist) {
         pmemalloc_activate(key->data);
+      } else {
+        pmemalloc_count(key->data);
       }
-
       concat_prefix(mp->prefix.str, mp->prefix.len, (char*) NODEKEY(cow_node),
                     cow_node->ksize, (char*) key->data, &key->size);
       //key->release_data = 1;
@@ -2459,6 +2463,9 @@ class cow_btree {
     if (persist) {
       pmemalloc_activate(mp);
       pmemalloc_activate(mp->page);
+    } else {
+      pmemalloc_count(mp);
+      pmemalloc_count(mp->page);
     }
 
     mp->pgno = mp->page->pgno = txn->next_pgno++;
@@ -3155,8 +3162,8 @@ class cow_btree {
     cow_btree_del_node(mp, ki);
     meta.entries--;
     rc = cow_btree_rebalance(mp);
-    if (rc != BT_SUCCESS)
-      _txn->flags |= BT_TXN_ERROR;
+    //if (rc != BT_SUCCESS)
+    //  _txn->flags |= BT_TXN_ERROR;
 
     done: if (close_txn) {
       if (rc == BT_SUCCESS)
@@ -3235,7 +3242,7 @@ class cow_btree {
     unsigned int i, j, split_indx;
     struct cow_node *cow_node;
     struct mpage *pright, *p, *mp;
-    struct cow_btval sepkey, rkey, rdata = cow_btval();
+    struct cow_btval sepkey, rkey, rdata;
     struct btkey tmpkey;
     struct page *copy;
 
@@ -3591,29 +3598,15 @@ class cow_btree {
     return cow_btree_txn_cursor_open(NULL);
   }
 
-  std::string get_rand_astring(size_t len) {
-    static const char alphanum[] = "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz";
-
-    char c;
-    std::string str;
-    for (unsigned int i = 0; i < len; i++) {
-      c = alphanum[rand() % (sizeof(alphanum) - 1)];
-      str += c;
-    }
-    return str;
-  }
-
   int compact() {
     std::string compact_path;
     cow_btree *btc;
     struct cow_btree_txn *_txn, *txnc = NULL;
-    int tmp_fd = -1;
+    int fd;
     pgno_t root;
 
     if (persist == false) {
-      DPRINTF("compacting btree with path --%s-- \n", path);
+      DPRINTF("compacting btree with path %s", path);
 
       if (path == NULL) {
         errno = EINVAL;
@@ -3625,21 +3618,18 @@ class cow_btree {
       return BT_FAIL;
 
     if (persist == false) {
-      compact_path = "/tmp/XXXXXX";
-      DPRINTF("compacting btree with compact path --%s-- \n",
-             compact_path.c_str());
-
-      tmp_fd = mkstemp((char*) compact_path.c_str());
-      if (tmp_fd == -1) {
+      compact_path = std::string(path) + ".compact.nvm";
+      fd = mkstemp((char*) compact_path.c_str());
+      if (fd == -1) {
         cow_btree_txn_abort(_txn);
         return BT_FAIL;
       }
 
-      btc = new cow_btree(persist, tmp_fd);
+      btc = new cow_btree(persist, fd);
       bcopy(&meta, &btc->meta, sizeof(meta));
       btc->meta.revisions = 0;
     } else {
-      btc = new cow_btree(persist, tmp_fd);
+      btc = new cow_btree(persist, fd);
       pmemalloc_activate(btc);
       bcopy(&meta, &btc->meta, sizeof(meta));
       btc->meta.revisions = 0;
@@ -3650,7 +3640,6 @@ class cow_btree {
 
     if (meta.root != P_INVALID) {
       root = cow_btree_compact_tree(meta.root, btc);
-
       if (root == P_INVALID)
         goto failed;
       if (btc->cow_btree_write_meta(root, 0) != BT_SUCCESS)
@@ -3658,9 +3647,9 @@ class cow_btree {
     }
 
     if (persist == false) {
-      fsync(tmp_fd);
+      fsync(fd);
 
-      DPRINTF("renaming %s to %s \n", compact_path.c_str(), path);
+      DPRINTF("renaming %s to %s", compact_path.c_str(), path);
       if (rename(compact_path.c_str(), path) != 0)
         goto failed;
 
@@ -3669,7 +3658,6 @@ class cow_btree {
        */
       if (cow_btree_write_meta(P_INVALID, BT_TOMBSTONE) != BT_SUCCESS)
         goto failed;
-
     } else {
       DPRINTF("renaming tree");
 
@@ -3683,26 +3671,13 @@ class cow_btree {
     cow_btree_txn_abort(_txn);
     cow_btree_txn_abort(txnc);
 
-    if (persist == false) {
+    if (persist == false)
       btc->cow_btree_close();
-
-      unsigned int oflags = 0;
-      mode_t _mode = 0644;
-      oflags = O_RDWR | O_CREAT | O_APPEND;
-
-      cow_btree_close();
-
-      if ((fd = open(path, oflags, _mode)) == -1)
-        goto failed;
-
-      cow_btree_open_fd(fd);
-    }
 
     mpage_prune();
     return 0;
 
-    failed: DPRINTF("failed \n");
-    cow_btree_txn_abort(_txn);
+    failed: cow_btree_txn_abort(_txn);
     cow_btree_txn_abort(txnc);
 
     if (persist == false)

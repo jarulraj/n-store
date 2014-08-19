@@ -244,53 +244,51 @@ def create_ycsb_storage_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
     
-    N = 1
-    num_items = len(ENGINES);
+    x_values = YCSB_SKEW_FACTORS
+    N = len(x_values)
+    x_labels = ["Low Skew", "High Skew"]
 
+    num_items = len(ENGINES);   
     ind = np.arange(N)  
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
-    
-    # LINE       
-    for line in  xrange(len(ENGINES)):
+
+    # GROUP    
+    for group in xrange(len(datasets)):
         fs_data = []       
         pm_data = [] 
-        
-        LOG.info("LINE :: %s", datasets[line])
 
-        for col in  xrange(len(datasets[line])):
-            if col == 1:
-                fs_data.append(datasets[line][col] / (1024 * 1024 * 1024))
-            if col == 2:
-                pm_data.append(datasets[line][col] / (1024 * 1024 * 1024))
+        # LINE
+        for line in  xrange(len(datasets[group])):
+            for col in  xrange(len(datasets[group][line])):
+                if col == 1:
+                    fs_data.append(1 + datasets[group][line][col] / (1024 * 1024 * 1024))
+                if col == 2:
+                    pm_data.append(1 + datasets[group][line][col] / (1024 * 1024 * 1024))
+  
+        LOG.info("%s fs_data = %s pm_data = %s ", LABELS[group], str(fs_data), str(pm_data))
                 
-        bars[line * 2] = ax1.bar(ind + margin + (line * width), fs_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
-        bars[line * 2+ 1] = ax1.bar(ind + margin + (line * width), pm_data, width, bottom=fs_data, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
-        
+        bars[group * 2] = ax1.bar(ind + margin + (group * width), fs_data, width, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
+        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2 + 1],   linewidth=BAR_LINEWIDTH)
+    
     # GRID
-    axes = ax1.get_axes()
+    axes = ax1.get_axes()      
     makeGrid(ax1)
-        
-    # Y-AXIS
+            
+    # Y-AXIS    
     #ax1.set_yscale('log', nonposy='clip')
-    ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
-    # ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
+    #ax1.set_ylim([0, 120])
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
-    ax1.minorticks_off()
-    ax1.tick_params(\
-    axis='x',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    bottom='off',      # ticks along the bottom edge are off
-    top='off',         # ticks along the top edge are off
-    labelbottom='off')
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
         
+    ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
+            
     return (fig)
-   
 
 def create_ycsb_nvm_bar_chart(datasets):
     fig = plot.figure()
@@ -611,15 +609,17 @@ def ycsb_perf_plot():
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
-    datasets = []
-            
-    dataFile = loadDataFile(6, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, "storage.csv")))
-    datasets = dataFile
-                                  
-    fig = create_ycsb_storage_bar_chart(datasets)  
-                          
-    fileName = "ycsb-storage.pdf"
-    saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT)
+    for workload in YCSB_WORKLOAD_MIX:    
+        datasets = []
+                
+        for sy in SYSTEMS:    
+            dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, sy + "/" + workload + "/storage.csv")))
+            datasets.append(dataFile)
+
+                                      
+        fig = create_ycsb_storage_bar_chart(datasets)                        
+        fileName = "ycsb-storage-%s.pdf" % (workload)
+        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
 # YCSB NVM -- PLOT               
 def ycsb_nvm_plot():    
@@ -630,8 +630,7 @@ def ycsb_nvm_plot():
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/nvm.csv")))
             datasets.append(dataFile)            
                        
-        fig = create_ycsb_nvm_bar_chart(datasets)       
-                         
+        fig = create_ycsb_nvm_bar_chart(datasets)                        
         fileName = "ycsb-nvm-%s.pdf" % (workload)
         saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
 
@@ -911,8 +910,8 @@ def ycsb_storage_eval(log_name):
     txns = YCSB_TXNS
             
     # GET STATS
-    def get_stats(engine_type):
-        print ("eng : %s " % (engine_type))
+    def get_stats(engine_type, rw_mix, skew_factor):
+        print ("eng : %s rw_mix : %lf" % (engine_type, rw_mix))
                 
         subprocess.call(['ls', '-larth', FS_PATH ], stdout=log_file)
         find_cmd = subprocess.Popen(['find', FS_PATH , '-name', '*.nvm', '-exec', 'ls', '-lart', '{}', ';'], stdout=subprocess.PIPE)
@@ -942,42 +941,60 @@ def ycsb_storage_eval(log_name):
         log_file.flush()
     
         if(engine_type == "-a"):
-            e_type = 0                
+            engine_type = "wal"                
         elif(engine_type == "-s"):
-            e_type = 1
+            engine_type = "sp"
         elif(engine_type == "-m"):
-            e_type = 2
+            engine_type = "lsm"
         elif(engine_type == "-w"):
-            e_type = 3
+            engine_type = "opt_wal"
         elif(engine_type == "-c"):
-            e_type = 4
+            engine_type = "opt_sp"
         elif(engine_type == "-l"):
-            e_type = 5
-                  
-        result_directory = YCSB_STORAGE_DIR;
+            engine_type = "opt_lsm"
+      
+        if(rw_mix == 0):
+            workload_type = 'read-only'
+        elif(rw_mix == 0.1):
+            workload_type = 'read-heavy'
+        elif(rw_mix == 0.5):
+            workload_type = 'write-heavy'    
+            
+        result_directory = YCSB_STORAGE_DIR + engine_type + "/" + workload_type + "/";
         if not os.path.exists(result_directory):
             os.makedirs(result_directory)
 
         result_file_name = result_directory + "storage.csv"
         result_file = open(result_file_name, "a")
-        print(str(e_type)  + " , " + str(fs_st) + " , " + str(pm_st))
-        result_file.write(str(e_type) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
+        print(str(skew_factor) + " , " + str(fs_st) + " , " + str(pm_st))
+        result_file.write(str(skew_factor) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
         result_file.close()    
+
         
+    rw_mixes = YCSB_RW_MIXES
+    skew_factors = YCSB_SKEW_FACTORS
     engines = ENGINES   
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
     log_file.write('Start :: %s \n' % datetime.datetime.now())
                    
-    ostr = ("--------------------------------------------------- \n")
-    log_file.write(ostr)
-    log_file.flush()
-
-    for eng in engines:
-        cleanup(log_file)
-        subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-z', eng], stdout=log_file)
-        get_stats(eng)
+    # RW MIX
+    for rw_mix  in rw_mixes:
+        # SKEW FACTOR
+        for skew_factor  in skew_factors:
+            ostr = ("--------------------------------------------------- \n")
+            print (ostr, end="")
+            log_file.write(ostr)
+            ostr = ("RW MIX :: %.1f SKEW :: %.2f \n" % (rw_mix, skew_factor))
+            print (ostr, end="")
+            log_file.write(ostr)                    
+            log_file.flush()
+    
+            for eng in engines:
+                cleanup(log_file)
+                subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-z', eng], stdout=log_file)
+                get_stats(eng, rw_mix, skew_factor)
 
 
 # YCSB NVM -- EVAL

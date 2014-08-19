@@ -39,17 +39,14 @@ wal_engine::~wal_engine() {
       return;
 
     fs_log.sync();
-
-    if(conf.storage_stats)
-      fs_log.truncate_chunk();
-    else
-      fs_log.close();
+    fs_log.close();
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
       tab->fs_data.sync();
       tab->fs_data.close();
     }
+
   }
 
 }

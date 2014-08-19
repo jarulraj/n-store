@@ -87,7 +87,7 @@ class record {
 
   void* get_pointer(const int field_id) {
     void* vcval = NULL;
-    memcpy(&vcval, &(data[sptr->columns[field_id].offset]), sizeof(void*));
+    memcpy(&vcval, &(data[sptr->columns[field_id].offset]), sizeof(char*));
     return vcval;
   }
 
@@ -123,12 +123,12 @@ class record {
     //assert(sptr->columns[field_id].type == field_type::VARCHAR);
     char* vc = new char[vc_str.size() + 1];
     strcpy(vc, vc_str.c_str());
-    memcpy(&(data[sptr->columns[field_id].offset]), &vc, sizeof(void*));
+    memcpy(&(data[sptr->columns[field_id].offset]), &vc, sizeof(char*));
   }
 
   void set_pointer(const int field_id, void* pval) {
     //assert(sptr->columns[field_id].type == field_type::VARCHAR);
-    memcpy(&(data[sptr->columns[field_id].offset]), &pval, sizeof(void*));
+    memcpy(&(data[sptr->columns[field_id].offset]), &pval, sizeof(char*));
   }
 
   void persist_data() {
