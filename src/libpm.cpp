@@ -82,7 +82,6 @@ void* pmemalloc_init(__attribute__((unused)) const char *path,
 
 void* pmemalloc_static_area() {
   void* static_area = new static_info();
-  memset(static_area, 0, sizeof(static_area));
   return static_area;
 }
 
