@@ -78,8 +78,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.gc_interval = 5;
   state.ycsb_per_writes = 0.1;
 
-  state.merge_interval = 100000;
-  state.merge_ratio = 0.2;
+  state.merge_interval = 10000;
+  state.merge_ratio = 0.05;
 
   state.etype = engine_type::WAL;
   state.btype = benchmark_type::YCSB;

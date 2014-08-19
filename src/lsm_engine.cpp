@@ -291,7 +291,6 @@ void lsm_engine::merge_check() {
 }
 
 void lsm_engine::merge(bool force) {
-  //std::cout << "Merging ! " << endl;
 
   vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
@@ -305,7 +304,7 @@ void lsm_engine::merge(bool force) {
 
     // Check if need to merge
     if (force || compact) {
-
+      //std::cout << "Merging ! " << endl;
       pbtree<unsigned long, record*>::const_iterator itr;
       record *pm_rec, *fs_rec;
       unsigned long key;
