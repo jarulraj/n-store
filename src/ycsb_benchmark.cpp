@@ -37,7 +37,7 @@ table* create_usertable(config& conf) {
   cols.push_back(key);
 
   for (int itr = 1; itr <= conf.ycsb_num_val_fields; itr++) {
-    field_info val = field_info(offset, 12, conf.ycsb_field_size,
+    field_info val = field_info(offset, 7, conf.ycsb_field_size,
                                 field_type::VARCHAR, 0, 1);
     offset += val.ser_len;
     cols.push_back(val);

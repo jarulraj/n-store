@@ -73,10 +73,10 @@ class coordinator {
 
     double max_dur = 0;
     for (unsigned int i = 0; i < num_executors; i++) {
-      cout<<"dur :"<<i<<" :: "<<tms[i].duration()<<endl;
+      //cout<<"dur :"<<i<<" :: "<<tms[i].duration()<<endl;
       max_dur = std::max(max_dur, tms[i].duration());
     }
-    cout<<"max dur :"<<max_dur<<endl;
+    //cout<<"max dur :"<<max_dur<<endl;
     display_stats(conf.etype, max_dur, num_txns);
 
     /*

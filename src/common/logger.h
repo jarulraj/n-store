@@ -12,6 +12,8 @@ using namespace std;
 
 // FS LOGGING
 
+#define CHUNK 0.1
+
 class logger {
  public:
   logger()
@@ -78,7 +80,7 @@ class logger {
     return ret;
   }
 
-  void disable(){
+  void disable() {
     can_log = false;
   }
 
@@ -107,6 +109,16 @@ class logger {
 
   void truncate() {
     int rc = ftruncate(log_file_fd, 0);
+    if (rc == -1) {
+      perror("truncate");
+    }
+  }
+
+  void truncate_chunk() {
+    fseek(log_file, 0L, SEEK_END);
+    size_t sz = ftell(log_file);
+
+    int rc = ftruncate(log_file_fd, sz * CHUNK);
     if (rc == -1) {
       perror("truncate");
     }

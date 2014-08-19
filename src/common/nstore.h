@@ -71,6 +71,7 @@ class config {
 
   bool verbose;
   bool recovery;
+  bool storage_stats;
 
   int active_txn_threshold;
   int load_batch_size;
