@@ -3242,7 +3242,7 @@ class cow_btree {
     unsigned int i, j, split_indx;
     struct cow_node *cow_node;
     struct mpage *pright, *p, *mp;
-    struct cow_btval sepkey, rkey, rdata;
+    struct cow_btval sepkey, rkey, rdata = cow_btval();
     struct btkey tmpkey;
     struct page *copy;
 

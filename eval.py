@@ -346,7 +346,7 @@ def create_ycsb_recovery_bar_chart(datasets):
      
     x_values = YCSB_RECOVERY_TXNS
     N = len(x_values)
-    x_labels = ["1000 txns", "10000 txns"]
+    x_labels = YCSB_RECOVERY_TXNS
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
@@ -378,7 +378,7 @@ def create_ycsb_recovery_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
+    ax1.set_xlabel("Workload (# of txns)", fontproperties=LABEL_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
@@ -545,7 +545,7 @@ def create_tpcc_recovery_bar_chart(datasets):
      
     x_values = TPCC_RECOVERY_TXNS
     N = len(x_values)
-    x_labels = ["1000 txns", "10000 txns"]
+    x_labels = TPCC_RECOVERY_TXNS
     
     num_items = len(ENGINES);
 
@@ -579,7 +579,7 @@ def create_tpcc_recovery_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
+    ax1.set_xlabel("Workload (# of txns)", fontproperties=LABEL_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
@@ -640,7 +640,7 @@ def  ycsb_recovery_plot():
         datasets = []
     
         for sy in SYSTEMS:    
-            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(YCSB_RECOVERY_DIR, sy + "/recovery.csv")))
+            dataFile = loadDataFile(3, 2, os.path.realpath(os.path.join(YCSB_RECOVERY_DIR, sy + "/recovery.csv")))
             datasets.append(dataFile)
                                       
     fig = create_ycsb_recovery_bar_chart(datasets)
@@ -692,7 +692,7 @@ def  tpcc_recovery_plot():
         datasets = []
     
         for sy in SYSTEMS:    
-            dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_RECOVERY_DIR, sy + "/recovery.csv")))
+            dataFile = loadDataFile(3, 2, os.path.realpath(os.path.join(TPCC_RECOVERY_DIR, sy + "/recovery.csv")))
             datasets.append(dataFile)
                                       
     fig = create_tpcc_recovery_bar_chart(datasets)

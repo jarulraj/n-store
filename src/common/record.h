@@ -69,7 +69,7 @@ class record {
 
       case field_type::VARCHAR: {
         char* vcval = NULL;
-        memcpy(&vcval, &(data[offset]), sizeof(char*));
+        memcpy(&vcval, &(data[offset]), sizeof(void*));
         if (vcval != NULL) {
           field = std::string(vcval);
         }
@@ -87,7 +87,7 @@ class record {
 
   void* get_pointer(const int field_id) {
     void* vcval = NULL;
-    memcpy(&vcval, &(data[sptr->columns[field_id].offset]), sizeof(char*));
+    memcpy(&vcval, &(data[sptr->columns[field_id].offset]), sizeof(void*));
     return vcval;
   }
 
@@ -123,12 +123,12 @@ class record {
     //assert(sptr->columns[field_id].type == field_type::VARCHAR);
     char* vc = new char[vc_str.size() + 1];
     strcpy(vc, vc_str.c_str());
-    memcpy(&(data[sptr->columns[field_id].offset]), &vc, sizeof(char*));
+    memcpy(&(data[sptr->columns[field_id].offset]), &vc, sizeof(void*));
   }
 
   void set_pointer(const int field_id, void* pval) {
     //assert(sptr->columns[field_id].type == field_type::VARCHAR);
-    memcpy(&(data[sptr->columns[field_id].offset]), &pval, sizeof(char*));
+    memcpy(&(data[sptr->columns[field_id].offset]), &pval, sizeof(void*));
   }
 
   void persist_data() {
