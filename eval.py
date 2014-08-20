@@ -862,6 +862,8 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
         elif(key[0] == '0.1'):
             workload_type = 'read-heavy'
         elif(key[0] == '0.5'):
+            workload_type = 'balanced'
+        elif(key[0] == '0.9'):
             workload_type = 'write-heavy'
     
         nvm_latency = str(key[2]);
@@ -958,6 +960,8 @@ def ycsb_storage_eval(log_name):
         elif(rw_mix == 0.1):
             workload_type = 'read-heavy'
         elif(rw_mix == 0.5):
+            workload_type = 'balanced'    
+        elif(rw_mix == 0.9):
             workload_type = 'write-heavy'    
             
         result_directory = YCSB_STORAGE_DIR + engine_type + "/" + workload_type + "/";
@@ -1053,6 +1057,8 @@ def ycsb_nvm_eval(log_name):
             elif(rw_mix == '0.1'):
                 workload_type = 'read-heavy'
             elif(rw_mix == '0.5'):
+                workload_type = 'balanced'  
+            elif(rw_mix == '0.9'):
                 workload_type = 'write-heavy'  
                        
         if "Throughput" in line:
