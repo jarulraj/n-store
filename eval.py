@@ -79,8 +79,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("200", "800")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000000
-YCSB_TXNS = 8000000
+YCSB_KEYS = 100000
+YCSB_TXNS = 400000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
@@ -908,9 +908,7 @@ def ycsb_storage_eval(log_name):
     txns = YCSB_TXNS
             
     # GET STATS
-    def get_stats(engine_type, rw_mix, skew_factor):
-        print ("eng : %s rw_mix : %lf" % (engine_type, rw_mix))
-                
+    def get_stats(engine_type):                
         subprocess.call(['ls', '-larth', FS_PATH ], stdout=log_file)
         find_cmd = subprocess.Popen(['find', FS_PATH , '-name', '*.nvm', '-exec', 'ls', '-lart', '{}', ';'], stdout=subprocess.PIPE)
         log_file.write("FS STORAGE :: ")
@@ -939,62 +937,39 @@ def ycsb_storage_eval(log_name):
         log_file.flush()
     
         if(engine_type == "-a"):
-            engine_type = "wal"                
+            e_type = 0                
         elif(engine_type == "-s"):
-            engine_type = "sp"
+            e_type = 1
         elif(engine_type == "-m"):
-            engine_type = "lsm"
+            e_type = 2
         elif(engine_type == "-w"):
-            engine_type = "opt_wal"
+            e_type = 3
         elif(engine_type == "-c"):
-            engine_type = "opt_sp"
+            e_type = 4
         elif(engine_type == "-l"):
-            engine_type = "opt_lsm"
-      
-        if(rw_mix == 0):
-            workload_type = 'read-only'
-        elif(rw_mix == 0.1):
-            workload_type = 'read-heavy'
-        elif(rw_mix == 0.5):
-            workload_type = 'balanced'    
-        elif(rw_mix == 0.9):
-            workload_type = 'write-heavy'    
-            
-        result_directory = YCSB_STORAGE_DIR + engine_type + "/" + workload_type + "/";
+            e_type = 5
+          
+        result_directory = YCSB_STORAGE_DIR ;
         if not os.path.exists(result_directory):
             os.makedirs(result_directory)
 
         result_file_name = result_directory + "storage.csv"
         result_file = open(result_file_name, "a")
-        print(str(skew_factor) + " , " + str(fs_st) + " , " + str(pm_st))
-        result_file.write(str(skew_factor) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
+        print(str(engine_type) + " , " + str(fs_st) + " , " + str(pm_st))
+        result_file.write(str(e_type) + " , " + str(fs_st) + " , " + str(pm_st) + "\n")
         result_file.close()    
 
         
-    rw_mixes = YCSB_RW_MIXES
-    skew_factors = YCSB_SKEW_FACTORS
     engines = ENGINES   
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
     log_file.write('Start :: %s \n' % datetime.datetime.now())
                    
-    # RW MIX
-    for rw_mix  in rw_mixes:
-        # SKEW FACTOR
-        for skew_factor  in skew_factors:
-            ostr = ("--------------------------------------------------- \n")
-            print (ostr, end="")
-            log_file.write(ostr)
-            ostr = ("RW MIX :: %.1f SKEW :: %.2f \n" % (rw_mix, skew_factor))
-            print (ostr, end="")
-            log_file.write(ostr)                    
-            log_file.flush()
-    
-            for eng in engines:
-                cleanup(log_file)
-                subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), '-z', eng], stdout=log_file)
-                get_stats(eng, rw_mix, skew_factor)
+    for eng in engines:
+        cleanup(log_file)
+        subprocess.call([NUMACTL, NUMACTL_FLAGS, NSTORE, '-k', str(keys), '-x', str(txns), '-p', '0.5', '-q', '0.1', '-z', eng], stdout=log_file)
+        get_stats(eng)
 
 
 # YCSB NVM -- EVAL

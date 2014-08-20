@@ -32,7 +32,7 @@ static void usage_exit(FILE *out) {
           "   -p --per-writes        :  Percent of writes \n"
           "   -u --ycsb-update-one   :  Update one field \n"
           "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
-          "   -z --pm_stats          :  Collect PM stats \n"
+          "   -z --storage_stats     :  Collect storage stats \n"
           "   -o --tpcc_stock-level  :  TPCC stock level only \n"
           "   -r --recovery          :  Recovery mode \n"
           "   -b --load-batch-size   :  Load batch size \n"
@@ -98,6 +98,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
   state.active_txn_threshold = 10;
   state.load_batch_size = 50000;
+  state.storage_stats = false;
 
   // Parse args
   while (1) {
@@ -182,8 +183,8 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         cout << "ycsb_update_one " << endl;
         break;
       case 'z':
-        pm_stats = true;
-        cout << "pm_stats " << endl;
+        state.storage_stats = true;
+        cout << "storage_stats " << endl;
         break;
       case 'o':
         state.tpcc_stock_level_only = true;
@@ -229,7 +230,8 @@ int main(int argc, char **argv) {
   coordinator cc(state);
   cc.eval(state);
 
-  pmemalloc_end(path);
+  if(state.storage_stats)
+    pmemalloc_end(path);
 
   return 0;
 }

@@ -39,7 +39,10 @@ wal_engine::~wal_engine() {
       return;
 
     fs_log.sync();
-    fs_log.close();
+    if (conf.storage_stats)
+      fs_log.truncate_chunk();
+    else
+      fs_log.close();
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
@@ -92,6 +95,7 @@ int wal_engine::insert(const statement& st) {
 
   // Check if key present
   if (indices->at(0)->off_map->exists(key)) {
+    after_rec->clear_data();
     delete after_rec;
     return EXIT_SUCCESS;
   }
@@ -115,6 +119,7 @@ int wal_engine::insert(const statement& st) {
     indices->at(index_itr)->off_map->insert(key, storage_offset);
   }
 
+  after_rec->clear_data();
   delete after_rec;
   return EXIT_SUCCESS;
 }
@@ -161,6 +166,7 @@ int wal_engine::remove(const statement& st) {
 
   before_rec->clear_data();
   delete before_rec;
+
   delete rec_ptr;
   return EXIT_SUCCESS;
 }
@@ -175,16 +181,16 @@ int wal_engine::update(const statement& st) {
   unsigned long key = hash_fn(key_str);
   off_t storage_offset;
   std::string val, before_tuple;
-  record* before_rec = NULL;
 
   // Check if key does not exist
   if (indices->at(0)->off_map->at(key, &storage_offset) == false) {
+    rec_ptr->clear_data();
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
 
   val = tab->fs_data.at(storage_offset);
-  before_rec = sr.deserialize(val, tab->sptr);
+  record* before_rec = sr.deserialize(val, tab->sptr);
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -193,10 +199,16 @@ int wal_engine::update(const statement& st) {
 
   // Update existing record
   for (int field_itr : st.field_ids) {
+    if (rec_ptr->sptr->columns[field_itr].inlined == 0){
+      void* before_field = before_rec->get_pointer(field_itr);
+      delete (char*) before_field;
+    }
+
     before_rec->set_data(field_itr, rec_ptr);
   }
   before_tuple = sr.serialize(before_rec, tab->sptr);
   entry_stream << before_tuple << "\n";
+
 
   // Add log entry
   entry_str = entry_stream.str();
@@ -206,6 +218,7 @@ int wal_engine::update(const statement& st) {
   //LOG_INFO("update offset : %lu", storage_offset);
   tab->fs_data.update(storage_offset, before_tuple);
 
+  before_rec->clear_data();
   delete before_rec;
   delete rec_ptr;
   return EXIT_SUCCESS;
@@ -251,6 +264,7 @@ void wal_engine::load(const statement& st) {
     indices->at(index_itr)->off_map->insert(key, storage_offset);
   }
 
+  after_rec->clear_data();
   delete after_rec;
 }
 

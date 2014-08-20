@@ -103,6 +103,7 @@ int opt_lsm_engine::insert(const statement& st) {
   // Check if key exists
   if (indices->at(0)->pm_map->exists(key)
       || indices->at(0)->off_map->exists(key)) {
+    after_rec->clear_data();
     delete after_rec;
     return EXIT_SUCCESS;
   }

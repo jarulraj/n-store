@@ -38,15 +38,12 @@ struct static_info {
 
 extern struct static_info* sp;
 extern void* pmp;
-extern bool pm_stats;
 
 void* pmemalloc_init(const char *path, size_t size);
 void* pmemalloc_static_area();
-void* pmemalloc_reserve(size_t size);
 void pmemalloc_activate(void *abs_ptr_);
 void pmemalloc_free(void *abs_ptr_);
 void pmemalloc_check(const char *path);
 void pmemalloc_end(const char *path);
-void pmemalloc_count(void *abs_ptr_);
 
 #endif /* LIBPM_H_ */
