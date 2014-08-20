@@ -1188,8 +1188,6 @@ class btree {
 
       if (persist)
         pmemalloc_activate(m_stats);
-      else
-        pmemalloc_count(m_stats);
     }
   }
 
@@ -1340,8 +1338,6 @@ class btree {
     leaf_node *n = new (leaf_node_allocator().allocate(1)) leaf_node();
     if (persist)
       pmemalloc_activate(n);
-    else
-      pmemalloc_count(n);
 
     n->initialize();
     m_stats->leaves++;
@@ -1353,8 +1349,6 @@ class btree {
     inner_node *n = new (inner_node_allocator().allocate(1)) inner_node();
     if (persist)
       pmemalloc_activate(n);
-    else
-      pmemalloc_count(n);
 
     n->initialize(level);
     m_stats->innernodes++;
@@ -2315,8 +2309,6 @@ class btree {
     nextlevel_type* nextlevel = new nextlevel_type[num_parents];
     if (persist)
       pmemalloc_activate(nextlevel);
-    else
-      pmemalloc_count(nextlevel);
 
     leaf_node* leaf = m_headleaf;
     for (size_t i = 0; i < num_parents; ++i) {

@@ -19,13 +19,6 @@ sp_engine::sp_engine(const config& _conf, database* _db, bool _read_only,
   txn_ptr = bt->txn_begin(read_only);
   assert(txn_ptr);
 
-  vector<table*> tables = db->tables->get_data();
-  for (table* tab : tables) {
-    std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
-        + std::string(tab->table_name);
-    tab->fs_data.configure(table_file_name, tab->max_tuple_size, true);
-  }
-
   // Commit only if needed
   if (!read_only) {
     gc = std::thread(&sp_engine::group_commit, this);
@@ -45,13 +38,10 @@ sp_engine::~sp_engine() {
     assert(bt->txn_commit(txn_ptr) == BT_SUCCESS);
   }
 
-  vector<table*> tables = db->tables->get_data();
-  for (table* tab : tables) {
-    tab->fs_data.sync();
-    tab->fs_data.close();
-  }
-
   txn_ptr = NULL;
+
+  if(conf.storage_stats)
+    bt->compact();
 
 }
 
@@ -73,9 +63,6 @@ std::string sp_engine::select(const statement& st) {
   // Read from latest clean version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
     tuple = std::string((char*) val.data);
-    off_t storage_offset = std::stoi(tuple);
-
-    tuple = tab->fs_data.at(storage_offset);
     tuple = sr.project(tuple, st.projection);
     LOG_INFO("val : --%s--", tuple.c_str());
   }
@@ -93,7 +80,6 @@ int sp_engine::insert(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   struct cow_btval key, val;
-  off_t storage_offset;
 
   std::string key_str = sr.serialize(after_rec, indices->at(0)->sptr);
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
@@ -104,16 +90,14 @@ int sp_engine::insert(const statement& st) {
 
   // Check if key present in current version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+    after_rec->clear_data();
     delete after_rec;
     return EXIT_SUCCESS;
   }
 
   std::string after_tuple = sr.serialize(after_rec, after_rec->sptr);
-  storage_offset = tab->fs_data.push_back(after_tuple);
-
-  std::string offset_str = std::to_string(storage_offset);
-  val.data = (void*) offset_str.c_str();
-  val.size = offset_str.size();
+  val.data = (void*) after_tuple.c_str();
+  val.size = after_tuple.size();
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -127,6 +111,7 @@ int sp_engine::insert(const statement& st) {
     bt->insert(txn_ptr, &key, &val);
   }
 
+  after_rec->clear_data();
   delete after_rec;
   return EXIT_SUCCESS;
 }
@@ -178,8 +163,8 @@ int sp_engine::update(const statement& st) {
   unsigned int num_indices = tab->num_indices;
   unsigned int index_itr;
   struct cow_btval key, val, update_val;
-
   std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
+
   unsigned long key_id = hasher(hash_fn(key_str), st.table_id, 0);
   key_str = std::to_string(key_id);
   key.data = (void*) key_str.c_str();
@@ -187,6 +172,7 @@ int sp_engine::update(const statement& st) {
 
   // Check if key does not exist in current version
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+    rec_ptr->clear_data();
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
@@ -195,9 +181,6 @@ int sp_engine::update(const statement& st) {
   std::string before_tuple, after_tuple;
 
   before_tuple = std::string((char*) val.data);
-  off_t storage_offset = std::stoi(before_tuple);
-
-  before_tuple = tab->fs_data.at(storage_offset);
   record* before_rec = sr.deserialize(before_tuple, tab->sptr);
 
   // Update record
@@ -206,11 +189,9 @@ int sp_engine::update(const statement& st) {
   }
 
   after_tuple = sr.serialize(before_rec, tab->sptr);
-  storage_offset = tab->fs_data.push_back(after_tuple);
 
-  std::string offset_str = std::to_string(storage_offset);
-  update_val.data = (void*) offset_str.c_str();
-  update_val.size = offset_str.size();
+  update_val.data = (void*) after_tuple.c_str();
+  update_val.size = after_tuple.size();
 
   // Update entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -226,6 +207,7 @@ int sp_engine::update(const statement& st) {
   }
 
   delete rec_ptr;
+  before_rec->clear_data();
   delete before_rec;
 
   return EXIT_SUCCESS;
@@ -246,11 +228,9 @@ void sp_engine::load(const statement& st) {
   key_str = std::to_string(key_id);
 
   std::string after_tuple = sr.serialize(after_rec, after_rec->sptr);
-  off_t storage_offset = tab->fs_data.push_back(after_tuple);
 
-  std::string offset_str = std::to_string(storage_offset);
-  val.data = (void*) offset_str.c_str();
-  val.size = offset_str.size();
+  val.data = (void*) after_tuple.c_str();
+  val.size = after_tuple.size();
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
@@ -264,6 +244,7 @@ void sp_engine::load(const statement& st) {
     bt->insert(txn_ptr, &key, &val);
   }
 
+  after_rec->clear_data();
   delete after_rec;
 }
 

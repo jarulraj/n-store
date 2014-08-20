@@ -100,7 +100,7 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
     num_txns = conf.num_txns;
     num_keys = 1000;
     conf.ycsb_per_writes = 0.5;
-    conf.ycsb_tuples_per_txn = 100;
+    conf.ycsb_tuples_per_txn = 10;
   }
 
   if (conf.ycsb_update_one == false) {

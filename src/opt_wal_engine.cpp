@@ -55,6 +55,7 @@ int opt_wal_engine::insert(const statement& st) {
 
   // Check if key exists
   if (indices->at(0)->pm_map->exists(key) != 0) {
+    after_rec->clear_data();
     delete after_rec;
     return EXIT_SUCCESS;
   }
@@ -155,6 +156,7 @@ int opt_wal_engine::update(const statement& st) {
 
   // Check if key does not exist
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
+    rec_ptr->clear_data();
     delete rec_ptr;
     return EXIT_SUCCESS;
   }

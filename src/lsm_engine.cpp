@@ -39,7 +39,11 @@ lsm_engine::~lsm_engine() {
 
     if (!conf.recovery) {
       fs_log.sync();
-      fs_log.close();
+
+      if(conf.storage_stats)
+        fs_log.truncate_chunk();
+      else
+        fs_log.close();
     }
 
     vector<table*> tables = db->tables->get_data();
@@ -54,10 +58,10 @@ std::string lsm_engine::select(const statement& st) {
   LOG_INFO("Select");
   std::string val;
 
-  record *rec_ptr = st.rec_ptr;
+  record*rec_ptr = st.rec_ptr;
   record *pm_rec = NULL, *fs_rec = NULL;
-  table *tab = db->tables->at(st.table_id);
-  table_index *table_index = tab->indices->at(st.table_index_id);
+  table* tab = db->tables->at(st.table_id);
+  table_index* table_index = tab->indices->at(st.table_index_id);
   std::string key_str = sr.serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
@@ -80,6 +84,8 @@ std::string lsm_engine::select(const statement& st) {
     val = sr.serialize(pm_rec, st.projection);
   } else if (pm_rec == NULL && fs_rec != NULL) {
     val = sr.serialize(fs_rec, st.projection);
+
+    fs_rec->clear_data();
     delete fs_rec;
   } else if (pm_rec != NULL && fs_rec != NULL) {
     // Merge
@@ -96,6 +102,7 @@ std::string lsm_engine::select(const statement& st) {
   LOG_INFO("val : %s", val.c_str());
   //cout << "val : " << val << endl;
 
+  delete rec_ptr;
   return val;
 }
 
@@ -114,6 +121,7 @@ int lsm_engine::insert(const statement& st) {
   // Check if key exists
   if (indices->at(0)->pm_map->exists(key)
       || indices->at(0)->off_map->exists(key)) {
+    after_rec->clear_data();
     delete after_rec;
     return EXIT_SUCCESS;
   }
@@ -155,7 +163,6 @@ int lsm_engine::remove(const statement& st) {
   // Check if key does not exist
   if (indices->at(0)->pm_map->exists(key) == 0
       && indices->at(0)->off_map->exists(key) == 0) {
-    //LOG_INFO("not found in either index ");
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
@@ -180,6 +187,7 @@ int lsm_engine::remove(const statement& st) {
     indices->at(index_itr)->off_map->erase(key);
   }
 
+  before_rec->clear_data();
   delete before_rec;
   return EXIT_SUCCESS;
 }
@@ -334,6 +342,7 @@ void lsm_engine::merge(bool force) {
             //LOG_INFO("Merge :: update :: val :: %s ", val.c_str());
 
             tab->fs_data.update(storage_offset, val);
+            fs_rec->clear_data();
             delete fs_rec;
           }
         } else {
@@ -350,6 +359,7 @@ void lsm_engine::merge(bool force) {
           }
         }
 
+        //pm_rec->clear_data();
         delete pm_rec;
       }
 

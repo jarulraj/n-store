@@ -105,6 +105,7 @@ int opt_sp_engine::insert(const statement& st) {
 
   // Check if key exists in current version
   if (bt->at(txn_ptr, &key, &val) != BT_FAIL) {
+    after_rec->clear_data();
     delete after_rec;
     return EXIT_SUCCESS;
   }
@@ -196,6 +197,7 @@ int opt_sp_engine::update(const statement& st) {
 
   // Check if key does not exist in current version
   if (bt->at(txn_ptr, &key, &val) == BT_FAIL) {
+    rec_ptr->clear_data();
     delete rec_ptr;
     return EXIT_SUCCESS;
   }

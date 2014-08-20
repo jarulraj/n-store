@@ -78,7 +78,7 @@ class logger {
     return ret;
   }
 
-  void disable(){
+  void disable() {
     can_log = false;
   }
 
@@ -112,6 +112,16 @@ class logger {
     }
   }
 
+  void truncate_chunk() {
+    fseek(log_file, 0L, SEEK_END);
+    size_t sz = ftell(log_file);
+
+    int rc = ftruncate(log_file_fd, sz * chunk);
+    if (rc == -1) {
+      perror("truncate");
+    }
+  }
+
   //private:
   FILE* log_file;
   int log_file_fd;
@@ -119,6 +129,8 @@ class logger {
   bool can_log = true;
 
   std::string log_file_name;
+
+  const long int chunk = 0.1;
 };
 
 #endif
