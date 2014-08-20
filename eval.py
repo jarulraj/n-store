@@ -244,50 +244,51 @@ def create_ycsb_storage_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
     
-    x_values = YCSB_SKEW_FACTORS
-    N = len(x_values)
-    x_labels = ["Low Skew", "High Skew"]
+    N = 1
+    num_items = len(ENGINES);
 
-    num_items = len(ENGINES);   
     ind = np.arange(N)  
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
-
-    # GROUP    
-    for group in xrange(len(datasets)):
+    
+    # LINE       
+    for line in  xrange(len(ENGINES)):
         fs_data = []       
         pm_data = [] 
+        
+        LOG.info("LINE :: %s", datasets[line])
 
-        # LINE
-        for line in  xrange(len(datasets[group])):
-            for col in  xrange(len(datasets[group][line])):
-                if col == 1:
-                    fs_data.append(1 + datasets[group][line][col] / (1024 * 1024 * 1024))
-                if col == 2:
-                    pm_data.append(1 + datasets[group][line][col] / (1024 * 1024 * 1024))
-  
-        LOG.info("%s fs_data = %s pm_data = %s ", LABELS[group], str(fs_data), str(pm_data))
+        for col in  xrange(len(datasets[line])):
+            if col == 1:
+                fs_data.append(datasets[line][col] / (1024 * 1024 * 1024))
+            if col == 2:
+                pm_data.append(datasets[line][col] / (1024 * 1024 * 1024))
                 
-        bars[group * 2] = ax1.bar(ind + margin + (group * width), fs_data, width, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
-        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), pm_data, width, bottom=fs_data, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2 + 1],   linewidth=BAR_LINEWIDTH)
-    
+        bars[line * 2] = ax1.bar(ind + margin + (line * width), fs_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
+        bars[line * 2+ 1] = ax1.bar(ind + margin + (line * width), pm_data, width, bottom=fs_data, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
+        
     # GRID
-    axes = ax1.get_axes()      
+    axes = ax1.get_axes()
     makeGrid(ax1)
-            
-    # Y-AXIS    
+        
+    # Y-AXIS
     #ax1.set_yscale('log', nonposy='clip')
+    ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
+    # ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    #ax1.set_ylim([0, 120])
         
     # X-AXIS
-    ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)
+    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
+    ax1.minorticks_off()
+    ax1.tick_params(\
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom='off',      # ticks along the bottom edge are off
+    top='off',         # ticks along the top edge are off
+    labelbottom='off')
     ax1.set_xticks(ind + 0.5)
-        
-    ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
-            
+
     return (fig)
 
 def create_ycsb_nvm_bar_chart(datasets):
@@ -473,7 +474,6 @@ def create_tpcc_storage_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
     ax1.minorticks_off()
     ax1.tick_params(\
     axis='x',          # changes apply to the x-axis
@@ -528,7 +528,6 @@ def create_tpcc_nvm_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
     #ax1.minorticks_on()
     ax1.tick_params(\
     axis='x',          # changes apply to the x-axis
@@ -609,17 +608,14 @@ def ycsb_perf_plot():
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
-    for workload in YCSB_WORKLOAD_MIX:    
-        datasets = []
-                
-        for sy in SYSTEMS:    
-            dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, sy + "/" + workload + "/storage.csv")))
-            datasets.append(dataFile)
+    datasets = []
 
+    dataFile = loadDataFile(6, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, "storage.csv")))
+    datasets = dataFile
                                       
-        fig = create_ycsb_storage_bar_chart(datasets)                        
-        fileName = "ycsb-storage-%s.pdf" % (workload)
-        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+    fig = create_ycsb_storage_bar_chart(datasets)
+    fileName = "ycsb-storage.pdf"
+    saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT)
 
 # YCSB NVM -- PLOT               
 def ycsb_nvm_plot():    
