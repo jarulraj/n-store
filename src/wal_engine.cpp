@@ -35,14 +35,14 @@ wal_engine::~wal_engine() {
     ready = false;
     gc.join();
 
-    if (conf.recovery)
-      return;
+    if (!conf.recovery) {
+      fs_log.sync();
 
-    fs_log.sync();
-    if (conf.storage_stats)
-      fs_log.truncate_chunk();
-    else
-      fs_log.close();
+      if (conf.storage_stats)
+        fs_log.truncate_chunk();
+      else
+        fs_log.close();
+    }
 
     vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
@@ -199,7 +199,7 @@ int wal_engine::update(const statement& st) {
 
   // Update existing record
   for (int field_itr : st.field_ids) {
-    if (rec_ptr->sptr->columns[field_itr].inlined == 0){
+    if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
       void* before_field = before_rec->get_pointer(field_itr);
       delete (char*) before_field;
     }
@@ -208,7 +208,6 @@ int wal_engine::update(const statement& st) {
   }
   before_tuple = sr.serialize(before_rec, tab->sptr);
   entry_stream << before_tuple << "\n";
-
 
   // Add log entry
   entry_str = entry_stream.str();

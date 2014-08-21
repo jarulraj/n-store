@@ -187,7 +187,6 @@ int lsm_engine::remove(const statement& st) {
     indices->at(index_itr)->off_map->erase(key);
   }
 
-  before_rec->clear_data();
   delete before_rec;
   return EXIT_SUCCESS;
 }
