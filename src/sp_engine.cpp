@@ -40,8 +40,8 @@ sp_engine::~sp_engine() {
 
   txn_ptr = NULL;
 
-  if(conf.storage_stats)
-    bt->compact();
+  //if(conf.storage_stats)
+  //  bt->compact();
 
 }
 
