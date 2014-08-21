@@ -254,19 +254,21 @@ def create_ycsb_storage_bar_chart(datasets):
     
     # LINE       
     for line in  xrange(len(ENGINES)):
-        fs_data = []       
-        pm_data = [] 
+        fs_data = 0
+        pm_data = 0
+        total_data = []
         
         LOG.info("LINE :: %s", datasets[line])
 
         for col in  xrange(len(datasets[line])):
             if col == 1:
-                fs_data.append(datasets[line][col] / (1024 * 1024 * 1024))
+                fs_data = datasets[line][col] / (1024 * 1024 * 1024)
             if col == 2:
-                pm_data.append(datasets[line][col] / (1024 * 1024 * 1024))
+                pm_data = datasets[line][col] / (1024 * 1024 * 1024)
+
+        total_data.append(fs_data + pm_data)                
                 
-        bars[line * 2] = ax1.bar(ind + margin + (line * width), fs_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
-        bars[line * 2+ 1] = ax1.bar(ind + margin + (line * width), pm_data, width, bottom=fs_data, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
+        bars[line * 2] = ax1.bar(ind + margin + (line * width), total_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
         
     # GRID
     axes = ax1.get_axes()
@@ -449,20 +451,22 @@ def create_tpcc_storage_bar_chart(datasets):
     
     # LINE       
     for line in  xrange(len(ENGINES)):
-        fs_data = []       
-        pm_data = [] 
+        fs_data = 0
+        pm_data = 0
+        total_data = []
         
         LOG.info("LINE :: %s", datasets[line])
 
         for col in  xrange(len(datasets[line])):
             if col == 1:
-                fs_data.append(datasets[line][col] / (1024 * 1024 * 1024))
+                fs_data = datasets[line][col] / (1024 * 1024 * 1024)
             if col == 2:
-                pm_data.append(datasets[line][col] / (1024 * 1024 * 1024))
+                pm_data = datasets[line][col] / (1024 * 1024 * 1024)
+
+        total_data.append(fs_data + pm_data)                
                 
-        bars[line * 2] = ax1.bar(ind + margin + (line * width), fs_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
-        bars[line * 2+ 1] = ax1.bar(ind + margin + (line * width), pm_data, width, bottom=fs_data, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
-        
+        bars[line * 2] = ax1.bar(ind + margin + (line * width), total_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
+                
     # GRID
     axes = ax1.get_axes()
     makeGrid(ax1)
