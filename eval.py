@@ -646,7 +646,7 @@ def  ycsb_recovery_plot():
     fig = create_ycsb_recovery_bar_chart(datasets)
                         
     fileName = "ycsb-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
@@ -698,7 +698,7 @@ def  tpcc_recovery_plot():
     fig = create_tpcc_recovery_bar_chart(datasets)
                         
     fileName = "tpcc-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
 
                    
 ###################################################################################                   
