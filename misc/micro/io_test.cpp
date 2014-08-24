@@ -13,6 +13,8 @@
 
 using namespace std;
 
+#define roundup2(x, y)  (((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
+
 class timer {
  public:
 
@@ -181,8 +183,7 @@ int main(int argc, char **argv) {
   unsigned int i, j, itr_cnt;
   timer tm;
 
-  file_size = 256 * 1024 * 1024;  // 256 MB
-  itr_cnt = 512;
+  file_size = 2 * 512 * 1024 * 1024;  // 2 GB
 
   bool random_mode = state.random_mode;
   bool sync_mode = state.sync_mode;
@@ -190,6 +191,11 @@ int main(int argc, char **argv) {
   std::string fs_prefix = state.fs_path;
   chunk_size = state.chunk_size;
   std::string path = state.fs_path;
+
+  if(sync_mode)
+    itr_cnt = 128;
+  else
+    itr_cnt = 128 * 128;
 
   char buf[chunk_size + 1];
   for (j = 0; j < chunk_size; j++)
@@ -237,6 +243,7 @@ int main(int argc, char **argv) {
 
       if (random_mode) {
         offset = rand() % file_size;
+        offset = roundup2(offset, MAX_BUF_SIZE);
         fseek(fp, offset, SEEK_SET);
       }
 
