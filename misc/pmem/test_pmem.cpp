@@ -6,25 +6,29 @@
 #include <chrono>
 #include <ctime>
 
+#include <vector>
+
 #include "libpm.h"
 
 using namespace std;
 
-extern struct static_info *sp;
-
 int main(int argc, char *argv[]) {
+
   const char* path = "./zfile";
+
+  std::vector<void*> ptrs;
 
   // cleanup
   unlink(path);
 
-  long pmp_size = 1024 * 1024 * 1024;
+  long pmp_size = 64 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
     cout << "pmemalloc_init on :" << path << endl;
 
   sp = (struct static_info *) pmemalloc_static_area();
 
-  int ops = 2 * 1024 * 1024;
+  int ops = 1024 * 1024 * 4;
+  int ptrs_offset = 0;
   size_t sz;
 
   std::chrono::time_point<std::chrono::system_clock> start, end;
@@ -35,8 +39,16 @@ int main(int argc, char *argv[]) {
   srand(0);
 
   for (int i = 0; i < ops; i++) {
-    sz = rand() % 512;
-    vc = new char[sz];
+    sz = 1 + rand() % 32;
+    vc = (char*) pmemalloc_reserve(sz);
+
+    ptrs.push_back(vc);
+    ptrs_offset = rand() % ptrs.size();
+
+    if (rand() % 1024 != 0 && ptrs.size() >= 3) {
+      pmemalloc_free(ptrs[ptrs_offset]);
+      ptrs.erase(ptrs.begin() + ptrs_offset);
+    }
   }
 
   end = std::chrono::system_clock::now();
@@ -44,12 +56,22 @@ int main(int argc, char *argv[]) {
   elapsed_seconds = end - start;
   cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
 
+  ptrs.clear();
+
   start = std::chrono::system_clock::now();
   srand(0);
 
   for (int i = 0; i < ops; i++) {
-    sz = rand() % 1024;
+    sz = 1 + rand() % 32;
     vc = (char*) malloc(sz);
+
+    ptrs.push_back(vc);
+    ptrs_offset = rand() % ptrs.size();
+
+    if (rand() % 1024 != 0 && ptrs.size() >= 3) {
+      free(ptrs[ptrs_offset]);
+      ptrs.erase(ptrs.begin() + ptrs_offset);
+    }
   }
 
   end = std::chrono::system_clock::now();

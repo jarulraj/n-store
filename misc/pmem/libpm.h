@@ -33,27 +33,27 @@
   usage(Usage, __VA_ARGS__)
 
 /*
- #define DEBUG(...)\
+#define DEBUG(...)\
   debug(__FILE__, __LINE__, __func__, __VA_ARGS__)
- // assert a condition is true
- #define ASSERT(cnd)\
+// assert a condition is true
+#define ASSERT(cnd)\
   ((void)((cnd) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s", #cnd), 0)))
- // assertion with extra info printed if assertion fails
- #define ASSERTinfo(cnd, info) \
+// assertion with extra info printed if assertion fails
+#define ASSERTinfo(cnd, info) \
   ((void)((cnd) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%s = %s)", #cnd, #info, info), 0)))
- // assert two integer values are equal
- #define ASSERTeq(lhs, rhs)\
+// assert two integer values are equal
+#define ASSERTeq(lhs, rhs)\
   ((void)(((lhs) == (rhs)) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%d) == %s (%d)", #lhs,\
   (lhs), #rhs, (rhs)), 0)))
- // assert two integer values are not equal
- #define ASSERTne(lhs, rhs)\
+// assert two integer values are not equal
+#define ASSERTne(lhs, rhs)\
   ((void)(((lhs) != (rhs)) || (fatal(0, __FILE__, __LINE__, __func__,\
   "assertion failure: %s (%d) != %s (%d)", #lhs,\
   (lhs), #rhs, (rhs)), 0)))
- */
+*/
 
 // size of the static area returned by pmem_static_area()
 #define PMEM_STATIC_SIZE 4096
@@ -93,17 +93,17 @@ pmem_map(int fd, size_t len) {
 }
 
 static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
-  uintptr_t uptr;
+  uintptr_t uptr = (uintptr_t) addr & ~(ALIGN - 1);
+  uintptr_t end = (uintptr_t) addr + len;
 
   /* loop through 64B-aligned chunks covering the given range */
-  for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
-      uptr += 64)
+  for (; uptr < end; uptr += ALIGN)
     __builtin_ia32_clflush((void *) uptr);
 }
 
 static inline void pmem_persist(void *addr, size_t len, int flags) {
-  pmem_flush_cache(addr, len, flags);
-  __builtin_ia32_sfence();
+  //pmem_flush_cache(addr, len, flags);
+  //__builtin_ia32_sfence();
 }
 
 void debug(const char *file, int line, const char *func, const char *fmt, ...);
@@ -113,10 +113,7 @@ void fatal(int err, const char *file, int line, const char *func,
 void *pmemalloc_init(const char *path, size_t size);
 void *pmemalloc_static_area();
 void *pmemalloc_reserve(size_t size);
-void pmemalloc_onactive(void *abs_ptr_, void **parentp_, void *nptr_);
-void pmemalloc_onfree(void *abs_ptr_, void **parentp_, void *nptr_);
 void pmemalloc_activate(void *abs_ptr_);
 void pmemalloc_free(void *abs_ptr_);
-void pmemalloc_check(const char *path);
 
 #endif /* LIBPM_H_ */
