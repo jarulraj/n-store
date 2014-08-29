@@ -11,9 +11,9 @@
 #include <string.h>
 #include <stdarg.h>
 
-using namespace std;
-
 #include "libpm.h"
+
+using namespace std;
 
 char Usage[] = "pmem_check <path>"; /* for USAGE() */
 

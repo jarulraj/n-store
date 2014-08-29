@@ -239,8 +239,6 @@ void *pmemalloc_init(const char *path, size_t size) {
       goto out;
 
     size = stbuf.st_size;
-
-    /* XXX handle recovery case 1 described below */
   }
 
   /*
