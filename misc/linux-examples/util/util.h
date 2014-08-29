@@ -36,7 +36,7 @@
 
 #include <errno.h>
 
-int Debug;
+int pmem_debug;
 const char *Myname;
 
 #define DEBUG(...)\

@@ -20,7 +20,8 @@ void operator delete(void *p) throw () {
   pthread_mutex_unlock(&pmp_mutex);
 }
 
-int Debug;
+int pmem_debug;
+size_t pmem_orig_size;
 
 // debug -- printf-like debug messages
 void debug(const char *file, int line, const char *func, const char *fmt, ...) {
@@ -95,6 +96,70 @@ void* pmp;
 #define PMEM_STATE_ACTIVE 2 /* active (allocated) clump */
 #define PMEM_STATE_UNUSED 3 /* must be highest value + 1 */
 
+// display pmem pool
+void pmemalloc_display() {
+  struct clump* clp;
+  size_t sz;
+  int state;
+  clp = ABS_PTR((struct clump *) PMEM_CLUMP_OFFSET);
+
+  printf("----------------------------------------------------------\n");
+  while (clp->size) {
+    sz = clp->size & ~PMEM_STATE_MASK;
+    state = clp->size & PMEM_STATE_MASK;
+
+    printf("%lu (%d) -> ", sz, state);
+
+    clp = (struct clump *) ((uintptr_t) clp + sz);
+  }
+  printf("\n");
+  printf("----------------------------------------------------------\n");
+}
+
+// validate clump metadata
+void pmemalloc_validate(struct clump* clp) {
+  size_t sz;
+  struct clump* next;
+
+  sz = clp->size & ~PMEM_STATE_MASK;
+  if (sz == 0)
+    return;
+
+  next = (struct clump *) ((uintptr_t) clp + sz);
+
+  if (sz != next->prevsize) {
+    DEBUG("clp : %p clp->size : %lu lastfree : %p lastfree->prevsize : %lu",
+        clp, sz, next, next->prevsize);
+    pmemalloc_display();
+    exit(EXIT_FAILURE);
+  }
+}
+
+// check pmem pool health
+void check() {
+  struct clump *clp, *lastclp;
+  clp = ABS_PTR((struct clump *) PMEM_CLUMP_OFFSET);
+
+  lastclp =
+      ABS_PTR(
+          (struct clump *) (pmem_orig_size & ~(PMEM_CHUNK_SIZE - 1)) - PMEM_CHUNK_SIZE);
+
+  if (clp->size == 0)
+    FATAL("no clumps found");
+
+  while (clp->size) {
+    size_t sz = clp->size & ~PMEM_STATE_MASK;
+    int state = clp->size & PMEM_STATE_MASK;
+    clp = (struct clump *) ((uintptr_t) clp + sz);
+  }
+
+  if (clp != lastclp) {
+    pmemalloc_display();
+    FATAL("clump list stopped at %lx instead of %lx", clp, lastclp);
+  }
+
+}
+
 // pmemalloc_recover -- recover after a possible crash
 static void pmemalloc_recover(void* pmp) {
   struct clump *clp;
@@ -122,8 +187,8 @@ static void pmemalloc_recover(void* pmp) {
   }
 }
 
-// pmemalloc_coalesce_free -- find adjacent free blocks and coalesce them
-static void pmemalloc_coalesce_free(void* pmp) {
+// pmemalloc_coalesce -- find adjacent free blocks and coalesce across pool
+static void pmemalloc_coalesce(void* pmp) {
   struct clump *clp;
   struct clump *firstfree;
   struct clump *lastfree;
@@ -168,8 +233,6 @@ static void pmemalloc_coalesce_free(void* pmp) {
 
 }
 
-size_t orig_size;
-
 // pmemalloc_init -- setup a Persistent Memory pool for use
 void *pmemalloc_init(const char *path, size_t size) {
   void *pmp;
@@ -178,7 +241,7 @@ void *pmemalloc_init(const char *path, size_t size) {
   struct stat stbuf;
 
   DEBUG("path=%s size=0x%lx", path, size);
-  orig_size = size;
+  pmem_orig_size = size;
 
   if (stat(path, &stbuf) < 0) {
     struct clump cl = { 0 };
@@ -259,7 +322,7 @@ void *pmemalloc_init(const char *path, size_t size) {
    *  5. adjacent free clumps that need to be coalesced
    */
   pmemalloc_recover(pmp);
-  pmemalloc_coalesce_free(pmp);
+  pmemalloc_coalesce(pmp);
 
   return pmp;
 
@@ -277,48 +340,10 @@ void *pmemalloc_static_area() {
   return ABS_PTR((void *) PMEM_STATIC_OFFSET);
 }
 
-// pmemalloc_reserve -- allocate memory, volatile until pmemalloc_activate()
-
 // ROTATING FIRST FIT
 struct clump* prev_clp = NULL;
 
-void display() {
-  struct clump* clp;
-  size_t sz;
-  int state;
-  clp = ABS_PTR((struct clump *) PMEM_CLUMP_OFFSET);
-
-  printf("----------------------------------------------------------\n");
-  while (clp->size) {
-    sz = clp->size & ~PMEM_STATE_MASK;
-    state = clp->size & PMEM_STATE_MASK;
-
-    printf("%lu (%d) -> ", sz, state);
-
-    clp = (struct clump *) ((uintptr_t) clp + sz);
-  }
-  printf("\n");
-  printf("----------------------------------------------------------\n");
-}
-
-void validate(struct clump* clp) {
-  size_t sz;
-  struct clump* next;
-
-  sz = clp->size & ~PMEM_STATE_MASK;
-  if (sz == 0)
-    return;
-
-  next = (struct clump *) ((uintptr_t) clp + sz);
-
-  if (sz != next->prevsize) {
-    DEBUG("clp : %p clp->size : %lu lastfree : %p lastfree->prevsize : %lu",
-        clp, sz, next, next->prevsize);
-    display();
-    exit(EXIT_FAILURE);
-  }
-}
-
+// pmemalloc_reserve -- allocate memory, volatile until pmemalloc_activate()
 void *pmemalloc_reserve(size_t size) {
   size_t nsize;
 
@@ -375,16 +400,15 @@ void *pmemalloc_reserve(size_t size) {
            *  6. persist existing clump
            */
           newclp->size = leftover | PMEM_STATE_FREE;
-          pmem_persist(newclp, sizeof(*newclp), 0);
           newclp->prevsize = nsize;
+          pmem_persist(newclp, sizeof(*newclp), 0);
 
           next_clp = (struct clump *) ((uintptr_t) newclp + leftover);
           next_clp->prevsize = leftover;
+          pmem_persist(next_clp, sizeof(*newclp), 0);
 
           clp->size = nsize | PMEM_STATE_RESERVED;
           pmem_persist(clp, sizeof(*clp), 0);
-
-          //validate(newclp);
         } else {
           DEBUG("no split required");
 
@@ -392,15 +416,13 @@ void *pmemalloc_reserve(size_t size) {
           pmem_persist(clp, sizeof(*clp), 0);
         }
 
-        //validate(clp);
-
         prev_clp = clp;
         return ABS_PTR(ptr);
       }
     }
 
     clp = (struct clump *) ((uintptr_t) clp + sz);
-    //DEBUG("next clump :: [0x%lx]", REL_PTR(clp));
+    DEBUG("next clump :: [0x%lx]", REL_PTR(clp));
   }
 
   if (loop == false) {
@@ -434,37 +456,14 @@ void pmemalloc_activate(void *abs_ptr) {
   pmem_persist(clp, sizeof(*clp), 0);
 }
 
-void check() {
-  struct clump *clp, *lastclp;
-  clp = ABS_PTR((struct clump *) PMEM_CLUMP_OFFSET);
+// pmemalloc_free -- free memory, find adjacent free blocks and coalesce them
+void pmemalloc_free(void *abs_ptr_) {
 
-  lastclp = ABS_PTR(
-      (struct clump *) (orig_size & ~(PMEM_CHUNK_SIZE - 1)) - PMEM_CHUNK_SIZE);
+  if (abs_ptr_ == NULL)
+    return;
 
-  if (clp->size == 0)
-    FATAL("no clumps found");
-
-  while (clp->size) {
-    size_t sz = clp->size & ~PMEM_STATE_MASK;
-    int state = clp->size & PMEM_STATE_MASK;
-    clp = (struct clump *) ((uintptr_t) clp + sz);
-  }
-
-  if (clp != lastclp) {
-    display();
-    FATAL("clump list stopped at %lx instead of %lx", clp, lastclp);
-  }
-
-}
-
-// pmemalloc_coalesce -- find adjacent free blocks and coalesce them
-static void pmemalloc_coalesce(void *abs_ptr) {
-  struct clump *clp;
-  struct clump *firstfree;
-  bool first = true;
-  struct clump *lastfree;
-  bool last = true;
-  struct clump *next_clp;
+  struct clump *clp, *firstfree, *lastfree, *next_clp;
+  bool first = true, last = true;
   size_t csize;
   size_t sz;
 
@@ -473,23 +472,17 @@ static void pmemalloc_coalesce(void *abs_ptr) {
 
   DEBUG("ptr_=%lx", abs_ptr);
 
-  clp = (struct clump *) ((uintptr_t) abs_ptr - PMEM_CHUNK_SIZE);
-  //validate(clp);
+  clp = (struct clump *) ((uintptr_t) abs_ptr_ - PMEM_CHUNK_SIZE);
   sz = clp->size & ~PMEM_STATE_MASK;
-  DEBUG("sz=%lu prev size=%d ", sz, clp->prevsize);
 
   lastfree = (struct clump *) ((uintptr_t) clp + sz);
-  //validate(lastfree);
   if (lastfree->size & PMEM_STATE_MASK != PMEM_STATE_FREE)
     last = false;
 
   firstfree = (struct clump *) ((uintptr_t) clp - clp->prevsize);
-  //validate(firstfree);
   if (firstfree == clp
       || (firstfree->size & PMEM_STATE_MASK != PMEM_STATE_FREE))
     first = false;
-
-  //DEBUG("first = %d last = %d", first, last);
 
   if (first && last) {
     DEBUG("******* F C L ");
@@ -533,17 +526,7 @@ static void pmemalloc_coalesce(void *abs_ptr) {
     clp->size = csize | PMEM_STATE_FREE;
     pmem_persist(clp, sizeof(*clp), 0);
   }
-}
 
-// pmemalloc_free -- free memory
-void pmemalloc_free(void *abs_ptr_) {
-  struct clump *clp;
-  size_t sz;
-
-  if (abs_ptr_ == NULL)
-    return;
-
-  pmemalloc_coalesce(abs_ptr_);
 }
 
 //  pmemalloc_check -- check the consistency of a pmem pool

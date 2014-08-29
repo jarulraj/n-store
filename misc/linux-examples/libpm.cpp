@@ -36,7 +36,7 @@ void operator delete(void *p) throw () {
 #include <stdarg.h>
 #include <dirent.h>
 
-int Debug;
+int pmem_debug;
 const char *Myname;
 
 /*

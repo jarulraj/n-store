@@ -36,7 +36,7 @@ void operator delete(void *p) throw () {
 #include <stdarg.h>
 #include <dirent.h>
 
-int Debug;
+int pmem_debug;
 const char *Myname;
 
 /*
@@ -46,7 +46,7 @@ void debug(const char *file, int line, const char *func, const char *fmt, ...) {
   va_list ap;
   int save_errno;
 
-  if (!Debug)
+  if (!pmem_debug)
     return;
 
   save_errno = errno;
@@ -391,7 +391,7 @@ static void pmemalloc_coalesce_local(void *abs_ptr_) {
  * This function must be called before any other pmem functions.
  */
 bool new_file = 0;
-size_t orig_size = 0;
+size_t pmem_orig_size = 0;
 
 void *
 pmemalloc_init(const char *path, size_t size) {
@@ -399,7 +399,7 @@ pmemalloc_init(const char *path, size_t size) {
   int err;
   int fd = -1;
   struct stat stbuf;
-  orig_size = size;
+  pmem_orig_size = size;
 
   DEBUG("path=%s size=0x%lx", path, size);
 
@@ -492,7 +492,7 @@ pmemalloc_init(const char *path, size_t size) {
       close(fd);
 
     munmap(pmp, size);
-    return pmemalloc_init(path, orig_size);
+    return pmemalloc_init(path, pmem_orig_size);
   }
 
   DEBUG("return pmp 0x%lx", pmp);
