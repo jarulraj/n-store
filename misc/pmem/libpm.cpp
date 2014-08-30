@@ -149,7 +149,6 @@ void check() {
 
   while (clp->size) {
     size_t sz = clp->size & ~PMEM_STATE_MASK;
-    int state = clp->size & PMEM_STATE_MASK;
     clp = (struct clump *) ((uintptr_t) clp + sz);
   }
 
@@ -163,7 +162,6 @@ void check() {
 // pmemalloc_recover -- recover after a possible crash
 static void pmemalloc_recover(void* pmp) {
   struct clump *clp;
-  int i;
 
   DEBUG("pmp=0x%lx", pmp);
 
@@ -244,8 +242,8 @@ void *pmemalloc_init(const char *path, size_t size) {
   pmem_orig_size = size;
 
   if (stat(path, &stbuf) < 0) {
-    struct clump cl = { 0 };
-    struct pool_header hdr = { 0 };
+    struct clump cl = clump();
+    struct pool_header hdr = pool_header();
     size_t lastclumpoff;
 
     if (errno != ENOENT)
@@ -350,7 +348,7 @@ void *pmemalloc_reserve(size_t size) {
   if (size <= 64) {
     nsize = 128;
   } else {
-    nsize = 64 + (size + 63) & ~size_t(63);
+    nsize = 64 + ((size + 63) & ~size_t(63));
   }
 
   //cout<<"size :: "<<size<<" nsize :: "<<nsize<<endl;
@@ -368,7 +366,8 @@ void *pmemalloc_reserve(size_t size) {
   //DEBUG("clp= %p", clp);
 
   /* first fit */
-  check: unsigned int itr = 0;
+  check:
+  //unsigned int itr = 0;
   while (clp->size) {
     DEBUG("************** itr :: %lu ", itr++);
     size_t sz = clp->size & ~PMEM_STATE_MASK;
@@ -476,12 +475,12 @@ void pmemalloc_free(void *abs_ptr_) {
   sz = clp->size & ~PMEM_STATE_MASK;
 
   lastfree = (struct clump *) ((uintptr_t) clp + sz);
-  if (lastfree->size & PMEM_STATE_MASK != PMEM_STATE_FREE)
+  if ((lastfree->size & PMEM_STATE_MASK) != PMEM_STATE_FREE)
     last = false;
 
   firstfree = (struct clump *) ((uintptr_t) clp - clp->prevsize);
   if (firstfree == clp
-      || (firstfree->size & PMEM_STATE_MASK != PMEM_STATE_FREE))
+      || ((firstfree->size & PMEM_STATE_MASK) != PMEM_STATE_FREE))
     first = false;
 
   if (first && last) {
@@ -545,12 +544,16 @@ void pmemalloc_check(const char *path) {
    *  stats[PMEM_STATE_ACTIVE] for active clumps
    *  stats[PMEM_STATE_UNUSED] for overall totals
    */
-  struct {
+  struct pmem_stat {
     size_t largest;
     size_t smallest;
     size_t bytes;
     unsigned count;
-  } stats[PMEM_STATE_UNUSED + 1] = { 0 };
+  } stats[PMEM_STATE_UNUSED + 1];
+
+  for (unsigned int p_itr = 0; p_itr < (PMEM_STATE_UNUSED + 1); p_itr++)
+    stats[p_itr] = pmem_stat();
+
   const char *names[] = { "Free", "Reserved", "Active", "TOTAL", };
   int i;
 
@@ -605,8 +608,8 @@ void pmemalloc_check(const char *path) {
    * + any bytes we rounded off the end
    * = file size
    */
-  if (PMEM_CLUMP_OFFSET + clumptotal + (stbuf.st_size & (PMEM_CHUNK_SIZE - 1))
-      + PMEM_CHUNK_SIZE == stbuf.st_size) {
+  if ((PMEM_CLUMP_OFFSET + clumptotal + (stbuf.st_size & (PMEM_CHUNK_SIZE - 1))
+      + PMEM_CHUNK_SIZE) == (size_t) stbuf.st_size) {
     DEBUG("section sizes correctly add up to file size");
   } else {
     FATAL(

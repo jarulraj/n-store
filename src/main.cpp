@@ -230,8 +230,5 @@ int main(int argc, char **argv) {
   coordinator cc(state);
   cc.eval(state);
 
-  if(state.storage_stats)
-    pmemalloc_end(path);
-
   return 0;
 }

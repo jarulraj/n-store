@@ -92,7 +92,7 @@ pmem_map(int fd, size_t len) {
   return base;
 }
 
-static inline void pmem_flush_cache(void *addr, size_t len, int flags) {
+static inline void pmem_flush_cache(void *addr, size_t len, __attribute((unused)) int flags) {
   uintptr_t uptr = (uintptr_t) addr & ~(ALIGN - 1);
   uintptr_t end = (uintptr_t) addr + len;
 
