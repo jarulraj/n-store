@@ -1,14 +1,13 @@
-#ifndef _UTILS_H_
-#define _UTILS_H_
+#pragma once
 
 #include <vector>
 #include <ctime>
 #include <sstream>
 
-#include "nstore.h"
+#include "config.h"
 #include "record.h"
 
-using namespace std;
+namespace storage {
 
 // UTILS
 
@@ -44,18 +43,16 @@ inline unsigned long hasher(unsigned long a, unsigned long b, unsigned long c) {
   return ret;
 }
 
-void simple_skew(vector<int>& simple_dist, double alpha, int n, int num_values);
+void simple_skew(std::vector<int>& simple_dist, double alpha, int n, int num_values);
 
-void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values);
+void zipf(std::vector<int>& zipf_dist, double alpha, int n, int num_values);
 
-void uniform(vector<double>& uniform_dist, int num_values);
+void uniform(std::vector<double>& uniform_dist, int num_values);
 
 void display_stats(engine_type etype, double duration, int num_txns);
 
 void wrlock(pthread_rwlock_t* access);
-int try_wrlock(pthread_rwlock_t* access);
 void rdlock(pthread_rwlock_t* access);
-int try_rdlock(pthread_rwlock_t* access);
 void unlock(pthread_rwlock_t* access);
 
-#endif /* UTILS_H_ */
+}

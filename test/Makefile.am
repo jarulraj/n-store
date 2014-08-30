@@ -7,8 +7,7 @@ LIBS = -lrt
 check_PROGRAMS = test_plist \
 				 test_pbtree \
 				 test_ptreap \
-                 test_pmem  \
-				 test_opt_wal
+                 test_pmem  
 
 test_pbtree_SOURCES = test_pbtree.cpp 
 test_pbtree_LDADD = $(top_builddir)/src/libpm.a
@@ -21,14 +20,6 @@ test_ptreap_LDADD = $(top_builddir)/src/libpm.a
  
 test_pmem_SOURCES = test_pmem.cpp 
 test_pmem_LDADD = $(top_builddir)/src/libpm.a
-
-test_opt_wal_SOURCES = test_opt_wal.cpp \
-				$(top_builddir)/src/opt_wal_engine.cpp \ 
-				$(top_builddir)/src/ycsb_benchmark.cpp \
-				$(top_builddir)/src/utils.cpp 
-
-test_opt_wal_LDADD = $(top_builddir)/src/libpm.a
-
 
 TESTS = $(check_PROGRAMS)
 

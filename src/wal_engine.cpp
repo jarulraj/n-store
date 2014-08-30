@@ -1,9 +1,8 @@
 // WAL LOGGING
 
 #include "wal_engine.h"
-#include <fstream>
 
-using namespace std;
+namespace storage {
 
 wal_engine::wal_engine(const config& _conf, database* _db, bool _read_only,
                        unsigned int _tid)
@@ -14,7 +13,7 @@ wal_engine::wal_engine(const config& _conf, database* _db, bool _read_only,
   read_only = _read_only;
   fs_log.configure(conf.fs_path + std::to_string(_tid) + "_" + "log");
 
-  vector<table*> tables = db->tables->get_data();
+  std::vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
         + std::string(tab->table_name);
@@ -43,7 +42,7 @@ wal_engine::~wal_engine() {
       //  fs_log.truncate_chunk();
     }
 
-    vector<table*> tables = db->tables->get_data();
+    std::vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
       tab->fs_data.sync();
       tab->fs_data.close();
@@ -285,9 +284,9 @@ void wal_engine::recovery() {
   fs_log.disable();
 
   // Clear off_map and rebuild it
-  vector<table*> tables = db->tables->get_data();
+  std::vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
-    vector<table_index*> indices = tab->indices->get_data();
+    std::vector<table_index*> indices = tab->indices->get_data();
 
     for (table_index* index : indices) {
       index->off_map->clear();
@@ -307,12 +306,12 @@ void wal_engine::recovery() {
   int total_txns = std::count(std::istreambuf_iterator<char>(log_file),
                               std::istreambuf_iterator<char>(), '\n');
   log_file.clear();
-  log_file.seekg(0, ios::beg);
+  log_file.seekg(0, std::ios::beg);
 
   int entry_itr = 0;
   while (std::getline(log_file, entry_str)) {
     entry_itr++;
-    //cout << "entry :  " << entry_str.c_str() << endl;
+    //std::cout << "entry :  " << entry_str.c_str() << std::endl;
     std::stringstream entry(entry_str);
 
     entry >> txn_id >> op_type >> table_id;
@@ -395,14 +394,16 @@ void wal_engine::recovery() {
         break;
 
       default:
-        cout << "Invalid operation type" << op_type << endl;
+        std::cout << "Invalid operation type" << op_type << std::endl;
         break;
     }
 
   }
 
   rec_t.end();
-  cout << "WAL :: Recovery duration (ms) : " << rec_t.duration() << endl;
-  cout << "entries :: " << entry_itr << endl;
+  std::cout << "WAL :: Recovery duration (ms) : " << rec_t.duration()
+            << std::endl;
+  std::cout << "entries :: " << entry_itr << std::endl;
 }
 
+}

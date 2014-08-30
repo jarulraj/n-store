@@ -1,5 +1,4 @@
-#ifndef SCHEMA_H_
-#define SCHEMA_H_
+#pragma once
 
 #include "libpm.h"
 #include "field.h"
@@ -8,11 +7,11 @@
 #include <vector>
 #include <iomanip>
 
-using namespace std;
+namespace storage {
 
 class schema {
  public:
-  schema(vector<field_info> _columns)
+  schema(std::vector<field_info> _columns)
       : columns(NULL),
         ser_len(0),
         deser_len(0){
@@ -38,17 +37,17 @@ class schema {
     unsigned int itr;
 
     for (itr = 0; itr < num_columns; itr++) {
-      cout << std::setw(20);
-      cout << "offset    : " << columns[itr].offset << " ";
-      cout << "ser_len   : " << columns[itr].ser_len << " ";
-      cout << "deser_len : " << columns[itr].deser_len << " ";
-      cout << "type      : " << (int) columns[itr].type << " ";
-      cout << "inlined   : " << (int) columns[itr].inlined << " ";
-      cout << "enabled   : " << (int) columns[itr].enabled << " ";
-      cout << endl;
+      std::cout << std::setw(20);
+      std::cout << "offset    : " << columns[itr].offset << " ";
+      std::cout << "ser_len   : " << columns[itr].ser_len << " ";
+      std::cout << "deser_len : " << columns[itr].deser_len << " ";
+      std::cout << "type      : " << (int) columns[itr].type << " ";
+      std::cout << "inlined   : " << (int) columns[itr].inlined << " ";
+      std::cout << "enabled   : " << (int) columns[itr].enabled << " ";
+      std::cout << "\n";
     }
 
-    cout << endl;
+    std::cout << "\n";
   }
 
   field_info* columns;
@@ -57,4 +56,5 @@ class schema {
   unsigned int num_columns;
 };
 
-#endif /* SCHEMA_H_ */
+}
+

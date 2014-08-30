@@ -4,11 +4,9 @@
 
 #include "pbtree.h"
 
-using namespace std;
+namespace storage {
 
-extern struct static_info* sp;
-
-int main() {
+void test_pbtree() {
   const char* path = "./zfile";
 
   // cleanup
@@ -16,9 +14,9 @@ int main() {
 
   long pmp_size = 10 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path << endl;
+    std::cout << "pmemalloc_init on :" << path << std::endl;
 
-  sp = (struct static_info *) pmemalloc_static_area();
+  sp = (struct static_info *) storage::pmemalloc_static_area();
 
   pbtree<int, int>* tree = new pbtree<int, int>(&sp->ptrs[0]);
 
@@ -33,9 +31,16 @@ int main() {
   assert(tree->size() == ops);
 
   tree->erase(0);
-  assert(tree->size() == ops-1);
+  assert(tree->size() == ops - 1);
 
   delete tree;
+}
 
 }
 
+extern struct static_info* sp;
+
+int main() {
+  storage::test_pbtree();
+  return 0;
+}

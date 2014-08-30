@@ -1,12 +1,11 @@
-#ifndef TABLE_INDEX_H_
-#define TABLE_INDEX_H_
+#pragma once
 
 #include "schema.h"
 #include "record.h"
 #include "pbtree.h"
-#include "nstore.h"
+#include "config.h"
 
-using namespace std;
+namespace storage {
 
 class table_index {
  public:
@@ -43,4 +42,4 @@ class table_index {
   pbtree<unsigned long, off_t>* off_map;
 };
 
-#endif /* TABLE_INDEX_H_ */
+}

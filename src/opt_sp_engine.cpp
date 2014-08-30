@@ -2,7 +2,7 @@
 
 #include "opt_sp_engine.h"
 
-using namespace std;
+namespace storage {
 
 void opt_sp_engine::group_commit() {
 
@@ -302,7 +302,9 @@ void opt_sp_engine::txn_end(__attribute__((unused)) bool commit) {
 
 void opt_sp_engine::recovery() {
 
-  cout << "OPT_SP :: Recovery duration (ms) : " << 0.0 << endl;
+  std::cout << "OPT_SP :: Recovery duration (ms) : " << 0.0 << std::endl;
+
+}
 
 }
 

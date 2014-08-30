@@ -1,14 +1,14 @@
-#ifndef ENGINE_API_H_
-#define ENGINE_API_H_
+#pragma once
 
 #include <string>
 #include "statement.h"
-#include "nstore.h"
 
-using namespace std;
+namespace storage {
 
 class engine_api {
  public:
+  virtual ~engine_api() {}
+
   virtual std::string select(const statement& st) = 0;
   virtual int insert(const statement& st) = 0;
   virtual int remove(const statement& st) = 0;
@@ -21,9 +21,8 @@ class engine_api {
 
   virtual void recovery() = 0;
 
-  virtual ~engine_api() {}
-
   engine_type etype;
 };
 
-#endif  /* ENGINE_API_H_ */
+}
+

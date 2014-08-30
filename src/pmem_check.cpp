@@ -11,8 +11,6 @@
 #include <string.h>
 #include <stdarg.h>
 
-using namespace std;
-
 #include "libpm.h"
 
 char Usage[] = "pmem_check <path>"; /* for USAGE() */
@@ -27,7 +25,7 @@ int main(int argc, char *argv[]) {
   if (optind < argc)
     printf("Usage :: %s \n", Usage);
 
-  pmemalloc_check(path);
+  storage::pmemalloc_check(path);
 
   exit(0);
 }

@@ -1,5 +1,4 @@
-#ifndef SP_ENGINE_H_
-#define SP_ENGINE_H_
+#pragma once
 
 #include <vector>
 #include <string>
@@ -8,7 +7,7 @@
 #include <sstream>
 
 #include "engine_api.h"
-#include "nstore.h"
+#include "config.h"
 #include "transaction.h"
 #include "record.h"
 #include "utils.h"
@@ -17,7 +16,7 @@
 #include "cow_pbtree.h"
 #include "serializer.h"
 
-using namespace std;
+namespace storage {
 
 class sp_engine : public engine_api {
  public:
@@ -56,4 +55,5 @@ class sp_engine : public engine_api {
   serializer sr;
 };
 
-#endif /* SP_ENGINE_H_ */
+}
+

@@ -1,5 +1,4 @@
-#ifndef __P_TREE_H__
-#define __P_TREE_H__
+#pragma once
 
 #include <iostream>
 #include <cstdlib>
@@ -10,7 +9,7 @@
 #include "libpm.h"
 #include "ptreap.h"
 
-using namespace std;
+namespace storage {
 
 #define g_return_val_if_fail(expr,val) if(!(expr)) return (val);
 #define g_return_if_fail(expr) if(!(expr)) return;
@@ -1342,4 +1341,5 @@ class ptreap {
 
 };
 
-#endif /* __P_TREE_H__ */
+}
+

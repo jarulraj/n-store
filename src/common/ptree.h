@@ -1,9 +1,8 @@
-#ifndef PMEM_TREE_H_
-#define PMEM_TREE_H_
+#pragma once
 
 #include "libpm.h"
 
-using namespace std;
+namespace storage {
 
 template<typename K, typename V>
 class ptree {
@@ -433,7 +432,7 @@ class ptree {
     node* current_node = (*root);
 
     if (current_node == NULL) {
-      cout << "Empty tree" << endl;
+      std::cout << "Empty tree" << std::endl;
       return;
     }
 
@@ -442,7 +441,7 @@ class ptree {
 
   void display_node(node* np) {
     if (np != NULL) {
-      cout << " key: " << np->key << " val: " << np->val << "  bal: "
+      std::cout << " key: " << np->key << " val: " << np->val << "  bal: "
           << get_balance(np) << "\n";
       display_node(np->left);
       display_node(np->right);
@@ -451,4 +450,5 @@ class ptree {
 
 };
 
-#endif /* PMEM_TREE_H_ */
+}
+

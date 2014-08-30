@@ -1,5 +1,4 @@
-#ifndef LSM_ENGINE_H_
-#define LSM_ENGINE_H_
+#pragma once
 
 #include <vector>
 #include <string>
@@ -8,7 +7,7 @@
 #include <atomic>
 
 #include "engine_api.h"
-#include "nstore.h"
+#include "config.h"
 #include "transaction.h"
 #include "record.h"
 #include "utils.h"
@@ -18,7 +17,7 @@
 #include "timer.h"
 #include "serializer.h"
 
-using namespace std;
+namespace storage {
 
 class lsm_engine : public engine_api {
  public:
@@ -61,4 +60,5 @@ class lsm_engine : public engine_api {
   serializer sr;
 };
 
-#endif /* LSM_ENGINE_H_ */
+}
+

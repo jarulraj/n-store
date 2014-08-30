@@ -14,7 +14,7 @@
 #include "table.h"
 #include "table_index.h"
 
-using namespace std;
+namespace storage {
 
 tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
                                timer* _tm, struct static_info* _sp)
@@ -29,7 +29,7 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
 
   // Initialization mode
   if (sp->init == 0) {
-    //cout << "Initialization Mode" << endl;
+    //std::cout << "Initialization Mode" << std::endl;
 
     sp->ptrs[0] = db;
 
@@ -54,7 +54,7 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
 
     sp->init = 1;
   } else {
-    //cout << "Recovery Mode " << endl;
+    //std::cout << "Recovery Mode " << std::endl;
     database* db = (database*) sp->ptrs[0];
     db->reset(conf, tid);
   }
@@ -106,7 +106,7 @@ class warehouse_record : public record {
 
 table* tpcc_benchmark::create_warehouse() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -200,7 +200,7 @@ class district_record : public record {
 
 table* tpcc_benchmark::create_district() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -292,7 +292,7 @@ class item_record : public record {
 
 table* tpcc_benchmark::create_item() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -390,7 +390,7 @@ class customer_record : public record {
 
 table* tpcc_benchmark::create_customer() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -536,7 +536,7 @@ class history_record : public record {
 
 table* tpcc_benchmark::create_history() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -599,7 +599,7 @@ table* tpcc_benchmark::create_history() {
 class stock_record : public record {
  public:
   stock_record(schema* sptr, int s_i_id, int s_w_id, int s_quantity,
-               vector<std::string> s_dist, int s_ytd, int s_order_cnt,
+               std::vector<std::string> s_dist, int s_ytd, int s_order_cnt,
                int s_remote_cnt, const std::string& s_data)
       : record(sptr) {
 
@@ -622,7 +622,7 @@ class stock_record : public record {
 
 table* tpcc_benchmark::create_stock() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -725,7 +725,7 @@ class orders_record : public record {
 
 table* tpcc_benchmark::create_orders() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -815,7 +815,7 @@ class new_order_record : public record {
 
 table* tpcc_benchmark::create_new_order() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -888,7 +888,7 @@ class order_line_record : public record {
 
 table* tpcc_benchmark::create_order_line() {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   /*
@@ -1232,7 +1232,7 @@ void tpcc_benchmark::load_warehouses(engine* ee) {
       int s_order_cnt = 0;
       int s_remote_cnt = 0;
       std::string s_data = get_rand_astring(name_len);
-      vector<std::string> s_dist;
+      std::vector<std::string> s_dist;
 
       for (int s_d_itr = 0; s_d_itr < stock_dist_count; s_d_itr++)
         s_dist.push_back(std::to_string(s_d_itr) + s_data);
@@ -1282,7 +1282,7 @@ void tpcc_benchmark::do_delivery(engine* ee) {
 
   record* rec_ptr;
   statement st;
-  vector<int> field_ids;
+  std::vector<int> field_ids;
   std::string empty;
 
   txn_id++;
@@ -1443,16 +1443,16 @@ void tpcc_benchmark::do_new_order(engine* ee, bool finish) {
 
   record* rec_ptr;
   statement st;
-  vector<int> field_ids;
+  std::vector<int> field_ids;
   std::string empty;
-  vector<std::string> empty_v(10);
+  std::vector<std::string> empty_v(10);
 
   int w_id = get_rand_int(0, warehouse_count);
   int d_id = get_rand_int(0, districts_per_warehouse);
   int c_id = get_rand_int(0, customers_per_district);
   int o_ol_cnt = get_rand_int(orders_min_ol_cnt, orders_max_ol_cnt);
   double o_entry_ts = static_cast<double>(time(NULL));
-  vector<int> i_ids, i_w_ids, i_qtys;
+  std::vector<int> i_ids, i_w_ids, i_qtys;
   int o_all_local = 1;
   std::string warehouse_str, district_str, customer_str, item_str, stock_str;
 
@@ -1697,9 +1697,9 @@ void tpcc_benchmark::do_order_status(engine* ee) {
 
   record* rec_ptr;
   statement st;
-  vector<int> field_ids;
+  std::vector<int> field_ids;
   std::string empty;
-  vector<std::string> empty_v(10);
+  std::vector<std::string> empty_v(10);
 
   txn_id++;
   TIMER(ee->txn_begin());
@@ -1817,7 +1817,7 @@ void tpcc_benchmark::do_payment(engine* ee) {
 
   record* rec_ptr;
   statement st;
-  vector<int> field_ids;
+  std::vector<int> field_ids;
   std::string empty;
 
   bool pay_local = get_rand_bool(0.85);
@@ -2048,9 +2048,9 @@ void tpcc_benchmark::do_stock_level(engine* ee) {
 
   record* rec_ptr;
   statement st;
-  vector<int> field_ids;
+  std::vector<int> field_ids;
   std::string empty;
-  vector<std::string> empty_v(10);
+  std::vector<std::string> empty_v(10);
 
   int w_id = get_rand_int(0, warehouse_count);
   int d_id = get_rand_int(0, districts_per_warehouse);
@@ -2152,7 +2152,7 @@ void tpcc_benchmark::sim_crash() {
     num_txns = 1;
 
   // NEW ORDER
-  for (txn_itr = 0; txn_itr < num_txns; txn_itr++){
+  for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
     do_new_order(ee, false);
   }
 
@@ -2174,19 +2174,19 @@ void tpcc_benchmark::execute() {
     } else {
 
       if (u <= 0.04) {
-        //cout << "stock_level " << endl;
+        //std::cout << "stock_level " << std::endl;
         do_stock_level(ee);
       } else if (u <= 0.08) {
-        //cout << "delivery " << endl;
+        //std::cout << "delivery " << std::endl;
         do_delivery(ee);
       } else if (u <= 0.12) {
-        //cout << "order_status " << endl;
+        //std::cout << "order_status " << std::endl;
         do_order_status(ee);
       } else if (u <= 0.55) {
-        //cout << "payment " << endl;
+        //std::cout << "payment " << std::endl;
         do_payment(ee);
       } else {
-        //cout << "new_order " << endl;
+        //std::cout << "new_order " << std::endl;
         do_new_order(ee);
       }
     }
@@ -2196,4 +2196,6 @@ void tpcc_benchmark::execute() {
   }
 
   delete ee;
+}
+
 }

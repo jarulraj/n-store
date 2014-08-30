@@ -2,7 +2,7 @@
 
 #include "opt_wal_engine.h"
 
-using namespace std;
+namespace storage {
 
 opt_wal_engine::opt_wal_engine(const config& _conf, database* _db,
 bool _read_only,
@@ -263,7 +263,7 @@ void opt_wal_engine::txn_end(__attribute__((unused)) bool commit) {
   commit_free_list.clear();
 
   // Clear log
-  vector<char*> undo_log = pm_log->get_data();
+  std::vector<char*> undo_log = pm_log->get_data();
   for (char* ptr : undo_log)
     delete ptr;
   pm_log->clear();
@@ -274,7 +274,7 @@ void opt_wal_engine::recovery() {
 
   LOG_INFO("OPT WAL recovery");
 
-  vector<char*> undo_log = pm_log->get_data();
+  std::vector<char*> undo_log = pm_log->get_data();
 
   int op_type, txn_id, table_id;
   unsigned int num_indices, index_itr;
@@ -289,7 +289,7 @@ void opt_wal_engine::recovery() {
   rec_t.start();
 
   for (char* ptr : undo_log) {
-    //cout << "entry : --" << ptr << "-- " << endl;
+    //std::cout << "entry : --" << ptr << "-- " << std::endl;
     std::stringstream entry(ptr);
 
     entry >> txn_id >> op_type >> table_id;
@@ -390,7 +390,7 @@ void opt_wal_engine::recovery() {
                 break;
 
               default:
-                cout << "Invalid field type : " << op_type << endl;
+                std::cout << "Invalid field type : " << op_type << std::endl;
                 break;
             }
           }
@@ -398,7 +398,7 @@ void opt_wal_engine::recovery() {
         break;
 
       default:
-        cout << "Invalid operation type" << op_type << endl;
+        std::cout << "Invalid operation type" << op_type << std::endl;
         break;
     }
 
@@ -409,7 +409,8 @@ void opt_wal_engine::recovery() {
   pm_log->clear();
 
   rec_t.end();
-  cout << "OPT_WAL :: Recovery duration (ms) : " << rec_t.duration() << endl;
+  std::cout << "OPT_WAL :: Recovery duration (ms) : " << rec_t.duration() << std::endl;
 
 }
 
+}

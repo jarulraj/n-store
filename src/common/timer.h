@@ -1,12 +1,11 @@
-#ifndef TIMER_H_
-#define TIMER_H_
+#pragma once
 
 #include <string>
 #include <cstdio>
 #include <cstdlib>
 #include <sys/time.h>
 
-using namespace std;
+namespace storage {
 
 class timer {
  public:
@@ -42,4 +41,4 @@ class timer {
   timeval total;
 };
 
-#endif /* TIMER_H_ */
+}

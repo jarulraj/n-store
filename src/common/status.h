@@ -1,11 +1,10 @@
-#ifndef STATUS_H_
-#define STATUS_H_
+#pragma once
 
 #include <string>
 #include <cstdio>
 #include <cstdlib>
 
-using namespace std;
+namespace storage {
 
 class status {
  public:
@@ -25,7 +24,7 @@ class status {
       fflush(stdout);
     }
 
-    if(txn_counter == num_txns)
+    if (txn_counter == num_txns)
       printf("\n");
   }
 
@@ -35,4 +34,4 @@ class status {
 
 };
 
-#endif /* STATUS_H_ */
+}

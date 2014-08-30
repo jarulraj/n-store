@@ -14,10 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-
-#ifndef COW_BTREE_H_
-#define COW_BTREE_H_
+#pragma once
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,7 +37,7 @@
 
 #include "ptree.h"
 
-using namespace std;
+namespace storage {
 
 /*
  # define DPRINTF(...) do { fprintf(stderr, "%s:%d: ", __func__, __LINE__); \
@@ -3839,4 +3836,5 @@ class cow_pbtree {
   cow_btree* t_ptr;
 };
 
-#endif /* COW_BTREE_H_ */
+}
+

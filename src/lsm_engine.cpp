@@ -3,7 +3,7 @@
 #include "lsm_engine.h"
 #include <fstream>
 
-using namespace std;
+namespace storage {
 
 lsm_engine::lsm_engine(const config& _conf, database* _db, bool _read_only,
                        unsigned int _tid)
@@ -16,7 +16,7 @@ lsm_engine::lsm_engine(const config& _conf, database* _db, bool _read_only,
   fs_log.configure(conf.fs_path + std::to_string(_tid) + "_" + "log");
   merge_looper = 0;
 
-  vector<table*> tables = db->tables->get_data();
+  std::vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
         + std::string(tab->table_name);
@@ -45,7 +45,7 @@ lsm_engine::~lsm_engine() {
       //  fs_log.truncate_chunk();
     }
 
-    vector<table*> tables = db->tables->get_data();
+    std::vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
       tab->fs_data.sync();
       tab->fs_data.close();
@@ -99,7 +99,7 @@ std::string lsm_engine::select(const statement& st) {
   }
 
   LOG_INFO("val : %s", val.c_str());
-  //cout << "val : " << val << endl;
+  //std::cout << "val : " << val << std::endl;
 
   delete rec_ptr;
   return val;
@@ -298,10 +298,10 @@ void lsm_engine::merge_check() {
 
 void lsm_engine::merge(bool force) {
 
-  vector<table*> tables = db->tables->get_data();
+  std::vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     table_index *p_index = tab->indices->at(0);
-    vector<table_index*> indices = tab->indices->get_data();
+    std::vector<table_index*> indices = tab->indices->get_data();
 
     pbtree<unsigned long, record*>* pm_map = p_index->pm_map;
 
@@ -310,7 +310,7 @@ void lsm_engine::merge(bool force) {
 
     // Check if need to merge
     if (force || compact) {
-      //std::cout << "Merging ! " << endl;
+      //std::std::cout << "Merging ! " << std::endl;
       pbtree<unsigned long, record*>::const_iterator itr;
       record *pm_rec, *fs_rec;
       unsigned long key;
@@ -391,9 +391,9 @@ void lsm_engine::recovery() {
   fs_log.disable();
 
   // Clear pm map and rebuild it
-  vector<table*> tables = db->tables->get_data();
+  std::vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
-    vector<table_index*> indices = tab->indices->get_data();
+    std::vector<table_index*> indices = tab->indices->get_data();
     for (table_index* index : indices) {
       index->pm_map->clear();
     }
@@ -412,12 +412,12 @@ void lsm_engine::recovery() {
   int total_txns = std::count(std::istreambuf_iterator<char>(log_file),
                               std::istreambuf_iterator<char>(), '\n');
   log_file.clear();
-  log_file.seekg(0, ios::beg);
+  log_file.seekg(0, std::ios::beg);
 
   int entry_itr = 0;
   while (std::getline(log_file, entry_str)) {
     entry_itr++;
-    //cout << "entry :  " << entry_str.c_str() << endl;
+    //std::cout << "entry :  " << entry_str.c_str() << std::endl;
     std::stringstream entry(entry_str);
 
     entry >> txn_id >> op_type >> table_id;
@@ -500,7 +500,7 @@ void lsm_engine::recovery() {
         break;
 
       default:
-        cout << "Invalid operation type" << op_type << endl;
+        std::cout << "Invalid operation type" << op_type << std::endl;
         break;
     }
 
@@ -509,8 +509,10 @@ void lsm_engine::recovery() {
   fs_log.close();
 
   rec_t.end();
-  cout << "LSM :: Recovery duration (ms) : " << rec_t.duration() << endl;
-  cout << "entries :: " << entry_itr << endl;
+  std::cout << "LSM :: Recovery duration (ms) : " << rec_t.duration()
+            << std::endl;
+  std::cout << "entries :: " << entry_itr << std::endl;
 
 }
 
+}

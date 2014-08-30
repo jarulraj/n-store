@@ -1,10 +1,9 @@
-#ifndef PMEM_LIST_H_
-#define PMEM_LIST_H_
+#pragma once
 
 #include <vector>
 #include "libpm.h"
 
-using namespace std;
+namespace storage {
 
 // Persistent list for storing pointers
 template<typename V>
@@ -71,9 +70,9 @@ class plist {
     off_t index = -1;
 
     if ((*head) == NULL) {
-      if(init(val) != NULL)
+      if (init(val) != NULL)
         index = 0;
-        return index;
+      return index;
     }
 
     struct node* tailp = NULL;
@@ -191,7 +190,7 @@ class plist {
     struct node* np = (*head);
 
     if (np == NULL) {
-      cout << "empty list" << endl;
+      std::cout << "empty list" << std::endl;
       return;
     }
 
@@ -199,7 +198,7 @@ class plist {
       printf("%p %s", np->val, np->val);
       np = np->next;
     }
-    cout << endl;
+    std::cout << std::endl;
 
   }
 
@@ -217,9 +216,9 @@ class plist {
     (*tail) = NULL;
   }
 
-  vector<V> get_data(void) {
+  std::vector<V> get_data(void) {
     struct node* np = (*head);
-    vector<V> data;
+    std::vector<V> data;
 
     while (np) {
       data.push_back(np->val);
@@ -230,15 +229,13 @@ class plist {
     return data;
   }
 
-  bool empty(){
+  bool empty() {
     return (_size == 0);
   }
 
-  int size(){
+  int size() {
     return _size;
   }
-
-
 };
 
-#endif /* PMEM_LIST_H_ */
+}

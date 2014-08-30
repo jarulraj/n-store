@@ -1,5 +1,4 @@
-#ifndef _LOGGER_H_
-#define _LOGGER_H_
+#pragma once
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -8,7 +7,7 @@
 
 #include "record.h"
 
-using namespace std;
+namespace storage {
 
 // FS LOGGING
 
@@ -130,7 +129,7 @@ class logger {
 
   std::string log_file_name;
 
-  const long int chunk = 0.1;
+  static constexpr long int chunk = 0.1;
 };
 
-#endif
+}

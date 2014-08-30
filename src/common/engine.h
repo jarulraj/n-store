@@ -1,5 +1,4 @@
-#ifndef ENGINE_H_
-#define ENGINE_H_
+#pragma once
 
 #include <string>
 
@@ -10,7 +9,7 @@
 #include "opt_sp_engine.h"
 #include "opt_lsm_engine.h"
 
-using namespace std;
+namespace storage {
 
 class engine {
  public:
@@ -42,7 +41,7 @@ class engine {
         de = new opt_lsm_engine(conf, db, read_only, tid);
         break;
       default:
-        cout << "Unknown engine type :: " << etype << endl;
+        std::cout << "Unknown engine type :: " << etype << std::endl;
         exit(EXIT_FAILURE);
         break;
     }
@@ -70,7 +69,7 @@ class engine {
   }
 
   virtual void display() {
-    cout << "ST" << endl;
+    std::cout << "ST" << std::endl;
   }
 
   void load(const statement& st) {
@@ -93,4 +92,5 @@ class engine {
   engine_api* de;
 };
 
-#endif  /* ENGINE_H_ */
+}
+

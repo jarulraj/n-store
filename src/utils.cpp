@@ -9,7 +9,7 @@
 
 #include "utils.h"
 
-using namespace std;
+namespace storage {
 
 // RAND GEN
 std::string get_rand_astring(size_t len) {
@@ -79,43 +79,43 @@ void display_stats(engine_type etype, double duration, int num_txns) {
 
   switch (etype) {
     case engine_type::WAL:
-      cout << "WAL :: ";
+      std::cout << "WAL :: ";
       break;
 
     case engine_type::SP:
-      cout << "SP :: ";
+      std::cout << "SP :: ";
       break;
 
     case engine_type::LSM:
-      cout << "LSM :: ";
+      std::cout << "LSM :: ";
       break;
 
     case engine_type::OPT_WAL:
-      cout << "OPT_WAL :: ";
+      std::cout << "OPT_WAL :: ";
       break;
 
     case engine_type::OPT_SP:
-      cout << "OPT_SP :: ";
+      std::cout << "OPT_SP :: ";
       break;
 
     case engine_type::OPT_LSM:
-      cout << "OPT_LSM :: ";
+      std::cout << "OPT_LSM :: ";
       break;
 
     default:
-      cout << "Unknown engine type " << endl;
+      std::cout << "Unknown engine type " << std::endl;
       break;
   }
 
-  cout << std::fixed << std::setprecision(2);
-  cout << "Duration(s) : " << (duration / 1000.0) << " ";
+  std::cout << std::fixed << std::setprecision(2);
+  std::cout << "Duration(s) : " << (duration / 1000.0) << " ";
 
   throughput = (num_txns * 1000.0) / duration;
-  cout << "Throughput  : " << throughput << endl;
+  std::cout << "Throughput  : " << throughput << std::endl;
 }
 
 // RANDOM DIST
-void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
+void zipf(std::vector<int>& zipf_dist, double alpha, int n, int num_values) {
   static double c = 0;          // Normalization constant
   double z;          // Uniform random number (0 < z < 1)
   double sum_prob;          // Sum of probabilities
@@ -153,7 +153,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
       }
     }
 
-    //cout << "zipf_val :: " << zipf_value << endl;
+    //std::cout << "zipf_val :: " << zipf_value << std::endl;
     zipf_dist.push_back(zipf_value);
   }
 
@@ -161,7 +161,7 @@ void zipf(vector<int>& zipf_dist, double alpha, int n, int num_values) {
 }
 
 // Simple skew generator
-void simple_skew(vector<int>& simple_dist, double alpha, int n,
+void simple_skew(std::vector<int>& simple_dist, double alpha, int n,
                  int num_values) {
   int seed = 0;
   std::mt19937 gen(seed);
@@ -180,12 +180,12 @@ void simple_skew(vector<int>& simple_dist, double alpha, int n,
     else
       val = bound + z * diff;
 
-    //cout << "simple_val :: " << val << " bound : "<<bound<<" alpha : "<<alpha<< " z : "<<z<<endl;
+    //std::cout << "simple_val :: " << val << " bound : "<<bound<<" alpha : "<<alpha<< " z : "<<z<<std::endl;
     simple_dist.push_back(val);
   }
 }
 
-void uniform(vector<double>& uniform_dist, int num_values) {
+void uniform(std::vector<double>& uniform_dist, int num_values) {
   int seed = 0;
   std::mt19937 gen(seed);
   std::uniform_real_distribution<> dis(0, 1);
@@ -237,5 +237,7 @@ void unlock(pthread_rwlock_t* access) {
   if (rc != 0) {
     perror("unlock failed \n");
   }
+}
+
 }
 

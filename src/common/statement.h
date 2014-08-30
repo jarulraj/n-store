@@ -1,5 +1,4 @@
-#ifndef STMT_H_
-#define STMT_H_
+#pragma once
 
 #include <string>
 #include <chrono>
@@ -7,7 +6,7 @@
 #include "record.h"
 #include "table.h"
 
-using namespace std;
+namespace storage {
 
 enum operation_type {
   Insert,
@@ -40,7 +39,7 @@ class statement {
 
   // Update
   statement(int _txn_id, operation_type _otype, int _table_id, record* _rptr,
-            vector<int> _fid)
+            std::vector<int> _fid)
       : transaction_id(_txn_id),
         op_type(_otype),
         table_id(_table_id),
@@ -69,7 +68,7 @@ class statement {
   record* rec_ptr;
 
   // Update
-  vector<int> field_ids;
+  std::vector<int> field_ids;
 
   // Select
   int table_index_id;
@@ -77,4 +76,4 @@ class statement {
 
 };
 
-#endif /* STMT_H_ */
+}

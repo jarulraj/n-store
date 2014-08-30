@@ -2,7 +2,7 @@
 
 #include "sp_engine.h"
 
-using namespace std;
+namespace storage {
 
 sp_engine::sp_engine(const config& _conf, database* _db, bool _read_only,
                      unsigned int _tid)
@@ -278,6 +278,8 @@ void sp_engine::txn_end(__attribute__((unused)) bool commit) {
 
 void sp_engine::recovery() {
 
-  cout << "SP :: Recovery duration (ms) : " << 0.0 << endl;
+  std::cout << "SP :: Recovery duration (ms) : " << 0.0 << std::endl;
+
+}
 
 }

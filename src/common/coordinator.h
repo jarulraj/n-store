@@ -1,11 +1,10 @@
-#ifndef COORDINATOR_H_
-#define COORDINATOR_H_
+#pragma once
 
 #include <vector>
 #include <thread>
 #include <map>
 
-#include "nstore.h"
+#include "config.h"
 #include "engine.h"
 #include "timer.h"
 #include "utils.h"
@@ -15,7 +14,7 @@
 #include "ycsb_benchmark.h"
 #include "tpcc_benchmark.h"
 
-using namespace std;
+namespace storage {
 
 class coordinator {
  public:
@@ -73,10 +72,10 @@ class coordinator {
 
     double max_dur = 0;
     for (unsigned int i = 0; i < num_executors; i++) {
-      cout<<"dur :"<<i<<" :: "<<tms[i].duration()<<endl;
+      std::cout<<"dur :"<<i<<" :: "<<tms[i].duration()<<std::endl;
       max_dur = std::max(max_dur, tms[i].duration());
     }
-    cout<<"max dur :"<<max_dur<<endl;
+    std::cout<<"max dur :"<<max_dur<<std::endl;
     display_stats(conf.etype, max_dur, num_txns);
 
     /*
@@ -117,7 +116,7 @@ class coordinator {
         break;
 
       default:
-        cout << "Unknown benchmark type :: " << state.btype << endl;
+        std::cout << "Unknown benchmark type :: " << state.btype << std::endl;
         break;
     }
 
@@ -132,4 +131,4 @@ class coordinator {
   std::vector<timer> tms;
 };
 
-#endif /* COORDINATOR_H_ */
+}

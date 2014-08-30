@@ -1,12 +1,11 @@
-#ifndef FIELD_H_
-#define FIELD_H_
+#pragma once
 
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cstring>
 
-using namespace std;
+namespace storage {
 
 enum field_type {
   FD_INVALID,
@@ -44,4 +43,5 @@ struct field_info {
   bool enabled;
 };
 
-#endif /* FIELD_H_ */
+}
+

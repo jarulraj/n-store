@@ -1,5 +1,4 @@
-#ifndef TXN_H_
-#define TXN_H_
+#pragma once
 
 // TRANSACTION
 
@@ -9,20 +8,19 @@
 
 #include "statement.h"
 
-using namespace std;
+namespace storage {
 
 class transaction {
  public:
-  transaction(unsigned int _txn_id, vector<statement> _stmts)
+  transaction(unsigned int _txn_id, std::vector<statement> _stmts)
       : transaction_id(_txn_id),
         stmts(_stmts) {
   }
 
 //private:
   unsigned int transaction_id;
-  vector<statement> stmts;
+  std::vector<statement> stmts;
 
-  //chrono::time_point<std::chrono::high_resolution_clock> start, end;
 };
 
-#endif /* TXN_H_ */
+}

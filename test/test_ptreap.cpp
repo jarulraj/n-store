@@ -8,26 +8,24 @@
 #include "libpm.h"
 #include "ptreap.h"
 
-using namespace std;
+namespace storage {
 
 extern struct static_info* sp;
 
-void lookup(ptreap<int, int*> *tree, unsigned int version,
-            const unsigned long key) {
+void ptreap_lookup(ptreap<int, int*> *tree, unsigned int version,
+                        const unsigned long key) {
   int* ret;
 
   ret = tree->at(key, version);
-  //cout << "version :: " << version << "  key :: " << key << " ";
-  if (ret != NULL){
-    //cout << "val :: " << (*ret) << endl;
-  }
-  else{
-    //cout << "val :: not found" << endl;
+  //std::cout << "version :: " << version << "  key :: " << key << " ";
+  if (ret != NULL) {
+    //std::cout << "val :: " << (*ret) << std::endl;
+  } else {
+    //std::cout << "val :: not found" << std::endl;
   }
 }
 
-int main(int argc, char **argv) {
-
+void test_ptreap() {
   const char* path = "./zfile";
 
   // cleanup
@@ -35,7 +33,7 @@ int main(int argc, char **argv) {
 
   long pmp_size = 10 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path << endl;
+    std::cout << "pmemalloc_init on :" << path << std::endl;
 
   sp = (struct static_info *) pmemalloc_static_area();
 
@@ -54,10 +52,10 @@ int main(int argc, char **argv) {
   tree->insert(3, &(nums[3]));
   tree->insert(6, &(nums[6]));
 
-  //cout << "nodes ::" << tree->nnodes << endl;
+  //std::cout << "nodes ::" << tree->nnodes << std::endl;
 
   for (i = 1; i <= 4; ++i)
-    lookup(tree, tree->current_version(), i);
+    ptreap_lookup(tree, tree->current_version(), i);
 
   // Next version
   tree->next_version();
@@ -68,30 +66,36 @@ int main(int argc, char **argv) {
   tree->insert(4, &(nums[4]));
 
   for (i = 1; i <= 4; ++i)
-    lookup(tree, tree->current_version(), i);
+    ptreap_lookup(tree, tree->current_version(), i);
 
-  //cout << "nodes ::" << tree->nnodes << endl;
+  //std::cout << "nodes ::" << tree->nnodes << std::endl;
 
-  lookup(tree, 1, 2);
-  lookup(tree, 1, 3);
-  lookup(tree, 0, 2);
-  lookup(tree, 0, 3);
+  ptreap_lookup(tree, 1, 2);
+  ptreap_lookup(tree, 1, 3);
+  ptreap_lookup(tree, 0, 2);
+  ptreap_lookup(tree, 0, 3);
 
-  //cout << "nodes ::" << tree->nnodes << endl;
+  //std::cout << "nodes ::" << tree->nnodes << std::endl;
 
   tree->delete_versions(0);
 
-  lookup(tree, 0, 2);
-  lookup(tree, 0, 3);
+  ptreap_lookup(tree, 0, 2);
+  ptreap_lookup(tree, 0, 3);
 
-  //cout << "nodes ::" << tree->nnodes << endl;
+  //std::cout << "nodes ::" << tree->nnodes << std::endl;
 
   delete tree;
   sp->ptrs[0] = NULL;
 
-  //cout << "nodes ::" << tree->nnodes << endl;
+  //std::cout << "nodes ::" << tree->nnodes << std::endl;
 
   delete[] nums;
 
+}
+
+}
+
+int main(int argc, char **argv) {
+  storage::test_ptreap();
   return 0;
 }

@@ -1,12 +1,11 @@
-#ifndef NSTORE_H_
-#define NSTORE_H_
+#pragma once
 
 #include <string>
 #include <getopt.h>
 #include <vector>
 #include <sys/time.h>
 
-using namespace std;
+namespace storage {
 
 // Logging
 extern int level;
@@ -80,4 +79,4 @@ class config {
   benchmark_type btype;
 };
 
-#endif /* NSTORE_H_ */
+}

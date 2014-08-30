@@ -1,9 +1,8 @@
-#ifndef SERIALIZER_H_
-#define SERIALIZER_H_
+#pragma once
 
 #include <sstream>
 
-using namespace std;
+namespace storage {
 
 class serializer {
  public:
@@ -52,7 +51,7 @@ class serializer {
             break;
 
           default:
-            cout << "invalid type : " << type << endl;
+            std::cout << "invalid type : " << type << std::endl;
             exit(EXIT_FAILURE);
             break;
         }
@@ -104,8 +103,8 @@ class serializer {
             break;
 
           default:
-            cout << "invalid type : --" << type << "--" << endl;
-            cout << "entry : --" << entry_str << "--" << endl;
+            std::cout << "invalid type : --" << type << "--" << std::endl;
+            std::cout << "entry : --" << entry_str << "--" << std::endl;
             exit(EXIT_FAILURE);
             break;
         }
@@ -137,4 +136,4 @@ class serializer {
 
 };
 
-#endif /* SERIALIZER_H_ */
+}

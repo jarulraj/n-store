@@ -2,7 +2,7 @@
 
 #include "opt_lsm_engine.h"
 
-using namespace std;
+namespace storage {
 
 opt_lsm_engine::opt_lsm_engine(const config& _conf, database* _db,
 bool _read_only,
@@ -16,7 +16,7 @@ bool _read_only,
   merge_looper = 0;
   pm_log = db->log;
 
-  vector<table*> tables = db->tables->get_data();
+  std::vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
         + std::string(tab->table_name);
@@ -31,7 +31,7 @@ opt_lsm_engine::~opt_lsm_engine() {
   if (!read_only) {
     merge(true);
 
-    vector<table*> tables = db->tables->get_data();
+    std::vector<table*> tables = db->tables->get_data();
     for (table* tab : tables) {
       tab->fs_data.sync();
       tab->fs_data.close();
@@ -323,12 +323,12 @@ void opt_lsm_engine::merge_check() {
 }
 
 void opt_lsm_engine::merge(bool force) {
-  //std::cout << "Merging ! " << merge_looper << endl;
+  //std::std::cout << "Merging ! " << merge_looper << std::endl;
 
-  vector<table*> tables = db->tables->get_data();
+  std::vector<table*> tables = db->tables->get_data();
   for (table* tab : tables) {
     table_index *p_index = tab->indices->at(0);
-    vector<table_index*> indices = tab->indices->get_data();
+    std::vector<table_index*> indices = tab->indices->get_data();
 
     pbtree<unsigned long, record*>* pm_map = p_index->pm_map;
 
@@ -414,7 +414,7 @@ void opt_lsm_engine::recovery() {
 
   LOG_INFO("OPT LSM recovery");
 
-  vector<char*> undo_log = pm_log->get_data();
+  std::vector<char*> undo_log = pm_log->get_data();
 
   int op_type, txn_id, table_id;
   unsigned int num_indices, index_itr;
@@ -434,7 +434,7 @@ void opt_lsm_engine::recovery() {
 
   for (char* ptr : undo_log) {
     txn_cnt++;
-    //cout << "entry : --" << ptr << "-- " << endl;
+    //std::cout << "entry : --" << ptr << "-- " << std::endl;
 
     if (total_txns - txn_cnt < conf.active_txn_threshold)
       continue;
@@ -544,7 +544,7 @@ void opt_lsm_engine::recovery() {
                 break;
 
               default:
-                cout << "Invalid field type : " << op_type << endl;
+                std::cout << "Invalid field type : " << op_type << std::endl;
                 break;
             }
           }
@@ -553,7 +553,7 @@ void opt_lsm_engine::recovery() {
         break;
 
       default:
-        cout << "Invalid operation type" << op_type << endl;
+        std::cout << "Invalid operation type" << op_type << std::endl;
         break;
     }
 
@@ -564,6 +564,8 @@ void opt_lsm_engine::recovery() {
   pm_log->clear();
 
   rec_t.end();
-  cout << "OPT_LSM :: Recovery duration (ms) : " << rec_t.duration() << endl;
+  std::cout << "OPT_LSM :: Recovery duration (ms) : " << rec_t.duration() << std::endl;
+
+}
 
 }

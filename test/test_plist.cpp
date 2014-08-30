@@ -7,19 +7,17 @@
 #include "libpm.h"
 #include "plist.h"
 
-using namespace std;
+namespace storage {
 
-extern struct static_info *sp;
-
-int main(int argc, char *argv[]) {
+int test_plist() {
   const char* path = "./zfile";
 
-  // cleanup
+// cleanup
   unlink(path);
 
   long pmp_size = 10 * 1024 * 1024;
   if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path << endl;
+    std::cout << "pmemalloc_init on :" << path << std::endl;
 
   sp = (struct static_info *) pmemalloc_static_area();
 
@@ -60,6 +58,16 @@ int main(int argc, char *argv[]) {
   delete list;
 
   int ret = std::remove(path);
+
+  return ret;
+}
+
+}
+
+extern struct static_info *sp;
+
+int main(int argc, char *argv[]) {
+  storage::test_plist();
 
   return 0;
 }

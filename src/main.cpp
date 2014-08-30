@@ -2,12 +2,12 @@
 
 #include <cassert>
 
-#include "nstore.h"
+#include "config.h"
 #include "utils.h"
 #include "libpm.h"
 #include "coordinator.h"
 
-using namespace std;
+namespace storage {
 
 extern struct static_info *sp;  // global persistent memory structure
 int level = 2;  // verbosity level
@@ -40,27 +40,19 @@ static void usage_exit(FILE *out) {
   exit(EXIT_FAILURE);
 }
 
-static struct option opts[] = {
-    { "log-enable", no_argument, NULL, 'a' },
-    { "sp-enable", no_argument, NULL, 's' },
-    { "lsm-enable", no_argument, NULL, 'm' },
-    { "opt-wal-enable", no_argument, NULL, 'w' },
-    { "opt-sp-enable", no_argument, NULL, 'c' },
-    { "opt-lsm-enable", no_argument, NULL, 'l' },
-    { "ycsb", no_argument, NULL, 'y' },
-    { "tpcc", no_argument, NULL, 't' },
-    { "fs-path", optional_argument, NULL, 'f' },
-    { "num-txns", optional_argument, NULL, 'x' },
-    { "num-keys", optional_argument, NULL, 'k' },
-    { "num-executors", optional_argument, NULL, 'e' },
-    { "ycsb_per_writes", optional_argument, NULL, 'w' },
-    { "ycsb_skew", optional_argument, NULL, 'q' },
-    { "gc-interval", optional_argument, NULL, 'g' },
-    { "verbose", no_argument, NULL, 'v' },
-    { "help", no_argument, NULL, 'h' },
-    { "ycsb-update-one", no_argument, NULL, 'u' },
-    { NULL, 0, NULL, 0 }
-};
+static struct option opts[] = { { "log-enable", no_argument, NULL, 'a' }, {
+    "sp-enable", no_argument, NULL, 's' }, { "lsm-enable", no_argument, NULL,
+    'm' }, { "opt-wal-enable", no_argument, NULL, 'w' }, { "opt-sp-enable",
+    no_argument, NULL, 'c' }, { "opt-lsm-enable", no_argument, NULL, 'l' }, {
+    "ycsb", no_argument, NULL, 'y' }, { "tpcc", no_argument, NULL, 't' }, {
+    "fs-path", optional_argument, NULL, 'f' }, { "num-txns", optional_argument,
+    NULL, 'x' }, { "num-keys", optional_argument, NULL, 'k' }, {
+    "num-executors", optional_argument, NULL, 'e' }, { "ycsb_per_writes",
+    optional_argument, NULL, 'w' },
+    { "ycsb_skew", optional_argument, NULL, 'q' }, { "gc-interval",
+        optional_argument, NULL, 'g' }, { "verbose", no_argument, NULL, 'v' }, {
+        "help", no_argument, NULL, 'h' }, { "ycsb-update-one", no_argument,
+        NULL, 'u' }, { NULL, 0, NULL, 0 } };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 
@@ -112,19 +104,19 @@ static void parse_arguments(int argc, char* argv[], config& state) {
     switch (c) {
       case 'f':
         state.fs_path = std::string(optarg);
-        cout << "fs_path: " << state.fs_path << endl;
+        std::cout << "fs_path: " << state.fs_path << std::endl;
         break;
       case 'x':
         state.num_txns = atoi(optarg);
-        cout << "num_txns: " << state.num_txns << endl;
+        std::cout << "num_txns: " << state.num_txns << std::endl;
         break;
       case 'k':
         state.num_keys = atoi(optarg);
-        cout << "num_keys: " << state.num_keys << endl;
+        std::cout << "num_keys: " << state.num_keys << std::endl;
         break;
       case 'e':
         state.num_executors = atoi(optarg);
-        cout << "num_executors: " << state.num_executors << endl;
+        std::cout << "num_executors: " << state.num_executors << std::endl;
         break;
       case 'v':
         state.verbose = true;
@@ -136,72 +128,72 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 
         if (state.ycsb_per_writes == 0)
           state.read_only = true;
-        cout << "per_writes: " << state.ycsb_per_writes << endl;
+        std::cout << "per_writes: " << state.ycsb_per_writes << std::endl;
         break;
       case 'g':
         state.gc_interval = atoi(optarg);
-        cout << "gc_interval: " << state.gc_interval << endl;
+        std::cout << "gc_interval: " << state.gc_interval << std::endl;
         break;
       case 'a':
         state.etype = engine_type::WAL;
-        cout << "wal_enable: " << endl;
+        std::cout << "wal_enable: " << std::endl;
         break;
       case 'w':
         state.etype = engine_type::OPT_WAL;
-        cout << "opt_wal_enable " << endl;
+        std::cout << "opt_wal_enable " << std::endl;
         break;
       case 's':
         state.etype = engine_type::SP;
-        cout << "sp_enable  " << endl;
+        std::cout << "sp_enable  " << std::endl;
         break;
       case 'c':
         state.etype = engine_type::OPT_SP;
-        cout << "opt_sp_enable " << endl;
+        std::cout << "opt_sp_enable " << std::endl;
         break;
       case 'm':
         state.etype = engine_type::LSM;
-        cout << "lsm_enable " << endl;
+        std::cout << "lsm_enable " << std::endl;
         break;
       case 'l':
         state.etype = engine_type::OPT_LSM;
-        cout << "opt_lsm_enable " << endl;
+        std::cout << "opt_lsm_enable " << std::endl;
         break;
       case 'y':
         state.btype = benchmark_type::YCSB;
-        cout << "ycsb_benchmark " << endl;
+        std::cout << "ycsb_benchmark " << std::endl;
         break;
       case 't':
         state.btype = benchmark_type::TPCC;
-        cout << "tpcc_benchmark " << endl;
+        std::cout << "tpcc_benchmark " << std::endl;
         break;
       case 'q':
         state.ycsb_skew = atof(optarg);
-        cout << "skew: " << state.ycsb_skew << endl;
+        std::cout << "skew: " << state.ycsb_skew << std::endl;
         break;
       case 'u':
         state.ycsb_update_one = true;
-        cout << "ycsb_update_one " << endl;
+        std::cout << "ycsb_update_one " << std::endl;
         break;
       case 'z':
         state.storage_stats = true;
-        cout << "storage_stats " << endl;
+        std::cout << "storage_stats " << std::endl;
         break;
       case 'o':
         state.tpcc_stock_level_only = true;
-        cout << "tpcc_stock_level " << endl;
+        std::cout << "tpcc_stock_level " << std::endl;
         break;
       case 'r':
         state.recovery = true;
-        cout << "recovery " << endl;
+        std::cout << "recovery " << std::endl;
         break;
       case 'b':
         state.load_batch_size = atoi(optarg);
-        cout << "load_batch_size: " << state.load_batch_size << endl;
+        std::cout << "load_batch_size: " << state.load_batch_size << std::endl;
         break;
       case 'i':
         state.single = false;
         state.num_executors = 2;
-        cout << "multiple executors " << endl;
+        std::cout << "multiple executors " << std::endl;
         break;
       case 'h':
         usage_exit(stderr);
@@ -213,22 +205,25 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   }
 }
 
+}
+
 int main(int argc, char **argv) {
   const char* path = "/mnt/pmfs/n-store/zfile";
 
   size_t pmp_size = 8UL * 1024 * 1024 * 1024;
-  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path << endl;
+  if ((storage::pmp = storage::pmemalloc_init(path, pmp_size)) == NULL)
+    std::cout << "pmemalloc_init on :" << path << std::endl;
 
-  sp = (struct static_info *) pmemalloc_static_area();
+  storage::sp = (storage::static_info *) storage::pmemalloc_static_area();
 
 // Start
-  config state;
+  storage::config state;
   parse_arguments(argc, argv, state);
   //state.sp = sp;
 
-  coordinator cc(state);
+  storage::coordinator cc(state);
   cc.eval(state);
 
   return 0;
 }
+

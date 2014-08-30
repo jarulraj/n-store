@@ -1,5 +1,4 @@
-#ifndef RECORD_H_
-#define RECORD_H_
+#pragma once
 
 #include <iostream>
 #include <string>
@@ -10,7 +9,7 @@
 #include "schema.h"
 #include "field.h"
 
-using namespace std;
+namespace storage {
 
 class record {
  public:
@@ -77,7 +76,7 @@ class record {
         break;
 
       default:
-        cout << "Invalid type : " << type << endl;
+        std::cout << "Invalid type : " << type << std::endl;
         exit(EXIT_FAILURE);
         break;
     }
@@ -104,7 +103,7 @@ class record {
         break;
 
       default:
-        cout << "Invalid type : " << type << endl;
+        std::cout << "Invalid type : " << type << std::endl;
         break;
     }
   }
@@ -147,7 +146,7 @@ class record {
   schema* sptr;
   char* data;
   size_t data_len;
-}
-;
+};
 
-#endif /* RECORD_H_ */
+}
+

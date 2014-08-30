@@ -1,5 +1,4 @@
-#ifndef PBTREE_H_
-#define PBTREE_H_
+#pragma once
 
 #include <algorithm>
 #include <functional>
@@ -10,6 +9,8 @@
 #include <assert.h>
 
 #include "libpm.h"
+
+namespace storage {
 
 /// Print out debug information to std::cout if BTREE_DEBUG is defined.
 #define BTREE_PRINT(x)
@@ -4194,4 +4195,4 @@ class pbtree {
   }
 };
 
-#endif /* PBTREE_H_ */
+}

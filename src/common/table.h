@@ -1,12 +1,11 @@
-#ifndef TABLE_H_
-#define TABLE_H_
+#pragma once
 
 #include "schema.h"
 #include "table_index.h"
 #include "plist.h"
 #include "storage.h"
 
-using namespace std;
+namespace storage {
 
 class table {
  public:
@@ -39,7 +38,7 @@ class table {
 
     if (indices != NULL) {
       // clean up table indices
-      vector<table_index*> index_vec = indices->get_data();
+      std::vector<table_index*> index_vec = indices->get_data();
       for (table_index* index : index_vec)
         delete index;
 
@@ -60,4 +59,5 @@ class table {
   plist<record*>* pm_data;
 };
 
-#endif /* TABLE_H_ */
+}
+

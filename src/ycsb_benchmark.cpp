@@ -2,7 +2,7 @@
 
 #include "ycsb_benchmark.h"
 
-using namespace std;
+namespace storage {
 
 class usertable_record : public record {
  public:
@@ -28,7 +28,7 @@ class usertable_record : public record {
 // USERTABLE
 table* create_usertable(config& conf) {
 
-  vector<field_info> cols;
+  std::vector<field_info> cols;
   off_t offset;
 
   offset = 0;
@@ -81,7 +81,7 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
 
   // Initialization mode
   if (sp->init == 0) {
-    //cout << "Initialization Mode" << endl;
+    //std::cout << "Initialization Mode" << std::endl;
     sp->ptrs[0] = _db;
 
     table* usertable = create_usertable(conf);
@@ -89,7 +89,7 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
 
     sp->init = 1;
   } else {
-    //cout << "Recovery Mode " << endl;
+    //std::cout << "Recovery Mode " << std::endl;
     database* db = (database*) sp->ptrs[0];
     db->reset(conf, tid);
   }
@@ -217,7 +217,7 @@ void ycsb_benchmark::sim_crash() {
   unsigned int txn_itr;
 
   // UPDATE
-  vector<int> field_ids;
+  std::vector<int> field_ids;
   for (int itr = 1; itr <= conf.ycsb_num_val_fields; itr++)
     field_ids.push_back(itr);
 
@@ -263,7 +263,7 @@ void ycsb_benchmark::execute() {
   unsigned int txn_itr;
   status ss(num_txns);
 
-  cout << "num_txns :: " << num_txns << endl;
+  std::cout << "num_txns :: " << num_txns << std::endl;
 
   for (txn_itr = 0; txn_itr < num_txns; txn_itr++) {
     double u = uniform_dist[txn_itr];
@@ -278,7 +278,9 @@ void ycsb_benchmark::execute() {
       ss.display();
   }
 
-  cout << "duration :: " << tm->duration() << endl;
+  std::cout << "duration :: " << tm->duration() << std::endl;
 
   delete ee;
+}
+
 }

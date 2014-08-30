@@ -1,14 +1,13 @@
-#ifndef BENCHMARK_H_
-#define BENCHMARK_H_
+#pragma once
 
 #include <vector>
 
-#include "nstore.h"
+#include "config.h"
 #include "engine.h"
 #include "timer.h"
 #include "database.h"
 
-using namespace std;
+namespace storage {
 
 class benchmark {
  public:
@@ -20,12 +19,12 @@ class benchmark {
     sp = _sp;
   }
 
+  virtual ~benchmark() {
+  }
+
   virtual void load() = 0;
   virtual void execute() = 0;
   virtual void sim_crash() = 0;
-
-  virtual ~benchmark() {
-  }
 
   unsigned int tid;
   timer* tm;
@@ -33,4 +32,4 @@ class benchmark {
   struct static_info* sp;
 };
 
-#endif /* BENCHMARK_H_ */
+}

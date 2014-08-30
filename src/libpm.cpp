@@ -3,22 +3,24 @@
 #include "libpm.h"
 
 pthread_mutex_t pmp_mutex = PTHREAD_MUTEX_INITIALIZER;
-struct static_info *sp;
 
 // Global new and delete
-
 void* operator new(size_t sz) {
   pthread_mutex_lock(&pmp_mutex);
-  void* ret = pmemalloc_reserve(sz);
+  void* ret = storage::pmemalloc_reserve(sz);
   pthread_mutex_unlock(&pmp_mutex);
   return ret;
 }
 
 void operator delete(void *p) throw () {
   pthread_mutex_lock(&pmp_mutex);
-  pmemalloc_free(p);
+  storage::pmemalloc_free(p);
   pthread_mutex_unlock(&pmp_mutex);
 }
+
+namespace storage {
+
+struct static_info *sp;
 
 int pmem_debug;
 size_t pmem_orig_size;
@@ -684,5 +686,7 @@ void pmemalloc_check(const char *path) {
     printf("%10s %10lu %10u %10lu %10lu\n", names[i], stats[i].bytes,
            stats[i].count, stats[i].largest, stats[i].smallest);
   }
+
+}
 
 }

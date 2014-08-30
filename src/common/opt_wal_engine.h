@@ -1,12 +1,11 @@
-#ifndef OPT_WAL_ENGINE_H_
-#define OPT_WAL_ENGINE_H_
+#pragma once
 
 #include <string>
 #include <sstream>
 #include <atomic>
 
 #include "engine_api.h"
-#include "nstore.h"
+#include "config.h"
 #include "transaction.h"
 #include "record.h"
 #include "utils.h"
@@ -16,7 +15,7 @@
 #include "timer.h"
 #include "serializer.h"
 
-using namespace std;
+namespace storage {
 
 class opt_wal_engine : public engine_api {
  public:
@@ -57,4 +56,5 @@ class opt_wal_engine : public engine_api {
   serializer sr;
 };
 
-#endif /* OPT_WAL_ENGINE_H_ */
+}
+

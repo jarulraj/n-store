@@ -1,5 +1,4 @@
-#ifndef YCSB_BENCHMARK_H_
-#define YCSB_BENCHMARK_H_
+#pragma once
 
 #include <cstdio>
 #include <cstring>
@@ -10,13 +9,13 @@
 #include "record.h"
 #include "statement.h"
 #include "utils.h"
-#include "nstore.h"
+#include "config.h"
 #include "status.h"
 #include "libpm.h"
 #include "plist.h"
 #include "serializer.h"
 
-using namespace std;
+namespace storage {
 
 class ycsb_benchmark : public benchmark {
  public:
@@ -31,16 +30,16 @@ class ycsb_benchmark : public benchmark {
   void do_read(engine* ee);
 
   // Table Ids
-  const int USER_TABLE_ID = 0;
+  static constexpr int USER_TABLE_ID = 0;
 
   // Schema
   schema* user_table_schema;
 
-  vector<int> zipf_dist;
-  vector<double> uniform_dist;
+  std::vector<int> zipf_dist;
+  std::vector<double> uniform_dist;
 
   config conf;
-  vector<int> update_field_ids;
+  std::vector<int> update_field_ids;
   serializer sr;
 
   benchmark_type btype;
@@ -48,7 +47,6 @@ class ycsb_benchmark : public benchmark {
   unsigned int txn_id;
   unsigned int num_keys;
   unsigned int num_txns;
-
 };
 
-#endif /* YCSB_BENCHMARK_H_ */
+}

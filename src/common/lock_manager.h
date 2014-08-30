@@ -1,10 +1,9 @@
-#ifndef LOCK_MANAGER_H_
-#define LOCK_MANAGER_H_
+#pragma once
 
 #include  <map>
 #include "utils.h"
 
-using namespace std;
+namespace storage {
 
 struct lock_t {
   lock_t()
@@ -78,4 +77,4 @@ class lock_manager {
   unsigned int abort = 0;
 };
 
-#endif /* LOCK_MANAGER_H_ */
+}

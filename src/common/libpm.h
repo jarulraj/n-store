@@ -1,5 +1,4 @@
-#ifndef LIBPM_H_
-#define LIBPM_H_
+#pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +15,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+
+namespace storage {
 
 // Logging
 
@@ -117,4 +118,4 @@ void pmemalloc_activate(void *abs_ptr_);
 void pmemalloc_free(void *abs_ptr_);
 void pmemalloc_check(const char *path);
 
-#endif /* LIBPM_H_ */
+}
