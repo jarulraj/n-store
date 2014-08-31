@@ -17,8 +17,8 @@
 namespace storage {
 
 tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
-                               timer* _tm, struct static_info* _sp)
-    : benchmark(tid, _db, _tm, _sp),
+                               timer* _tm)
+    : benchmark(tid, _db, _tm),
       conf(_conf),
       txn_id(0) {
 
@@ -79,6 +79,17 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
     customers_per_district = 3000;
     new_orders_per_district = 900;
   }
+}
+
+void tpcc_benchmark::reset() {
+  if (sp->init == 0)
+    return;
+
+  std::cout << "Recovery Mode " << std::endl;
+
+  std::cout << "DB  :: " << db << std::endl;
+
+  db->reset(conf, tid);
 }
 
 // WAREHOUSE

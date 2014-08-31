@@ -18,13 +18,13 @@ class database {
     sp->itr++;
 
     // TABLES
-    plist<table*>* _tables = new plist<table*>(&sp->ptrs[sp->itr++],
-                                               &sp->ptrs[sp->itr++]);
+    plist<table*>* _tables = new plist<table*>(&sp->ptrs[get_next_pp()],
+                                               &sp->ptrs[get_next_pp()]);
     pmemalloc_activate(_tables);
     tables = _tables;
 
     // LOG
-    log = new plist<char*>(&sp->ptrs[sp->itr++], &sp->ptrs[sp->itr++]);
+    log = new plist<char*>(&sp->ptrs[get_next_pp()], &sp->ptrs[get_next_pp()]);
     pmemalloc_activate(log);
 
     // DIRS

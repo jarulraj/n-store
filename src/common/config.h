@@ -38,12 +38,13 @@ enum benchmark_type {
   TPCC
 };
 
-class database;
+class benchmark;
 
 class config {
  public:
   std::string fs_path;
-  struct static_info* _sp;
+  benchmark** partitions;
+  struct static_info* sp;
 
   int num_keys;
   int num_txns;

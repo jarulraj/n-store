@@ -564,7 +564,8 @@ void opt_lsm_engine::recovery() {
   pm_log->clear();
 
   rec_t.end();
-  std::cout << "OPT_LSM :: Recovery duration (ms) : " << rec_t.duration() << std::endl;
+  std::cout << "OPT_LSM :: Recovery duration (ms) : " << rec_t.duration()
+            << std::endl;
 
 }
 

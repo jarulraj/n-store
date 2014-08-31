@@ -19,12 +19,13 @@ namespace storage {
 
 class ycsb_benchmark : public benchmark {
  public:
-  ycsb_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm, struct static_info* _sp);
+  ycsb_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm);
 
   void load();
   void execute();
 
   void sim_crash();
+  void reset();
 
   void do_update(engine* ee);
   void do_read(engine* ee);

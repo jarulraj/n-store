@@ -73,6 +73,7 @@ struct static_info {
 };
 
 extern struct static_info* sp;
+unsigned int get_next_pp();
 
 #define ABS_PTR(p) ((decltype(p))(pmp + (uintptr_t)p))
 #define REL_PTR(p) ((decltype(p))((uintptr_t)p - (uintptr_t)pmp))

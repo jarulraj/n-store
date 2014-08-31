@@ -11,12 +11,11 @@ namespace storage {
 
 class benchmark {
  public:
-  benchmark(unsigned int _tid, database* _db, timer* _tm,
-            struct static_info* _sp) {
+  benchmark(unsigned int _tid, database* _db, timer* _tm)
+      : sp(NULL) {
     tid = _tid;
     tm = _tm;
     db = _db;
-    sp = _sp;
   }
 
   virtual ~benchmark() {
@@ -25,6 +24,7 @@ class benchmark {
   virtual void load() = 0;
   virtual void execute() = 0;
   virtual void sim_crash() = 0;
+  virtual void reset() = 0;
 
   unsigned int tid;
   timer* tm;

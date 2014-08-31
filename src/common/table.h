@@ -23,11 +23,11 @@ class table {
     memcpy(table_name, name_str.c_str(), len + 1);
     pmemalloc_activate(table_name);
 
-    pm_data = new plist<record*>(&sp->ptrs[sp->itr++], &sp->ptrs[sp->itr++]);
+    pm_data = new plist<record*>(&sp->ptrs[get_next_pp()], &sp->ptrs[get_next_pp()]);
     pmemalloc_activate(pm_data);
 
-    indices = new plist<table_index*>(&sp->ptrs[sp->itr++],
-                                      &sp->ptrs[sp->itr++]);
+    indices = new plist<table_index*>(&sp->ptrs[get_next_pp()],
+                                      &sp->ptrs[get_next_pp()]);
     pmemalloc_activate(indices);
 
   }

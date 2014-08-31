@@ -20,7 +20,15 @@ void operator delete(void *p) throw () {
 
 namespace storage {
 
-struct static_info *sp;
+static_info *sp;
+
+unsigned int get_next_pp() {
+  pthread_mutex_lock(&(::pmp_mutex));
+  unsigned int ret = sp->itr;
+  sp->itr++;
+  pthread_mutex_unlock(&(::pmp_mutex));
+  return ret;
+}
 
 int pmem_debug;
 size_t pmem_orig_size;
@@ -400,6 +408,7 @@ void *pmemalloc_reserve(size_t size) {
            *  5. set new clump size, RESERVED
            *  6. persist existing clump
            */
+          memset(newclp, '\0', sizeof(*newclp));
           newclp->size = leftover | PMEM_STATE_FREE;
           newclp->prevsize = nsize;
           pmem_persist(newclp, sizeof(*newclp), 0);

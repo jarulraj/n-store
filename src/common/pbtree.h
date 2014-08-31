@@ -1184,12 +1184,10 @@ class btree {
         m_headleaf(NULL),
         m_tailleaf(NULL),
         m_allocator(alloc) {
-    if (m_stats == NULL) {
-      m_stats = new tree_stats;
+    m_stats = new tree_stats;
 
-      if (persist)
-        pmemalloc_activate(m_stats);
-    }
+    if (persist)
+      pmemalloc_activate(m_stats);
   }
 
   /// Constructor initializing an empty B+ tree with a special key
@@ -1336,18 +1334,18 @@ class btree {
 
   /// Allocate and initialize a leaf node
   inline leaf_node* allocate_leaf() {
-    leaf_node *n = new (leaf_node_allocator().allocate(1)) leaf_node();
+    leaf_node *n = new (leaf_node_allocator().allocate(1)) leaf_node;
     if (persist)
       pmemalloc_activate(n);
 
     n->initialize();
-    m_stats->leaves++;
+    //m_stats->leaves++;
     return n;
   }
 
   /// Allocate and initialize an inner node
   inline inner_node* allocate_inner(unsigned short level) {
-    inner_node *n = new (inner_node_allocator().allocate(1)) inner_node();
+    inner_node *n = new (inner_node_allocator().allocate(1)) inner_node;
     if (persist)
       pmemalloc_activate(n);
 

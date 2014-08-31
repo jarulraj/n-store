@@ -40,19 +40,26 @@ static void usage_exit(FILE *out) {
   exit(EXIT_FAILURE);
 }
 
-static struct option opts[] = { { "log-enable", no_argument, NULL, 'a' }, {
-    "sp-enable", no_argument, NULL, 's' }, { "lsm-enable", no_argument, NULL,
-    'm' }, { "opt-wal-enable", no_argument, NULL, 'w' }, { "opt-sp-enable",
-    no_argument, NULL, 'c' }, { "opt-lsm-enable", no_argument, NULL, 'l' }, {
-    "ycsb", no_argument, NULL, 'y' }, { "tpcc", no_argument, NULL, 't' }, {
-    "fs-path", optional_argument, NULL, 'f' }, { "num-txns", optional_argument,
-    NULL, 'x' }, { "num-keys", optional_argument, NULL, 'k' }, {
-    "num-executors", optional_argument, NULL, 'e' }, { "ycsb_per_writes",
-    optional_argument, NULL, 'w' },
-    { "ycsb_skew", optional_argument, NULL, 'q' }, { "gc-interval",
-        optional_argument, NULL, 'g' }, { "verbose", no_argument, NULL, 'v' }, {
-        "help", no_argument, NULL, 'h' }, { "ycsb-update-one", no_argument,
-        NULL, 'u' }, { NULL, 0, NULL, 0 } };
+static struct option opts[] = {
+    { "log-enable", no_argument, NULL, 'a' },
+    { "sp-enable", no_argument, NULL, 's' },
+    { "lsm-enable", no_argument, NULL, 'm' },
+    { "opt-wal-enable", no_argument, NULL, 'w' },
+    { "opt-sp-enable", no_argument, NULL, 'c' },
+    { "opt-lsm-enable", no_argument, NULL, 'l' },
+    { "ycsb", no_argument, NULL, 'y' },
+    { "tpcc", no_argument, NULL, 't' },
+    { "fs-path", optional_argument, NULL, 'f' },
+    { "num-txns", optional_argument, NULL, 'x' },
+    { "num-keys", optional_argument, NULL, 'k' },
+    { "num-executors", optional_argument, NULL, 'e' },
+    { "ycsb_per_writes", optional_argument, NULL, 'w' },
+    { "ycsb_skew", optional_argument, NULL, 'q' },
+    { "gc-interval", optional_argument, NULL, 'g' },
+    { "verbose", no_argument, NULL, 'v' },
+    { "help", no_argument, NULL, 'h' },
+    { "ycsb-update-one", no_argument, NULL, 'u' },
+    { NULL, 0, NULL, 0 } };
 
 static void parse_arguments(int argc, char* argv[], config& state) {
 
@@ -210,7 +217,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
 int main(int argc, char **argv) {
   const char* path = "/mnt/pmfs/n-store/zfile";
 
-  size_t pmp_size = 8UL * 1024 * 1024 * 1024;
+  size_t pmp_size = 1UL * 1024 * 1024 * 1024;
   if ((storage::pmp = storage::pmemalloc_init(path, pmp_size)) == NULL)
     std::cout << "pmemalloc_init on :" << path << std::endl;
 
@@ -219,7 +226,7 @@ int main(int argc, char **argv) {
 // Start
   storage::config state;
   parse_arguments(argc, argv, state);
-  //state.sp = sp;
+  state.sp = storage::sp;
 
   storage::coordinator cc(state);
   cc.eval(state);
