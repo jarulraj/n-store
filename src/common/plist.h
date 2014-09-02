@@ -209,7 +209,7 @@ class plist {
     while (np) {
       prev = np;
       np = np->next;
-      pmemalloc_free(prev);
+      delete prev;
     }
 
     (*head) = NULL;

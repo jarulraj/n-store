@@ -206,7 +206,7 @@ int opt_sp_engine::update(const statement& st) {
   record* before_rec;
   memcpy(&before_rec, val.data, sizeof(record*));
 
-  void *before_field, *after_field;
+  char *before_field, *after_field;
   assert(before_rec->data != NULL);
 
   record* after_rec = new record(before_rec->sptr);
@@ -215,10 +215,10 @@ int opt_sp_engine::update(const statement& st) {
   // Update record
   for (int field_itr : st.field_ids) {
     if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
-      before_field = before_rec->get_pointer(field_itr);
-      after_field = rec_ptr->get_pointer(field_itr);
+      before_field = (char*) before_rec->get_pointer(field_itr);
+      after_field = (char*) rec_ptr->get_pointer(field_itr);
       pmemalloc_activate(after_field);
-      pmemalloc_free(before_field);
+      delete before_field;
     }
 
     after_rec->set_data(field_itr, rec_ptr);

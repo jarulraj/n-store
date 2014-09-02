@@ -1221,7 +1221,7 @@ class cow_btree {
 
     if (persist) {
       mpages->insert(copy->pgno, copy);
-      pmemalloc_free(mp->page);
+      delete mp->page;
     }
 
     return copy;

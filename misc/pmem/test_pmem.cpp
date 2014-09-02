@@ -5,29 +5,17 @@
 #include <unistd.h>
 #include <chrono>
 #include <ctime>
-
+#include <thread>
 #include <vector>
 
 #include "libpm.h"
 
 using namespace std;
 
-int main(int argc, char *argv[]) {
-
-  const char* path = "./zfile";
-
+void do_task() {
   std::vector<void*> ptrs;
 
-  // cleanup
-  unlink(path);
-
-  long pmp_size = 64 * 1024 * 1024;
-  if ((pmp = pmemalloc_init(path, pmp_size)) == NULL)
-    cout << "pmemalloc_init on :" << path << endl;
-
-  sp = (struct static_info *) pmemalloc_static_area();
-
-  int ops = 1024 * 1024 * 4;
+  int ops = 1024 * 1024;
   int ptrs_offset = 0;
   size_t sz;
 
@@ -40,13 +28,15 @@ int main(int argc, char *argv[]) {
 
   for (int i = 0; i < ops; i++) {
     sz = 1 + rand() % 32;
-    vc = (char*) pmemalloc_reserve(sz);
+    vc = new char[sz];
+
+    storage::pmemalloc_activate(vc);
 
     ptrs.push_back(vc);
     ptrs_offset = rand() % ptrs.size();
 
     if (rand() % 1024 != 0 && ptrs.size() >= 3) {
-      pmemalloc_free(ptrs[ptrs_offset]);
+      delete (char*)(ptrs[ptrs_offset]);
       ptrs.erase(ptrs.begin() + ptrs_offset);
     }
   }
@@ -69,7 +59,7 @@ int main(int argc, char *argv[]) {
     ptrs_offset = rand() % ptrs.size();
 
     if (rand() % 1024 != 0 && ptrs.size() >= 3) {
-      free(ptrs[ptrs_offset]);
+      free (ptrs[ptrs_offset]);
       ptrs.erase(ptrs.begin() + ptrs_offset);
     }
   }
@@ -77,6 +67,31 @@ int main(int argc, char *argv[]) {
   end = std::chrono::system_clock::now();
   elapsed_seconds = end - start;
   cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+}
+
+int main(int argc, char *argv[]) {
+
+  const char* path = "./zfile";
+
+  std::vector<void*> ptrs;
+
+  // cleanup
+  unlink(path);
+
+  long pmp_size = 64 * 1024 * 1024;
+  if ((storage::pmp = storage::pmemalloc_init(path, pmp_size)) == NULL)
+    cout << "pmemalloc_init on :" << path << endl;
+
+  storage::sp = (storage::static_info *) storage::pmemalloc_static_area();
+
+  std::vector<std::thread> executors;
+  unsigned int num_executors = 4;
+
+  for (unsigned int i = 0; i < num_executors; i++)
+    executors.push_back(std::thread(&do_task));
+
+  for (unsigned int i = 0; i < num_executors; i++)
+    executors[i].join();
 
   return 0;
 }

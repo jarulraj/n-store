@@ -258,7 +258,7 @@ void opt_wal_engine::txn_end(__attribute__((unused)) bool commit) {
 
   // Clear commit_free list
   for (void* ptr : commit_free_list) {
-    pmemalloc_free(ptr);
+    delete (char*) ptr;
   }
   commit_free_list.clear();
 
