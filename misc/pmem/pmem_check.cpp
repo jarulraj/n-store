@@ -27,7 +27,8 @@ int main(int argc, char *argv[]) {
   if (optind < argc)
     printf("Usage :: %s \n", Usage);
 
-  pmemalloc_check(path);
+  storage::pmem_pool pp;
+  pp.pmemalloc_check(path);
 
   exit(0);
 }
