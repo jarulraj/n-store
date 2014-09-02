@@ -328,7 +328,8 @@ void* pmem_pool::pmemalloc_reserve(size_t size) {
   DEBUG("clp= %p", clp);
 
   /* first fit */
-  check: unsigned int itr = 0;
+  check:
+  //unsigned int itr = 0;
   while (clp->size) {
     DEBUG("************** itr :: %lu ", itr++);
     size_t sz = clp->size & ~PMEM_STATE_MASK;
@@ -619,7 +620,7 @@ void pmem_pool::pmemalloc_check(const char *path) {
    * = file size
    */
   if ((PMEM_CLUMP_OFFSET + clumptotal + (stbuf.st_size & (PMEM_CHUNK_SIZE - 1))
-      + PMEM_CHUNK_SIZE) == stbuf.st_size) {
+      + PMEM_CHUNK_SIZE) == (size_t) stbuf.st_size) {
     DEBUG("section sizes correctly add up to file size");
   } else {
     FATAL(

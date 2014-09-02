@@ -72,9 +72,9 @@ class pmem_pool {
   // memory pool
   void* pmp;
   struct static_info* sp;
-  struct clump* prev_clp;
   void* location;
   size_t pool_size;
+  struct clump* prev_clp;
 };
 
 }
