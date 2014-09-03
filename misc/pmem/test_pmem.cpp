@@ -12,15 +12,9 @@
 
 using namespace std;
 
-std::string fs_path = "./";
-size_t pmp_size = 64 * 1024 * 1024;
-
 void do_task(unsigned int tid) {
 
   std::cout << "tid :: " << tid << std::endl;
-
-  storage::pmem_pool pp = storage::pmem_pool(fs_path, tid, pmp_size);
-
   std::vector<void*> ptrs;
 
   int ops = 1024 * 1024 * 4;
@@ -36,15 +30,15 @@ void do_task(unsigned int tid) {
 
   for (int i = 0; i < ops; i++) {
     sz = 1 + rand() % 32;
-    vc = (char*) pp.pmemalloc_reserve(sz);
+    vc = new char[sz];
 
-    pp.pmemalloc_activate(vc);
+    storage::pmemalloc_activate(vc);
 
     ptrs.push_back(vc);
     ptrs_offset = rand() % ptrs.size();
 
     if (rand() % 1024 != 0 && ptrs.size() >= 3) {
-      pp.pmemalloc_free(ptrs[ptrs_offset]);
+      delete (char*) ptrs[ptrs_offset];
       ptrs.erase(ptrs.begin() + ptrs_offset);
     }
   }
@@ -79,7 +73,16 @@ void do_task(unsigned int tid) {
 }
 
 int main(int argc, char *argv[]) {
-  std::vector<void*> ptrs;
+  const char* path = "./zfile";
+
+  // cleanup
+  unlink(path);
+
+  size_t pmp_size = 64 * 1024 * 1024;
+  if ((storage::pmp = storage::pmemalloc_init(path, pmp_size)) == NULL)
+    std::cout << "pmemalloc_init on :" << path << std::endl;
+
+  storage::sp = (storage::static_info *) storage::pmemalloc_static_area();
 
   std::vector<std::thread> executors;
   unsigned int num_executors = 2;

@@ -17,8 +17,8 @@
 namespace storage {
 
 tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
-                               timer* _tm)
-    : benchmark(tid, _db, _tm),
+                               timer* _tm, struct static_info* _sp)
+    : benchmark(tid, _db, _tm, _sp),
       conf(_conf),
       txn_id(0) {
 
@@ -29,7 +29,7 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
 
   // Initialization mode
   if (sp->init == 0) {
-    //std::cout << "Initialization Mode" << std::endl;
+    //cout << "Initialization Mode" << endl;
 
     sp->ptrs[0] = db;
 
@@ -54,7 +54,7 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
 
     sp->init = 1;
   } else {
-    //std::cout << "Recovery Mode " << std::endl;
+    //cout << "Recovery Mode " << endl;
     database* db = (database*) sp->ptrs[0];
     db->reset(conf, tid);
   }
@@ -81,16 +81,6 @@ tpcc_benchmark::tpcc_benchmark(config _conf, unsigned int tid, database* _db,
   }
 }
 
-void tpcc_benchmark::reset() {
-  if (sp->init == 0)
-    return;
-
-  std::cout << "Recovery Mode " << std::endl;
-
-  std::cout << "DB  :: " << db << std::endl;
-
-  db->reset(conf, tid);
-}
 
 // WAREHOUSE
 class warehouse_record : public record {

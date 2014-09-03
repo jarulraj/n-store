@@ -19,12 +19,12 @@ namespace storage {
 
 class tpcc_benchmark : public benchmark {
  public:
-  tpcc_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm);
+  tpcc_benchmark(config _conf, unsigned int tid, database* _db, timer* _tm,
+                 struct static_info* _sp);
 
   void load();
   void execute();
   void sim_crash();
-  void reset();
 
   table* create_warehouse();
   table* create_district();
@@ -83,7 +83,7 @@ class tpcc_benchmark : public benchmark {
   schema* stock_table_do_stock_level_schema;
 
   // Constants
-  int item_count = 100000;  // 100000
+  int item_count = 1000;  // 100000
   static constexpr double item_min_price = 1.0;
   static constexpr double item_max_price = 100.0;
   static constexpr int item_name_len = 5;
@@ -96,7 +96,7 @@ class tpcc_benchmark : public benchmark {
   static constexpr double name_len = 32;
   static constexpr double warehouse_initial_ytd = 300000.00f;
 
-  int districts_per_warehouse = 10;  // 10
+  int districts_per_warehouse = 2;  // 10
   static constexpr double district_initial_ytd = 30000.00f;
 
   int customers_per_district = 3000;  // 3000

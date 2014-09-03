@@ -68,13 +68,12 @@ table* create_usertable(config& conf) {
 }
 
 ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
-                               timer* _tm)
-    : benchmark(tid, _db, _tm),
+                               timer* _tm, struct static_info* _sp)
+    : benchmark(tid, _db, _tm, _sp),
       conf(_conf),
       txn_id(0) {
 
   btype = benchmark_type::YCSB;
-  sp = conf.sp;
 
   // Partition workload
   num_keys = conf.num_keys / conf.num_executors;
@@ -82,9 +81,16 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
 
   // Initialization mode
   if (sp->init == 0) {
+    //cout << "Initialization Mode" << endl;
+    sp->ptrs[0] = _db;
+
     table* usertable = create_usertable(conf);
     db->tables->push_back(usertable);
+
+    sp->init = 1;
   } else {
+    //cout << "Recovery Mode " << endl;
+    database* db = (database*) sp->ptrs[0];
     db->reset(conf, tid);
   }
 
@@ -106,28 +112,10 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
   }
 
   // Generate skewed dist
-  zipf(zipf_dist, conf.ycsb_skew, num_keys,
-       num_txns * conf.ycsb_tuples_per_txn);
-  uniform(uniform_dist, num_txns);
-
-}
-
-void ycsb_benchmark::reset() {
-  if (sp->init == 0)
-    return;
-
-  //std::cout << "Recovery Mode " << std::endl;
-  txn_id = 0;
-  db->reset(conf, tid);
-
-  // Partition workload
-  num_keys = conf.num_keys / conf.num_executors;
-  num_txns = conf.num_txns / conf.num_executors;
-
-  // Generate skewed dist
   simple_skew(zipf_dist, conf.ycsb_skew, num_keys,
               num_txns * conf.ycsb_tuples_per_txn);
   uniform(uniform_dist, num_txns);
+
 }
 
 void ycsb_benchmark::load() {
