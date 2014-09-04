@@ -196,8 +196,11 @@ int main(int argc, char **argv) {
 
   itr_cnt = 128 * 128 * 4;
 
-  char buf[chunk_size + 1];
-  for (j = 0; j < chunk_size; j++)
+  size_t min_chunk_size = 8;
+  size_t max_chunk_size = 32 * 1024;
+
+  char buf[max_chunk_size + 1];
+  for (j = 0; j < max_chunk_size; j++)
     buf[j] = ('a' + rand() % 5);
 
   offset = 0;
@@ -206,7 +209,8 @@ int main(int argc, char **argv) {
     random_mode = (bool) random;
     printf("RANDOM : %d \n", random);
 
-    for (chunk_size = 8; chunk_size <= 32 * 1024; chunk_size *= 4) {
+    for (chunk_size = min_chunk_size; chunk_size <= max_chunk_size;
+        chunk_size *= 4) {
       printf("CHUNK SIZE : %lu \n", chunk_size);
 
       // NVM MODE
@@ -230,6 +234,8 @@ int main(int argc, char **argv) {
       iops = (itr_cnt * 1000) / tm.duration();
       printf("IOPS : %lf \n", iops);
       printf("BW   : %lf \n", iops * chunk_size);
+
+      delete nvm_buf;
 
       // FS MODE
       path = fs_prefix + "io_file";
@@ -280,6 +286,7 @@ int main(int argc, char **argv) {
       printf("IOPS : %lf \n", iops);
       printf("BW   : %lf \n", iops * chunk_size);
       fclose(fp);
+
     }
   }
 
