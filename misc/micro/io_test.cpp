@@ -202,11 +202,11 @@ int main(int argc, char **argv) {
 
   offset = 0;
 
-  for (int random = 0; random < 1; random++) {
+  for (int random = 0; random <= 1; random++) {
     random_mode = (bool) random;
     printf("RANDOM : %d \n", random);
 
-    for (chunk_size = 16; chunk_size < 16 * 1024; chunk_size *= 4) {
+    for (chunk_size = 8; chunk_size <= 32 * 1024; chunk_size *= 4) {
       printf("CHUNK SIZE : %lu \n", chunk_size);
 
       // NVM MODE
