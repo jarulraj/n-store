@@ -70,19 +70,20 @@ static inline void pmem_persist(void *addr, size_t len, int flags) {
 #define MAX_BUF_SIZE    4096
 
 static void usage_exit(FILE *out) {
-  fprintf(out, "Command line options : nstore <options> \n"
-          "   -h --help              :  Print help message \n"
-          "   -r --random-mode       :  Number of transactions \n"
-          "   -s --sync-mode         :  Number of keys \n"
-          "   -c --chunk-size        :  Chunk size \n"
-          "   -f --fs-type           :  FS type \n");
+  fprintf(
+      out,
+      "Command line options : nstore <options> \n"
+      "   -h --help              :  Print help message \n"
+      "   -r --random-mode       :  Random accesses \n"
+      "   -c --chunk-size        :  Chunk size \n"
+      "   -f --fs-type           :  FS type (0 : NVM, 1: PMFS, 2: EXT4, 3:TMPFS \n");
   exit(EXIT_FAILURE);
 }
 
 static struct option opts[] = { { "random-mode", no_argument, NULL, 'r' }, {
-    "sync-mode", no_argument, NULL, 's' }, { "fs-type", optional_argument, NULL,
-    'f' }, { "chunk-size", optional_argument, NULL, 'c' }, { "help",
-no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
+    "fs-type", optional_argument, NULL, 'f' }, { "chunk-size",
+    optional_argument, NULL, 'c' }, { "help", no_argument, NULL, 'h' }, { NULL,
+    0, NULL, 0 } };
 
 class config {
  public:
@@ -110,7 +111,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   // Parse args
   while (1) {
     int idx = 0;
-    int c = getopt_long(argc, argv, "f:c:hrs", opts, &idx);
+    int c = getopt_long(argc, argv, "f:c:hr", opts, &idx);
 
     if (c == -1)
       break;
@@ -218,9 +219,7 @@ int main(int argc, char **argv) {
 
       memcpy((void*) (nvm_buf + offset), buf, chunk_size);
 
-      if (sync_mode) {
-        pmem_persist(nvm_buf + offset, chunk_size, 0);
-      }
+      pmem_persist(nvm_buf + offset, chunk_size, 0);
     }
 
     tm.end();
@@ -245,8 +244,8 @@ int main(int argc, char **argv) {
       if (random_mode) {
         offset = rand() % file_size;
         offset = roundup2(offset, MAX_BUF_SIZE);
-        ret = fseek(fp, offset, SEEK_SET);
 
+        ret = fseek(fp, offset, SEEK_SET);
         if (ret != 0) {
           perror("fseek");
           exit(EXIT_FAILURE);
@@ -259,12 +258,10 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
       }
 
-      if (sync_mode) {
-        ret = fsync(fd);
-        if (ret != 0) {
-          perror("fsync");
-          exit(EXIT_FAILURE);
-        }
+      ret = fsync(fd);
+      if (ret != 0) {
+        perror("fsync");
+        exit(EXIT_FAILURE);
       }
     }
 
