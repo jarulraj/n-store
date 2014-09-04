@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
   chunk_size = state.chunk_size;
   std::string path = state.fs_path;
 
-  if(sync_mode)
+  if (sync_mode)
     itr_cnt = 128;
   else
     itr_cnt = 128 * 128;
@@ -230,6 +230,7 @@ int main(int argc, char **argv) {
   } else {
     // FS MODE
     path = fs_prefix + "io_file";
+    int ret;
 
     fp = fopen(path.c_str(), "w+");
     fd = fileno(fp);
@@ -244,13 +245,26 @@ int main(int argc, char **argv) {
       if (random_mode) {
         offset = rand() % file_size;
         offset = roundup2(offset, MAX_BUF_SIZE);
-        fseek(fp, offset, SEEK_SET);
+        ret = fseek(fp, offset, SEEK_SET);
+
+        if (ret != 0) {
+          perror("fseek");
+          exit(EXIT_FAILURE);
+        }
       }
 
-      write(fd, buf, chunk_size);
+      ret = write(fd, buf, chunk_size);
+      if (ret <= 0) {
+        perror("write");
+        exit(EXIT_FAILURE);
+      }
 
       if (sync_mode) {
-        fsync(fd);
+        ret = fsync(fd);
+        if (ret != 0) {
+          perror("fsync");
+          exit(EXIT_FAILURE);
+        }
       }
     }
 
