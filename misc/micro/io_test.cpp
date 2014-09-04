@@ -82,8 +82,8 @@ static void usage_exit(FILE *out) {
 
 static struct option opts[] = { { "random-mode", no_argument, NULL, 'r' }, {
     "fs-type", optional_argument, NULL, 'f' }, { "chunk-size",
-    optional_argument, NULL, 'c' }, { "help", no_argument, NULL, 'h' }, { NULL,
-    0, NULL, 0 } };
+optional_argument, NULL, 'c' }, { "help", no_argument, NULL, 'h' }, { NULL, 0,
+NULL, 0 } };
 
 class config {
  public:
@@ -208,8 +208,6 @@ int main(int argc, char **argv) {
     // NVM MODE
     char* nvm_buf = new char[file_size + chunk_size + 1];
 
-    tm.start();
-
     // WRITE
     for (j = 0; j < itr_cnt; j++) {
 
@@ -217,12 +215,13 @@ int main(int argc, char **argv) {
         offset = rand() % file_size;
       }
 
+      tm.start();
+
       memcpy((void*) (nvm_buf + offset), buf, chunk_size);
-
       pmem_persist(nvm_buf + offset, chunk_size, 0);
-    }
 
-    tm.end();
+      tm.end();
+    }
 
     printf("IOPS : %lf \n", (itr_cnt * 1000) / tm.duration());
 
@@ -236,8 +235,6 @@ int main(int argc, char **argv) {
     assert(fp != NULL);
     ftruncate(fd, file_size);
 
-    tm.start();
-
     // WRITE
     for (j = 0; j < itr_cnt; j++) {
 
@@ -245,27 +242,34 @@ int main(int argc, char **argv) {
         offset = rand() % file_size;
         offset = roundup2(offset, MAX_BUF_SIZE);
 
+        tm.start();
         ret = fseek(fp, offset, SEEK_SET);
+        tm.end();
+
         if (ret != 0) {
           perror("fseek");
           exit(EXIT_FAILURE);
         }
       }
 
+      tm.start();
       ret = write(fd, buf, chunk_size);
+      tm.end();
+
       if (ret <= 0) {
         perror("write");
         exit(EXIT_FAILURE);
       }
 
+      tm.start();
       ret = fsync(fd);
+      tm.end();
+
       if (ret != 0) {
         perror("fsync");
         exit(EXIT_FAILURE);
       }
     }
-
-    tm.end();
 
     printf("IOPS : %lf \n", (itr_cnt * 1000) / tm.duration());
     fclose(fp);
