@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
   unsigned int i, j, itr_cnt;
   timer tm;
 
-  file_size = 2 * 512 * 1024 * 1024;  // 2 GB
+  file_size = 2UL * 1024 * 1024 * 1024;  // 2 GB
 
   bool random_mode = state.random_mode;
   bool sync_mode = state.sync_mode;
@@ -192,11 +192,9 @@ int main(int argc, char **argv) {
   std::string fs_prefix = state.fs_path;
   chunk_size = state.chunk_size;
   std::string path = state.fs_path;
+  double iops;
 
-  if (sync_mode)
-    itr_cnt = 128;
-  else
-    itr_cnt = 128 * 128;
+  itr_cnt = 128 * 128 * 4;
 
   char buf[chunk_size + 1];
   for (j = 0; j < chunk_size; j++)
@@ -204,75 +202,85 @@ int main(int argc, char **argv) {
 
   offset = 0;
 
-  if (nvm_mode) {
-    // NVM MODE
-    char* nvm_buf = new char[file_size + chunk_size + 1];
+  for (int random = 0; random < 1; random++) {
+    random_mode = (bool) random;
+    printf("RANDOM : %d \n", random);
 
-    // WRITE
-    for (j = 0; j < itr_cnt; j++) {
+    for (chunk_size = 16; chunk_size < 16 * 1024; chunk_size *= 4) {
+      printf("CHUNK SIZE : %lu \n", chunk_size);
 
-      if (random_mode) {
-        offset = rand() % file_size;
-      }
+      // NVM MODE
+      char* nvm_buf = new char[file_size + chunk_size + 1];
 
-      tm.start();
+      // WRITE
+      for (j = 0; j < itr_cnt; j++) {
 
-      memcpy((void*) (nvm_buf + offset), buf, chunk_size);
-      pmem_persist(nvm_buf + offset, chunk_size, 0);
-
-      tm.end();
-    }
-
-    printf("IOPS : %lf \n", (itr_cnt * 1000) / tm.duration());
-
-  } else {
-    // FS MODE
-    path = fs_prefix + "io_file";
-    int ret;
-
-    fp = fopen(path.c_str(), "w+");
-    fd = fileno(fp);
-    assert(fp != NULL);
-    ftruncate(fd, file_size);
-
-    // WRITE
-    for (j = 0; j < itr_cnt; j++) {
-
-      if (random_mode) {
-        offset = rand() % file_size;
-        offset = roundup2(offset, MAX_BUF_SIZE);
+        if (random_mode) {
+          offset = rand() % file_size;
+        }
 
         tm.start();
-        ret = fseek(fp, offset, SEEK_SET);
+
+        memcpy((void*) (nvm_buf + offset), buf, chunk_size);
+        pmem_persist(nvm_buf + offset, chunk_size, 0);
+
+        tm.end();
+      }
+
+      iops = (itr_cnt * 1000) / tm.duration();
+      printf("IOPS : %lf \n", iops);
+      printf("BW   : %lf \n", iops * chunk_size);
+
+      // FS MODE
+      path = fs_prefix + "io_file";
+      int ret;
+
+      fp = fopen(path.c_str(), "w+");
+      fd = fileno(fp);
+      assert(fp != NULL);
+      ftruncate(fd, file_size);
+
+      // WRITE
+      for (j = 0; j < itr_cnt; j++) {
+
+        if (random_mode) {
+          offset = rand() % file_size;
+          offset = roundup2(offset, MAX_BUF_SIZE);
+
+          tm.start();
+          ret = fseek(fp, offset, SEEK_SET);
+          tm.end();
+
+          if (ret != 0) {
+            perror("fseek");
+            exit(EXIT_FAILURE);
+          }
+        }
+
+        tm.start();
+        ret = write(fd, buf, chunk_size);
+        tm.end();
+
+        if (ret <= 0) {
+          perror("write");
+          exit(EXIT_FAILURE);
+        }
+
+        tm.start();
+        ret = fsync(fd);
         tm.end();
 
         if (ret != 0) {
-          perror("fseek");
+          perror("fsync");
           exit(EXIT_FAILURE);
         }
       }
 
-      tm.start();
-      ret = write(fd, buf, chunk_size);
-      tm.end();
-
-      if (ret <= 0) {
-        perror("write");
-        exit(EXIT_FAILURE);
-      }
-
-      tm.start();
-      ret = fsync(fd);
-      tm.end();
-
-      if (ret != 0) {
-        perror("fsync");
-        exit(EXIT_FAILURE);
-      }
+      iops = (itr_cnt * 1000) / tm.duration();
+      printf("IOPS : %lf \n", iops);
+      printf("BW   : %lf \n", iops * chunk_size);
+      fclose(fp);
     }
-
-    printf("IOPS : %lf \n", (itr_cnt * 1000) / tm.duration());
-    fclose(fp);
   }
 
   return 0;
