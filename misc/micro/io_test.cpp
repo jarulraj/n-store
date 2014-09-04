@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
       fp = fopen(path.c_str(), "w+");
       fd = fileno(fp);
       assert(fp != NULL);
-      ftruncate(fd, file_size);
+      posix_fallocate(fd, 0, file_size);
 
       // WRITE
       for (j = 0; j < itr_cnt; j++) {
