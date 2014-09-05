@@ -49,22 +49,16 @@ class timer {
   timeval total;
 };
 
-#define ALIGN 64
+#define CACHELINE_SIZE 64
 
-static inline void pmem_flush_cache(void *addr, size_t len,
-                                    __attribute__((unused)) int flags) {
-  uintptr_t uptr;
+static inline void pmem_persist(void *buf, size_t len, int flags) {
+  uint32_t i;
 
-  /* loop through 64B-aligned chunks covering the given range */
-  for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
-      uptr += 64)
-    __builtin_ia32_clflush((void *) uptr);
-}
+  len = len + ((unsigned long) (buf) & (CACHELINE_SIZE - 1));
+  for (i = 0; i < len; i += CACHELINE_SIZE)
+    asm volatile ("clflush %0\n" : "+m" (*(char *)(buf+i)));
 
-static inline void pmem_persist(void *addr, size_t len, int flags) {
-  pmem_flush_cache(addr, len, flags);
-  __builtin_ia32_sfence();
-  //pmem_drain_pm_stores();
+  asm volatile ("sfence\n" : : );
 }
 
 #define IO_ALIGN    4096
@@ -205,7 +199,6 @@ int main(int argc, char **argv) {
 
   offset = 0;
 
-  
   for (int random = 0; random <= 1; random++) {
     random_mode = (bool) random;
     printf("RANDOM \t:\t %d \n", random);
@@ -227,21 +220,20 @@ int main(int argc, char **argv) {
 
         memcpy((void*) (nvm_buf + offset), buf, chunk_size);
         tm.start();
-       
+
         pmem_persist(nvm_buf + offset, chunk_size, 0);
-        
+
         tm.end();
       }
 
       iops = (itr_cnt * 1000) / tm.duration();
       //printf("IOPS \t:\t %lf \n", iops);
       printf("BW   :\t %10.0lf \n", iops * chunk_size);
-      
+
       delete nvm_buf;
 
       tm.reset();
 
-      /*
       // FS MODE
       path = fs_prefix + "io_file";
       int ret;
@@ -293,9 +285,9 @@ int main(int argc, char **argv) {
       fclose(fp);
 
       tm.reset();
-      */
+
     }
   }
-  
+
   return 0;
 }
