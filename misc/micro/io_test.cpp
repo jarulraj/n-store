@@ -67,7 +67,7 @@ static inline void pmem_persist(void *addr, size_t len, int flags) {
   //pmem_drain_pm_stores();
 }
 
-#define MAX_BUF_SIZE    4096
+#define IO_ALIGN    4096
 
 static void usage_exit(FILE *out) {
   fprintf(
@@ -196,8 +196,8 @@ int main(int argc, char **argv) {
 
   itr_cnt = 128 * 128 * 4;
 
-  size_t min_chunk_size = 8;
-  size_t max_chunk_size = 32 * 1024;
+  size_t min_chunk_size = 64;
+  size_t max_chunk_size = 16 * 1024;
 
   char buf[max_chunk_size + 1];
   for (j = 0; j < max_chunk_size; j++)
@@ -205,13 +205,14 @@ int main(int argc, char **argv) {
 
   offset = 0;
 
+  
   for (int random = 0; random <= 1; random++) {
     random_mode = (bool) random;
-    printf("RANDOM : %d \n", random);
+    printf("RANDOM \t:\t %d \n", random);
 
     for (chunk_size = min_chunk_size; chunk_size <= max_chunk_size;
-        chunk_size *= 4) {
-      printf("CHUNK SIZE : %lu \n", chunk_size);
+        chunk_size *= 16) {
+      printf("CHUNK SIZE \t:\t %lu \n", chunk_size);
 
       // NVM MODE
       char* nvm_buf = new char[file_size + chunk_size + 1];
@@ -221,22 +222,26 @@ int main(int argc, char **argv) {
 
         if (random_mode) {
           offset = rand() % file_size;
+          offset = roundup2(offset, IO_ALIGN);
         }
 
-        tm.start();
-
         memcpy((void*) (nvm_buf + offset), buf, chunk_size);
+        tm.start();
+       
         pmem_persist(nvm_buf + offset, chunk_size, 0);
-
+        
         tm.end();
       }
 
       iops = (itr_cnt * 1000) / tm.duration();
-      printf("IOPS : %lf \n", iops);
-      printf("BW   : %lf \n", iops * chunk_size);
-
+      //printf("IOPS \t:\t %lf \n", iops);
+      printf("BW   :\t %10.0lf \n", iops * chunk_size);
+      
       delete nvm_buf;
 
+      tm.reset();
+
+      /*
       // FS MODE
       path = fs_prefix + "io_file";
       int ret;
@@ -251,7 +256,7 @@ int main(int argc, char **argv) {
 
         if (random_mode) {
           offset = rand() % file_size;
-          offset = roundup2(offset, MAX_BUF_SIZE);
+          offset = roundup2(offset, IO_ALIGN);
 
           tm.start();
           ret = fseek(fp, offset, SEEK_SET);
@@ -283,12 +288,14 @@ int main(int argc, char **argv) {
       }
 
       iops = (itr_cnt * 1000) / tm.duration();
-      printf("IOPS : %lf \n", iops);
-      printf("BW   : %lf \n", iops * chunk_size);
+      //printf("IOPS \t:\t %lf \n", iops);
+      printf("BW   :\t %10.0lf \n", iops * chunk_size);
       fclose(fp);
 
+      tm.reset();
+      */
     }
   }
-
+  
   return 0;
 }
