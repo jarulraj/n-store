@@ -63,6 +63,11 @@ OPT_MARKERS = (['o', 's', 'v', ">", "h", "v", "^", "x", "d", "<", "|", "8", "|",
 #OPT_PATTERNS = ([ "//" , "O" , "\\" , "+" , "-" , "*", "/", "o", ".", "x" , "\\\\" , "//" ])
 OPT_PATTERNS = ([ "////", "////", "o", "o", "\\\\" , "\\\\" , "//////", "//////", ".", "." , "\\\\\\" , "\\\\\\" ])
 
+OPT_LABEL_WEIGHT = 'bold'
+OPT_LINE_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
+OPT_LINE_WIDTH = 4.0
+OPT_MARKER_SIZE = 6.0
+DATA_LABELS = []
 
 # # NSTORE
 SDV_DIR = "/data/devel/sdv-tools/sdv-release"
@@ -99,6 +104,8 @@ TPCC_PERF_DIR = "../results/tpcc/performance/"
 TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
+
+NVM_BW_DIR = "../results/nvm_bw/"
 
 LABELS = ("InP", "CoW", "LOG", "NVM-InP", "NVM-CoW", "NVM-LOG")
 
@@ -193,6 +200,51 @@ def create_legend():
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('legend.pdf')
+    
+
+def create_nvm_bw_chart(datasets):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+         
+    CHUNK_SIZES = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]     
+    x_values = CHUNK_SIZES
+    N = len(x_values)
+    x_labels = x_values 
+    
+    nvm_data = []
+    fs_data = []
+    
+    for group in xrange(len(datasets)):    
+        nvm_data.append(datasets[group][1]/(1024*1024))
+        fs_data.append(datasets[group][2]/(1024*1024))
+
+    LOG.info("x_values : %s", x_values)         
+    LOG.info("nvm_data : %s", nvm_data)        
+    LOG.info("fs_data : %s", fs_data)        
+
+    ax1.plot(x_values, nvm_data, color=OPT_LINE_COLORS[0], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE)
+    ax1.plot(x_values, fs_data, color=OPT_LINE_COLORS[2], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE)
+    
+    # GRID
+    axes = ax1.get_axes()
+    makeGrid(ax1)
+      
+    # Y-AXIS
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    #ax1.set_yscale('log')
+    ax1.minorticks_on()
+    ax1.set_ylim(0, 5000)
+    ax1.set_ylabel("Bandwidth (MB/s)", fontproperties=LABEL_FP)        
+        
+    # X-AXIS
+    ax1.minorticks_on()
+    ax1.set_xlim(0.71, 724)
+    ax1.set_xscale('log', basex=2)
+    #ax1.set_xticklabels(x_labels)
+    ax1.set_xlabel("Chunk Size (B)", fontproperties=LABEL_FP)        
+            
+    return (fig)    
+    
 
 def create_ycsb_perf_bar_chart(datasets):
     fig = plot.figure()
@@ -700,6 +752,18 @@ def  tpcc_recovery_plot():
     fileName = "tpcc-recovery.pdf"
     saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
 
+
+# NVM SYNC LANTENCY -- PLOT
+def nvm_bw_plot():
+    RANDOM_ACCESS = ["sequential", "random"]
+
+    for access in RANDOM_ACCESS:            
+        datasets = loadDataFile(10, 3, os.path.realpath(os.path.join(NVM_BW_DIR, access + "/bw.csv")))
+                           
+        fig = create_nvm_bw_chart(datasets)
+    
+        fileName = "nvm-bw-%s.pdf" % (access)
+        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
                    
 ###################################################################################                   
 # EVAL                   
@@ -1601,7 +1665,8 @@ if __name__ == '__main__':
 
     if args.tpcc_recovery_plot:                
        tpcc_recovery_plot();                          
-
+        
+    nvm_bw_plot();    
 
     #create_legend()
 
