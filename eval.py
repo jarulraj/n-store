@@ -413,12 +413,21 @@ def create_ycsb_nvm_bar_chart(datasets):
         bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2 + 1], linewidth=BAR_LINEWIDTH)
     
     # RATIO
-    transposed_datasets = map(list,map(None,*datasets))
+    LOG.info("READS + WRITES")
+    tmp_datasets = map(list,map(None,*datasets))
     for type in xrange(N):
         LOG.info("type = %f ", x_values[type])
         for line in  xrange(len(ENGINES)):
-            transposed_datasets[type][line][1] += transposed_datasets[type][line][2]
-        get_ratio(transposed_datasets[type], False)
+            tmp_datasets[type][line][1] += tmp_datasets[type][line][2]
+        get_ratio(tmp_datasets[type], False)
+
+    LOG.info("WRITES ONLY")
+    tmp_datasets = map(list,map(None,*datasets))
+    for type in xrange(N):
+        LOG.info("type = %f ", x_values[type])
+        for line in  xrange(len(ENGINES)):
+            tmp_datasets[type][line][1] = tmp_datasets[type][line][2]
+        get_ratio(tmp_datasets[type], False)
 
     # GRID
     axes = ax1.get_axes()      
@@ -630,10 +639,18 @@ def create_tpcc_nvm_bar_chart(datasets):
         bars[line * 2] = ax1.bar(ind + margin + (line * width), l_misses, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
         bars[line * 2 + 1] = ax1.bar(ind + margin + (line * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
 
-    # RATIO
+    # RATIO 
+    LOG.info("READS + WRITES")
+    tmp_datasets = datasets;   
     for line in  xrange(len(ENGINES)):
-        datasets[line][1] += datasets[line][2]
-    get_ratio(datasets, False)
+        tmp_datasets[line][1] += tmp_datasets[line][2]
+    get_ratio(tmp_datasets, False)
+
+    LOG.info("WRITES ONLY")
+    tmp_datasets = datasets;   
+    for line in  xrange(len(ENGINES)):
+        tmp_datasets[line][1] += tmp_datasets[line][2]
+    get_ratio(tmp_datasets, False)
         
     # GRID
     axes = ax1.get_axes()
