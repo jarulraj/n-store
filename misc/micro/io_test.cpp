@@ -55,8 +55,9 @@ static inline void pmem_persist(void *buf, size_t len, int flags) {
   uint32_t i;
 
   len = len + ((unsigned long) (buf) & (CACHELINE_SIZE - 1));
-  for (i = 0; i < len; i += CACHELINE_SIZE)
-    asm volatile ("clflush %0\n" : "+m" (*(char *)(buf+i)));
+  for (i = 0; i < len; i += CACHELINE_SIZE){
+      asm volatile ("clflush %0\n" : "+m" (*(char *)(buf+i)));
+  }
 
   asm volatile ("sfence\n" : : );
 }
@@ -188,10 +189,10 @@ int main(int argc, char **argv) {
   std::string path = state.fs_path;
   double iops;
 
-  itr_cnt = 128 * 128 * 4;
+  itr_cnt = 128 * 128 * 64;
 
-  size_t min_chunk_size = 64;
-  size_t max_chunk_size = 16 * 1024;
+  size_t min_chunk_size = 1;
+  size_t max_chunk_size = 512;
 
   char buf[max_chunk_size + 1];
   for (j = 0; j < max_chunk_size; j++)
@@ -204,8 +205,8 @@ int main(int argc, char **argv) {
     printf("RANDOM \t:\t %d \n", random);
 
     for (chunk_size = min_chunk_size; chunk_size <= max_chunk_size;
-        chunk_size *= 16) {
-      printf("CHUNK SIZE \t:\t %lu \n", chunk_size);
+        chunk_size *= 2) {
+      printf("%lu ,", chunk_size);
 
       // NVM MODE
       char* nvm_buf = new char[file_size + chunk_size + 1];
@@ -215,8 +216,12 @@ int main(int argc, char **argv) {
 
         if (random_mode) {
           offset = rand() % file_size;
-          offset = roundup2(offset, IO_ALIGN);
         }
+        else{
+          offset += chunk_size;
+          offset %= file_size;
+        }
+        offset = roundup2(offset, IO_ALIGN);
 
         memcpy((void*) (nvm_buf + offset), buf, chunk_size);
         tm.start();
@@ -227,8 +232,7 @@ int main(int argc, char **argv) {
       }
 
       iops = (itr_cnt * 1000) / tm.duration();
-      //printf("IOPS \t:\t %lf \n", iops);
-      printf("BW   :\t %10.0lf \n", iops * chunk_size);
+      printf("\t %10.0lf ,", iops * chunk_size);
 
       delete nvm_buf;
 
@@ -280,8 +284,7 @@ int main(int argc, char **argv) {
       }
 
       iops = (itr_cnt * 1000) / tm.duration();
-      //printf("IOPS \t:\t %lf \n", iops);
-      printf("BW   :\t %10.0lf \n", iops * chunk_size);
+      printf("\t %10.0lf  \n", iops * chunk_size);
       fclose(fp);
 
       tm.reset();
