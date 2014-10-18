@@ -63,6 +63,11 @@ OPT_MARKERS = (['o', 's', 'v', ">", "h", "v", "^", "x", "d", "<", "|", "8", "|",
 #OPT_PATTERNS = ([ "//" , "O" , "\\" , "+" , "-" , "*", "/", "o", ".", "x" , "\\\\" , "//" ])
 OPT_PATTERNS = ([ "////", "////", "o", "o", "\\\\" , "\\\\" , "//////", "//////", ".", "." , "\\\\\\" , "\\\\\\" ])
 
+OPT_LABEL_WEIGHT = 'bold'
+OPT_LINE_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
+OPT_LINE_WIDTH = 6.0
+OPT_MARKER_SIZE = 10.0
+DATA_LABELS = []
 
 # # NSTORE
 SDV_DIR = "/data/devel/sdv-tools/sdv-release"
@@ -99,6 +104,8 @@ TPCC_PERF_DIR = "../results/tpcc/performance/"
 TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
+
+NVM_BW_DIR = "../results/nvm_bw/"
 
 LABELS = ("InP", "CoW", "LOG", "NVM-InP", "NVM-CoW", "NVM-LOG")
 
@@ -166,6 +173,29 @@ def saveGraph(fig, output, width, height):
     pp.close()
     LOG.info("OUTPUT: %s", output)
 
+# # RATIO
+def get_ratio(datasets, invert=False):
+    LOG.info("Dataset :: %s", datasets);
+        
+    t1 = datasets[0][1]/datasets[3][1] 
+    
+    if datasets[4][1] == 0:
+        t2 = 0
+    else:
+        t2 = datasets[1][1]/datasets[4][1] 
+
+    t3 = datasets[2][1]/datasets[5][1] 
+
+    if invert:
+        t1 = 1.0/t1        
+        if t2 != 0:
+            t2 = 1.0/t2
+        t3 = 1.0/t3
+
+    if len(datasets) == 6:    
+        LOG.info("INP :: %.2f", t1);
+        LOG.info("COW :: %.2f", t2);
+        LOG.info("LOG :: %.2f", t3);
 
 ###################################################################################                   
 # PLOT
@@ -193,6 +223,52 @@ def create_legend():
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('legend.pdf')
+    
+
+def create_nvm_bw_chart(datasets):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+         
+    CHUNK_SIZES = [1, 2, 4, 8, 16, 32, 64, 128, 256]     
+    x_values = CHUNK_SIZES
+    N = len(x_values)
+    x_labels = x_values 
+    
+    nvm_data = []
+    fs_data = []
+    
+    for group in xrange(len(datasets)):    
+        nvm_data.append(datasets[group][1]/(1024*1024))
+        fs_data.append(datasets[group][2]/(1024*1024))
+
+    LOG.info("x_values : %s", x_values)         
+    LOG.info("nvm_data : %s", nvm_data)        
+    LOG.info("fs_data : %s", fs_data)        
+
+    ax1.plot(x_values, nvm_data, color=OPT_LINE_COLORS[0], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label='NUMA')
+    ax1.plot(x_values, fs_data, color=OPT_LINE_COLORS[2], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE, label='FS')
+    
+    # GRID
+    axes = ax1.get_axes()
+    makeGrid(ax1)
+      
+    # Y-AXIS
+    ax1.set_yscale('log', basey=2)
+    ax1.minorticks_on()
+    ax1.set_ylim(0.71, 10000)
+    ax1.set_ylabel("Bandwidth (MB/s)", fontproperties=LABEL_FP)        
+        
+    # X-AXIS
+    ax1.minorticks_on()
+    ax1.set_xlim(0.71, 362)
+    ax1.set_xscale('log', basex=2)
+    ax1.set_xlabel("Chunk Size (B)", fontproperties=LABEL_FP)        
+            
+    # LEGEND
+    legend = ax1.legend(loc='upper left')
+            
+    return (fig)    
+        
 
 def create_ycsb_perf_bar_chart(datasets):
     fig = plot.figure()
@@ -220,7 +296,13 @@ def create_ycsb_perf_bar_chart(datasets):
   
         LOG.info("%s perf_data = %s ", LABELS[group], str(perf_data))
         
-        bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])
+        bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])        
+
+    # RATIO
+    transposed_datasets = map(list,map(None,*datasets))
+    for type in xrange(N):
+        LOG.info("type = %f ", x_values[type])
+        get_ratio(transposed_datasets[type], True)
         
     # GRID
     axes = ax1.get_axes()
@@ -269,6 +351,11 @@ def create_ycsb_storage_bar_chart(datasets):
         total_data.append(fs_data + pm_data)                
                 
         bars[line * 2] = ax1.bar(ind + margin + (line * width), total_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
+
+    # RATIO
+    for line in  xrange(len(ENGINES)):
+        datasets[line][1] += datasets[line][2]
+    get_ratio(datasets, True)
         
     # GRID
     axes = ax1.get_axes()
@@ -325,6 +412,23 @@ def create_ycsb_nvm_bar_chart(datasets):
         bars[group * 2] = ax1.bar(ind + margin + (group * width), l_misses, width, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
         bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2 + 1], linewidth=BAR_LINEWIDTH)
     
+    # RATIO
+    LOG.info("READS + WRITES")
+    tmp_datasets = map(list,map(None,*datasets))
+    for type in xrange(N):
+        LOG.info("type = %f ", x_values[type])
+        for line in  xrange(len(ENGINES)):
+            tmp_datasets[type][line][1] += tmp_datasets[type][line][2]
+        get_ratio(tmp_datasets[type], False)
+
+    LOG.info("WRITES ONLY")
+    tmp_datasets = map(list,map(None,*datasets))
+    for type in xrange(N):
+        LOG.info("type = %f ", x_values[type])
+        for line in  xrange(len(ENGINES)):
+            tmp_datasets[type][line][1] = tmp_datasets[type][line][2]
+        get_ratio(tmp_datasets[type], False)
+
     # GRID
     axes = ax1.get_axes()      
     makeGrid(ax1)
@@ -369,6 +473,11 @@ def create_ycsb_recovery_bar_chart(datasets):
         LOG.info("%s duration = %s ", LABELS[group], str(durations))
         
         bars[group] = ax1.bar(ind + margin + (group * width), durations, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2], linewidth=BAR_LINEWIDTH)
+        
+    # RATIO
+    transposed_dataset = map(list,map(None,*datasets))
+    for type in xrange(N):
+        get_ratio(transposed_dataset[type], False)
         
     # GRID
     axes = ax1.get_axes()
@@ -415,7 +524,12 @@ def create_tpcc_perf_bar_chart(datasets):
         LOG.info("%s perf_data = %s ", LABELS[group], str(perf_data))
 
         bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
-                        
+   
+    # RATIO
+    transposed_dataset = map(list,map(None,*datasets))
+    for type in xrange(N):
+        get_ratio(transposed_dataset[type], True)
+                     
     # GRID
     axes = ax1.get_axes()
     # axes.set_ylim(0, 3000)        
@@ -466,6 +580,11 @@ def create_tpcc_storage_bar_chart(datasets):
         total_data.append(fs_data + pm_data)                
                 
         bars[line * 2] = ax1.bar(ind + margin + (line * width), total_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
+
+    # RATIO
+    for line in  xrange(len(ENGINES)):
+        datasets[line][1] += datasets[line][2]
+    get_ratio(datasets, True)
                 
     # GRID
     axes = ax1.get_axes()
@@ -519,6 +638,19 @@ def create_tpcc_nvm_bar_chart(datasets):
     
         bars[line * 2] = ax1.bar(ind + margin + (line * width), l_misses, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
         bars[line * 2 + 1] = ax1.bar(ind + margin + (line * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
+
+    # RATIO 
+    LOG.info("READS + WRITES")
+    tmp_datasets = datasets;   
+    for line in  xrange(len(ENGINES)):
+        tmp_datasets[line][1] += tmp_datasets[line][2]
+    get_ratio(tmp_datasets, False)
+
+    LOG.info("WRITES ONLY")
+    tmp_datasets = datasets;   
+    for line in  xrange(len(ENGINES)):
+        tmp_datasets[line][1] += tmp_datasets[line][2]
+    get_ratio(tmp_datasets, False)
         
     # GRID
     axes = ax1.get_axes()
@@ -569,7 +701,12 @@ def create_tpcc_recovery_bar_chart(datasets):
         LOG.info("%s duration = %s ", LABELS[group], str(durations))
         
         bars[group] = ax1.bar(ind + margin + (group * width), durations, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group*2], linewidth=BAR_LINEWIDTH)
-        
+    
+    # RATIO
+    transposed_dataset = map(list,map(None,*datasets))
+    for type in xrange(N):
+        get_ratio(transposed_dataset[type], False)
+    
     # GRID
     axes = ax1.get_axes()
     # axes.set_ylim(0, 10000)        
@@ -700,6 +837,18 @@ def  tpcc_recovery_plot():
     fileName = "tpcc-recovery.pdf"
     saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
 
+
+# NVM SYNC LANTENCY -- PLOT
+def nvm_bw_plot():
+    RANDOM_ACCESS = ["sequential", "random"]
+
+    for access in RANDOM_ACCESS:            
+        datasets = loadDataFile(9, 3, os.path.realpath(os.path.join(NVM_BW_DIR, access + "/bw.csv")))
+                           
+        fig = create_nvm_bw_chart(datasets)
+    
+        fileName = "nvm-bw-%s.pdf" % (access)
+        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
                    
 ###################################################################################                   
 # EVAL                   
@@ -1528,6 +1677,8 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--ycsb_storage_plot", help='plot ycsb storage', action='store_true')
     parser.add_argument("-c", "--ycsb_nvm_plot", help='plot ycsb nvm', action='store_true')    
     parser.add_argument("-p", "--tpcc_recovery_plot", help='tpcc_recovery_plot', action='store_true')
+
+    parser.add_argument("-w", "--nvm_bw_plot", help='nvm_bw_plot', action='store_true')
     
     args = parser.parse_args()
     
@@ -1602,6 +1753,8 @@ if __name__ == '__main__':
     if args.tpcc_recovery_plot:                
        tpcc_recovery_plot();                          
 
+    if args.nvm_bw_plot:                            
+        nvm_bw_plot();    
 
     #create_legend()
 
