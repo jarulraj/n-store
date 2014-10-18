@@ -49,3 +49,4 @@ zfile
 # Plots
 results/*.pdf
 /Debug
+misc/linux-examples/*
