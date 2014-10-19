@@ -66,6 +66,7 @@ int opt_wal_engine::insert(const statement& st) {
                << " " << after_rec;
 
   entry_str = entry_stream.str();
+
   size_t entry_str_sz = entry_str.size() + 1;
   char* entry = new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
@@ -186,6 +187,7 @@ int opt_wal_engine::update(const statement& st) {
 
   // Add log entry
   entry_str = entry_stream.str();
+
   size_t entry_str_sz = entry_str.size() + 1;
   char* entry = new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);

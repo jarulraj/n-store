@@ -13,6 +13,13 @@ wal_engine::wal_engine(const config& _conf, database* _db, bool _read_only,
   read_only = _read_only;
   fs_log.configure(conf.fs_path + std::to_string(_tid) + "_" + "log");
 
+  std::vector<table*> tables = db->tables->get_data();
+  for (table* tab : tables) {
+    std::string table_file_name = conf.fs_path + std::to_string(_tid) + "_"
+        + std::string(tab->table_name);
+    tab->fs_data.configure(table_file_name, tab->max_tuple_size, false);
+  }
+
   // Logger start
   if (!read_only) {
     gc = std::thread(&wal_engine::group_commit, this);
@@ -30,25 +37,41 @@ wal_engine::~wal_engine() {
     if (!conf.recovery) {
       fs_log.sync();
       fs_log.close();
+
+      //if (conf.storage_stats)
+      //  fs_log.truncate_chunk();
     }
+
+    std::vector<table*> tables = db->tables->get_data();
+    for (table* tab : tables) {
+      tab->fs_data.sync();
+      tab->fs_data.close();
+    }
+
   }
 
 }
 
 std::string wal_engine::select(const statement& st) {
   LOG_INFO("Select");
+  std::string val;
+
   record* rec_ptr = st.rec_ptr;
-  record* select_ptr = NULL;
   table* tab = db->tables->at(st.table_id);
+
   table_index* table_index = tab->indices->at(st.table_index_id);
   std::string key_str = sr.serialize(rec_ptr, table_index->sptr);
 
   unsigned long key = hash_fn(key_str);
-  std::string val;
+  off_t storage_offset;
 
-  table_index->pm_map->at(key, &select_ptr);
-  if (select_ptr)
-    val = sr.serialize(select_ptr, st.projection);
+  if ((table_index->off_map->at(key, &storage_offset)) == false) {
+    delete rec_ptr;
+    return val;
+  }
+
+  val = tab->fs_data.at(storage_offset);
+  val = sr.project(val, st.projection);
   LOG_INFO("val : %s", val.c_str());
 
   delete rec_ptr;
@@ -69,7 +92,7 @@ int wal_engine::insert(const statement& st) {
   unsigned long key = hash_fn(key_str);
 
   // Check if key present
-  if (indices->at(0)->pm_map->exists(key) != 0) {
+  if (indices->at(0)->off_map->exists(key)) {
     after_rec->clear_data();
     delete after_rec;
     return EXIT_SUCCESS;
@@ -82,18 +105,20 @@ int wal_engine::insert(const statement& st) {
                << " " << after_tuple << "\n";
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
+  off_t storage_offset;
 
-  // Add to table
-  tab->pm_data->push_back(after_rec);
+  storage_offset = tab->fs_data.push_back(after_tuple);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->pm_map->insert(key, after_rec);
+    indices->at(index_itr)->off_map->insert(key, storage_offset);
   }
 
+  after_rec->clear_data();
+  delete after_rec;
   return EXIT_SUCCESS;
 }
 
@@ -109,12 +134,17 @@ int wal_engine::remove(const statement& st) {
 
   std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
+  off_t storage_offset;
+  std::string val;
 
   // Check if key does not exist
-  if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
-	delete rec_ptr;
+  if (indices->at(0)->off_map->at(key, &storage_offset) == false) {
+    delete rec_ptr;
     return EXIT_SUCCESS;
   }
+
+  val = tab->fs_data.at(storage_offset);
+  before_rec = sr.deserialize(val, tab->sptr);
 
   // Add log entry
   entry_stream.str("");
@@ -124,14 +154,12 @@ int wal_engine::remove(const statement& st) {
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
-  tab->pm_data->erase(before_rec);
-
   // Remove entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = sr.serialize(rec_ptr, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->pm_map->erase(key);
+    indices->at(index_itr)->off_map->erase(key);
   }
 
   before_rec->clear_data();
@@ -149,14 +177,18 @@ int wal_engine::update(const statement& st) {
 
   std::string key_str = sr.serialize(rec_ptr, indices->at(0)->sptr);
   unsigned long key = hash_fn(key_str);
-  record* before_rec;
+  off_t storage_offset;
+  std::string val, before_tuple;
 
   // Check if key does not exist
-  if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
-	rec_ptr->clear_data();
+  if (indices->at(0)->off_map->at(key, &storage_offset) == false) {
+    rec_ptr->clear_data();
     delete rec_ptr;
     return EXIT_SUCCESS;
   }
+
+  val = tab->fs_data.at(storage_offset);
+  record* before_rec = sr.deserialize(val, tab->sptr);
 
   entry_stream.str("");
   entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
@@ -172,13 +204,19 @@ int wal_engine::update(const statement& st) {
 
     before_rec->set_data(field_itr, rec_ptr);
   }
-
-  entry_stream << sr.serialize(before_rec, tab->sptr) << "\n";
+  before_tuple = sr.serialize(before_rec, tab->sptr);
+  entry_stream << before_tuple << "\n";
 
   // Add log entry
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
+  // In-place update
+  //LOG_INFO("update offset : %lu", storage_offset);
+  tab->fs_data.update(storage_offset, before_tuple);
+
+  before_rec->clear_data();
+  delete before_rec;
   delete rec_ptr;
   return EXIT_SUCCESS;
 }
@@ -203,8 +241,8 @@ void wal_engine::load(const statement& st) {
 
   std::string after_tuple = sr.serialize(after_rec, after_rec->sptr);
 
-  // Add log entry
   if (!conf.recovery) {
+    // Add log entry
     entry_stream.str("");
     entry_stream << st.transaction_id << " " << st.op_type << " " << st.table_id
                  << " " << after_tuple << "\n";
@@ -212,16 +250,19 @@ void wal_engine::load(const statement& st) {
     fs_log.push_back(entry_str);
   }
 
-  tab->pm_data->push_back(after_rec);
+  off_t storage_offset;
+  storage_offset = tab->fs_data.push_back(after_tuple);
 
   // Add entry in indices
   for (index_itr = 0; index_itr < num_indices; index_itr++) {
     key_str = sr.serialize(after_rec, indices->at(index_itr)->sptr);
     key = hash_fn(key_str);
 
-    indices->at(index_itr)->pm_map->insert(key, after_rec);
+    indices->at(index_itr)->off_map->insert(key, storage_offset);
   }
 
+  after_rec->clear_data();
+  delete after_rec;
 }
 
 void wal_engine::group_commit() {
