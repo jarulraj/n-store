@@ -162,7 +162,7 @@ int opt_wal_engine::update(const statement& st) {
     return EXIT_SUCCESS;
   }
 
-  void *before_field, *after_field;
+  void *before_field;
   int num_fields = st.field_ids.size();
 
   entry_stream.str("");
@@ -173,7 +173,6 @@ int opt_wal_engine::update(const statement& st) {
     // Pointer field
     if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
       before_field = before_rec->get_pointer(field_itr);
-      after_field = rec_ptr->get_pointer(field_itr);
 
       entry_stream << field_itr << " " << before_field << " ";
     }
@@ -196,12 +195,9 @@ int opt_wal_engine::update(const statement& st) {
   pm_log->push_back(entry);
 
   for (int field_itr : st.field_ids) {
-    // Activate new field and garbage collect previous field
+    // Garbage collect previous field
     if (rec_ptr->sptr->columns[field_itr].inlined == 0) {
       before_field = before_rec->get_pointer(field_itr);
-      after_field = rec_ptr->get_pointer(field_itr);
-
-      pmemalloc_activate(after_field);
       commit_free_list.push_back(before_field);
     }
 
