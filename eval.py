@@ -54,7 +54,8 @@ OPT_GRAPH_WIDTH = 400
 #OPT_COLORS = ('#F15854', '#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
 
 #OPT_COLORS = ('#F15854', '#60BD68', '#95CBE9', '#DC5C05', '#53A400', '#049ce6')
-COLOR_MAP = ('#F15854', '#9C9F84', '#F7DCB4', '#991809', '#5C755E', '#A97D5D')
+#COLOR_MAP = ('#F15854', '#9C9F84', '#F7DCB4', '#991809', '#5C755E', '#A97D5D')
+COLOR_MAP = ('#F15854', '#9C9F84', '#FFE4B5', '#D1210C', '#5C755E', '#9D8851')
 OPT_COLORS = COLOR_MAP
 
 OPT_GRID_COLOR = 'gray'
@@ -368,7 +369,7 @@ def create_ycsb_storage_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
+    #ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
     ax1.minorticks_off()
     ax1.tick_params(\
     axis='x',          # changes apply to the x-axis
@@ -443,7 +444,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
     
-    ax1.set_ylabel("PM Accesses (M)", fontproperties=LABEL_FP)
+    ax1.set_ylabel("NVM Accesses (M)", fontproperties=LABEL_FP)
          
     return (fig)
 
@@ -485,12 +486,12 @@ def create_ycsb_recovery_bar_chart(datasets):
     makeGrid(ax1)
     
     # Y-AXIS
-    ax1.set_ylabel("Duration (ms)", fontproperties=LABEL_FP)
+    ax1.set_ylabel("Latency (ms)", fontproperties=LABEL_FP)
     ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload (# of txns)", fontproperties=LABEL_FP)
+    ax1.set_xlabel("Number of transactions", fontproperties=LABEL_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
@@ -540,7 +541,7 @@ def create_tpcc_perf_bar_chart(datasets):
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
+    #ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
@@ -635,8 +636,7 @@ def create_tpcc_nvm_bar_chart(datasets):
             if col == 2:
                 s_misses.append(datasets[line][col] / (1024 * 1024))
     
-    
-        bars[line * 2] = ax1.bar(ind + margin + (line * width), l_misses, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
+        bars[line * 2] = ax1.bar(ind + margin + (line * width), l_misses, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)    
         bars[line * 2 + 1] = ax1.bar(ind + margin + (line * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
 
     # RATIO 
@@ -714,12 +714,12 @@ def create_tpcc_recovery_bar_chart(datasets):
     
     
     # Y-AXIS
-    ax1.set_ylabel("Duration (ms)", fontproperties=LABEL_FP)
+    ax1.set_ylabel("Latency (ms)", fontproperties=LABEL_FP)
     ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_on()
         
     # X-AXIS
-    ax1.set_xlabel("Workload (# of txns)", fontproperties=LABEL_FP)
+    ax1.set_xlabel("Number of transactions", fontproperties=LABEL_FP)
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
