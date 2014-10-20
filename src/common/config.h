@@ -10,7 +10,7 @@ namespace storage {
 // Logging
 extern int level;
 
-//#define NDG
+#define NDG
 #ifdef NDG
 #define LOG_ERR(M, ...)
 #define LOG_WARN(M, ...)

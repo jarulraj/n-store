@@ -82,7 +82,7 @@ NUMACTL = "numactl"
 NUMACTL_FLAGS = "--membind=2"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
-LATENCIES = ("180", "300", "800")
+LATENCIES = ("160", "320", "1280")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
 YCSB_KEYS = 2000000

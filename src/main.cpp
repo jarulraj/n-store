@@ -89,7 +89,7 @@ static void parse_arguments(int argc, char* argv[], config& state) {
   state.ycsb_skew = 0.1;
   state.ycsb_update_one = false;
   state.ycsb_field_size = 100;
-  state.ycsb_tuples_per_txn = 2;
+  state.ycsb_tuples_per_txn = 1;
   state.ycsb_num_val_fields = 10;
 
   state.tpcc_num_warehouses = 2;
