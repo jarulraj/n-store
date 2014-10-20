@@ -29,7 +29,7 @@ static inline void pmem_persist(void *addr, size_t len, int flags) {
   //pmem_drain_pm_stores();
 }
 
-#define MAX_PTRS 512
+#define MAX_PTRS 1024
 
 struct static_info {
   unsigned int init;
