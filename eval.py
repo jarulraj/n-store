@@ -246,8 +246,8 @@ def create_nvm_bw_chart(datasets):
     LOG.info("nvm_data : %s", nvm_data)        
     LOG.info("fs_data : %s", fs_data)        
 
-    ax1.plot(x_values, nvm_data, color=OPT_LINE_COLORS[0], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label='NUMA')
-    ax1.plot(x_values, fs_data, color=OPT_LINE_COLORS[2], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE, label='FS')
+    ax1.plot(x_values, nvm_data, color=OPT_LINE_COLORS[0], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label='ALLOCATOR')
+    ax1.plot(x_values, fs_data, color=OPT_LINE_COLORS[2], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE, label='FILE SYSTEM')
     
     # GRID
     axes = ax1.get_axes()
@@ -764,6 +764,7 @@ def ycsb_nvm_plot():
         datasets = []   
     
         for sy in SYSTEMS:    
+            LOG.info("Workload : %s ", workload)
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/nvm.csv")))
             datasets.append(dataFile)            
                        
@@ -791,7 +792,7 @@ def tpcc_perf_plot():
     datasets = []   
 
     for sy in SYSTEMS:    
-        dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/performance.csv")))
+        dataFile = loadDataFile(3, 2, os.path.realpath(os.path.join(TPCC_PERF_DIR, sy + "/performance.csv")))
         datasets.append(dataFile)
                        
     fig = create_tpcc_perf_bar_chart(datasets)
