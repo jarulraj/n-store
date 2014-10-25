@@ -21,8 +21,10 @@ import matplotlib.pyplot as plot
 
 from matplotlib.font_manager import FontProperties
 from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import LogLocator
 from pprint import pprint, pformat
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib import rc
 
 import csv
 import brewer2mpl
@@ -49,19 +51,14 @@ BASE_DIR = os.path.dirname(__file__)
 OPT_FONT_NAME = 'Arial'
 OPT_GRAPH_HEIGHT = 300
 OPT_GRAPH_WIDTH = 400
-# OPT_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
-# OPT_COLORS += brewer2mpl.get_map('Set1', 'qualitative', 9).mpl_colors
-#OPT_COLORS = ('#F15854', '#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#B276B2', '#DECF3F', '#B2912F', '#F17CB0')
 
-#OPT_COLORS = ('#F15854', '#60BD68', '#95CBE9', '#DC5C05', '#53A400', '#049ce6')
 #COLOR_MAP = ('#F15854', '#9C9F84', '#F7DCB4', '#991809', '#5C755E', '#A97D5D')
-COLOR_MAP = ('#F15854', '#9C9F84', '#FFE4B5', '#D1210C', '#5C755E', '#9D8851')
+COLOR_MAP = ( '#F58A87', '#80CA86', '#9EC9E9', "#F15854", "#66A26B", "#5DA5DA")
 OPT_COLORS = COLOR_MAP
 
 OPT_GRID_COLOR = 'gray'
 OPT_LEGEND_SHADOW = False
 OPT_MARKERS = (['o', 's', 'v', ">", "h", "v", "^", "x", "d", "<", "|", "8", "|", "_"])
-#OPT_PATTERNS = ([ "//" , "O" , "\\" , "+" , "-" , "*", "/", "o", ".", "x" , "\\\\" , "//" ])
 OPT_PATTERNS = ([ "////", "////", "o", "o", "\\\\" , "\\\\" , "//////", "//////", ".", "." , "\\\\\\" , "\\\\\\" ])
 
 OPT_LABEL_WEIGHT = 'bold'
@@ -114,14 +111,18 @@ TPCC_TXNS = 1000000
 
 # SET FONT
 
-LABEL_FONT_SIZE = 14
-TICK_FONT_SIZE = 10
+LABEL_FONT_SIZE = 16
+TICK_FONT_SIZE = 14
 
 AXIS_LINEWIDTH = 1.3
 BAR_LINEWIDTH = 1.2
 
-TICK_FP = FontProperties(family=OPT_FONT_NAME, weight='regular', size=TICK_FONT_SIZE)
-LABEL_FP = FontProperties(family=OPT_FONT_NAME, weight='medium', size=LABEL_FONT_SIZE)
+fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'], 'weight' : 'normal', 'size' : LABEL_FONT_SIZE}
+rc('text', usetex=True)
+rc('font',**fontProperties)
+
+LABEL_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=LABEL_FONT_SIZE, weight='bold', stretch='normal')
+TICK_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TICK_FONT_SIZE, weight='bold', stretch='normal')
 
 ###################################################################################                   
 # UTILS
@@ -246,8 +247,8 @@ def create_nvm_bw_chart(datasets):
     LOG.info("nvm_data : %s", nvm_data)        
     LOG.info("fs_data : %s", fs_data)        
 
-    ax1.plot(x_values, nvm_data, color=OPT_LINE_COLORS[0], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label='ALLOCATOR')
-    ax1.plot(x_values, fs_data, color=OPT_LINE_COLORS[2], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE, label='FILE SYSTEM')
+    ax1.plot(x_values, nvm_data, color=OPT_COLORS[3], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label='Allocator')
+    ax1.plot(x_values, fs_data, color=OPT_COLORS[5], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE, label='Filesystem')
     
     # GRID
     axes = ax1.get_axes()
@@ -267,6 +268,11 @@ def create_nvm_bw_chart(datasets):
             
     # LEGEND
     legend = ax1.legend(loc='upper left')
+
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
             
     return (fig)    
         
@@ -312,14 +318,18 @@ def create_ycsb_perf_bar_chart(datasets):
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    #ax1.set_ylim(1, 2400000) 
+    ax1.set_ylim([1, 3500000])
         
     # X-AXIS
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)              
-    ax1.set_ylabel("Throughput (Tps)", fontproperties=LABEL_FP)
+    ax1.set_ylabel("Throughput (Txn/sec)", fontproperties=LABEL_FP)
         
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
             
     return (fig)
 
@@ -331,7 +341,7 @@ def create_ycsb_storage_bar_chart(datasets):
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    margin = 0.10
+    margin = 0.25
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
     
@@ -365,19 +375,19 @@ def create_ycsb_storage_bar_chart(datasets):
     # Y-AXIS
     #ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
-    # ax1.yaxis.set_major_locator(MaxNLocator(5))
-    ax1.minorticks_on()
+    #ax1.yaxis.set_major_locator(MaxNLocator(4))
+    #ax1.minorticks_on()
         
     # X-AXIS
-    #ax1.set_xlabel("Workload", fontproperties=LABEL_FP)
+    #ax1.set_xlabel("Engine", fontproperties=LABEL_FP)
     ax1.minorticks_off()
-    ax1.tick_params(\
-    axis='x',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    bottom='off',      # ticks along the bottom edge are off
-    top='off',         # ticks along the top edge are off
-    labelbottom='off')
+    ax1.tick_params(axis='x', which='both', bottom='off', labelbottom='off')
     ax1.set_xticks(ind + 0.5)
+
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
 
     return (fig)
 
@@ -392,7 +402,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    margin = 0.10
+    margin = 0.15
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
     
@@ -436,15 +446,21 @@ def create_ycsb_nvm_bar_chart(datasets):
         
     # Y-AXIS    
     #ax1.set_yscale('log', nonposy='clip')
-    ax1.minorticks_on()
+    ax1.minorticks_off()
     #ax1.set_ylim([0, 4000])
         
     # X-AXIS
-    ax1.minorticks_on()
+    ax1.minorticks_off()
     ax1.set_xticklabels(x_labels)
+    ax1.tick_params(axis='x', which='both', bottom='off')
     ax1.set_xticks(ind + 0.5)
     
     ax1.set_ylabel("NVM Accesses (M)", fontproperties=LABEL_FP)
+
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
          
     return (fig)
 
@@ -458,7 +474,7 @@ def create_ycsb_recovery_bar_chart(datasets):
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    margin = 0.10
+    margin = 0.15
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
         
@@ -488,13 +504,18 @@ def create_ycsb_recovery_bar_chart(datasets):
     # Y-AXIS
     ax1.set_ylabel("Latency (ms)", fontproperties=LABEL_FP)
     ax1.set_yscale('log', nonposy='clip')
-    ax1.minorticks_on()
-        
+    ax1.yaxis.set_major_locator(LogLocator(base = 100.0))
+    ax1.minorticks_off()
+       
     # X-AXIS
     ax1.set_xlabel("Number of transactions", fontproperties=LABEL_FP)
-    ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)
+    ax1.set_xticklabels([r'$10^{3}$', r'$10^{4}$', r'$10^{5}$'])
     ax1.set_xticks(ind + 0.5)
+
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
         
     return (fig)
 
@@ -504,7 +525,7 @@ def create_tpcc_perf_bar_chart(datasets):
          
     x_values = LATENCIES
     N = len(x_values)
-    x_labels = ["Low NVM Latency", "High NVM Latency"]
+    x_labels = ["DRAM Latency", "Low NVM Latency", "High NVM Latency"]
 
     num_items = len(ENGINES);   
     ind = np.arange(N)  
@@ -546,8 +567,12 @@ def create_tpcc_perf_bar_chart(datasets):
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
         
+    ax1.set_ylabel("Throughput (Txn/sec)", fontproperties=LABEL_FP)        
 
-    ax1.set_ylabel("Throughput (Tps)", fontproperties=LABEL_FP)        
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
         
     return (fig)
 
@@ -560,7 +585,7 @@ def create_tpcc_storage_bar_chart(datasets):
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    margin = 0.10
+    margin = 0.25
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
     
@@ -594,10 +619,11 @@ def create_tpcc_storage_bar_chart(datasets):
     # Y-AXIS
     #ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
-    # ax1.yaxis.set_major_locator(MaxNLocator(5))
-    ax1.minorticks_on()
+    #ax1.yaxis.set_major_locator(MaxNLocator(4))
+    #ax1.minorticks_on()
         
     # X-AXIS
+    #ax1.set_xlabel("Engine", fontproperties=LABEL_FP)
     ax1.minorticks_off()
     ax1.tick_params(\
     axis='x',          # changes apply to the x-axis
@@ -607,6 +633,10 @@ def create_tpcc_storage_bar_chart(datasets):
     labelbottom='off')
     ax1.set_xticks(ind + 0.5)
 
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
         
     return (fig)
 
@@ -619,7 +649,7 @@ def create_tpcc_nvm_bar_chart(datasets):
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    margin = 0.10
+    margin = 0.25
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
         
@@ -661,16 +691,16 @@ def create_tpcc_nvm_bar_chart(datasets):
     # Y-AXIS
     ax1.set_ylabel("NVM accesses (M)", fontproperties=LABEL_FP)
     #ax1.set_yscale('log', nonposy='clip')
-    ax1.minorticks_on()
+    ax1.minorticks_off()
         
     # X-AXIS
     #ax1.minorticks_on()
-    ax1.tick_params(\
-    axis='x',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    bottom='off',      # ticks along the bottom edge are off
-    top='off',         # ticks along the top edge are off
-    labelbottom='off')
+    ax1.tick_params(axis='x', which='both', bottom='off', labelbottom='off')
+    
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
         
     return (fig)
 
@@ -685,7 +715,7 @@ def create_tpcc_recovery_bar_chart(datasets):
     num_items = len(ENGINES);
 
     ind = np.arange(N)  
-    margin = 0.10
+    margin = 0.15
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
         
@@ -716,13 +746,18 @@ def create_tpcc_recovery_bar_chart(datasets):
     # Y-AXIS
     ax1.set_ylabel("Latency (ms)", fontproperties=LABEL_FP)
     ax1.set_yscale('log', nonposy='clip')
-    ax1.minorticks_on()
+    ax1.yaxis.set_major_locator(LogLocator(base = 100.0))
+    ax1.minorticks_off()
         
     # X-AXIS
     ax1.set_xlabel("Number of transactions", fontproperties=LABEL_FP)
-    ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)
+    ax1.set_xticklabels([r'$10^{3}$', r'$10^{4}$', r'$10^{5}$'])
     ax1.set_xticks(ind + 0.5)
+
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
         
     return (fig)
 
@@ -745,7 +780,7 @@ def ycsb_perf_plot():
             fig = create_ycsb_perf_bar_chart(datasets)
             
             fileName = "ycsb-perf-%s-%s.pdf" % (workload, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
@@ -756,7 +791,7 @@ def ycsb_storage_plot():
                                       
     fig = create_ycsb_storage_bar_chart(datasets)
     fileName = "ycsb-storage.pdf"
-    saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT)
+    saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5)
 
 # YCSB NVM -- PLOT               
 def ycsb_nvm_plot():    
@@ -770,7 +805,7 @@ def ycsb_nvm_plot():
                        
         fig = create_ycsb_nvm_bar_chart(datasets)                        
         fileName = "ycsb-nvm-%s.pdf" % (workload)
-        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
 
 # YCSB RECOVERY -- PLOT
 def  ycsb_recovery_plot():   
@@ -784,7 +819,7 @@ def  ycsb_recovery_plot():
     fig = create_ycsb_recovery_bar_chart(datasets)
                         
     fileName = "ycsb-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
@@ -798,7 +833,7 @@ def tpcc_perf_plot():
     fig = create_tpcc_perf_bar_chart(datasets)
                 
     fileName = "tpcc-perf.pdf"
-    saveGraph(fig, fileName, width=len(LATENCIES) * OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT)
+    saveGraph(fig, fileName, width=len(LATENCIES)*OPT_GRAPH_WIDTH/1.5, height=OPT_GRAPH_HEIGHT)
 
 # TPCC STORAGE -- PLOT               
 def tpcc_storage_plot():    
@@ -810,7 +845,7 @@ def tpcc_storage_plot():
     fig = create_tpcc_storage_bar_chart(datasets)
                         
     fileName = "tpcc-storage.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
 
 # TPCC NVM -- PLOT               
 def tpcc_nvm_plot():    
@@ -822,7 +857,7 @@ def tpcc_nvm_plot():
     fig = create_tpcc_nvm_bar_chart(datasets)
                         
     fileName = "tpcc-nvm.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
 
 # TPCC RECOVERY -- PLOT
 def  tpcc_recovery_plot():   
@@ -836,7 +871,7 @@ def  tpcc_recovery_plot():
     fig = create_tpcc_recovery_bar_chart(datasets)
                         
     fileName = "tpcc-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
 
 
 # NVM SYNC LANTENCY -- PLOT
@@ -1701,7 +1736,7 @@ if __name__ == '__main__':
     tpcc_storage_log_name = "tpcc_storage.log"
     tpcc_nvm_log_name = "tpcc_nvm.log"   
     tpcc_recovery_log_name = "tpcc_recovery.log"
-    
+        
     ################################ YCSB
     
     if args.ycsb_perf_eval:
@@ -1755,7 +1790,7 @@ if __name__ == '__main__':
        tpcc_recovery_plot();                          
 
     if args.nvm_bw_plot:                            
-        nvm_bw_plot();    
-
-    #create_legend()
+        nvm_bw_plot();   
+        
+    create_legend()
 
