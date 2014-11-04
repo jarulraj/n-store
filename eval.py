@@ -82,8 +82,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("160", "320", "1280")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000000
-YCSB_TXNS = 8000000
+YCSB_KEYS = 2000
+YCSB_TXNS = 8000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
@@ -1210,6 +1210,10 @@ def ycsb_nvm_eval(log_name):
                 subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NUMACTL, NUMACTL_FLAGS, NSTORE,
                                  '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng],
                                 stdout=log_file, stderr=log_file)
+
+                subprocess.call([PERF, PERF_STAT, PERF_STAT_FLAGS, NUMACTL, NUMACTL_FLAGS, NSTORE,
+                                 '-k', str(keys), '-x', '0', '-p', str(rw_mix), '-q', str(skew_factor), eng],
+                                stdout=log_file, stderr=log_file)
                               
     log_file.close()   
     log_file = open(log_name, "r")    
@@ -1219,7 +1223,9 @@ def ycsb_nvm_eval(log_name):
  
     rw_mix = 0.0
     skew = 0.0    
-    
+    llc_l_miss = -1
+    llc_s_miss = -1
+
     for line in log_file:                    
         if "RW MIX" in line:
             entry = line.strip().split(' ');
@@ -1257,31 +1263,44 @@ def ycsb_nvm_eval(log_name):
             entry = line.strip().split(' ');
             if(entry[0] == '<not'):
                 llc_l_miss = "0"
-            else:    
-                llc_l_miss = str(entry[0])
-            llc_l_miss = llc_l_miss.replace(",", "")    
+            elif llc_l_miss == -1:    
+                llc_l_miss = str(entry[0])            
+                llc_l_miss = llc_l_miss.replace(",", "")    
+            else:
+                llc_l_miss_only_load = str(entry[0]) 
+                llc_l_miss_only_load = llc_l_miss_only_load.replace(",", "")    
+
+                llc_l_miss = llc_l_miss - llc_l_miss_only_load     
                 
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
+                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
 
 
         if "LLC-store-misses" in line:
             entry = line.strip().split(' ');
             if(entry[0] == '<not'):
                 llc_s_miss = "0"
-            else:    
-                llc_s_miss = str(entry[0])
-            llc_s_miss = llc_s_miss.replace(",", "")    
-                
-            print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_s_miss))
-                                                                
-            result_directory = YCSB_NVM_DIR + engine_type + "/" + workload_type + "/";
-            if not os.path.exists(result_directory):
-                os.makedirs(result_directory)
+            elif llc_s_miss == -1:    
+                llc_s_miss = str(entry[0])            
+                llc_s_miss = llc_s_miss.replace(",", "")    
+            else:
+                llc_s_miss_only_load = str(entry[0]) 
+                llc_s_miss_only_load = llc_s_miss_only_load.replace(",", "")    
 
-            result_file_name = result_directory + "nvm.csv"
-            result_file = open(result_file_name, "a")
-            result_file.write(str(skew) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
-            result_file.close()    
+                llc_s_miss = llc_s_miss - llc_s_miss_only_load     
+                
+                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
+                                                                                   
+                result_directory = YCSB_NVM_DIR + engine_type + "/" + workload_type + "/";
+                if not os.path.exists(result_directory):
+                    os.makedirs(result_directory)
+    
+                result_file_name = result_directory + "nvm.csv"
+                result_file = open(result_file_name, "a")
+                result_file.write(str(skew) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
+                result_file.close()    
+                
+                llc_l_miss = -1
+                llc_s_miss = -1
 
 
 # YCSB RECOVERY -- EVAL
