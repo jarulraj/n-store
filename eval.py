@@ -107,7 +107,7 @@ NVM_BW_DIR = "../results/nvm_bw/"
 
 LABELS = ("InP", "CoW", "LOG", "NVM-InP", "NVM-CoW", "NVM-LOG")
 
-TPCC_TXNS = 1000
+TPCC_TXNS = 100000
 
 # SET FONT
 
@@ -1316,7 +1316,7 @@ def ycsb_nvm_eval(log_name):
 
                 llc_s_miss = max(0.0,float(llc_s_miss) - float(llc_s_miss_only_load))     
                 
-                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
+                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_s_miss))
                                                                                    
                 result_directory = YCSB_NVM_DIR + engine_type + "/" + workload_type + "/";
                 if not os.path.exists(result_directory):
@@ -1613,6 +1613,9 @@ def tpcc_nvm_eval(log_name):
         
         subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', str(txns), '-t', eng],
                     stdout=log_file, stderr=log_file)
+        
+        subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-x', '0', '-t', eng],
+                    stdout=log_file, stderr=log_file)
                                  
     log_file.close()   
     log_file = open(log_name, "r")    
@@ -1623,6 +1626,8 @@ def tpcc_nvm_eval(log_name):
     latency = 0
     rw_mix = 0.0
     skew = 0.0    
+    llc_l_miss = -1
+    llc_s_miss = -1
     
     for line in log_file:                                           
         if "Throughput" in line:
@@ -1655,7 +1660,7 @@ def tpcc_nvm_eval(log_name):
 
                 llc_l_miss = max(0.0, float(llc_l_miss) - float(llc_l_miss_only_load))     
                 
-                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
+                print(str(engine_type) + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
 
 
         if "LLC-store-misses" in line:
@@ -1671,7 +1676,7 @@ def tpcc_nvm_eval(log_name):
 
                 llc_s_miss = max(0.0, float(llc_s_miss) - float(llc_s_miss_only_load))     
                 
-                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
+                print(str(engine_type) + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_s_miss))
                                                                                    
                 result_directory = TPCC_NVM_DIR;
                 if not os.path.exists(result_directory):
@@ -1681,6 +1686,9 @@ def tpcc_nvm_eval(log_name):
                 result_file = open(result_file_name, "a")
                 result_file.write(str(engine_type) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
                 result_file.close()    
+    
+                llc_l_miss = -1
+                llc_s_miss = -1
      
 
 # TPCC RECOVERY -- EVAL
