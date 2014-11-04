@@ -82,8 +82,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("160", "320", "1280")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000
-YCSB_TXNS = 8000
+YCSB_KEYS = 20000
+YCSB_TXNS = 80000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
@@ -1270,7 +1270,7 @@ def ycsb_nvm_eval(log_name):
                 llc_l_miss_only_load = str(entry[0]) 
                 llc_l_miss_only_load = llc_l_miss_only_load.replace(",", "")    
 
-                llc_l_miss = llc_l_miss - llc_l_miss_only_load     
+                llc_l_miss = max(0.0,float(llc_l_miss) - float(llc_l_miss_only_load))     
                 
                 print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
 
@@ -1286,7 +1286,7 @@ def ycsb_nvm_eval(log_name):
                 llc_s_miss_only_load = str(entry[0]) 
                 llc_s_miss_only_load = llc_s_miss_only_load.replace(",", "")    
 
-                llc_s_miss = llc_s_miss - llc_s_miss_only_load     
+                llc_s_miss = max(0.0,float(llc_s_miss) - float(llc_s_miss_only_load))     
                 
                 print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
                                                                                    
@@ -1826,5 +1826,5 @@ if __name__ == '__main__':
     if args.nvm_bw_plot:                            
         nvm_bw_plot();   
         
-    create_legend()
+    #create_legend()
 
