@@ -82,8 +82,8 @@ SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 LATENCIES = ("160", "320", "1280")
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 20000
-YCSB_TXNS = 80000
+YCSB_KEYS = 2000
+YCSB_TXNS = 8000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
@@ -107,7 +107,7 @@ NVM_BW_DIR = "../results/nvm_bw/"
 
 LABELS = ("InP", "CoW", "LOG", "NVM-InP", "NVM-CoW", "NVM-LOG")
 
-TPCC_TXNS = 1000000
+TPCC_TXNS = 1000
 
 # SET FONT
 
@@ -405,7 +405,7 @@ def create_ycsb_storage_bar_chart(datasets):
 
     return (fig)
 
-def create_ycsb_nvm_bar_chart(datasets):
+def create_ycsb_nvm_bar_chart(datasets,type):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)   
 
@@ -419,6 +419,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     margin = 0.15
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
+    
     YLIMIT = 2800
     
     for group in xrange(len(datasets)):
@@ -434,9 +435,14 @@ def create_ycsb_nvm_bar_chart(datasets):
                     s_misses.append(1 + datasets[group][line][col] / (1024 * 1024))
   
         LOG.info("%s l_misses = %s s_misses = %s ", LABELS[group], str(l_misses), str(s_misses))
-                
-        bars[group * 2] = ax1.bar(ind + margin + (group * width), l_misses, width, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
-        bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2 + 1], linewidth=BAR_LINEWIDTH)
+    
+        # LOADS
+        if type == 0:            
+            bars[group * 2] = ax1.bar(ind + margin + (group * width), l_misses, width, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
+        # STORES
+        else:
+            bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2 + 1], linewidth=BAR_LINEWIDTH)
+#            bars[group * 2 + 1] = ax1.bar(ind + margin + (group * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[group], hatch=OPT_PATTERNS[group * 2 + 1], linewidth=BAR_LINEWIDTH)
     
     # RATIO
     LOG.info("READS + WRITES")
@@ -471,8 +477,11 @@ def create_ycsb_nvm_bar_chart(datasets):
     ax1.set_xticks(ind + 0.5)
     ax1.set_ylim([0,YLIMIT])
     
-    ax1.set_ylabel("NVM Accesses (M)", fontproperties=LABEL_FP)
-
+    if type == 0:
+        ax1.set_ylabel("NVM Loads (M)", fontproperties=LABEL_FP)
+    else:
+        ax1.set_ylabel("NVM Stores (M)", fontproperties=LABEL_FP)
+        
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
     for label in ax1.get_xticklabels() :
@@ -655,7 +664,7 @@ def create_tpcc_storage_bar_chart(datasets):
         
     return (fig)
 
-def create_tpcc_nvm_bar_chart(datasets):
+def create_tpcc_nvm_bar_chart(datasets, type):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
      
@@ -681,8 +690,13 @@ def create_tpcc_nvm_bar_chart(datasets):
             if col == 2:
                 s_misses.append(datasets[line][col] / (1024 * 1024))
     
-        bars[line * 2] = ax1.bar(ind + margin + (line * width), l_misses, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)    
-        bars[line * 2 + 1] = ax1.bar(ind + margin + (line * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
+        # LOADS
+        if type == 0:
+            bars[line * 2] = ax1.bar(ind + margin + (line * width), l_misses, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)    
+        # STORES
+        else:
+            bars[line * 2 + 1] = ax1.bar(ind + margin + (line * width), s_misses, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
+#            bars[line * 2 + 1] = ax1.bar(ind + margin + (line * width), s_misses, width, bottom=l_misses, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2 + 1], linewidth=BAR_LINEWIDTH)
 
     # RATIO 
     LOG.info("READS + WRITES")
@@ -701,12 +715,15 @@ def create_tpcc_nvm_bar_chart(datasets):
     axes = ax1.get_axes()
     # axes.set_ylim(0, 10000)        
     makeGrid(ax1)
-    
-    
+        
     # Y-AXIS
-    ax1.set_ylabel("NVM accesses (M)", fontproperties=LABEL_FP)
     #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_off()
+
+    if type == 0:
+        ax1.set_ylabel("NVM Loads (M)", fontproperties=LABEL_FP)
+    else:
+        ax1.set_ylabel("NVM Stores (M)", fontproperties=LABEL_FP)
         
     # X-AXIS
     #ax1.minorticks_on()
@@ -818,8 +835,14 @@ def ycsb_nvm_plot():
             dataFile = loadDataFile(2, 3, os.path.realpath(os.path.join(YCSB_NVM_DIR, sy + "/" + workload + "/nvm.csv")))
             datasets.append(dataFile)            
                        
-        fig = create_ycsb_nvm_bar_chart(datasets)                        
-        fileName = "ycsb-nvm-%s.pdf" % (workload)
+        # LOADS                       
+        fig = create_ycsb_nvm_bar_chart(datasets, 0)                         
+        fileName = "ycsb-nvm-loads-%s.pdf" % (workload)
+        saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
+
+        # STORES                       create_ycsb_nvm_bar_chart
+        fig = create_ycsb_nvm_bar_chart(datasets, 1)                         
+        fileName = "ycsb-nvm-stores-%s.pdf" % (workload)
         saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
 
 # YCSB RECOVERY -- PLOT
@@ -868,10 +891,15 @@ def tpcc_nvm_plot():
     
     dataFile = loadDataFile(6, 3, os.path.realpath(os.path.join(TPCC_NVM_DIR, "nvm.csv")))
     datasets = dataFile
-                                        
-    fig = create_tpcc_nvm_bar_chart(datasets)
-                        
-    fileName = "tpcc-nvm.pdf"
+
+    # LOADS                                                               
+    fig = create_tpcc_nvm_bar_chart(datasets,0)                        
+    fileName = "tpcc-nvm-loads.pdf"
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
+
+    # STORES                                                               
+    fig = create_tpcc_nvm_bar_chart(datasets,1)                        
+    fileName = "tpcc-nvm-stores.pdf"
     saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
 
 # TPCC RECOVERY -- PLOT
@@ -1613,36 +1641,47 @@ def tpcc_nvm_eval(log_name):
                 engine_type = 4
             elif(etypes[0] == "OPT_LSM"):
                 engine_type = 5
-                                                        
+
         if "LLC-load-misses" in line:
             entry = line.strip().split(' ');
             if(entry[0] == '<not'):
                 llc_l_miss = "0"
-            else:    
-                llc_l_miss = str(entry[0])
-            llc_l_miss = llc_l_miss.replace(",", "")    
+            elif llc_l_miss == -1:    
+                llc_l_miss = str(entry[0])            
+                llc_l_miss = llc_l_miss.replace(",", "")    
+            else:
+                llc_l_miss_only_load = str(entry[0]) 
+                llc_l_miss_only_load = llc_l_miss_only_load.replace(",", "")    
+
+                llc_l_miss = max(0.0, float(llc_l_miss) - float(llc_l_miss_only_load))     
                 
-            print(str(engine_type) + " , " + str(skew) + " l_miss :: " + str(llc_l_miss))
+                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
 
 
         if "LLC-store-misses" in line:
             entry = line.strip().split(' ');
             if(entry[0] == '<not'):
                 llc_s_miss = "0"
-            else:    
-                llc_s_miss = str(entry[0])
-            llc_s_miss = llc_s_miss.replace(",", "")    
+            elif llc_s_miss == -1:    
+                llc_s_miss = str(entry[0])            
+                llc_s_miss = llc_s_miss.replace(",", "")    
+            else:
+                llc_s_miss_only_load = str(entry[0]) 
+                llc_s_miss_only_load = llc_s_miss_only_load.replace(",", "")    
+
+                llc_s_miss = max(0.0, float(llc_s_miss) - float(llc_s_miss_only_load))     
                 
-            print(str(engine_type) + " , " + str(skew) + " s_miss :: " + str(llc_s_miss) + "\n")
-                                                                
-            result_directory = TPCC_NVM_DIR;
-            if not os.path.exists(result_directory):
-                os.makedirs(result_directory)
-                
-            result_file_name = result_directory + "nvm.csv"
-            result_file = open(result_file_name, "a")
-            result_file.write(str(engine_type) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
-            result_file.close()    
+                print(engine_type + ", " + str(rw_mix) + " , " + str(skew) + " :: " + str(llc_l_miss))
+                                                                                   
+                result_directory = TPCC_NVM_DIR;
+                if not os.path.exists(result_directory):
+                    os.makedirs(result_directory)
+                    
+                result_file_name = result_directory + "nvm.csv"
+                result_file = open(result_file_name, "a")
+                result_file.write(str(engine_type) + " , " + str(llc_l_miss) + " , " + str(llc_s_miss) + "\n")
+                result_file.close()    
+     
 
 # TPCC RECOVERY -- EVAL
 def tpcc_recovery_eval(log_name):            
