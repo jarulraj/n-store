@@ -113,16 +113,19 @@ TPCC_TXNS = 1000000
 
 LABEL_FONT_SIZE = 16
 TICK_FONT_SIZE = 14
+TINY_FONT_SIZE = 12
 
 AXIS_LINEWIDTH = 1.3
 BAR_LINEWIDTH = 1.2
 
-fontProperties = {'family':'sans-serif','sans-serif':['Helvetica'], 'weight' : 'normal', 'size' : LABEL_FONT_SIZE}
-rc('text', usetex=True)
-rc('font',**fontProperties)
+#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+#fontProperties = {'family':'sans-serif','sans-serif':['Arial'], 'weight' : 'normal', 'size' : LABEL_FONT_SIZE}
+#rc('text', usetex=True)
+#rc('font',**fontProperties)
 
-LABEL_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=LABEL_FONT_SIZE, weight='bold', stretch='normal')
-TICK_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TICK_FONT_SIZE, weight='bold', stretch='normal')
+LABEL_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=LABEL_FONT_SIZE, weight='bold')
+TICK_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TICK_FONT_SIZE)
+TINY_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TINY_FONT_SIZE)
 
 ###################################################################################                   
 # UTILS
@@ -291,6 +294,16 @@ def create_ycsb_perf_bar_chart(datasets):
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
 
+    YLIMIT = 2000000
+
+    def autolabel(rects):
+        # attach some text labels
+        for rect in rects:
+            height = rect.get_height()
+            if height > YLIMIT:
+                ax1.text(rect.get_x()+rect.get_width()/2., 1.05*YLIMIT, '%d'%int(height),
+                        ha='center', va='bottom', fontproperties=TINY_FP)
+
     # GROUP
     for group in xrange(len(datasets)):
         perf_data = []               
@@ -304,6 +317,7 @@ def create_ycsb_perf_bar_chart(datasets):
         LOG.info("%s perf_data = %s ", LABELS[group], str(perf_data))
         
         bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2])        
+        autolabel(bars[group])
 
     # RATIO
     transposed_datasets = map(list,map(None,*datasets))
@@ -318,13 +332,13 @@ def create_ycsb_perf_bar_chart(datasets):
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    ax1.set_ylim([1, 3500000])
+    ax1.set_ylim([0,YLIMIT])
         
     # X-AXIS
     ax1.minorticks_on()
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)              
-    ax1.set_ylabel("Throughput (Txn/sec)", fontproperties=LABEL_FP)
+    ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)
         
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
@@ -405,6 +419,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     margin = 0.15
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
+    YLIMIT = 2800
     
     for group in xrange(len(datasets)):
         # GROUP
@@ -454,6 +469,7 @@ def create_ycsb_nvm_bar_chart(datasets):
     ax1.set_xticklabels(x_labels)
     ax1.tick_params(axis='x', which='both', bottom='off')
     ax1.set_xticks(ind + 0.5)
+    ax1.set_ylim([0,YLIMIT])
     
     ax1.set_ylabel("NVM Accesses (M)", fontproperties=LABEL_FP)
 
@@ -532,7 +548,7 @@ def create_tpcc_perf_bar_chart(datasets):
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
-
+            
     # GROUP    
     for group in xrange(len(datasets)):
         perf_data = []               
@@ -542,21 +558,20 @@ def create_tpcc_perf_bar_chart(datasets):
             for col in  xrange(len(datasets[group][line])):
                 if col == 1:
                     perf_data.append(datasets[group][line][col])
-  
+
         LOG.info("%s perf_data = %s ", LABELS[group], str(perf_data))
 
         bars[group] = ax1.bar(ind + margin + (group * width), perf_data, width, color=OPT_COLORS[group], hatch=OPT_PATTERNS[group * 2], linewidth=BAR_LINEWIDTH)
-   
+
     # RATIO
     transposed_dataset = map(list,map(None,*datasets))
     for type in xrange(N):
         get_ratio(transposed_dataset[type], True)
                      
-    # GRID
+    # GRID    
     axes = ax1.get_axes()
-    # axes.set_ylim(0, 3000)        
     makeGrid(ax1)    
-    
+
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
@@ -567,8 +582,8 @@ def create_tpcc_perf_bar_chart(datasets):
     ax1.set_xticklabels(x_labels)
     ax1.set_xticks(ind + 0.5)
         
-    ax1.set_ylabel("Throughput (Txn/sec)", fontproperties=LABEL_FP)        
-
+    ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)        
+    
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
     for label in ax1.get_xticklabels() :
