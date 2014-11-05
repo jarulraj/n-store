@@ -25,6 +25,7 @@ from matplotlib.ticker import LogLocator
 from pprint import pprint, pformat
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib import rc
+from operator import add
 
 import csv
 import brewer2mpl
@@ -66,6 +67,8 @@ OPT_LINE_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
 OPT_LINE_WIDTH = 6.0
 OPT_MARKER_SIZE = 10.0
 DATA_LABELS = []
+
+OPT_STACK_COLORS = ('#AFAFAF', '#F15854', '#FAA43A', '#60BD68', '#5DA5DA', '#B2912F', '#F17CB0', '#DECF3F', '#B276B2')
 
 # # NSTORE
 SDV_DIR = "/data/devel/sdv-tools/sdv-release"
@@ -355,36 +358,32 @@ def create_ycsb_storage_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
     
-    N = 1
     num_items = len(ENGINES);
 
-    ind = np.arange(N)  
-    margin = 0.25
-    width = (1.0 - 2 * margin) / num_items      
+    ind = np.arange(num_items)  
+    margin = 0.5
+    width = 1.0      
     bars = [None] * len(LABELS) * 2
+
+    YLIMIT = 6.0
+
+    for line in xrange(len(datasets)): 
+        datasets[line] = datasets[line][1:]
+        list_sum = sum(datasets[line])
+        LOG.info("SUM :: %f", list_sum)
+        #datasets[line] = [x / list_sum for x in datasets[line]]
     
-    # LINE       
-    for line in  xrange(len(ENGINES)):
-        fs_data = 0
-        pm_data = 0
-        total_data = []
-        
-        LOG.info("LINE :: %s", datasets[line])
+    datasets = map(list,map(None,*datasets))
+    
+    # TYPE      
+    bottom_list = [0] * len(datasets[0])    
+    for type in  xrange(len(datasets)):        
+        LOG.info("TYPE :: %s", datasets[type])
 
-        for col in  xrange(len(datasets[line])):
-            if col == 1:
-                fs_data = datasets[line][col] / (1024 * 1024 * 1024)
-            if col == 2:
-                pm_data = datasets[line][col] / (1024 * 1024 * 1024)
-
-        total_data.append(fs_data + pm_data)                
-                
-        bars[line * 2] = ax1.bar(ind + margin + (line * width), total_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
-
-    # RATIO
-    for line in  xrange(len(ENGINES)):
-        datasets[line][1] += datasets[line][2]
-    get_ratio(datasets, True)
+        bars[type] = ax1.bar(ind + margin, datasets[type], width, 
+                             color=OPT_STACK_COLORS[type], linewidth=BAR_LINEWIDTH,
+                             bottom = bottom_list)
+        bottom_list = map(add, bottom_list, datasets[type])
         
     # GRID
     axes = ax1.get_axes()
@@ -393,21 +392,20 @@ def create_ycsb_storage_bar_chart(datasets):
     # Y-AXIS
     #ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
-    #ax1.yaxis.set_major_locator(MaxNLocator(4))
-    #ax1.minorticks_on()
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+    axes.set_ylim(0,YLIMIT)
         
     # X-AXIS
     #ax1.set_xlabel("Engine", fontproperties=LABEL_FP)
-    ax1.minorticks_off()
     ax1.tick_params(axis='x', which='both', bottom='off', labelbottom='off')
     ax1.set_xticks(ind + 0.5)
-
+    
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
     for label in ax1.get_xticklabels() :
         label.set_fontproperties(TICK_FP)
-
+    
     return (fig)
 
 def create_ycsb_nvm_bar_chart(datasets,type):
@@ -641,61 +639,56 @@ def create_tpcc_storage_bar_chart(datasets):
     N = len(x_values)
     num_items = len(ENGINES);
 
-    ind = np.arange(N)  
-    margin = 0.25
-    width = (1.0 - 2 * margin) / num_items      
+    ind = np.arange(num_items)  
+    margin = 0.5
+    width = 1.0      
     bars = [None] * len(LABELS) * 2
+
+    YLIMIT = 6.0
+
+    for line in xrange(len(datasets)): 
+        datasets[line] = datasets[line][1:]
+        list_sum = sum(datasets[line])
+        LOG.info("SUM :: %f", list_sum)
+        #datasets[line] = [x / list_sum for x in datasets[line]]
     
-    # LINE       
-    for line in  xrange(len(ENGINES)):
-        fs_data = 0
-        pm_data = 0
-        total_data = []
-        
-        LOG.info("LINE :: %s", datasets[line])
+    datasets = map(list,map(None,*datasets))
+    
+    # TYPE      
+    bottom_list = [0] * len(datasets[0])    
+    for type in  xrange(len(datasets)):        
+        LOG.info("TYPE :: %s", datasets[type])
 
-        for col in  xrange(len(datasets[line])):
-            if col == 1:
-                fs_data = datasets[line][col] / (1024 * 1024 * 1024)
-            if col == 2:
-                pm_data = datasets[line][col] / (1024 * 1024 * 1024)
-
-        total_data.append(fs_data + pm_data)                
-                
-        bars[line * 2] = ax1.bar(ind + margin + (line * width), total_data, width, color=COLOR_MAP[line], hatch=OPT_PATTERNS[line * 2], linewidth=BAR_LINEWIDTH)
-
-    # RATIO
-    for line in  xrange(len(ENGINES)):
-        datasets[line][1] += datasets[line][2]
-    get_ratio(datasets, True)
-                
+        bars[type] = ax1.bar(ind + margin, datasets[type], width, 
+                             color=OPT_STACK_COLORS[type], linewidth=BAR_LINEWIDTH,
+                             bottom = bottom_list)
+        bottom_list = map(add, bottom_list, datasets[type])
+                           
     # GRID
     axes = ax1.get_axes()
     makeGrid(ax1)
-        
+
     # Y-AXIS
     #ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
-    #ax1.yaxis.set_major_locator(MaxNLocator(4))
-    #ax1.minorticks_on()
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+    axes.set_ylim(0, YLIMIT)
         
     # X-AXIS
     #ax1.set_xlabel("Engine", fontproperties=LABEL_FP)
-    ax1.minorticks_off()
-    ax1.tick_params(\
-    axis='x',          # changes apply to the x-axis
-    which='both',      # both major and minor ticks are affected
-    bottom='off',      # ticks along the bottom edge are off
-    top='off',         # ticks along the top edge are off
-    labelbottom='off')
+    ax1.tick_params(axis='x', which='both', bottom='off', labelbottom='off')
     ax1.set_xticks(ind + 0.5)
-
+    
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
     for label in ax1.get_xticklabels() :
         label.set_fontproperties(TICK_FP)
-        
+    
+    plot.legend( (bars[0], bars[1], bars[2], bars[3], bars[4]), ( 'Data', 'Index', 'Logs', 'Checkpoint', 'Others' ),
+                 loc='center right', bbox_to_anchor=(2, 0.5),
+                 ncol=1, fancybox=True, shadow=True)
+                
     return (fig)
 
 def create_tpcc_nvm_bar_chart(datasets, type):
@@ -865,7 +858,7 @@ def ycsb_perf_plot():
 def ycsb_storage_plot():    
     datasets = []
 
-    dataFile = loadDataFile(6, 3, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, "storage.csv")))
+    dataFile = loadDataFile(6, 6, os.path.realpath(os.path.join(YCSB_STORAGE_DIR, "storage.csv")))
     datasets = dataFile
                                       
     fig = create_ycsb_storage_bar_chart(datasets)
@@ -924,7 +917,7 @@ def tpcc_perf_plot():
 def tpcc_storage_plot():    
     datasets = []
 
-    dataFile = loadDataFile(6, 3, os.path.realpath(os.path.join(TPCC_STORAGE_DIR, "storage.csv")))
+    dataFile = loadDataFile(6, 6, os.path.realpath(os.path.join(TPCC_STORAGE_DIR, "storage.csv")))
     datasets = dataFile
                                       
     fig = create_tpcc_storage_bar_chart(datasets)
