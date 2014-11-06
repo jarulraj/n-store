@@ -15,6 +15,7 @@ import string
 import argparse
 import pylab
 import datetime
+import math
 
 import numpy as np
 import matplotlib.pyplot as plot
@@ -68,7 +69,7 @@ OPT_LINE_WIDTH = 6.0
 OPT_MARKER_SIZE = 10.0
 DATA_LABELS = []
 
-OPT_STACK_COLORS = ('#AFAFAF', '#F15854', '#FAA43A', '#60BD68', '#5DA5DA', '#B2912F', '#F17CB0', '#DECF3F', '#B276B2')
+OPT_STACK_COLORS = ('#AFAFAF', '#F15854', '#5DA5DA', '#60BD68',  '#B276B2', '#DECF3F', '#F17CB0', '#B2912F', '#FAA43A')
 
 # # NSTORE
 SDV_DIR = "/data/devel/sdv-tools/sdv-release"
@@ -76,7 +77,7 @@ SDV_SCRIPT = SDV_DIR + "/ivt_pm_sdv.sh"
 NSTORE = "./src/nstore"
 FS_PATH = "/mnt/pmfs/n-store/"
 PMEM_CHECK = "./src/pmem_check"
-#PERF = "/usr/bin/perf"
+PERF_LOCAL = "/usr/bin/perf"
 PERF = "/usr/lib/linux-tools/3.11.0-12-generic/perf"
 NUMACTL = "numactl"
 NUMACTL_FLAGS = "--membind=2"
@@ -84,14 +85,17 @@ NUMACTL_FLAGS = "--membind=2"
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 RECOVERY_SYSTEMS = ("wal", "lsm", "opt_wal", "opt_lsm")
 LATENCIES = ("160", "320", "1280")
+
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000000
-YCSB_TXNS = 8000000
+YCSB_KEYS = 2000
+YCSB_TXNS = 8000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
 YCSB_RECOVERY_TXNS = [1000, 10000, 100000]
+YCSB_STACK_LATENCIES = ["320"]
+YCSB_STACK_SKEW_FACTORS = [0.1]
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
 TPCC_RW_MIXES = [0.5]
@@ -101,6 +105,7 @@ YCSB_PERF_DIR = "../results/ycsb/performance/"
 YCSB_STORAGE_DIR = "../results/ycsb/storage/"
 YCSB_NVM_DIR = "../results/ycsb/nvm/"
 YCSB_RECOVERY_DIR = "../results/ycsb/recovery/"
+YCSB_STACK_DIR = "../results/ycsb/stack/"
 
 TPCC_PERF_DIR = "../results/tpcc/performance/"
 TPCC_STORAGE_DIR = "../results/tpcc/storage/"
@@ -109,7 +114,7 @@ TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
 NVM_BW_DIR = "../results/nvm_bw/"
 
-LABELS = ("InP", "CoW", "LOG", "NVM-InP", "NVM-CoW", "NVM-LOG")
+LABELS = ("InP", "CoW", "Log", "NVM-InP", "NVM-CoW", "NVM-Log")
 
 TPCC_TXNS = 1000000
 
@@ -232,7 +237,56 @@ def create_legend():
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('legend.pdf')
-    
+
+def create_storage_legend():
+    fig = pylab.figure()
+    ax1 = fig.add_subplot(111)
+
+    figlegend = pylab.figure(figsize=(11, 0.5))
+
+    num_items = 5;   
+    ind = np.arange(1)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+   
+    STORAGE_LABELS = ("Data", "Index", "Log", "Checkpoint", "Other")
+   
+    bars = [None] * len(STORAGE_LABELS) * 2
+
+    for group in xrange(len(ENGINES)):        
+        data = [1]
+        bars[group] = ax1.bar(ind + margin + (group * width), data, width, color=OPT_STACK_COLORS[group], linewidth=BAR_LINEWIDTH)
+        
+    # LEGEND
+    figlegend.legend(bars, STORAGE_LABELS, prop=LABEL_FP, loc=1, ncol=6, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
+
+    figlegend.savefig('storage_legend.pdf')    
+
+def create_stack_legend():
+    fig = pylab.figure()
+    ax1 = fig.add_subplot(111)
+
+    figlegend = pylab.figure(figsize=(11, 0.5))
+
+    num_items = 4;   
+    ind = np.arange(1)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+   
+    STACK_LABELS = ("Storage", "Recovery", "Index", "Other")
+   
+    bars = [None] * len(STACK_LABELS) * 2
+
+    for group in xrange(len(ENGINES)):        
+        data = [1]
+        bars[group] = ax1.bar(ind + margin + (group * width), data, width, color=OPT_STACK_COLORS[group], linewidth=BAR_LINEWIDTH)
+        
+    # LEGEND
+    figlegend.legend(bars, STACK_LABELS, prop=LABEL_FP, loc=1, ncol=6, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
+
+    figlegend.savefig('stack_legend.pdf')  
 
 def create_nvm_bw_chart(datasets):
     fig = plot.figure()
@@ -354,6 +408,78 @@ def create_ycsb_perf_bar_chart(datasets):
             
     return (fig)
 
+
+def create_ycsb_stack_bar_chart(datasets):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+         
+    x_values = YCSB_STACK_SKEW_FACTORS
+    N = len(x_values)
+    #x_labels = ["Low Skew", "High Skew"]
+
+    num_items = len(ENGINES);   
+    ind = np.arange(num_items)  
+    pprint(ind)
+    margin = 0.60
+    width = (2.0 - 2 * margin)      
+    bars = [None] * len(LABELS) 
+    label_loc = []
+    
+    YLIMIT = 100.0
+
+    # GROUP
+    for group in xrange(len(datasets)):
+        
+        # LINE
+        for line in  xrange(len(datasets[group])):
+            LOG.info("DATA = %s ", str(datasets[group][line]))
+
+            bottom_num = 0.0                
+            for col in  xrange(len(datasets[group][line])):                    
+                bars[group] = ax1.bar(line + margin + (group * width), datasets[group][line][col], width, 
+                                      color=OPT_STACK_COLORS[col-1],
+                                      bottom = bottom_num)
+                
+                bottom_num = bottom_num +  datasets[group][line][col]
+
+            col = 4
+            bars[group] = ax1.bar(line + margin + (group * width), 100.0 - bottom_num, width, 
+                                      color=OPT_STACK_COLORS[col-1],
+                                      bottom = bottom_num)
+
+            label_loc.append(line + margin + (group * width))
+                        
+
+    # RATIO
+    #transposed_datasets = map(list,map(None,*datasets))
+    #for type in xrange(N):
+    #    LOG.info("type = %f ", x_values[type])
+    #    get_ratio(transposed_datasets[type], True)
+        
+    # GRID
+    axes = ax1.get_axes()
+    makeGrid(ax1)
+      
+    # Y-AXIS
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+    ax1.set_ylim([0,YLIMIT])
+        
+    # X-AXIS
+    ax1.minorticks_on()
+    #ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(label_loc)              
+    ax1.set_ylabel("Time breakdown (%)", fontproperties=LABEL_FP)
+    ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+    ax1.set_xticklabels(LABELS, rotation=60)
+        
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
+            
+    return (fig)
+
 def create_ycsb_storage_bar_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
@@ -393,14 +519,14 @@ def create_ycsb_storage_bar_chart(datasets):
     #ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
     ax1.yaxis.set_major_locator(MaxNLocator(5))
-    ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     axes.set_ylim(0,YLIMIT)
         
     # X-AXIS
     #ax1.set_xlabel("Engine", fontproperties=LABEL_FP)
-    ax1.tick_params(axis='x', which='both', bottom='off', labelbottom='off')
+    ax1.tick_params(axis='x', which='both', top='off', bottom='off')
     ax1.set_xticks(ind + 0.5)
-    
+    ax1.set_xticklabels(LABELS, rotation=60)
+        
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
     for label in ax1.get_xticklabels() :
@@ -423,17 +549,17 @@ def create_ycsb_nvm_bar_chart(datasets,type):
     bars = [None] * len(LABELS) * 2
     graph_type = type
 
-    #if type == 0:
-    YLIMIT = 800
-    #else:
-    #    YLIMIT = 800
+    if type == 0:
+        YLIMIT = 1200
+    else:
+        YLIMIT = 500
 
     def autolabel(rects):
         # attach some text labels
         for rect in rects:
             height = rect.get_height()
             if height > YLIMIT:
-                label = '%.1f'%(height/1000) + 'T'
+                label = '%.1f'%(height/1000) + 'B'
                 ax1.text(rect.get_x()+rect.get_width()/2., 1.05*YLIMIT, label,
                         ha='center', va='bottom', fontproperties=TINY_FP)
     
@@ -487,7 +613,7 @@ def create_ycsb_nvm_bar_chart(datasets,type):
     #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_off()
     ax1.set_ylim(0,YLIMIT)
-    ax1.yaxis.set_major_locator(MaxNLocator(4))
+    ax1.yaxis.set_major_locator(MaxNLocator(6))
         
     # X-AXIS
     ax1.minorticks_off()
@@ -672,23 +798,19 @@ def create_tpcc_storage_bar_chart(datasets):
     #ax1.set_yscale('log', nonposy='clip')
     ax1.set_ylabel("Storage (GB)", fontproperties=LABEL_FP)
     ax1.yaxis.set_major_locator(MaxNLocator(5))
-    ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     axes.set_ylim(0, YLIMIT)
         
     # X-AXIS
     #ax1.set_xlabel("Engine", fontproperties=LABEL_FP)
-    ax1.tick_params(axis='x', which='both', bottom='off', labelbottom='off')
+    ax1.tick_params(axis='x', which='both', bottom='off')
     ax1.set_xticks(ind + 0.5)
-    
+    ax1.set_xticklabels(LABELS, rotation=60)
+
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
     for label in ax1.get_xticklabels() :
         label.set_fontproperties(TICK_FP)
-    
-    plot.legend( (bars[0], bars[1], bars[2], bars[3], bars[4]), ( 'Data', 'Index', 'Logs', 'Checkpoint', 'Others' ),
-                 loc='center right', bbox_to_anchor=(2, 0.5),
-                 ncol=1, fancybox=True, shadow=True)
-                
+                    
     return (fig)
 
 def create_tpcc_nvm_bar_chart(datasets, type):
@@ -704,8 +826,11 @@ def create_tpcc_nvm_bar_chart(datasets, type):
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
         
-    YLIMIT = 1200
-       
+    if type == 0:
+        YLIMIT = 1200
+    else:
+        YLIMIT = 600
+           
     # LINE    
     for line in  xrange(len(ENGINES)):
         l_misses = []       
@@ -749,7 +874,7 @@ def create_tpcc_nvm_bar_chart(datasets, type):
     # Y-AXIS
     #ax1.set_yscale('log', nonposy='clip')
     ax1.minorticks_off()
-    ax1.yaxis.set_major_locator(MaxNLocator(4))
+    ax1.yaxis.set_major_locator(MaxNLocator(6))
 
     if type == 0:
         ax1.set_ylabel("NVM Loads (M)", fontproperties=LABEL_FP)
@@ -853,6 +978,22 @@ def ycsb_perf_plot():
             
             fileName = "ycsb-perf-%s-%s.pdf" % (workload, lat)
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
+
+# YCSB STACK -- PLOT
+def ycsb_stack_plot():
+    for workload in YCSB_WORKLOAD_MIX:    
+
+        for lat in YCSB_STACK_LATENCIES:
+            datasets = []
+        
+            for sy in SYSTEMS:    
+                dataFile = loadDataFile(1, 4, os.path.realpath(os.path.join(YCSB_STACK_DIR, sy + "/" + workload + "/" + lat + "/stack.csv")))
+                datasets.append(dataFile)
+                                   
+            fig = create_ycsb_stack_bar_chart(datasets)
+            
+            fileName = "ycsb-stack-%s-%s.pdf" % (workload, lat)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5)
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
@@ -1171,7 +1312,172 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
     wh_chunks = list(chunks(write_heavy, col_len))
     print('\n'.join('\t'.join(map(str, row)) for row in zip(*wh_chunks)))
     print('\n', end="")
-     
+
+
+# YCSB STACK -- EVAL
+def ycsb_stack_eval(log_name):     
+    keys = YCSB_KEYS
+    txns = YCSB_TXNS
+
+    PERF_RECORD = "record"    
+    PERF_REPORT = "report"  
+    PERF_FILE = "perf.summary"  
+
+    if enable_local:
+        PERF_RECORD_FLAGS = "-e cpu-cycles:u"
+        PERF = PERF_LOCAL
+        NUMACTL_FLAGS = "--membind=0"
+    else:
+        PERF_RECORD_FLAGS = "-e instructions:u"
+                            
+    #nvm_latencies = LATENCIES
+    nvm_latencies = YCSB_STACK_LATENCIES
+
+    rw_mixes = YCSB_RW_MIXES
+    skew_factors = YCSB_STACK_SKEW_FACTORS
+    #skew_factors = YCSB_SKEW_FACTORS
+    engines = ENGINES
+    
+    # CLEAN UP RESULT DIR
+    subprocess.call(['rm', '-rf', YCSB_STACK_DIR])          
+
+    recovery_dict = ['serialize','update','stream','file','libc','write','fp','fsync','0x','push_back']
+    index_dict = ['select','btree', 'Hash']
+    storage_dict = ['insert','load','delete', 'string', 'alloc', 'free', 'mem', 'cow_btree']
+
+    def round_sigfigs(num, sig_figs):
+        if num != 0:
+            return round(num, -int(math.floor(math.log10(abs(num))) - (sig_figs - 1)))
+        else:
+            return 0  # Can't take the log of 0
+
+    def parse_perf_log(log_file):        
+        num_types = 3        
+        per_list = [0] * num_types;
+        # Types : Storage, Recovery, Index, Others
+
+        perf_file = open(PERF_FILE, 'w')
+        subprocess.call([PERF, PERF_REPORT], stdout=perf_file, stderr=perf_file)
+        perf_file.close()
+        
+        perf_file = open(PERF_FILE, 'r')
+                
+        for line in perf_file:                    
+            if "%" in line:
+                label = line.strip().split('.]')[1];
+                fraction = line.strip().split('.]')[0];
+                entry = filter(None, fraction)                
+
+                func = str(label)
+                fraction = float(fraction.split('%')[0])
+                                        
+                if any(x in func for x in recovery_dict):
+                    per_list[1] = per_list[1] + fraction
+                    #print("ENTRY :: R :: " + str(fraction) + " :: " + func)
+                elif any(x in func for x in index_dict):
+                    per_list[2] = per_list[2] + fraction 
+                    #print("ENTRY :: I :: " + str(fraction) + " :: " + func)
+                elif any(x in func for x in storage_dict):
+                    per_list[0] = per_list[0] + fraction
+                    #print("ENTRY :: S :: " + str(fraction) + " :: " + func)
+                #else:
+                    #print("ENTRY :: X :: " + str(fraction) + " :: " + func)                               
+                    
+
+        for elem in range(0, num_types):
+            per_list[elem] = round_sigfigs(per_list[elem], 2)
+                        
+        
+        print("LIST :: ")
+        pprint(per_list)
+        
+        perf_file.close()
+
+        return per_list;
+
+    def generate_report(etype, rw_mix, nvm_latency, skew_factor, log_file):        
+        if(etype == "-a"):
+            engine_type = "wal"                
+        elif(etype == "-s"):
+            engine_type = "sp"
+        elif(etype == "-m"):
+            engine_type = "lsm"
+        elif(etype == "-w"):
+            engine_type = "opt_wal"
+        elif(etype == "-c"):
+            engine_type = "opt_sp"
+        elif(etype == "-l"):
+            engine_type = "opt_lsm"
+           
+        if(rw_mix == 0.0):
+            workload_type = 'read-only'
+        elif(rw_mix == 0.1):
+            workload_type = 'read-heavy'
+        elif(rw_mix == 0.5):
+            workload_type = 'balanced'
+        elif(rw_mix == 0.9):
+            workload_type = 'write-heavy'
+            
+        result_directory = YCSB_STACK_DIR + engine_type + "/" + workload_type + "/" + nvm_latency + "/";
+        if not os.path.exists(result_directory):
+            os.makedirs(result_directory)
+
+        per_list = parse_perf_log(log_file);
+        per_list_string =  ' , '.join(map(str, per_list)) 
+        
+        result_file_name = result_directory + "stack.csv"
+        result_file = open(result_file_name, "a")
+        result_file.write(str(skew_factor) + " , "  + per_list_string + "\n")
+        result_file.close()            
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+    
+    for nvm_latency in nvm_latencies:
+
+        ostr = ("LATENCY %s \n" % nvm_latency)    
+        print (ostr, end="")
+        log_file.write(ostr)
+        log_file.flush()
+        
+        if enable_sdv :
+            cwd = os.getcwd()
+            os.chdir(SDV_DIR)
+            subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', str(nvm_latency)], stdout=log_file)
+            os.chdir(cwd)
+                   
+        # RW MIX
+        for rw_mix  in rw_mixes:
+            # SKEW FACTOR
+            for skew_factor  in skew_factors:
+                ostr = ("--------------------------------------------------- \n")
+                print (ostr, end="")
+                log_file.write(ostr)
+                ostr = ("RW MIX :: %.1f SKEW :: %.2f \n" % (rw_mix, skew_factor))
+                print (ostr, end="")
+                log_file.write(ostr)                    
+                log_file.flush()
+                           
+                for eng in engines:
+                    cleanup(log_file)
+
+                    subprocess.call([PERF, PERF_RECORD, PERF_RECORD_FLAGS, NUMACTL, NUMACTL_FLAGS, 
+                                     NSTORE, '-k', str(keys), '-x', str(txns), '-p', str(rw_mix), '-q', str(skew_factor), eng],
+                                     stdout=log_file, stderr=log_file)
+
+                    generate_report(eng, rw_mix, nvm_latency, skew_factor, log_file)                                        
+
+    # RESET
+    if enable_sdv :
+        cwd = os.getcwd()
+        os.chdir(SDV_DIR)
+        subprocess.call(['sudo', SDV_SCRIPT, '--enable', '--pm-latency', "200"], stdout=log_file)
+        os.chdir(cwd)
+ 
+    log_file.write('End :: %s \n' % datetime.datetime.now())
+    log_file.close()   
+                                     
      
 # YCSB STORAGE -- EVAL
 def ycsb_storage_eval(log_name):            
@@ -1836,6 +2142,9 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--tpcc_recovery_plot", help='tpcc_recovery_plot', action='store_true')
 
     parser.add_argument("-w", "--nvm_bw_plot", help='nvm_bw_plot', action='store_true')
+
+    parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
+    parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
     
     args = parser.parse_args()
     
@@ -1852,6 +2161,7 @@ if __name__ == '__main__':
     ycsb_storage_log_name = "ycsb_storage.log"
     ycsb_nvm_log_name = "ycsb_nvm.log"
     ycsb_recovery_log_name = "ycsb_recovery.log"
+    ycsb_stack_log_name = "ycsb_stack.log"
     
     tpcc_perf_log_name = "tpcc_perf.log"
     tpcc_storage_log_name = "tpcc_storage.log"
@@ -1871,6 +2181,9 @@ if __name__ == '__main__':
 
     if args.ycsb_recovery_eval:             
         ycsb_recovery_eval(ycsb_recovery_log_name);             
+
+    if args.ycsb_stack_eval:
+        ycsb_stack_eval(ycsb_stack_log_name);                    
                           
     if args.ycsb_perf_plot:      
         ycsb_perf_plot();          
@@ -1882,7 +2195,10 @@ if __name__ == '__main__':
        ycsb_nvm_plot();                          
 
     if args.ycsb_recovery_plot:                
-       ycsb_recovery_plot();                          
+       ycsb_recovery_plot();        
+       
+    if args.ycsb_stack_plot:
+        ycsb_stack_plot();                    
 
     ################################ TPCC
 
@@ -1914,4 +2230,6 @@ if __name__ == '__main__':
         nvm_bw_plot();   
         
     #create_legend()
+    #create_storage_legend()
+    create_stack_legend()
 
