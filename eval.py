@@ -249,7 +249,7 @@ def create_storage_legend():
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
    
-    STORAGE_LABELS = ("Data", "Index", "Log", "Checkpoint", "Other")
+    STORAGE_LABELS = ("Tuple data", "Index", "Log", "Checkpoint", "Other")
    
     bars = [None] * len(STORAGE_LABELS) * 2
 
@@ -420,8 +420,10 @@ def create_ycsb_stack_bar_chart(datasets):
     num_items = len(ENGINES);   
     ind = np.arange(num_items)  
     pprint(ind)
-    margin = 0.60
-    width = (2.0 - 2 * margin)      
+    margin = 0.40
+    width = (2.0 - 2 * margin) 
+    col_offset = 0.15 
+    col_width = width - 0.15    
     bars = [None] * len(LABELS) 
     label_loc = []
     
@@ -436,14 +438,14 @@ def create_ycsb_stack_bar_chart(datasets):
 
             bottom_num = 0.0                
             for col in  xrange(len(datasets[group][line])):                    
-                bars[group] = ax1.bar(line + margin + (group * width), datasets[group][line][col], width, 
+                bars[group] = ax1.bar(line + margin + (group * width) + col_offset, datasets[group][line][col], col_width, 
                                       color=OPT_STACK_COLORS[col-1],
                                       bottom = bottom_num)
                 
                 bottom_num = bottom_num +  datasets[group][line][col]
 
             col = 4
-            bars[group] = ax1.bar(line + margin + (group * width), 100.0 - bottom_num, width, 
+            bars[group] = ax1.bar(line + margin + (group * width) + col_offset, 100.0 - bottom_num, col_width, 
                                       color=OPT_STACK_COLORS[col-1],
                                       bottom = bottom_num)
 
@@ -469,7 +471,7 @@ def create_ycsb_stack_bar_chart(datasets):
     ax1.minorticks_on()
     #ax1.set_xticklabels(x_labels)
     ax1.set_xticks(label_loc)              
-    ax1.set_ylabel("Time breakdown (%)", fontproperties=LABEL_FP)
+    ax1.set_ylabel("Time (%)", fontproperties=LABEL_FP)
     ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     ax1.set_xticklabels(LABELS, rotation=60)
         
@@ -488,7 +490,11 @@ def create_ycsb_storage_bar_chart(datasets):
 
     ind = np.arange(num_items)  
     margin = 0.5
-    width = 1.0      
+    width = 1.0
+
+    col_offset = 0.15      
+    col_width = width - col_offset
+
     bars = [None] * len(LABELS) * 2
 
     YLIMIT = 6.0
@@ -506,7 +512,7 @@ def create_ycsb_storage_bar_chart(datasets):
     for type in  xrange(len(datasets)):        
         LOG.info("TYPE :: %s", datasets[type])
 
-        bars[type] = ax1.bar(ind + margin, datasets[type], width, 
+        bars[type] = ax1.bar(ind + margin + col_offset, datasets[type], col_width, 
                              color=OPT_STACK_COLORS[type], linewidth=BAR_LINEWIDTH,
                              bottom = bottom_list)
         bottom_list = map(add, bottom_list, datasets[type])
@@ -768,6 +774,9 @@ def create_tpcc_storage_bar_chart(datasets):
     ind = np.arange(num_items)  
     margin = 0.5
     width = 1.0      
+    col_offset = 0.15      
+    col_width = width - col_offset
+
     bars = [None] * len(LABELS) * 2
 
     YLIMIT = 6.0
@@ -785,7 +794,7 @@ def create_tpcc_storage_bar_chart(datasets):
     for type in  xrange(len(datasets)):        
         LOG.info("TYPE :: %s", datasets[type])
 
-        bars[type] = ax1.bar(ind + margin, datasets[type], width, 
+        bars[type] = ax1.bar(ind + margin + col_offset, datasets[type], col_width, 
                              color=OPT_STACK_COLORS[type], linewidth=BAR_LINEWIDTH,
                              bottom = bottom_list)
         bottom_list = map(add, bottom_list, datasets[type])
@@ -1038,7 +1047,7 @@ def  ycsb_recovery_plot():
     fig = create_ycsb_recovery_bar_chart(datasets)
                         
     fileName = "ycsb-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
@@ -1076,12 +1085,12 @@ def tpcc_nvm_plot():
     # LOADS                                                               
     fig = create_tpcc_nvm_bar_chart(datasets,0)                        
     fileName = "tpcc-nvm-loads.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2.0) 
 
     # STORES                                                               
     fig = create_tpcc_nvm_bar_chart(datasets,1)                        
     fileName = "tpcc-nvm-stores.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2.0) 
 
 # TPCC RECOVERY -- PLOT
 def  tpcc_recovery_plot():   
@@ -1095,7 +1104,7 @@ def  tpcc_recovery_plot():
     fig = create_tpcc_recovery_bar_chart(datasets)
                         
     fileName = "tpcc-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
 
 
 # NVM SYNC LANTENCY -- PLOT
@@ -2230,6 +2239,6 @@ if __name__ == '__main__':
         nvm_bw_plot();   
         
     #create_legend()
-    #create_storage_legend()
+    create_storage_legend()
     create_stack_legend()
 
