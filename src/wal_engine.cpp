@@ -199,7 +199,7 @@ int wal_engine::update(const statement& st) {
   entry_str = entry_stream.str();
   fs_log.push_back(entry_str);
 
-  off_t storage_offset;
+  off_t storage_offset = 0;
   indices->at(0)->off_map->at(key, &storage_offset);
   tab->fs_data.update(storage_offset, before_tuple);
 
