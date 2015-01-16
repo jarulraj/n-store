@@ -112,11 +112,14 @@ TPCC_STORAGE_DIR = "../results/tpcc/storage/"
 TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
+TEST_NVM_DIR = "../results/test/nvm/"
+
 NVM_BW_DIR = "../results/nvm_bw/"
 
 LABELS = ("InP", "CoW", "Log", "NVM-InP", "NVM-CoW", "NVM-Log")
 
 TPCC_TXNS = 1000000
+TEST_TXNS = 10000
 
 # SET FONT
 
@@ -2115,6 +2118,89 @@ def tpcc_recovery_eval(log_name):
             result_file.write(str(txn) + " , " + str(duration) + "\n")
             result_file.close()    
                           
+
+# TEST NVM -- EVAL
+def test_nvm_eval(log_name):            
+    subprocess.call(['rm', '-rf', TEST_NVM_DIR])          
+    txns = TEST_TXNS
+
+    if enable_local:
+        PERF = PERF_LOCAL
+        NUMACTL_FLAGS = "--membind=0"
+
+    PERF_STAT = "stat"    
+    PERF_STAT_FLAGS = "-e LLC-store-misses"
+
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+               
+    # 3 modes
+    for eng in engines:
+        for mode in range(3):
+            cleanup(log_file)
+            
+            subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-k', str(txns), '-x', str(txns), '-j', str(mode), '-d', eng],
+                        stdout=log_file, stderr=log_file)
+                                         
+    log_file.close()   
+    log_file = open(log_name, "r")    
+
+    # CLEAN UP RESULT DIR
+    subprocess.call(['rm', '-rf', TEST_NVM_DIR])          
+ 
+    latency = 0
+    rw_mix = 0.0
+    skew = 0.0    
+    llc_l_miss = -1
+    llc_s_miss = -1
+    
+    for line in log_file:                                           
+        if "Throughput" in line:
+            entry = line.strip().split(':');
+            etypes = entry[0].split(' ');
+            
+            if(etypes[0] == "WAL"):
+                engine_type = 0                
+            elif(etypes[0] == "SP"):
+                engine_type = 1
+            elif(etypes[0] == "LSM"):
+                engine_type = 2
+            elif(etypes[0] == "OPT_WAL"):
+                engine_type = 3
+            elif(etypes[0] == "OPT_SP"):
+                engine_type = 4
+            elif(etypes[0] == "OPT_LSM"):
+                engine_type = 5
+
+        if "LLC-store-misses" in line:
+            entry = line.strip().split(' ');
+            if(entry[0] == '<not'):
+                llc_s_miss = "0"
+            elif llc_s_miss == -1:    
+                llc_s_miss = str(entry[0])            
+                llc_s_miss = llc_s_miss.replace(",", "")    
+            else:
+                llc_s_miss_only_load = str(entry[0]) 
+                llc_s_miss_only_load = llc_s_miss_only_load.replace(",", "")    
+
+                llc_s_miss = max(0.0, float(llc_s_miss) - float(llc_s_miss_only_load))     
+                
+                print(str(engine_type) + " :: " + str(llc_s_miss))
+                                                                                   
+                result_directory = TEST_NVM_DIR;
+                if not os.path.exists(result_directory):
+                    os.makedirs(result_directory)
+                    
+                result_file_name = result_directory + "nvm.csv"
+                result_file = open(result_file_name, "a")
+                result_file.write(str(engine_type) + " , " + str(llc_s_miss) + "\n")
+                result_file.close()    
+    
+                llc_l_miss = -1
+                llc_s_miss = -1
                 
 ## ==============================================
 # # main
@@ -2154,6 +2240,8 @@ if __name__ == '__main__':
 
     parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
     parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
+
+    parser.add_argument("-k", "--test_nvm_eval", help='test_nvm_eval', action='store_true')
     
     args = parser.parse_args()
     
@@ -2176,7 +2264,9 @@ if __name__ == '__main__':
     tpcc_storage_log_name = "tpcc_storage.log"
     tpcc_nvm_log_name = "tpcc_nvm.log"   
     tpcc_recovery_log_name = "tpcc_recovery.log"
-        
+
+    test_nvm_log_name = "test_nvm.log"
+            
     ################################ YCSB
     
     if args.ycsb_perf_eval:
@@ -2239,6 +2329,10 @@ if __name__ == '__main__':
         nvm_bw_plot();   
         
     #create_legend()
-    create_storage_legend()
-    create_stack_legend()
+    #create_storage_legend()
+    #create_stack_legend()
 
+    ################################ TEST
+
+    if args.test_nvm_eval:
+        test_nvm_eval(test_nvm_log_name);
