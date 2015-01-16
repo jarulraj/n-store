@@ -88,8 +88,8 @@ LATENCIES = ("160", "320", "1280")
 
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000
-YCSB_TXNS = 8000
+YCSB_KEYS = 2000000
+YCSB_TXNS = 8000000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
@@ -119,7 +119,7 @@ NVM_BW_DIR = "../results/nvm_bw/"
 LABELS = ("InP", "CoW", "Log", "NVM-InP", "NVM-CoW", "NVM-Log")
 
 TPCC_TXNS = 1000000
-TEST_TXNS = 10000
+TEST_TXNS = 1000000
 
 # SET FONT
 
@@ -2124,9 +2124,9 @@ def test_nvm_eval(log_name):
     subprocess.call(['rm', '-rf', TEST_NVM_DIR])          
     txns = TEST_TXNS
 
-    if enable_local:
-        PERF = PERF_LOCAL
-        NUMACTL_FLAGS = "--membind=0"
+    #if enable_local:
+    #    PERF = PERF_LOCAL
+    #    NUMACTL_FLAGS = "--membind=0"
 
     PERF_STAT = "stat"    
     PERF_STAT_FLAGS = "-e LLC-store-misses"
@@ -2138,13 +2138,16 @@ def test_nvm_eval(log_name):
     log_file.write('Start :: %s \n' % datetime.datetime.now())
                
     # 3 modes
-    for eng in engines:
-        for mode in range(3):
+    for mode in range(1, 4):
+        for eng in engines:
             cleanup(log_file)
             
             subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-k', str(txns), '-x', str(txns), '-j', str(mode), '-d', eng],
                         stdout=log_file, stderr=log_file)
                                          
+            subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-k', str(txns), '-x', '0', '-j', str(mode), '-d', eng],
+                        stdout=log_file, stderr=log_file)
+    
     log_file.close()   
     log_file = open(log_name, "r")    
 

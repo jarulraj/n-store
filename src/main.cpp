@@ -108,7 +108,7 @@ namespace storage {
     // Parse args
     while (1) {
       int idx = 0;
-      int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:b:s:j:vwascmhludytzori", opts,
+      int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:b:j:svwascmhludytzori", opts,
                           &idx);
 
       if (c == -1)
