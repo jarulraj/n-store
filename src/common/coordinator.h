@@ -11,6 +11,7 @@
 #include "database.h"
 #include "libpm.h"
 
+#include "test_benchmark.h"
 #include "ycsb_benchmark.h"
 #include "tpcc_benchmark.h"
 
@@ -97,7 +98,12 @@ class coordinator {
 
     // Fix benchmark
     switch (state.btype) {
-      case benchmark_type::YCSB:
+     case benchmark_type::TEST:
+      LOG_INFO("TEST");
+      bh = new test_benchmark(state, tid, db, &tms[tid], &sps[tid]);
+      break;
+
+     case benchmark_type::YCSB:
         LOG_INFO("YCSB");
         bh = new ycsb_benchmark(state, tid, db, &tms[tid], &sps[tid]);
         break;

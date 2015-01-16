@@ -33,12 +33,16 @@ build/*
 *.pyc
 *core
 *.db
+config
 
 # Log/Tmp files
 log*
 *.log
 *tmp
 perf.*
+GPATH
+GTAGS
+GRTAGS
 
 # Editor
 .settings/*
@@ -50,3 +54,4 @@ zfile
 results/*.pdf
 /Debug
 misc/linux-examples/*
+

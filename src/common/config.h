@@ -34,6 +34,7 @@ enum engine_type {
 
 enum benchmark_type {
   BH_INVALID,
+  TEST,
   YCSB,
   TPCC
 };
@@ -75,6 +76,8 @@ class config {
 
   int active_txn_threshold;
   int load_batch_size;
+
+  int test_benchmark_mode;
 
   engine_type etype;
   benchmark_type btype;

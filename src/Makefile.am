@@ -21,6 +21,7 @@ nstore_SOURCES  =  	main.cpp \
 					opt_wal_engine.cpp  \
 					opt_sp_engine.cpp  \
 					opt_lsm_engine.cpp  \
+	   				test_benchmark.cpp \
 	   				ycsb_benchmark.cpp \
 					tpcc_benchmark.cpp \
 					utils.cpp

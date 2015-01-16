@@ -9,44 +9,47 @@
 
 namespace storage {
 
-extern struct static_info *sp;  // global persistent memory structure
-int level = 2;  // verbosity level
-extern bool pm_stats;
+  extern struct static_info *sp;  // global persistent memory structure
+  int level = 2;  // verbosity level
+  extern bool pm_stats;
 
-static void usage_exit(FILE *out) {
-  fprintf(out, "Command line options : nstore <options> \n"
-          "   -h --help              :  Print help message \n"
-          "   -x --num-txns          :  Number of transactions \n"
-          "   -k --num-keys          :  Number of keys \n"
-          "   -e --num-executors     :  Number of executors \n"
-          "   -f --fs-path           :  Path for FS \n"
-          "   -g --gc-interval       :  Group commit interval \n"
-          "   -a --wal-enable        :  WAL enable (traditional) \n"
-          "   -w --opt-wal-enable    :  OPT WAL enable \n"
-          "   -s --sp-enable         :  SP enable (traditional) \n"
-          "   -c --opt-sp-enable     :  OPT SP enable \n"
-          "   -m --lsm-enable        :  LSM enable (traditional) \n"
-          "   -l --opt-lsm-enable    :  OPT LSM enable \n"
-          "   -y --ycsb              :  YCSB benchmark \n"
-          "   -t --tpcc              :  TPCC benchmark \n"
-          "   -p --per-writes        :  Percent of writes \n"
-          "   -u --ycsb-update-one   :  Update one field \n"
-          "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
-          "   -z --storage_stats     :  Collect storage stats \n"
-          "   -o --tpcc_stock-level  :  TPCC stock level only \n"
-          "   -r --recovery          :  Recovery mode \n"
-          "   -b --load-batch-size   :  Load batch size \n"
-          "   -i --multi-executors   :  Multiple executors \n");
-  exit(EXIT_FAILURE);
-}
+  static void usage_exit(FILE *out) {
+    fprintf(out, "Command line options : nstore <options> \n"
+            "   -h --help              :  Print help message \n"
+            "   -x --num-txns          :  Number of transactions \n"
+            "   -k --num-keys          :  Number of keys \n"
+            "   -e --num-executors     :  Number of executors \n"
+            "   -f --fs-path           :  Path for FS \n"
+            "   -g --gc-interval       :  Group commit interval \n"
+            "   -a --wal-enable        :  WAL enable (traditional) \n"
+            "   -w --opt-wal-enable    :  OPT WAL enable \n"
+            "   -s --sp-enable         :  SP enable (traditional) \n"
+            "   -c --opt-sp-enable     :  OPT SP enable \n"
+            "   -m --lsm-enable        :  LSM enable (traditional) \n"
+            "   -l --opt-lsm-enable    :  OPT LSM enable \n"
+            "   -y --ycsb              :  YCSB benchmark \n"
+            "   -t --tpcc              :  TPCC benchmark \n"
+            "   -d --test              :  TEST benchmark \n"
+            "   -p --per-writes        :  Percent of writes \n"
+            "   -u --ycsb-update-one   :  Update one field \n"
+            "   -q --ycsb_zipf_skew    :  Zipf Skew \n"
+            "   -z --storage_stats     :  Collect storage stats \n"
+            "   -o --tpcc_stock-level  :  TPCC stock level only \n"
+            "   -r --recovery          :  Recovery mode \n"
+            "   -b --load-batch-size   :  Load batch size \n"
+            "   -j --test_b_mode       :  Test benchmark mode \n"
+            "   -i --multi-executors   :  Multiple executors \n");
+    exit(EXIT_FAILURE);
+  }
 
-static struct option opts[] = {
+  static struct option opts[] = {
     { "log-enable", no_argument, NULL, 'a' },
     { "sp-enable", no_argument, NULL, 's' },
     { "lsm-enable", no_argument, NULL, 'm' },
     { "opt-wal-enable", no_argument, NULL, 'w' },
     { "opt-sp-enable", no_argument, NULL, 'c' },
     { "opt-lsm-enable", no_argument, NULL, 'l' },
+    { "test", no_argument, NULL, 'd' },
     { "ycsb", no_argument, NULL, 'y' },
     { "tpcc", no_argument, NULL, 't' },
     { "fs-path", optional_argument, NULL, 'f' },
@@ -58,57 +61,60 @@ static struct option opts[] = {
     { "gc-interval", optional_argument, NULL, 'g' },
     { "verbose", no_argument, NULL, 'v' },
     { "help", no_argument, NULL, 'h' },
+    { "test-mode", optional_argument, NULL, 'j' },
     { "ycsb-update-one", no_argument, NULL, 'u' },
     { NULL, 0, NULL, 0 } };
 
-static void parse_arguments(int argc, char* argv[], config& state) {
+  static void parse_arguments(int argc, char* argv[], config& state) {
 
-  // Default Values
-  state.fs_path = std::string("/mnt/pmfs/n-store/");
+    // Default Values
+    state.fs_path = std::string("/mnt/pmfs/n-store/");
 
-  state.num_keys = 10;
-  state.num_txns = 10;
+    state.num_keys = 10;
+    state.num_txns = 10;
 
-  state.single = false;
-  state.num_executors = 8;
+    state.single = false;
+    state.num_executors = 8;
 
-  state.verbose = false;
+    state.verbose = false;
 
-  state.gc_interval = 5;
-  state.ycsb_per_writes = 0.1;
+    state.gc_interval = 5;
+    state.ycsb_per_writes = 0.1;
 
-  state.merge_interval = 10000;
-  state.merge_ratio = 0.05;
+    state.merge_interval = 10000;
+    state.merge_ratio = 0.05;
 
-  state.etype = engine_type::WAL;
-  state.btype = benchmark_type::YCSB;
+    state.etype = engine_type::WAL;
+    state.btype = benchmark_type::YCSB;
 
-  state.read_only = false;
-  state.recovery = false;
+    state.read_only = false;
+    state.recovery = false;
 
-  state.ycsb_skew = 0.1;
-  state.ycsb_update_one = false;
-  state.ycsb_field_size = 100;
-  state.ycsb_tuples_per_txn = 1;
-  state.ycsb_num_val_fields = 10;
+    state.ycsb_skew = 0.1;
+    state.ycsb_update_one = false;
+    state.ycsb_field_size = 100;
+    state.ycsb_tuples_per_txn = 1;
+    state.ycsb_num_val_fields = 10;
 
-  state.tpcc_num_warehouses = 2;
-  state.tpcc_stock_level_only = false;
+    state.tpcc_num_warehouses = 2;
+    state.tpcc_stock_level_only = false;
 
-  state.active_txn_threshold = 10;
-  state.load_batch_size = 50000;
-  state.storage_stats = false;
+    state.active_txn_threshold = 10;
+    state.load_batch_size = 50000;
+    state.storage_stats = false;
 
-  // Parse args
-  while (1) {
-    int idx = 0;
-    int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:b:vwascmhluytzori", opts,
-                        &idx);
+    state.test_benchmark_mode = 0;
 
-    if (c == -1)
-      break;
+    // Parse args
+    while (1) {
+      int idx = 0;
+      int c = getopt_long(argc, argv, "f:x:k:e:p:g:q:b:s:j:vwascmhludytzori", opts,
+                          &idx);
 
-    switch (c) {
+      if (c == -1)
+        break;
+
+      switch (c) {
       case 'f':
         state.fs_path = std::string(optarg);
         std::cout << "fs_path: " << state.fs_path << std::endl;
@@ -165,6 +171,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
         state.etype = engine_type::OPT_LSM;
         std::cout << "opt_lsm_enable " << std::endl;
         break;
+      case 'd':
+        state.btype = benchmark_type::TEST;
+        std::cout << "test_benchmark " << std::endl;
+        break;
       case 'y':
         state.btype = benchmark_type::YCSB;
         std::cout << "ycsb_benchmark " << std::endl;
@@ -172,6 +182,10 @@ static void parse_arguments(int argc, char* argv[], config& state) {
       case 't':
         state.btype = benchmark_type::TPCC;
         std::cout << "tpcc_benchmark " << std::endl;
+        break;
+      case 'j':
+        state.test_benchmark_mode = atoi(optarg);
+        std::cout << "test_benchmark_mode: " << state.test_benchmark_mode << std::endl;
         break;
       case 'q':
         state.ycsb_skew = atof(optarg);
@@ -208,9 +222,9 @@ static void parse_arguments(int argc, char* argv[], config& state) {
       default:
         fprintf(stderr, "\nUnknown option: -%c-\n", c);
         usage_exit(stderr);
+      }
     }
   }
-}
 
 }
 
@@ -231,6 +245,9 @@ int main(int argc, char **argv) {
   storage::coordinator cc(state);
   cc.eval(state);
 
+  //std::cout<<"STATS : "<<std::endl;
+  //std::cout<<"PCOMMIT : "<<storage::pcommit<<std::endl;
+  //std::cout<<"CLFLUSH : "<<storage::clflush<<std::endl;
+
   return 0;
 }
-

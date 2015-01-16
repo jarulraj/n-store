@@ -27,6 +27,9 @@ void operator delete[](void *p) throw () {
 
 namespace storage {
 
+size_t pcommit = 0;
+size_t clflush = 0;
+
 void* pmp;
 struct static_info* sp;
 

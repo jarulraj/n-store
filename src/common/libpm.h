@@ -23,9 +23,16 @@ static inline void pmem_flush_cache(void *addr, size_t len,
     __builtin_ia32_clflush((void *) uptr);
 }
 
+extern size_t pcommit;
+extern size_t clflush;
+
 static inline void pmem_persist(void *addr, size_t len, int flags) {
   pmem_flush_cache(addr, len, flags);
   __builtin_ia32_sfence();
+
+ // pcommit += 1;
+ // clflush += len;
+
   //pmem_drain_pm_stores();
 }
 
