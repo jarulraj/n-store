@@ -238,8 +238,6 @@ void test_benchmark::do_insert(engine* ee) {
 	TIMER(ee->txn_end(true))
 }
 
-int delete_counter = 0;
-
 void test_benchmark::do_delete(engine* ee) {
 
 	// DELETE
@@ -252,13 +250,29 @@ void test_benchmark::do_delete(engine* ee) {
 
 	for (int stmt_itr = 0; stmt_itr < conf.ycsb_tuples_per_txn; stmt_itr++) {
 
-		int key = delete_counter;
-		delete_counter++;
+		// First insert so that we can later delete
+		int key = num_keys + txn_id;
+		std::string value = get_rand_astring(conf.ycsb_field_size);
+
+		record* rec_ptr = new testtable_record(testtable_schema, key, value,
+				conf.ycsb_num_val_fields, false);
+
+		statement st(txn_id, operation_type::Insert, TEST_TABLE_ID, rec_ptr);
+
+		rc = ee->insert(st);
+
+		if (rc != 0) {
+			TIMER(ee->txn_end(false))
+    		  return;
+		}
+
+		// Now delete
+		txn_id++;
 
 		record* del_rec_ptr = new testtable_record(testtable_schema, key, empty,
 						conf.ycsb_num_val_fields, false);
 
-		statement st = statement(txn_id, operation_type::Delete, TEST_TABLE_ID, del_rec_ptr);
+		st = statement(txn_id, operation_type::Delete, TEST_TABLE_ID, del_rec_ptr);
 
 		TIMER(rc = ee->remove(st));
 
