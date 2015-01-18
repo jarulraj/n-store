@@ -119,7 +119,7 @@ NVM_BW_DIR = "../results/nvm_bw/"
 LABELS = ("InP", "CoW", "Log", "NVM-InP", "NVM-CoW", "NVM-Log")
 
 TPCC_TXNS = 1000000
-TEST_TXNS = 1000000
+TEST_TXNS = 500000
 
 # SET FONT
 
@@ -2129,7 +2129,7 @@ def test_nvm_eval(log_name):
     #    NUMACTL_FLAGS = "--membind=0"
 
     PERF_STAT = "stat"    
-    PERF_STAT_FLAGS = "-e LLC-store-misses"
+    PERF_STAT_FLAGS = "-e LLC-stores,LLC-store-misses"
 
     engines = ENGINES   
 
@@ -2138,8 +2138,11 @@ def test_nvm_eval(log_name):
     log_file.write('Start :: %s \n' % datetime.datetime.now())
                
     # 3 modes
-    for mode in range(1, 4):
+    for mode in range(1, 2):
         for eng in engines:
+    
+            print("Mode : " + str(mode) + " Engine : " + str(eng));
+
             cleanup(log_file)
             
             subprocess.call([NUMACTL, NUMACTL_FLAGS, PERF, PERF_STAT, PERF_STAT_FLAGS, NSTORE, '-k', str(txns), '-x', str(txns), '-j', str(mode), '-d', eng],
@@ -2159,11 +2162,14 @@ def test_nvm_eval(log_name):
     skew = 0.0    
     llc_l_miss = -1
     llc_s_miss = -1
+    llc_l = -1
+    llc_s = -1
     
     for line in log_file:                                           
         if "Throughput" in line:
             entry = line.strip().split(':');
             etypes = entry[0].split(' ');
+            engine_name = etypes[0]
             
             if(etypes[0] == "WAL"):
                 engine_type = 0                
@@ -2177,7 +2183,26 @@ def test_nvm_eval(log_name):
                 engine_type = 4
             elif(etypes[0] == "OPT_LSM"):
                 engine_type = 5
+ 
+        if "TYPE" in line:
+            entry = line.strip().split(' ');
+            optype = entry[2]
 
+        if "LLC-stores" in line:
+            entry = line.strip().split(' ');
+            if(entry[0] == '<not'):
+                llc_s = "0"
+            elif llc_s == -1:    
+                llc_s = str(entry[0])            
+                llc_s = llc_s.replace(",", "")    
+            else:
+                llc_s_only_load = str(entry[0]) 
+                llc_s_only_load = llc_s_only_load.replace(",", "")    
+
+                llc_s = max(0.0, float(llc_s) - float(llc_s_only_load))     
+                
+                #print(str(engine_type) + " :: " + str(llc_s))
+ 
         if "LLC-store-misses" in line:
             entry = line.strip().split(' ');
             if(entry[0] == '<not'):
@@ -2190,7 +2215,8 @@ def test_nvm_eval(log_name):
                 llc_s_miss_only_load = llc_s_miss_only_load.replace(",", "")    
 
                 llc_s_miss = max(0.0, float(llc_s_miss) - float(llc_s_miss_only_load))     
-                
+                llc_s_miss += llc_s
+
                 print(str(engine_type) + " :: " + str(llc_s_miss))
                                                                                    
                 result_directory = TEST_NVM_DIR;
@@ -2199,11 +2225,13 @@ def test_nvm_eval(log_name):
                     
                 result_file_name = result_directory + "nvm.csv"
                 result_file = open(result_file_name, "a")
-                result_file.write(str(engine_type) + " , " + str(llc_s_miss) + "\n")
+                result_file.write(str(engine_type) + " , " + str(optype) +  " , " + str(llc_s_miss) + "\n")
                 result_file.close()    
     
                 llc_l_miss = -1
                 llc_s_miss = -1
+                llc_l = -1
+                llc_s = -1
                 
 ## ==============================================
 # # main

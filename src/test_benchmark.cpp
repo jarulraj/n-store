@@ -123,6 +123,7 @@ void test_benchmark::load() {
 
 	schema* testtable_schema = db->tables->at(TEST_TABLE_ID)->sptr;
 	unsigned int txn_itr;
+        status ss(num_keys);
 
 	ee->txn_begin();
 
@@ -144,6 +145,9 @@ void test_benchmark::load() {
 		statement st(txn_id, operation_type::Insert, TEST_TABLE_ID, rec_ptr);
 
 		ee->load(st);
+    
+                if (tid == 0)
+                    ss.display();
 	}
 
 	ee->txn_end(true);
@@ -334,6 +338,7 @@ void test_benchmark::sim_crash() {
 void test_benchmark::execute() {
 	engine* ee = new engine(conf, tid, db, conf.read_only);
 	unsigned int txn_itr;
+        status ss(num_txns);
 
 	std::cout << "num_txns :: " << num_txns << std::endl;
 
@@ -359,6 +364,10 @@ void test_benchmark::execute() {
 			LOG_INFO("unknown test_benchmark_mode : %d", conf.test_benchmark_mode);
 			break;
 		}
+
+
+                if (tid == 0)
+                    ss.display();
 	}
 
 	if(tid == 0)
@@ -367,19 +376,19 @@ void test_benchmark::execute() {
 
 		switch(conf.test_benchmark_mode) {
 		case 0:
-			std::cout <<"SELECT ::" <<std::endl;
+			std::cout <<"TYPE :: SELECT" <<std::endl;
 			break;
 
 		case 1:
-			std::cout <<"INSERT ::" <<std::endl;
+			std::cout <<"TYPE :: INSERT" <<std::endl;
 			break;
 
 		case 2:
-			std::cout <<"UPDATE ::" <<std::endl;
+			std::cout <<"TYPE :: UPDATE" <<std::endl;
 			break;
 
 		case 3:
-			std::cout <<"DELETE ::" <<std::endl;
+			std::cout <<"TYPE :: DELETE" <<std::endl;
 			break;
 
 		default:
