@@ -88,8 +88,8 @@ LATENCIES = ("160", "320", "1280")
 
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 200000
-YCSB_TXNS = 800000
+YCSB_KEYS = 2000000
+YCSB_TXNS = 8000000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
@@ -97,7 +97,7 @@ YCSB_RECOVERY_TXNS = [1000, 10000, 100000]
 YCSB_STACK_LATENCIES = ["320"]
 YCSB_STACK_SKEW_FACTORS = [0.1]
 
-BTREE_SIZES = ["512", "1024", "2048"]
+BTREE_SIZES = ["512", "1024", "2048", "4096"]
 BTREE_LATENCIES = ("320",)
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
