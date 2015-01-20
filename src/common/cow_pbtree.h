@@ -36,6 +36,7 @@
 #include <cstring>
 
 #include "ptree.h"
+#include "libpm.h"
 
 namespace storage {
 
@@ -784,7 +785,7 @@ struct cow_btree_stat {
   time_t created_at;
 };
 
-#define PAGESIZE   4096
+#define PAGESIZE     BTREE_NODE_SIZE 
 #define BT_MINKEYS   2
 #define BT_MAGIC   0xB3DBB3DB
 #define BT_VERSION   4

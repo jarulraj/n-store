@@ -13,6 +13,8 @@ namespace storage {
 #define ALIGN 64  /* assumes 64B cache line size */
 #define DEBUG
 
+#define BTREE_NODE_SIZE  512
+
 static inline void pmem_flush_cache(void *addr, size_t len,
                                     __attribute__((unused)) int flags) {
   uintptr_t uptr;
