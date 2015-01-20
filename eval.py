@@ -84,19 +84,21 @@ NUMACTL_FLAGS = "--membind=2"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 RECOVERY_SYSTEMS = ("wal", "lsm", "opt_wal", "opt_lsm")
-#LATENCIES = ("160", "320", "1280")
-LATENCIES = ("320",)
+LATENCIES = ("160", "320", "1280")
 
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000000
-YCSB_TXNS = 8000000
+YCSB_KEYS = 2000
+YCSB_TXNS = 8000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
 YCSB_RECOVERY_TXNS = [1000, 10000, 100000]
 YCSB_STACK_LATENCIES = ["320"]
 YCSB_STACK_SKEW_FACTORS = [0.1]
+
+BTREE_SIZES = ["512", "1024", "2048"]
+BTREE_LATENCIES = ("320",)
 
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
 TPCC_RW_MIXES = [0.5]
@@ -114,6 +116,14 @@ TPCC_NVM_DIR = "../results/tpcc/nvm/"
 TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
 TEST_NVM_DIR = "../results/test/nvm/"
+BTREE_DIR = "../results/btree/"
+
+# XXX These should match default values in "pbtree.h" and "cow_pbtree.h"
+BTREE_NODE_SIZE_DEFAULT = "512"
+BTREE_HEADER_FILE = "../src/common/pbtree.h"
+
+COW_BTREE_NODE_SIZE_DEFAULT = "4096"
+COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 
 NVM_BW_DIR = "../results/nvm_bw/"
 
@@ -977,19 +987,19 @@ def create_tpcc_recovery_bar_chart(datasets):
 
 
 # YCSB PERF -- PLOT
-def ycsb_perf_plot():
+def ycsb_perf_plot(result_dir, latency_list, prefix):
     for workload in YCSB_WORKLOAD_MIX:    
 
-        for lat in LATENCIES:
+        for lat in latency_list:
             datasets = []
         
             for sy in SYSTEMS:    
-                dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(YCSB_PERF_DIR, sy + "/" + workload + "/" + lat + "/performance.csv")))
+                dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, sy + "/" + workload + "/" + lat + "/performance.csv")))
                 datasets.append(dataFile)
                                    
             fig = create_ycsb_perf_bar_chart(datasets)
             
-            fileName = "ycsb-perf-%s-%s.pdf" % (workload, lat)
+            fileName = prefix + "ycsb-perf-%s-%s.pdf" % (workload, lat)
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
 
 # YCSB STACK -- PLOT
@@ -1150,16 +1160,16 @@ def cleanup(log_file):
 
 
 # YCSB PERF -- EVAL
-def ycsb_perf_eval(enable_sdv, enable_trials, log_name):        
+def ycsb_perf_eval(enable_sdv, enable_trials, log_name, result_dir, latency_list):        
     dram_latency = 100
     keys = YCSB_KEYS
     txns = YCSB_TXNS
-                        
+                            
     num_trials = 1 
     if enable_trials: 
         num_trials = 3
     
-    nvm_latencies = LATENCIES
+    nvm_latencies = latency_list
     rw_mixes = YCSB_RW_MIXES
     skew_factors = YCSB_SKEW_FACTORS
     engines = ENGINES
@@ -1267,7 +1277,7 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
                             
 
     # CLEAN UP RESULT DIR
-    subprocess.call(['rm', '-rf', YCSB_PERF_DIR])          
+    subprocess.call(['rm', '-rf', result_dir])          
     
     for key in sorted(tput.keys()):
         mean[key] = round(numpy.mean(tput[key]), 2)
@@ -1290,7 +1300,7 @@ def ycsb_perf_eval(enable_sdv, enable_trials, log_name):
     
         nvm_latency = str(key[2]);
         
-        result_directory = YCSB_PERF_DIR + engine_type + "/" + workload_type + "/" + nvm_latency + "/";
+        result_directory = result_dir + engine_type + "/" + workload_type + "/" + nvm_latency + "/";
         if not os.path.exists(result_directory):
             os.makedirs(result_directory)
 
@@ -2234,6 +2244,80 @@ def test_nvm_eval(log_name):
                 llc_l = -1
                 llc_s = -1
                 
+
+# BTREE -- PLOT
+def btree_plot(log_name):  
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+
+    # Go over all sizes
+    for btree_size in BTREE_SIZES:    
+        print("Size : " + btree_size);
+
+        # Get results in relevant subdir
+        btree_subdir = BTREE_DIR + btree_size + "/";
+        btree_filename_prefix = btree_size + "_";
+
+        # Plot results
+        ycsb_perf_plot(btree_subdir, BTREE_LATENCIES, btree_filename_prefix)               
+ 
+
+# BTREE -- EVAL
+def btree_eval(log_name):            
+    subprocess.call(['rm', '-rf', BTREE_DIR])          
+
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+    itr_count = 0;
+
+    # Go over all sizes
+    for btree_size in BTREE_SIZES:    
+        print("Size : " + btree_size);
+                
+        # Update header files
+        if itr_count == 0:
+            btree_cmd = 's/BTREE_NODE_SIZE ' + BTREE_NODE_SIZE_DEFAULT +  "/BTREE_NODE_SIZE " + BTREE_SIZES[0] + "/g";    
+            cow_btree_cmd = 's/PAGESIZE ' + COW_BTREE_NODE_SIZE_DEFAULT +  "/PAGESIZE " + BTREE_SIZES[0] + "/g";        
+        else:
+            btree_cmd = 's/BTREE_NODE_SIZE ' + BTREE_SIZES[itr_count-1] +  "/BTREE_NODE_SIZE " + BTREE_SIZES[itr_count] + "/g";    
+            cow_btree_cmd = 's/PAGESIZE ' + BTREE_SIZES[itr_count-1] +  "/PAGESIZE " + BTREE_SIZES[itr_count] + "/g";        
+
+        print(btree_cmd)
+        print(cow_btree_cmd)
+
+        subprocess.call(['sed', '-i', btree_cmd, BTREE_HEADER_FILE], stdout=log_file)
+        subprocess.call(['sed', '-i', cow_btree_cmd, COW_BTREE_HEADER_FILE], stdout=log_file)            
+        
+        # Build
+        subprocess.call(['make', '-j'], stdout=log_file)
+                
+        # Store results in relevant subdir
+        btree_subdir = BTREE_DIR + btree_size + "/";
+
+        ycsb_perf_eval(False, False, log_name, btree_subdir, BTREE_LATENCIES)      
+        
+        # Next iteration
+        itr_count += 1;
+
+
+    # Reset header files
+    if itr_count != 0:
+            btree_cmd = 's/BTREE_NODE_SIZE ' + BTREE_SIZES[itr_count-1] +  "/BTREE_NODE_SIZE " + BTREE_NODE_SIZE_DEFAULT + "/g";    
+            cow_btree_cmd = 's/PAGESIZE ' + BTREE_SIZES[itr_count-1] +  "/PAGESIZE " + COW_BTREE_NODE_SIZE_DEFAULT + "/g";        
+
+            print(btree_cmd)
+            print(cow_btree_cmd)
+            subprocess.call(['sed', '-i', btree_cmd, BTREE_HEADER_FILE], stdout=log_file)
+            subprocess.call(['sed', '-i', cow_btree_cmd, COW_BTREE_HEADER_FILE], stdout=log_file)            
+
+            # Build
+            subprocess.call(['make', '-j'], stdout=log_file)
+
 ## ==============================================
 # # main
 ## ==============================================
@@ -2273,7 +2357,8 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
     parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
 
-    parser.add_argument("-k", "--test_nvm_eval", help='test_nvm_eval', action='store_true')
+    parser.add_argument("-g", "--btree_eval", help='btree_eval', action='store_true')
+    parser.add_argument("-k", "--btree_plot", help='btree_plot', action='store_true')
     
     args = parser.parse_args()
     
@@ -2298,11 +2383,12 @@ if __name__ == '__main__':
     tpcc_recovery_log_name = "tpcc_recovery.log"
 
     test_nvm_log_name = "test_nvm.log"
+    btree_log_name = "btree.log"
             
     ################################ YCSB
     
     if args.ycsb_perf_eval:
-        ycsb_perf_eval(enable_sdv, enable_trials, ycsb_perf_log_name)
+        ycsb_perf_eval(enable_sdv, enable_trials, ycsb_perf_log_name, YCSB_PERF_DIR, LATENCIES)
     
     if args.ycsb_storage_eval:
         ycsb_storage_eval(ycsb_storage_log_name);
@@ -2317,8 +2403,8 @@ if __name__ == '__main__':
         ycsb_stack_eval(ycsb_stack_log_name);                    
                           
     if args.ycsb_perf_plot:      
-        ycsb_perf_plot();          
-                           
+        ycsb_perf_plot(YCSB_PERF_DIR, LATENCIES, "");
+        
     if args.ycsb_storage_plot:                
        ycsb_storage_plot();
        
@@ -2364,7 +2450,10 @@ if __name__ == '__main__':
     #create_storage_legend()
     #create_stack_legend()
 
-    ################################ TEST
+    ################################ MISC
 
-    if args.test_nvm_eval:
-        test_nvm_eval(test_nvm_log_name);
+    if args.btree_eval:
+        btree_eval(btree_log_name);
+
+    if args.btree_plot:
+        btree_plot(btree_log_name);

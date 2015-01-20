@@ -12,6 +12,8 @@
 
 namespace storage {
 
+#define BTREE_NODE_SIZE 512
+
 /// Print out debug information to std::cout if BTREE_DEBUG is defined.
 #define BTREE_PRINT(x)
 

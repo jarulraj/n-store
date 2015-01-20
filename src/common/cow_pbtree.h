@@ -785,7 +785,7 @@ struct cow_btree_stat {
   time_t created_at;
 };
 
-#define PAGESIZE     BTREE_NODE_SIZE 
+#define PAGESIZE 4096 
 #define BT_MINKEYS   2
 #define BT_MAGIC   0xB3DBB3DB
 #define BT_VERSION   4
