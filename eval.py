@@ -84,7 +84,8 @@ NUMACTL_FLAGS = "--membind=2"
 
 SYSTEMS = ("wal", "sp", "lsm", "opt_wal", "opt_sp", "opt_lsm")
 RECOVERY_SYSTEMS = ("wal", "lsm", "opt_wal", "opt_lsm")
-LATENCIES = ("160", "320", "1280")
+#LATENCIES = ("160", "320", "1280")
+LATENCIES = ("320",)
 
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
@@ -356,7 +357,7 @@ def create_ycsb_perf_bar_chart(datasets):
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
 
-    YLIMIT = 2000000
+    YLIMIT = 5000000
 
     def autolabel(rects):
         # attach some text labels
@@ -395,7 +396,7 @@ def create_ycsb_perf_bar_chart(datasets):
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    ax1.set_ylim([0,YLIMIT])
+    #ax1.set_ylim([0,YLIMIT])
         
     # X-AXIS
     ax1.minorticks_on()
