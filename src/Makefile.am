@@ -8,7 +8,7 @@ AM_LDFLAGS  = $(PTHREAD_CFLAGS)
 LIBS = -lrt 
 
 noinst_LIBRARIES = libpm.a
-libpm_a_SOURCES = libpm.cpp 
+libpm_a_SOURCES = libpm.cpp utils.cpp 
 
 #AM_CPPFLAGS = $(BOOST_CPPFLAGS) 
 #AM_LDFLAGS = $(BOOST_SYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS) $(PTHREAD_CFLAGS)
