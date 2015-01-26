@@ -981,11 +981,22 @@ def create_tpcc_recovery_bar_chart(datasets):
         
     return (fig)
 
-def create_btree_line_chart(datasets):
+def create_btree_line_chart(datasets, sy):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
          
-    x_values = BTREE_SIZES
+    # X-AXIS
+    btree_node_sizes = BTREE_SIZES
+    if sy in ["wal", "opt_wal", "lsm", "opt_lsm"]:
+        btree_node_sizes = ["128", "256", "512", "1024", "2048"]
+        x_axis_min = math.pow(2, 6.75)
+        x_axis_max =  math.pow(2, 11.25)        
+    else:   
+        btree_node_sizes = ["1024", "2048", "4096", "8192", "16384"]
+        x_axis_min = math.pow(2, 9.75)
+        x_axis_max =  math.pow(2, 14.25)        
+
+    x_values = btree_node_sizes
     N = len(x_values)
     x_labels = x_values
 
@@ -994,14 +1005,14 @@ def create_btree_line_chart(datasets):
     idx = 0
     
     YLIMIT = 2200000
-
+            
     # GROUP
     for group in YCSB_WORKLOAD_MIX:
         perf_data = []             
         idx = idx + 1  
 
         # LINE
-        for line in BTREE_SIZES:
+        for line in btree_node_sizes:
             #print(datasets[group][line][0])
             
             for col in  xrange(len(datasets[group][line][0][0])):
@@ -1030,7 +1041,7 @@ def create_btree_line_chart(datasets):
     ax1.set_xscale('log', basex=2)
     ax1.set_xlabel("B+tree node size (bytes)", fontproperties=LABEL_FP)
     #ax1.tick_params(axis='x', which='both', bottom='off', top='off')
-    ax1.set_xlim([math.pow(2, 8.75), math.pow(2, 14.25)])
+    ax1.set_xlim([x_axis_min, x_axis_max])
 
     # LEGEND
     legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
@@ -1223,7 +1234,7 @@ def btree_plot(log_name):
                     datasets[workload][btree_size].append(dataFile)
         
             print(datasets)                                        
-            fig = create_btree_line_chart(datasets)
+            fig = create_btree_line_chart(datasets, sy)
                         
             fileName = "btree-%s-%s.pdf" % (sy, lat)
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
