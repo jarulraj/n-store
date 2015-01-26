@@ -981,6 +981,68 @@ def create_tpcc_recovery_bar_chart(datasets):
         
     return (fig)
 
+def create_btree_line_chart(datasets):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+         
+    x_values = BTREE_SIZES
+    N = len(x_values)
+    x_labels = x_values
+
+    num_items = len(ENGINES);   
+    ind = np.arange(N)  
+    idx = 0
+    
+    YLIMIT = 2200000
+
+    # GROUP
+    for group in YCSB_WORKLOAD_MIX:
+        perf_data = []             
+        idx = idx + 1  
+
+        # LINE
+        for line in BTREE_SIZES:
+            #print(datasets[group][line][0])
+            
+            for col in  xrange(len(datasets[group][line][0][0])):
+                if col == 1:
+                    perf_data.append(datasets[group][line][0][0][1])
+  
+        LOG.info("%s perf_data = %s ", group, str(perf_data))
+        
+        ax1.plot(x_values, perf_data, color=OPT_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
+                 marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
+        
+    # GRID
+    axes = ax1.get_axes()
+    makeGrid(ax1)
+      
+    # Y-AXIS    
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.minorticks_on()
+    ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)
+    ax1.set_ylim([0, YLIMIT])
+        
+    # X-AXIS
+    ax1.minorticks_on()
+    #ax1.set_xticklabels(x_labels)    
+    ax1.set_xticks(ind + 0.5)              
+    ax1.set_xscale('log', basex=2)
+    ax1.set_xlabel("B+tree node size (bytes)", fontproperties=LABEL_FP)
+    #ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+    ax1.set_xlim([math.pow(2, 8.75), math.pow(2, 14.25)])
+
+    # LEGEND
+    legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
+        
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
+            
+    return (fig)
+
+
 ###################################################################################                   
 # PLOT HELPERS                  
 ###################################################################################                   
@@ -1132,7 +1194,40 @@ def nvm_bw_plot():
     
         fileName = "nvm-bw-%s.pdf" % (access)
         saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
-                   
+
+
+# BTREE -- PLOT
+def btree_plot(log_name):
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+
+    latency_list = BTREE_LATENCIES
+    result_dir = BTREE_DIR
+    
+    # Go over all engines
+    for sy in SYSTEMS:    
+        
+        for lat in latency_list:
+            datasets = {}
+
+            for workload in YCSB_WORKLOAD_MIX:    
+                datasets[workload] = {}
+                
+                for btree_size in BTREE_SIZES:    
+                    datasets[workload][btree_size] = []
+
+                    # Get results in relevant subdir            
+                    dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, btree_size  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
+                    datasets[workload][btree_size].append(dataFile)
+        
+            print(datasets)                                        
+            fig = create_btree_line_chart(datasets)
+                        
+            fileName = "btree-%s-%s.pdf" % (sy, lat)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+           
 ###################################################################################                   
 # EVAL                   
 ###################################################################################                   
@@ -2245,24 +2340,6 @@ def test_nvm_eval(log_name):
                 llc_s = -1
                 
 
-# BTREE -- PLOT
-def btree_plot(log_name):  
-
-    # LOG RESULTS
-    log_file = open(log_name, 'w')
-    log_file.write('Start :: %s \n' % datetime.datetime.now())
-
-    # Go over all sizes
-    for btree_size in BTREE_SIZES:    
-        print("Size : " + btree_size);
-
-        # Get results in relevant subdir
-        btree_subdir = BTREE_DIR + btree_size + "/";
-        btree_filename_prefix = btree_size + "_";
-
-        # Plot results
-        ycsb_perf_plot(btree_subdir, BTREE_LATENCIES, btree_filename_prefix)               
- 
 
 # BTREE -- EVAL
 def btree_eval(log_name):            
