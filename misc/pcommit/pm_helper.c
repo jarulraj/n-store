@@ -32,7 +32,7 @@ static inline void pm_wbarrier(unsigned long lat)
         cpu_pause();
 }
 
-#define DELAY_IN_NS (800)
+#define DELAY_IN_NS (5000)
 
 static inline void measure()
 {
