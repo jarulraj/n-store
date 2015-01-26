@@ -97,9 +97,6 @@ YCSB_RECOVERY_TXNS = [1000, 10000, 100000]
 YCSB_STACK_LATENCIES = ["320"]
 YCSB_STACK_SKEW_FACTORS = [0.1]
 
-BTREE_SIZES = ["128", "256", "512", "1024", "2048", "4096", "8192", "16384"]
-BTREE_LATENCIES = ("320",)
-
 TPCC_WORKLOAD_MIX = ("all", "stock-level")
 TPCC_RW_MIXES = [0.5]
 TPCC_RECOVERY_TXNS = [1000, 10000, 100000]
@@ -117,15 +114,24 @@ TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 
 TEST_NVM_DIR = "../results/test/nvm/"
 BTREE_DIR = "../results/btree/"
+PCOMMIT_DIR = "../results/pcommit/"
+
+NVM_BW_DIR = "../results/nvm_bw/"
 
 # XXX These should match default values in "pbtree.h" and "cow_pbtree.h"
+BTREE_SIZES = ["128", "256", "512", "1024", "2048", "4096", "8192", "16384"]
+BTREE_LATENCIES = ("320",)
+
 BTREE_NODE_SIZE_DEFAULT = "512"
 BTREE_HEADER_FILE = "../src/common/pbtree.h"
 
 COW_BTREE_NODE_SIZE_DEFAULT = "4096"
 COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 
-NVM_BW_DIR = "../results/nvm_bw/"
+# XXX These should match default values in "libpm.h"
+PCOMMIT_LATENCIES = ("100", "500", "1000", "5000")
+PCOMMIT_LATENCY_DEFAULT = "100"
+PCOMMIT_HEADER_FILE = "../src/common/libpm.h"
 
 LABELS = ("InP", "CoW", "Log", "NVM-InP", "NVM-CoW", "NVM-Log")
 
@@ -1238,6 +1244,39 @@ def btree_plot(log_name):
                         
             fileName = "btree-%s-%s.pdf" % (sy, lat)
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+            
+            
+# PCOMMIT -- PLOT
+def pcommit_plot(log_name):
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+
+    latency_list = PCOMMIT_LATENCIES
+    result_dir = PCOMMIT_DIR
+    
+    # Go over all engines
+#     for sy in SYSTEMS:    
+#         
+#         for lat in latency_list:
+#             datasets = {}
+# 
+#             for workload in YCSB_WORKLOAD_MIX:    
+#                 datasets[workload] = {}
+#                 
+#                 for btree_size in BTREE_SIZES:    
+#                     datasets[workload][btree_size] = []
+# 
+#                     # Get results in relevant subdir            
+#                     dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, btree_size  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
+#                     datasets[workload][btree_size].append(dataFile)
+#         
+#             print(datasets)                                        
+#             fig = create_btree_line_chart(datasets, sy)
+#                         
+#             fileName = "pcommit-%s-%s.pdf" % (sy, lat)
+#             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
            
 ###################################################################################                   
 # EVAL                   
@@ -2406,6 +2445,54 @@ def btree_eval(log_name):
             # Build
             subprocess.call(['make', '-j'], stdout=log_file)
 
+# PCOMMIT -- EVAL
+def pcommit_eval(log_name):            
+    subprocess.call(['rm', '-rf', PCOMMIT_DIR])          
+
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+    itr_count = 0;
+
+    # Go over all sizes
+    for pcommit_latency in PCOMMIT_LATENCIES:    
+        print("Pcommit latency : " + pcommit_latency);
+                
+        # Update header file
+        if itr_count == 0:
+            pcommit_cmd = 's/PCOMMIT_LATENCY ' + PCOMMIT_LATENCY_DEFAULT +  "/PCOMMIT_LATENCY " + PCOMMIT_LATENCIES[0] + "/g";    
+        else:
+            pcommit_cmd = 's/PCOMMIT_LATENCY ' + PCOMMIT_LATENCIES[itr_count-1] +  "/PCOMMIT_LATENCY " + PCOMMIT_LATENCIES[itr_count] + "/g";    
+
+        print(pcommit_cmd)
+
+        subprocess.call(['sed', '-i', pcommit_cmd, PCOMMIT_HEADER_FILE], stdout=log_file)
+        
+        # Build
+        subprocess.call(['make', '-j'], stdout=log_file)
+                
+        # Store results in relevant subdir
+        pcommit_subdir = PCOMMIT_DIR + pcommit_latency + "/";
+
+        ycsb_perf_eval(False, False, log_name, pcommit_subdir, BTREE_LATENCIES)      
+        
+        # Next iteration
+        itr_count += 1;
+
+
+    # Reset header files
+    if itr_count != 0:
+            pcommit_cmd = 's/PCOMMIT_LATENCY ' + PCOMMIT_LATENCIES[itr_count-1] +  "/PCOMMIT_LATENCY " + PCOMMIT_LATENCY_DEFAULT + "/g";    
+         
+            print(pcommit_cmd)
+            subprocess.call(['sed', '-i', pcommit_cmd, PCOMMIT_HEADER_FILE], stdout=log_file)
+         
+            # Build
+            subprocess.call(['make', '-j'], stdout=log_file)
+
+
 ## ==============================================
 # # main
 ## ==============================================
@@ -2442,11 +2529,14 @@ if __name__ == '__main__':
 
     parser.add_argument("-w", "--nvm_bw_plot", help='nvm_bw_plot', action='store_true')
 
-    parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
-    parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
+    #parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
+    #parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
 
     parser.add_argument("-g", "--btree_eval", help='btree_eval', action='store_true')
     parser.add_argument("-k", "--btree_plot", help='btree_plot', action='store_true')
+
+    parser.add_argument("-m", "--pcommit_eval", help='pcommit_eval', action='store_true')
+    parser.add_argument("-z", "--pcommit_plot", help='pcommit_plot', action='store_true')
     
     args = parser.parse_args()
     
@@ -2472,6 +2562,7 @@ if __name__ == '__main__':
 
     test_nvm_log_name = "test_nvm.log"
     btree_log_name = "btree.log"
+    pcommit_log_name = "pcommit.log"
             
     ################################ YCSB
     
@@ -2487,8 +2578,8 @@ if __name__ == '__main__':
     if args.ycsb_recovery_eval:             
         ycsb_recovery_eval(ycsb_recovery_log_name);             
 
-    if args.ycsb_stack_eval:
-        ycsb_stack_eval(ycsb_stack_log_name);                    
+    #if args.ycsb_stack_eval:
+    #    ycsb_stack_eval(ycsb_stack_log_name);                    
                           
     if args.ycsb_perf_plot:      
         ycsb_perf_plot(YCSB_PERF_DIR, LATENCIES, "");
@@ -2502,8 +2593,8 @@ if __name__ == '__main__':
     if args.ycsb_recovery_plot:                
        ycsb_recovery_plot();        
        
-    if args.ycsb_stack_plot:
-        ycsb_stack_plot();                    
+    #if args.ycsb_stack_plot:
+    #    ycsb_stack_plot();                    
 
     ################################ TPCC
 
@@ -2545,3 +2636,9 @@ if __name__ == '__main__':
 
     if args.btree_plot:
         btree_plot(btree_log_name);
+
+    if args.pcommit_eval:
+        pcommit_eval(pcommit_log_name);
+
+    if args.pcommit_plot:
+        pcommit_plot(pcommit_log_name);
