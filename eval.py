@@ -129,7 +129,7 @@ COW_BTREE_NODE_SIZE_DEFAULT = "4096"
 COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 
 # XXX These should match default values in "libpm.h"
-PCOMMIT_LATENCIES = ("100", "500", "1000", "5000")
+PCOMMIT_LATENCIES = ("10", "100", "1000", "10000")
 PCOMMIT_LATENCY_DEFAULT = "100"
 PCOMMIT_HEADER_FILE = "../src/common/libpm.h"
 
@@ -1059,6 +1059,68 @@ def create_btree_line_chart(datasets, sy):
             
     return (fig)
 
+def create_pcommit_line_chart(datasets, sy):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+         
+    x_values = PCOMMIT_LATENCIES
+    N = len(x_values)
+    x_labels = x_values
+
+    num_items = len(ENGINES);   
+    ind = np.arange(N)  
+    idx = 0
+    
+    YLIMIT = 2200000
+            
+    # GROUP
+    for group in YCSB_WORKLOAD_MIX:
+        perf_data = []             
+        idx = idx + 1  
+
+        # LINE
+        for line in PCOMMIT_LATENCIES:
+            print(datasets[group][line][0])
+            
+            for col in  xrange(len(datasets[group][line][0][0])):
+                if col == 1:
+                    perf_data.append(datasets[group][line][0][0][1])
+  
+        LOG.info("%s perf_data = %s ", group, str(perf_data))
+        
+        ax1.plot(x_values, perf_data, color=OPT_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
+                 marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
+        
+    # GRID
+    axes = ax1.get_axes()
+    makeGrid(ax1)
+      
+    # Y-AXIS    
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)
+    ax1.set_ylim([0, YLIMIT])
+        
+    # X-AXIS
+    #ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)    
+    ax1.set_xticks(ind + 0.5)           
+    ax1.set_xscale('log', basex=10)
+    ax1.set_xlabel("PCOMMIT latency (ns)", fontproperties=LABEL_FP)
+    #ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+    x_axis_min = math.pow(10, 0.75)
+    x_axis_max =  math.pow(10, 4.25)        
+    ax1.set_xlim([x_axis_min, x_axis_max])
+
+    # LEGEND
+    legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
+        
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
+            
+    return (fig)
+
 
 ###################################################################################                   
 # PLOT HELPERS                  
@@ -1253,30 +1315,30 @@ def pcommit_plot(log_name):
     log_file = open(log_name, 'w')
     log_file.write('Start :: %s \n' % datetime.datetime.now())
 
-    latency_list = PCOMMIT_LATENCIES
+    latency_list = BTREE_LATENCIES
     result_dir = PCOMMIT_DIR
     
     # Go over all engines
-#     for sy in SYSTEMS:    
-#         
-#         for lat in latency_list:
-#             datasets = {}
-# 
-#             for workload in YCSB_WORKLOAD_MIX:    
-#                 datasets[workload] = {}
-#                 
-#                 for btree_size in BTREE_SIZES:    
-#                     datasets[workload][btree_size] = []
-# 
-#                     # Get results in relevant subdir            
-#                     dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, btree_size  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
-#                     datasets[workload][btree_size].append(dataFile)
-#         
-#             print(datasets)                                        
-#             fig = create_btree_line_chart(datasets, sy)
-#                         
-#             fileName = "pcommit-%s-%s.pdf" % (sy, lat)
-#             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
+    for sy in SYSTEMS:    
+         
+        for lat in latency_list:
+            datasets = {}
+ 
+            for workload in YCSB_WORKLOAD_MIX:    
+                datasets[workload] = {}
+                 
+                for pcommit_latency in PCOMMIT_LATENCIES:    
+                    datasets[workload][pcommit_latency] = []
+ 
+                    # Get results in relevant subdir            
+                    dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, pcommit_latency  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
+                    datasets[workload][pcommit_latency].append(dataFile)
+         
+            print(datasets)                                        
+            fig = create_pcommit_line_chart(datasets, sy)
+                         
+            fileName = "pcommit-%s-%s.pdf" % (sy, lat)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
            
 ###################################################################################                   
 # EVAL                   
