@@ -5,9 +5,10 @@
 #include <sstream>
 
 #include "config.h"
-#include "record.h"
 
 namespace storage {
+
+class schema;
 
 // UTILS
 
@@ -54,5 +55,8 @@ void display_stats(engine_type etype, double duration, int num_txns);
 void wrlock(pthread_rwlock_t* access);
 void rdlock(pthread_rwlock_t* access);
 void unlock(pthread_rwlock_t* access);
+
+// PCOMMIT
+void pcommit(unsigned long lat);
 
 }
