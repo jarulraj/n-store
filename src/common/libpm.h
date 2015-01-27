@@ -19,7 +19,7 @@ namespace storage {
 #define PCOMMIT_LATENCY 100
 
 /* cacheline primitive */
-#define CLWB
+#undef CLWB
 
 static inline void pmem_flush_cache(void *addr, size_t len,
                                     __attribute__((unused)) int flags) {

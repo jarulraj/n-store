@@ -88,8 +88,8 @@ LATENCIES = ("160", "320", "1280")
 
 ENGINES = ['-a', '-s', '-m', '-w', '-c', '-l']
 
-YCSB_KEYS = 2000000
-YCSB_TXNS = 8000000
+YCSB_KEYS = 2000
+YCSB_TXNS = 8000
 YCSB_WORKLOAD_MIX = ("read-only", "read-heavy", "balanced", "write-heavy")
 YCSB_SKEW_FACTORS = [0.1, 0.5]
 YCSB_RW_MIXES = [0, 0.1, 0.5, 0.9]
@@ -115,12 +115,12 @@ TPCC_RECOVERY_DIR = "../results/tpcc/recovery/"
 TEST_NVM_DIR = "../results/test/nvm/"
 BTREE_DIR = "../results/btree/"
 PCOMMIT_DIR = "../results/pcommit/"
-
+CLWB_DIR = "../results/clwb/"
 NVM_BW_DIR = "../results/nvm_bw/"
 
 # XXX These should match default values in "pbtree.h" and "cow_pbtree.h"
 BTREE_SIZES = ["128", "256", "512", "1024", "2048", "4096", "8192", "16384"]
-BTREE_LATENCIES = ("320",)
+MISC_LATENCIES = ("320",)
 
 BTREE_NODE_SIZE_DEFAULT = "512"
 BTREE_HEADER_FILE = "../src/common/pbtree.h"
@@ -132,9 +132,14 @@ COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 PCOMMIT_LATENCIES = ("10", "100", "1000")
 PCOMMIT_LATENCY_DEFAULT = "100"
 PCOMMIT_HEADER_FILE = "../src/common/libpm.h"
-
 PCOMMIT_WORKLOAD_MIX = ("read-heavy", "balanced", "write-heavy")
 
+
+# XXX These should match default values in "libpm.h"
+CLWB_MODES = ("clflush", "clwb")
+CLWB_MODE_DEFAULT = "clflush"
+CLWB_HEADER_FILE = "../src/common/libpm.h"
+CLWB_WORKLOAD_MIX = ("read-heavy", "balanced", "write-heavy")
 
 LABELS = ("InP", "CoW", "Log", "NVM-InP", "NVM-CoW", "NVM-Log")
 
@@ -1286,7 +1291,7 @@ def btree_plot(log_name):
     log_file = open(log_name, 'w')
     log_file.write('Start :: %s \n' % datetime.datetime.now())
 
-    latency_list = BTREE_LATENCIES
+    latency_list = MISC_LATENCIES
     result_dir = BTREE_DIR
     
     # Go over all engines
@@ -1319,7 +1324,7 @@ def pcommit_plot(log_name):
     log_file = open(log_name, 'w')
     log_file.write('Start :: %s \n' % datetime.datetime.now())
 
-    latency_list = BTREE_LATENCIES
+    latency_list = MISC_LATENCIES
     result_dir = PCOMMIT_DIR
         
     # Go over all engines
@@ -1343,6 +1348,39 @@ def pcommit_plot(log_name):
                          
             fileName = "pcommit-%s-%s.pdf" % (sy, lat)
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
+            
+# CLWB -- PLOT
+def clwb_plot(log_name):
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+
+    latency_list = MISC_LATENCIES
+    result_dir = CLWB_DIR
+        
+    # Go over all engines
+#     for sy in SYSTEMS:    
+#          
+#         for lat in latency_list:
+#             datasets = {}
+#  
+#             for workload in CLWB_WORKLOAD_MIX:    
+#                 datasets[workload] = {}
+#                  
+#                 for pcommit_latency in PCOMMIT_LATENCIES:    
+#                     datasets[workload][pcommit_latency] = []
+#  
+#                     # Get results in relevant subdir            
+#                     dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, pcommit_latency  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
+#                     datasets[workload][pcommit_latency].append(dataFile)
+#          
+#             print(datasets)                                        
+#             fig = create_pcommit_line_chart(datasets, sy)
+#                          
+#             fileName = "pcommit-%s-%s.pdf" % (sy, lat)
+#             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
+            
            
 ###################################################################################                   
 # EVAL                   
@@ -2492,7 +2530,7 @@ def btree_eval(log_name):
         # Store results in relevant subdir
         btree_subdir = BTREE_DIR + btree_size + "/";
 
-        ycsb_perf_eval(False, False, log_name, btree_subdir, BTREE_LATENCIES)      
+        ycsb_perf_eval(False, False, log_name, btree_subdir, MISC_LATENCIES)      
         
         # Next iteration
         itr_count += 1;
@@ -2542,7 +2580,7 @@ def pcommit_eval(log_name):
         # Store results in relevant subdir
         pcommit_subdir = PCOMMIT_DIR + pcommit_latency + "/";
 
-        ycsb_perf_eval(False, False, log_name, pcommit_subdir, BTREE_LATENCIES)      
+        ycsb_perf_eval(False, False, log_name, pcommit_subdir, MISC_LATENCIES)      
         
         # Next iteration
         itr_count += 1;
@@ -2554,6 +2592,59 @@ def pcommit_eval(log_name):
          
             print(pcommit_cmd)
             subprocess.call(['sed', '-i', pcommit_cmd, PCOMMIT_HEADER_FILE], stdout=log_file)
+         
+            # Build
+            subprocess.call(['make', '-j'], stdout=log_file)
+
+# CLWB -- EVAL
+def clwb_eval(log_name):            
+    subprocess.call(['rm', '-rf', CLWB_DIR])          
+
+    engines = ENGINES   
+
+    # LOG RESULTS
+    log_file = open(log_name, 'w')
+    log_file.write('Start :: %s \n' % datetime.datetime.now())
+    itr_count = 0;
+
+    def get_clwb_str(mode):
+        if mode == "clflush":
+            mode_str = "#undef CLWB"
+        else:
+            mode_str = "#define CLWB"            
+        return mode_str
+
+    # Go over all sizes
+    for clwb_mode in CLWB_MODES:    
+        print("Clwb mode : " + clwb_mode);
+                
+        # Update header file
+        if itr_count == 0:                            
+            clwb_cmd = 's/' + get_clwb_str(CLWB_MODE_DEFAULT) +  "/" + get_clwb_str(CLWB_MODES[0]) + "/g";    
+        else:
+            clwb_cmd = 's/' + get_clwb_str(CLWB_MODES[itr_count-1]) +  "/" + get_clwb_str(CLWB_MODES[itr_count]) + "/g";    
+
+        print(clwb_cmd)
+
+        subprocess.call(['sed', '-i', clwb_cmd, CLWB_HEADER_FILE], stdout=log_file)
+        
+        # Build
+        subprocess.call(['make', '-j'], stdout=log_file)
+                
+        # Store results in relevant subdir
+        clwb_subdir = CLWB_DIR + clwb_mode + "/";
+
+        ycsb_perf_eval(False, False, log_name, clwb_subdir, MISC_LATENCIES)      
+        
+        # Next iteration
+        itr_count += 1;
+
+    # Reset header files
+    if itr_count != 0:
+            clwb_cmd = 's/' + get_clwb_str(CLWB_MODES[itr_count-1]) +  "/" + get_clwb_str(CLWB_MODE_DEFAULT) + "/g";    
+         
+            print(clwb_cmd)
+            subprocess.call(['sed', '-i', clwb_cmd, CLWB_HEADER_FILE], stdout=log_file)
          
             # Build
             subprocess.call(['make', '-j'], stdout=log_file)
@@ -2601,8 +2692,11 @@ if __name__ == '__main__':
     parser.add_argument("-g", "--btree_eval", help='btree_eval', action='store_true')
     parser.add_argument("-k", "--btree_plot", help='btree_plot', action='store_true')
 
-    parser.add_argument("-m", "--pcommit_eval", help='pcommit_eval', action='store_true')
-    parser.add_argument("-z", "--pcommit_plot", help='pcommit_plot', action='store_true')
+    #parser.add_argument("-m", "--pcommit_eval", help='pcommit_eval', action='store_true')
+    #parser.add_argument("-z", "--pcommit_plot", help='pcommit_plot', action='store_true')
+
+    parser.add_argument("-m", "--clwb_eval", help='clwb_eval', action='store_true')
+    parser.add_argument("-z", "--clwb_plot", help='clwb_plot', action='store_true')
     
     args = parser.parse_args()
     
@@ -2629,6 +2723,7 @@ if __name__ == '__main__':
     test_nvm_log_name = "test_nvm.log"
     btree_log_name = "btree.log"
     pcommit_log_name = "pcommit.log"
+    clwb_log_name = "clwb.log"
             
     ################################ YCSB
     
@@ -2695,7 +2790,7 @@ if __name__ == '__main__':
     #create_storage_legend()
     #create_stack_legend()
 
-    ################################ MISC
+    ################################ SENSITIVITIY
 
     if args.btree_eval:
         btree_eval(btree_log_name);
@@ -2703,8 +2798,14 @@ if __name__ == '__main__':
     if args.btree_plot:
         btree_plot(btree_log_name);
 
-    if args.pcommit_eval:
-        pcommit_eval(pcommit_log_name);
+    #if args.pcommit_eval:
+    #    pcommit_eval(pcommit_log_name);
 
-    if args.pcommit_plot:
-        pcommit_plot(pcommit_log_name);
+    #if args.pcommit_plot:
+    #    pcommit_plot(pcommit_log_name);
+
+    if args.clwb_eval:
+        clwb_eval(clwb_log_name);
+
+    if args.clwb_plot:
+        clwb_plot(clwb_log_name);
