@@ -1131,6 +1131,66 @@ def create_pcommit_line_chart(datasets, sy):
     return (fig)
 
 
+def create_clwb_bar_chart(datasets, sy):
+    fig = plot.figure()
+    ax1 = fig.add_subplot(111)
+         
+    x_values = range(len(CLWB_MODES))
+    N = len(x_values)
+    x_labels = CLWB_MODES
+
+    num_items = len(CLWB_WORKLOAD_MIX);   
+    ind = np.arange(N)  
+    margin = 0.10
+    width = (1.0 - 2 * margin) / num_items      
+    bars = [None] * num_items * 2
+    idx = 0
+
+    YLIMIT = 2000000
+            
+    # GROUP    
+    for group in CLWB_WORKLOAD_MIX:
+        perf_data = []               
+        LOG.info("GROUP :: %s", datasets[group])
+        
+        for line in CLWB_MODES:
+            print(datasets[group][line][0])
+
+            for col in  xrange(len(datasets[group][line][0][0])):
+                if col == 1:
+                    perf_data.append(datasets[group][line][0][0][1])
+
+        LOG.info("%s perf_data = %s ", group, str(perf_data))
+
+        bars[idx] = ax1.bar(ind + margin + (idx * width), perf_data, width, color=OPT_COLORS[idx], hatch=OPT_PATTERNS[idx * 2], linewidth=BAR_LINEWIDTH)
+        idx = idx + 1
+                    
+    # GRID
+    axes = ax1.get_axes()
+    makeGrid(ax1)
+      
+    # Y-AXIS    
+    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)
+    ax1.set_ylim([0, YLIMIT])
+        
+    # X-AXIS
+    ax1.minorticks_on()
+    ax1.set_xticklabels(x_labels)
+    ax1.set_xticks(ind + 0.5)
+    ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+    ax1.set_xlabel("CLWB modes", fontproperties=LABEL_FP)
+
+    # LEGEND
+    #legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
+        
+    for label in ax1.get_yticklabels() :
+        label.set_fontproperties(TICK_FP)
+    for label in ax1.get_xticklabels() :
+        label.set_fontproperties(TICK_FP)
+            
+    return (fig)
+
 ###################################################################################                   
 # PLOT HELPERS                  
 ###################################################################################                   
@@ -1360,26 +1420,26 @@ def clwb_plot(log_name):
     result_dir = CLWB_DIR
         
     # Go over all engines
-#     for sy in SYSTEMS:    
-#          
-#         for lat in latency_list:
-#             datasets = {}
-#  
-#             for workload in CLWB_WORKLOAD_MIX:    
-#                 datasets[workload] = {}
-#                  
-#                 for pcommit_latency in PCOMMIT_LATENCIES:    
-#                     datasets[workload][pcommit_latency] = []
-#  
-#                     # Get results in relevant subdir            
-#                     dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, pcommit_latency  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
-#                     datasets[workload][pcommit_latency].append(dataFile)
-#          
-#             print(datasets)                                        
-#             fig = create_pcommit_line_chart(datasets, sy)
-#                          
-#             fileName = "pcommit-%s-%s.pdf" % (sy, lat)
-#             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
+    for sy in SYSTEMS:    
+          
+        for lat in latency_list:
+            datasets = {}
+  
+            for workload in CLWB_WORKLOAD_MIX:    
+                datasets[workload] = {}
+                  
+                for clwb_mode in CLWB_MODES:    
+                    datasets[workload][clwb_mode] = []
+  
+                    # Get results in relevant subdir            
+                    dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, clwb_mode  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
+                    datasets[workload][clwb_mode].append(dataFile)
+          
+            print(datasets)                                        
+            fig = create_clwb_bar_chart(datasets, sy)
+                          
+            fileName = "clwb-%s-%s.pdf" % (sy, lat)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
             
            
 ###################################################################################                   
