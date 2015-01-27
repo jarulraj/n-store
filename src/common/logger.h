@@ -6,6 +6,7 @@
 #include <string>
 
 #include "record.h"
+#include "libpm.h"
 
 namespace storage {
 
@@ -57,6 +58,10 @@ class logger {
 
     // sync log
     ret = fsync(log_file_fd);
+
+    // PCOMMIT
+    pcommit(PCOMMIT_LATENCY);
+
     if (ret != 0) {
       perror("fsync failed");
       exit(EXIT_FAILURE);

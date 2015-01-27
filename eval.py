@@ -1074,7 +1074,7 @@ def create_pcommit_line_chart(datasets, sy):
     ind = np.arange(N)  
     idx = 0
     
-    YLIMIT = 2200000
+    YLIMIT = 1800000
             
     # GROUP
     for group in PCOMMIT_WORKLOAD_MIX:

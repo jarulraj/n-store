@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "record.h"
+#include "libpm.h"
 
 namespace storage {
 
@@ -100,6 +101,10 @@ class storage {
 
     // sync storage
     ret = fsync(storage_file_fd);
+
+    // PCOMMIT
+    pcommit(PCOMMIT_LATENCY);
+
     if (ret != 0) {
       perror("fsync failed");
       exit(EXIT_FAILURE);
