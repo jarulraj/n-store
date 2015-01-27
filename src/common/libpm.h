@@ -24,8 +24,15 @@ static inline void pmem_flush_cache(void *addr, size_t len,
 
   /* loop through 64B-aligned chunks covering the given range */
   for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
-      uptr += 64)
-    __builtin_ia32_clflush((void *) uptr);
+      uptr += 64){
+
+	  // CLFLUSH
+	  __builtin_ia32_clflush((void *) uptr);
+
+	  // CLWB
+      //clwb(addr);
+  }
+
 }
 
 extern size_t pcommit_size;
