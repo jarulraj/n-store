@@ -18,6 +18,9 @@ namespace storage {
 /* latency in ns */
 #define PCOMMIT_LATENCY 100
 
+/* cacheline primitive */
+#define CLWB
+
 static inline void pmem_flush_cache(void *addr, size_t len,
                                     __attribute__((unused)) int flags) {
   uintptr_t uptr;
@@ -25,12 +28,13 @@ static inline void pmem_flush_cache(void *addr, size_t len,
   /* loop through 64B-aligned chunks covering the given range */
   for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
       uptr += 64){
-
+#ifdef CLWB
+	  // CLWB
+      clwb(addr);
+#else
 	  // CLFLUSH
 	  __builtin_ia32_clflush((void *) uptr);
-
-	  // CLWB
-      //clwb(addr);
+#endif
   }
 
 }
