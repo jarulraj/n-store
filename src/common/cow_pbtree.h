@@ -1328,8 +1328,14 @@ class cow_btree {
 
   int cow_btree_sync() {
     if (persist == false) {
-      if (!F_ISSET(flags, BT_NOSYNC))
-        return fsync(fd);
+      if (!F_ISSET(flags, BT_NOSYNC)) {
+    	  int ret = fsync(fd);
+
+    	  // PCOMMIT
+    	  pcommit(PCOMMIT_LATENCY);
+
+    	  return ret;
+      }
     }
     return 0;
   }
@@ -3661,6 +3667,9 @@ class cow_btree {
 
     if (persist == false) {
       fsync(tmp_fd);
+
+      // PCOMMIT
+      pcommit(PCOMMIT_LATENCY);
 
       DPRINTF("renaming %s to %s \n", compact_path.c_str(), path);
       if (rename(compact_path.c_str(), path) != 0)
