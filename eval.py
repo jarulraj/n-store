@@ -133,6 +133,9 @@ PCOMMIT_LATENCIES = ("10", "100", "1000", "10000")
 PCOMMIT_LATENCY_DEFAULT = "100"
 PCOMMIT_HEADER_FILE = "../src/common/libpm.h"
 
+PCOMMIT_WORKLOAD_MIX = ("read-heavy", "balanced", "write-heavy")
+
+
 LABELS = ("InP", "CoW", "Log", "NVM-InP", "NVM-CoW", "NVM-Log")
 
 TPCC_TXNS = 1000000
@@ -1074,7 +1077,7 @@ def create_pcommit_line_chart(datasets, sy):
     YLIMIT = 2200000
             
     # GROUP
-    for group in YCSB_WORKLOAD_MIX:
+    for group in PCOMMIT_WORKLOAD_MIX:
         perf_data = []             
         idx = idx + 1  
 
@@ -1317,14 +1320,14 @@ def pcommit_plot(log_name):
 
     latency_list = BTREE_LATENCIES
     result_dir = PCOMMIT_DIR
-    
+        
     # Go over all engines
     for sy in SYSTEMS:    
          
         for lat in latency_list:
             datasets = {}
  
-            for workload in YCSB_WORKLOAD_MIX:    
+            for workload in PCOMMIT_WORKLOAD_MIX:    
                 datasets[workload] = {}
                  
                 for pcommit_latency in PCOMMIT_LATENCIES:    
