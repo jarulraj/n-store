@@ -129,7 +129,7 @@ COW_BTREE_NODE_SIZE_DEFAULT = "4096"
 COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 
 # XXX These should match default values in "libpm.h"
-PCOMMIT_LATENCIES = ("10", "100", "1000", "10000")
+PCOMMIT_LATENCIES = ("10", "100", "1000")
 PCOMMIT_LATENCY_DEFAULT = "100"
 PCOMMIT_HEADER_FILE = "../src/common/libpm.h"
 
@@ -272,7 +272,7 @@ def create_storage_legend():
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
    
-    STORAGE_LABELS = ("Tuple data", "Index", "Log", "Checkpoint", "Other")
+    STORAGE_LABELS = ("Table", "Index", "Log", "Other")
    
     bars = [None] * len(STORAGE_LABELS) * 2
 
@@ -834,9 +834,10 @@ def create_tpcc_storage_bar_chart(datasets):
         
     # X-AXIS
     #ax1.set_xlabel("Engine", fontproperties=LABEL_FP)
-    ax1.tick_params(axis='x', which='both', bottom='off')
     ax1.set_xticks(ind + 0.5)
     ax1.set_xticklabels(LABELS, rotation=60)
+    ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+
 
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
@@ -1091,7 +1092,7 @@ def create_pcommit_line_chart(datasets, sy):
   
         LOG.info("%s perf_data = %s ", group, str(perf_data))
         
-        ax1.plot(x_values, perf_data, color=OPT_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
+        ax1.plot(x_values, perf_data, color=OPT_COLORS[idx+1], linewidth=OPT_LINE_WIDTH, 
                  marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
         
     # GRID
@@ -1111,7 +1112,7 @@ def create_pcommit_line_chart(datasets, sy):
     ax1.set_xlabel("PCOMMIT latency (ns)", fontproperties=LABEL_FP)
     #ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     x_axis_min = math.pow(10, 0.75)
-    x_axis_max =  math.pow(10, 4.25)        
+    x_axis_max =  math.pow(10, 3.25)        
     ax1.set_xlim([x_axis_min, x_axis_max])
 
     # LEGEND
