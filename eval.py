@@ -1374,7 +1374,7 @@ def btree_plot(log_name):
             fig = create_btree_line_chart(datasets, sy)
                         
             fileName = "btree-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2)
             
             
 # PCOMMIT -- PLOT
@@ -1407,7 +1407,7 @@ def pcommit_plot(log_name):
             fig = create_pcommit_line_chart(datasets, sy)
                          
             fileName = "pcommit-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2)            
             
 # CLWB -- PLOT
 def clwb_plot(log_name):
@@ -1439,7 +1439,7 @@ def clwb_plot(log_name):
             fig = create_clwb_bar_chart(datasets, sy)
                           
             fileName = "clwb-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT)            
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2)            
             
            
 ###################################################################################                   
@@ -2732,7 +2732,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--tpcc_perf_eval", help='eval tpcc perf', action='store_true')
     parser.add_argument("-q", "--tpcc_storage_eval", help='eval tpcc storage', action='store_true')
     parser.add_argument("-r", "--tpcc_nvm_eval", help='eval tpcc nvm', action='store_true')
-    parser.add_argument("-j", "--ycsb_recovery_plot", help='ycsb_recovery_plot', action='store_true')
+    #parser.add_argument("-j", "--ycsb_recovery_plot", help='ycsb_recovery_plot', action='store_true')
     
     parser.add_argument("-d", "--tpcc_perf_plot", help='plot tpcc perf', action='store_true')
     parser.add_argument("-e", "--tpcc_storage_plot", help='plot tpcc storage', action='store_true')
@@ -2742,7 +2742,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--ycsb_perf_plot", help='plot ycsb perf', action='store_true')
     parser.add_argument("-b", "--ycsb_storage_plot", help='plot ycsb storage', action='store_true')
     parser.add_argument("-c", "--ycsb_nvm_plot", help='plot ycsb nvm', action='store_true')    
-    parser.add_argument("-p", "--tpcc_recovery_plot", help='tpcc_recovery_plot', action='store_true')
+    #parser.add_argument("-p", "--tpcc_recovery_plot", help='tpcc_recovery_plot', action='store_true')
 
     parser.add_argument("-w", "--nvm_bw_plot", help='nvm_bw_plot', action='store_true')
 
@@ -2752,8 +2752,8 @@ if __name__ == '__main__':
     parser.add_argument("-g", "--btree_eval", help='btree_eval', action='store_true')
     parser.add_argument("-k", "--btree_plot", help='btree_plot', action='store_true')
 
-    #parser.add_argument("-m", "--pcommit_eval", help='pcommit_eval', action='store_true')
-    #parser.add_argument("-z", "--pcommit_plot", help='pcommit_plot', action='store_true')
+    parser.add_argument("-j", "--pcommit_eval", help='pcommit_eval', action='store_true')
+    parser.add_argument("-p", "--pcommit_plot", help='pcommit_plot', action='store_true')
 
     parser.add_argument("-m", "--clwb_eval", help='clwb_eval', action='store_true')
     parser.add_argument("-z", "--clwb_plot", help='clwb_plot', action='store_true')
@@ -2811,8 +2811,8 @@ if __name__ == '__main__':
     if args.ycsb_nvm_plot:                
        ycsb_nvm_plot();                          
 
-    if args.ycsb_recovery_plot:                
-       ycsb_recovery_plot();        
+    #if args.ycsb_recovery_plot:                
+    #   ycsb_recovery_plot();        
        
     #if args.ycsb_stack_plot:
     #    ycsb_stack_plot();                    
@@ -2840,8 +2840,8 @@ if __name__ == '__main__':
     if args.tpcc_nvm_plot:                
        tpcc_nvm_plot();                          
 
-    if args.tpcc_recovery_plot:                
-       tpcc_recovery_plot();                          
+    #if args.tpcc_recovery_plot:                
+    #   tpcc_recovery_plot();                          
 
     if args.nvm_bw_plot:                            
         nvm_bw_plot();   
@@ -2858,11 +2858,11 @@ if __name__ == '__main__':
     if args.btree_plot:
         btree_plot(btree_log_name);
 
-    #if args.pcommit_eval:
-    #    pcommit_eval(pcommit_log_name);
+    if args.pcommit_eval:
+        pcommit_eval(pcommit_log_name);
 
-    #if args.pcommit_plot:
-    #    pcommit_plot(pcommit_log_name);
+    if args.pcommit_plot:
+        pcommit_plot(pcommit_log_name);
 
     if args.clwb_eval:
         clwb_eval(clwb_log_name);
