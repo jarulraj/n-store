@@ -64,7 +64,7 @@ OPT_MARKERS = (['o', 's', 'v', ">", "h", "v", "^", "x", "d", "<", "|", "8", "|",
 OPT_PATTERNS = ([ "////", "////", "o", "o", "\\\\" , "\\\\" , "//////", "//////", ".", "." , "\\\\\\" , "\\\\\\" ])
 
 OPT_LABEL_WEIGHT = 'bold'
-OPT_LINE_COLORS = brewer2mpl.get_map('Set2', 'qualitative', 8).mpl_colors
+OPT_LINE_COLORS = ('#fdc086', '#b3e2cd', '#fc8d62', '#a6cee3', '#e41a1c')
 OPT_LINE_WIDTH = 6.0
 OPT_MARKER_SIZE = 10.0
 DATA_LABELS = []
@@ -129,7 +129,7 @@ COW_BTREE_NODE_SIZE_DEFAULT = "4096"
 COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 
 # XXX These should match default values in "libpm.h"
-PCOMMIT_LATENCIES = ("10", "100", "1000")
+PCOMMIT_LATENCIES = ("10", "100", "1000", "10000")
 PCOMMIT_LATENCY_DEFAULT = "100"
 PCOMMIT_HEADER_FILE = "../src/common/libpm.h"
 PCOMMIT_WORKLOAD_MIX = ("read-heavy", "balanced", "write-heavy")
@@ -148,8 +148,8 @@ TEST_TXNS = 500000
 
 # SET FONT
 
-LABEL_FONT_SIZE = 16
-TICK_FONT_SIZE = 14
+LABEL_FONT_SIZE = 12
+TICK_FONT_SIZE = 10
 TINY_FONT_SIZE = 8
 
 AXIS_LINEWIDTH = 1.3
@@ -316,6 +316,40 @@ def create_stack_legend():
 
     figlegend.savefig('stack_legend.pdf')  
 
+def create_line_legend():
+    fig = pylab.figure()
+    ax1 = fig.add_subplot(111)
+
+    figlegend = pylab.figure(figsize=(9, 0.5))
+    idx = 0
+    lines = [None] * len(YCSB_WORKLOAD_MIX)
+
+    YCSB_SUBSET_MIX = YCSB_WORKLOAD_MIX[1:4]
+             
+    for group in xrange(len(YCSB_WORKLOAD_MIX)):        
+        data = [1]
+        x_values = [1]
+        
+        lines[idx], = ax1.plot(x_values, data, color=OPT_LINE_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
+                 marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
+        
+        idx = idx + 1
+                
+    # LEGEND
+    figlegend.legend(lines, YCSB_WORKLOAD_MIX, prop=LABEL_FP, loc=1, ncol=4, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
+
+    figlegend.savefig('line_legend.pdf')
+
+    figlegend = pylab.figure(figsize=(7, 0.5))
+    lines_subset = lines[1:4]
+
+    figlegend.legend(lines_subset, YCSB_SUBSET_MIX, prop=LABEL_FP, loc=1, ncol=3, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
+
+    figlegend.savefig('line_subset_legend.pdf')
+
+
 def create_nvm_bw_chart(datasets):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
@@ -437,7 +471,7 @@ def create_ycsb_perf_bar_chart(datasets):
     return (fig)
 
 
-def create_ycsb_stack_bar_chart(datasets):
+def create_ycsb_stack_bar_chart(datasets, abs_time):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
          
@@ -454,31 +488,58 @@ def create_ycsb_stack_bar_chart(datasets):
     col_width = width - 0.15    
     bars = [None] * len(LABELS) 
     label_loc = []
-    
-    YLIMIT = 100.0
 
+    # ABS TIME HACK
+    abs_mode = True
+    idx = 0
+    abs_time_subset = []
+    
+    if abs_mode == False:
+        YLIMIT = 100.0
+    
+    # GROUP
+    for group in xrange(len(abs_time)):
+        idx = 0                
+        # LINE        
+        for line in  xrange(len(abs_time[group])):        
+            if(idx % 2 == 0):
+                abs_time_subset.append(abs_time[group][line][1])
+            idx = idx + 1
+
+    idx = 0    
+    if(abs_mode):
+        print(abs_time_subset)
+    
     # GROUP
     for group in xrange(len(datasets)):
+        # ABS TIME
+        if(abs_mode):
+            max_num = YCSB_TXNS/abs_time_subset[idx]
+        # NORMALIZE TIME
+        else:
+            max_num = 100.0
         
         # LINE
         for line in  xrange(len(datasets[group])):
             LOG.info("DATA = %s ", str(datasets[group][line]))
 
             bottom_num = 0.0                
-            for col in  xrange(len(datasets[group][line])):                    
-                bars[group] = ax1.bar(line + margin + (group * width) + col_offset, datasets[group][line][col], col_width, 
+                        
+            for col in  xrange(len(datasets[group][line])):                   
+                bars[group] = ax1.bar(line + margin + (group * width) + col_offset, datasets[group][line][col]/100.0 * max_num, col_width, 
                                       color=OPT_STACK_COLORS[col-1],
                                       bottom = bottom_num)
                 
-                bottom_num = bottom_num +  datasets[group][line][col]
+                bottom_num = bottom_num +  (datasets[group][line][col]/100.0 * max_num)
 
             col = 4
-            bars[group] = ax1.bar(line + margin + (group * width) + col_offset, 100.0 - bottom_num, col_width, 
+            bars[group] = ax1.bar(line + margin + (group * width) + col_offset, max_num - bottom_num, col_width, 
                                       color=OPT_STACK_COLORS[col-1],
                                       bottom = bottom_num)
 
             label_loc.append(line + margin + (group * width))
-                        
+                
+        idx = idx + 1        
 
     # RATIO
     #transposed_datasets = map(list,map(None,*datasets))
@@ -493,13 +554,18 @@ def create_ycsb_stack_bar_chart(datasets):
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    ax1.set_ylim([0,YLIMIT])
+    #ax1.set_ylim([0,YLIMIT])
         
     # X-AXIS
     ax1.minorticks_on()
     #ax1.set_xticklabels(x_labels)
     ax1.set_xticks(label_loc)              
-    ax1.set_ylabel("Time (%)", fontproperties=LABEL_FP)
+
+    if abs_mode:
+        ax1.set_ylabel("Absolute Time (s)", fontproperties=LABEL_FP)
+    else:
+        ax1.set_ylabel("Time (%)", fontproperties=LABEL_FP)
+        
     ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     ax1.set_xticklabels(LABELS, rotation=60)
         
@@ -1024,8 +1090,7 @@ def create_btree_line_chart(datasets, sy):
     # GROUP
     for group in YCSB_WORKLOAD_MIX:
         perf_data = []             
-        idx = idx + 1  
-
+        
         # LINE
         for line in btree_node_sizes:
             #print(datasets[group][line][0])
@@ -1036,9 +1101,11 @@ def create_btree_line_chart(datasets, sy):
   
         LOG.info("%s perf_data = %s ", group, str(perf_data))
         
-        ax1.plot(x_values, perf_data, color=OPT_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
+        ax1.plot(x_values, perf_data, color=OPT_LINE_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
                  marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
         
+        idx = idx + 1  
+
     # GRID
     axes = ax1.get_axes()
     makeGrid(ax1)
@@ -1059,7 +1126,7 @@ def create_btree_line_chart(datasets, sy):
     ax1.set_xlim([x_axis_min, x_axis_max])
 
     # LEGEND
-    legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
+    #legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
         
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
@@ -1097,7 +1164,7 @@ def create_pcommit_line_chart(datasets, sy):
   
         LOG.info("%s perf_data = %s ", group, str(perf_data))
         
-        ax1.plot(x_values, perf_data, color=OPT_COLORS[idx+1], linewidth=OPT_LINE_WIDTH, 
+        ax1.plot(x_values, perf_data, color=OPT_LINE_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
                  marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
         
     # GRID
@@ -1117,11 +1184,11 @@ def create_pcommit_line_chart(datasets, sy):
     ax1.set_xlabel("PCOMMIT latency (ns)", fontproperties=LABEL_FP)
     #ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     x_axis_min = math.pow(10, 0.75)
-    x_axis_max =  math.pow(10, 3.25)        
+    x_axis_max =  math.pow(10, 4.25)        
     ax1.set_xlim([x_axis_min, x_axis_max])
 
     # LEGEND
-    legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
+    #legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
         
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
@@ -1218,12 +1285,16 @@ def ycsb_stack_plot():
 
         for lat in YCSB_STACK_LATENCIES:
             datasets = []
+            abs_time = []
         
             for sy in SYSTEMS:    
                 dataFile = loadDataFile(1, 4, os.path.realpath(os.path.join(YCSB_STACK_DIR, sy + "/" + workload + "/" + lat + "/stack.csv")))
                 datasets.append(dataFile)
+
+                dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(YCSB_PERF_DIR, sy + "/" + workload + "/" + lat + "/performance.csv")))                
+                abs_time.append(dataFile)        
                                    
-            fig = create_ycsb_stack_bar_chart(datasets)
+            fig = create_ycsb_stack_bar_chart(datasets, abs_time)
             
             fileName = "ycsb-stack-%s-%s.pdf" % (workload, lat)
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5)
@@ -1309,12 +1380,12 @@ def tpcc_nvm_plot():
     # LOADS                                                               
     fig = create_tpcc_nvm_bar_chart(datasets,0)                        
     fileName = "tpcc-nvm-loads.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2.0) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
 
     # STORES                                                               
     fig = create_tpcc_nvm_bar_chart(datasets,1)                        
     fileName = "tpcc-nvm-stores.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2.0) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
 
 # TPCC RECOVERY -- PLOT
 def  tpcc_recovery_plot():   
@@ -1374,7 +1445,7 @@ def btree_plot(log_name):
             fig = create_btree_line_chart(datasets, sy)
                         
             fileName = "btree-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
             
             
 # PCOMMIT -- PLOT
@@ -1407,7 +1478,7 @@ def pcommit_plot(log_name):
             fig = create_pcommit_line_chart(datasets, sy)
                          
             fileName = "pcommit-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2)            
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)            
             
 # CLWB -- PLOT
 def clwb_plot(log_name):
@@ -1439,7 +1510,7 @@ def clwb_plot(log_name):
             fig = create_clwb_bar_chart(datasets, sy)
                           
             fileName = "clwb-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2)            
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)            
             
            
 ###################################################################################                   
@@ -2746,8 +2817,8 @@ if __name__ == '__main__':
 
     parser.add_argument("-w", "--nvm_bw_plot", help='nvm_bw_plot', action='store_true')
 
-    #parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
-    #parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
+    parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
+    parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
 
     parser.add_argument("-g", "--btree_eval", help='btree_eval', action='store_true')
     parser.add_argument("-k", "--btree_plot", help='btree_plot', action='store_true')
@@ -2755,8 +2826,8 @@ if __name__ == '__main__':
     parser.add_argument("-j", "--pcommit_eval", help='pcommit_eval', action='store_true')
     parser.add_argument("-p", "--pcommit_plot", help='pcommit_plot', action='store_true')
 
-    parser.add_argument("-m", "--clwb_eval", help='clwb_eval', action='store_true')
-    parser.add_argument("-z", "--clwb_plot", help='clwb_plot', action='store_true')
+    #parser.add_argument("-m", "--clwb_eval", help='clwb_eval', action='store_true')
+    #parser.add_argument("-z", "--clwb_plot", help='clwb_plot', action='store_true')
     
     args = parser.parse_args()
     
@@ -2799,8 +2870,8 @@ if __name__ == '__main__':
     if args.ycsb_recovery_eval:             
         ycsb_recovery_eval(ycsb_recovery_log_name);             
 
-    #if args.ycsb_stack_eval:
-    #    ycsb_stack_eval(ycsb_stack_log_name);                    
+    if args.ycsb_stack_eval:
+        ycsb_stack_eval(ycsb_stack_log_name);                    
                           
     if args.ycsb_perf_plot:      
         ycsb_perf_plot(YCSB_PERF_DIR, LATENCIES, "");
@@ -2814,8 +2885,8 @@ if __name__ == '__main__':
     #if args.ycsb_recovery_plot:                
     #   ycsb_recovery_plot();        
        
-    #if args.ycsb_stack_plot:
-    #    ycsb_stack_plot();                    
+    if args.ycsb_stack_plot:
+        ycsb_stack_plot();                    
 
     ################################ TPCC
 
@@ -2864,8 +2935,10 @@ if __name__ == '__main__':
     if args.pcommit_plot:
         pcommit_plot(pcommit_log_name);
 
-    if args.clwb_eval:
-        clwb_eval(clwb_log_name);
+    #if args.clwb_eval:
+    #    clwb_eval(clwb_log_name);
 
-    if args.clwb_plot:
-        clwb_plot(clwb_log_name);
+    #if args.clwb_plot:
+    #    clwb_plot(clwb_log_name);
+
+    #create_line_legend()
