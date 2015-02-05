@@ -128,7 +128,7 @@ COW_BTREE_NODE_SIZE_DEFAULT = "4096"
 COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 
 # XXX These should match default values in "libpm.h"
-PCOMMIT_LATENCIES = ("1", "10", "100", "1000", "10000")
+PCOMMIT_LATENCIES = ("1", "10", "100", "1000")
 PCOMMIT_LATENCY_DEFAULT = "100"
 PCOMMIT_WORKLOAD_MIX = ("read-heavy", "balanced", "write-heavy")
 
@@ -1135,7 +1135,7 @@ def create_ise_line_chart(datasets, sy):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
          
-    x_values = PCOMMIT_LATENCIES
+    x_values = ("1", "2", "3", "4")
     N = len(x_values)
     x_labels = x_values
 
@@ -1174,15 +1174,12 @@ def create_ise_line_chart(datasets, sy):
         
     # X-AXIS
     #ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)    
-    ax1.set_xticks(ind + 0.5)           
-    ax1.set_xscale('log', basex=10)
+    ax1.set_xlim(0.75, 4.25)
+    ax1.set_xticklabels(("SFENCE", "10", "100", "1000"))    
+    ax1.set_xticks(ind + 1)           
     ax1.set_xlabel("PCOMMIT latency (ns)", fontproperties=LABEL_FP)
     ax1.tick_params(axis='x', which='both', bottom='off', top='off')
-    x_axis_min = math.pow(10, -0.25)
-    x_axis_max =  math.pow(10, 4.25)        
-    ax1.set_xlim([x_axis_min, x_axis_max])
-
+    
     # LEGEND
     #legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
         
