@@ -18,8 +18,8 @@ namespace storage {
 /* latency in ns */
 #define PCOMMIT_LATENCY 100
 
-/* cacheline primitive */
-#undef CLWB
+/* instruction set extensions */
+#undef ISE
 
 static inline void pmem_flush_cache(void *addr, size_t len,
                                     __attribute__((unused)) int flags) {
@@ -28,7 +28,7 @@ static inline void pmem_flush_cache(void *addr, size_t len,
   /* loop through 64B-aligned chunks covering the given range */
   for (uptr = (uintptr_t) addr & ~(ALIGN - 1); uptr < (uintptr_t) addr + len;
       uptr += 64){
-#ifdef CLWB
+#ifdef ISE
 	  // CLWB
       clwb(addr);
 #else
@@ -45,13 +45,14 @@ extern size_t clflush;
 static inline void pmem_persist(void *addr, size_t len, int flags) {
   pmem_flush_cache(addr, len, flags);
 
-  // SFENCE
-  //__builtin_ia32_sfence();
-
+#ifdef ISE
   // PCOMMIT
   pcommit(PCOMMIT_LATENCY);
+#else
+  // SFENCE
+  __builtin_ia32_sfence();
+#endif
 
-  //pmem_drain_pm_stores();
 }
 
 #define MAX_PTRS 1024
