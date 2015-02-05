@@ -320,7 +320,8 @@ def create_line_legend():
     idx = 0
     lines = [None] * len(YCSB_WORKLOAD_MIX)
 
-    YCSB_SUBSET_MIX = YCSB_WORKLOAD_MIX[1:4]
+    workload_mix = ("Read-Only", "Read-Heavy", "Balanced", "Write-Heavy")
+    workload_subset_mix = workload_mix[1:4]
              
     for group in xrange(len(YCSB_WORKLOAD_MIX)):        
         data = [1]
@@ -332,7 +333,7 @@ def create_line_legend():
         idx = idx + 1
                 
     # LEGEND
-    figlegend.legend(lines, YCSB_WORKLOAD_MIX, prop=LABEL_FP, loc=1, ncol=4, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+    figlegend.legend(lines,  workload_mix, prop=LABEL_FP, loc=1, ncol=4, mode="expand", shadow=OPT_LEGEND_SHADOW, 
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('line_legend.pdf')
@@ -340,7 +341,7 @@ def create_line_legend():
     figlegend = pylab.figure(figsize=(7, 0.5))
     lines_subset = lines[1:4]
 
-    figlegend.legend(lines_subset, YCSB_SUBSET_MIX, prop=LABEL_FP, loc=1, ncol=3, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+    figlegend.legend(lines_subset, workload_subset_mix, prop=LABEL_FP, loc=1, ncol=3, mode="expand", shadow=OPT_LEGEND_SHADOW, 
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('line_subset_legend.pdf')
@@ -1143,7 +1144,7 @@ def create_ise_line_chart(datasets, sy):
     ind = np.arange(N)  
     idx = 0
     
-    #YLIMIT = 1800000
+    YLIMIT = 1800000
             
     # GROUP
     for group in PCOMMIT_WORKLOAD_MIX:
@@ -1170,7 +1171,7 @@ def create_ise_line_chart(datasets, sy):
     # Y-AXIS    
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)
-    #ax1.set_ylim([0, YLIMIT])
+    ax1.set_ylim([0, YLIMIT])
         
     # X-AXIS
     #ax1.minorticks_on()
@@ -2802,4 +2803,4 @@ if __name__ == '__main__':
     if args.ise_plot:
         ise_plot(ise_log_name);
 
-    #create_line_legend()
+    create_line_legend()
