@@ -128,7 +128,7 @@ COW_BTREE_NODE_SIZE_DEFAULT = "4096"
 COW_BTREE_HEADER_FILE = "../src/common/cow_pbtree.h"
 
 # XXX These should match default values in "libpm.h"
-PCOMMIT_LATENCIES = ("0", "10", "100", "1000", "10000")
+PCOMMIT_LATENCIES = ("1", "10", "100", "1000", "10000")
 PCOMMIT_LATENCY_DEFAULT = "100"
 PCOMMIT_WORKLOAD_MIX = ("read-heavy", "balanced", "write-heavy")
 
@@ -1131,7 +1131,7 @@ def create_btree_line_chart(datasets, sy):
             
     return (fig)
 
-def create_pcommit_line_chart(datasets, sy):
+def create_ise_line_chart(datasets, sy):
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
          
@@ -1143,7 +1143,7 @@ def create_pcommit_line_chart(datasets, sy):
     ind = np.arange(N)  
     idx = 0
     
-    YLIMIT = 1800000
+    #YLIMIT = 1800000
             
     # GROUP
     for group in PCOMMIT_WORKLOAD_MIX:
@@ -1170,7 +1170,7 @@ def create_pcommit_line_chart(datasets, sy):
     # Y-AXIS    
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)
-    ax1.set_ylim([0, YLIMIT])
+    #ax1.set_ylim([0, YLIMIT])
         
     # X-AXIS
     #ax1.minorticks_on()
@@ -1178,8 +1178,8 @@ def create_pcommit_line_chart(datasets, sy):
     ax1.set_xticks(ind + 0.5)           
     ax1.set_xscale('log', basex=10)
     ax1.set_xlabel("PCOMMIT latency (ns)", fontproperties=LABEL_FP)
-    #ax1.tick_params(axis='x', which='both', bottom='off', top='off')
-    x_axis_min = math.pow(10, 0.75)
+    ax1.tick_params(axis='x', which='both', bottom='off', top='off')
+    x_axis_min = math.pow(10, -0.25)
     x_axis_max =  math.pow(10, 4.25)        
     ax1.set_xlim([x_axis_min, x_axis_max])
 
@@ -1193,66 +1193,6 @@ def create_pcommit_line_chart(datasets, sy):
             
     return (fig)
 
-
-def create_clwb_bar_chart(datasets, sy):
-    fig = plot.figure()
-    ax1 = fig.add_subplot(111)
-         
-    x_values = range(len(ISE_MODES))
-    N = len(x_values)
-    x_labels = ISE_MODES
-
-    num_items = len(CLWB_WORKLOAD_MIX);   
-    ind = np.arange(N)  
-    margin = 0.10
-    width = (1.0 - 2 * margin) / num_items      
-    bars = [None] * num_items * 2
-    idx = 0
-
-    YLIMIT = 2000000
-            
-    # GROUP    
-    for group in CLWB_WORKLOAD_MIX:
-        perf_data = []               
-        LOG.info("GROUP :: %s", datasets[group])
-        
-        for line in ISE_MODES:
-            print(datasets[group][line][0])
-
-            for col in  xrange(len(datasets[group][line][0][0])):
-                if col == 1:
-                    perf_data.append(datasets[group][line][0][0][1])
-
-        LOG.info("%s perf_data = %s ", group, str(perf_data))
-
-        bars[idx] = ax1.bar(ind + margin + (idx * width), perf_data, width, color=OPT_COLORS[idx], hatch=OPT_PATTERNS[idx * 2], linewidth=BAR_LINEWIDTH)
-        idx = idx + 1
-                    
-    # GRID
-    axes = ax1.get_axes()
-    makeGrid(ax1)
-      
-    # Y-AXIS    
-    ax1.yaxis.set_major_locator(MaxNLocator(5))
-    ax1.set_ylabel("Throughput (txn/sec)", fontproperties=LABEL_FP)
-    ax1.set_ylim([0, YLIMIT])
-        
-    # X-AXIS
-    ax1.minorticks_on()
-    ax1.set_xticklabels(x_labels)
-    ax1.set_xticks(ind + 0.5)
-    ax1.tick_params(axis='x', which='both', bottom='off', top='off')
-    ax1.set_xlabel("CLWB modes", fontproperties=LABEL_FP)
-
-    # LEGEND
-    #legend = ax1.legend(loc='lower left', ncol=2, mode="expand", bbox_to_anchor=(0., 1.0, 1, 1))
-        
-    for label in ax1.get_yticklabels() :
-        label.set_fontproperties(TICK_FP)
-    for label in ax1.get_xticklabels() :
-        label.set_fontproperties(TICK_FP)
-            
-    return (fig)
 
 ###################################################################################                   
 # PLOT HELPERS                  
@@ -1444,8 +1384,8 @@ def btree_plot(log_name):
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
             
             
-# PCOMMIT -- PLOT
-def pcommit_plot(log_name):
+# ISE -- PLOT
+def ise_plot(log_name):
 
     # LOG RESULTS
     log_file = open(log_name, 'w')
@@ -1471,43 +1411,11 @@ def pcommit_plot(log_name):
                     datasets[workload][pcommit_latency].append(dataFile)
          
             print(datasets)                                        
-            fig = create_pcommit_line_chart(datasets, sy)
+            fig = create_ise_line_chart(datasets, sy)
                          
-            fileName = "pcommit-%s-%s.pdf" % (sy, lat)
+            fileName = "ise-%s-%s.pdf" % (sy, lat)
             saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)            
-            
-# CLWB -- PLOT
-def clwb_plot(log_name):
-
-    # LOG RESULTS
-    log_file = open(log_name, 'w')
-    log_file.write('Start :: %s \n' % datetime.datetime.now())
-
-    latency_list = MISC_LATENCIES
-    result_dir = CLWB_DIR
-        
-    # Go over all engines
-    for sy in SYSTEMS:    
-          
-        for lat in latency_list:
-            datasets = {}
-  
-            for workload in CLWB_WORKLOAD_MIX:    
-                datasets[workload] = {}
-                  
-                for clwb_mode in ISE_MODES:    
-                    datasets[workload][clwb_mode] = []
-  
-                    # Get results in relevant subdir            
-                    dataFile = loadDataFile(2, 2, os.path.realpath(os.path.join(result_dir, clwb_mode  + "/" + sy + "/" + workload + "/" + lat + "/performance.csv")))
-                    datasets[workload][clwb_mode].append(dataFile)
-          
-            print(datasets)                                        
-            fig = create_clwb_bar_chart(datasets, sy)
-                          
-            fileName = "clwb-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)            
-            
+                        
            
 ###################################################################################                   
 # EVAL                   
@@ -2699,7 +2607,7 @@ def ise_eval(log_name):
         print("PCOMMIT latency : " + pcommit_latency);
         
         # Pick ISE mode
-        if pcommit_latency == "0":
+        if pcommit_latency == "1":
             mode = "default"
         else:
             mode = "ise"
