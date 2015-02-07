@@ -60,7 +60,7 @@ OPT_COLORS = COLOR_MAP
 
 OPT_GRID_COLOR = 'gray'
 OPT_LEGEND_SHADOW = False
-OPT_MARKERS = (['o', 's', 'v', ">", "h", "v", "^", "x", "d", "<", "|", "8", "|", "_"])
+OPT_MARKERS = (['o', 's', 'v', "^", "h", "v", ">", "x", "d", "<", "|", "", "|", "_"])
 OPT_PATTERNS = ([ "////", "////", "o", "o", "\\\\" , "\\\\" , "//////", "//////", ".", "." , "\\\\\\" , "\\\\\\" ])
 
 OPT_LABEL_WEIGHT = 'bold'
@@ -328,7 +328,7 @@ def create_line_legend():
         x_values = [1]
         
         lines[idx], = ax1.plot(x_values, data, color=OPT_LINE_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
-                 marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
+                 marker=OPT_MARKERS[idx], markersize=OPT_MARKER_SIZE, label=str(group))        
         
         idx = idx + 1
                 
@@ -1099,7 +1099,7 @@ def create_btree_line_chart(datasets, sy):
         LOG.info("%s perf_data = %s ", group, str(perf_data))
         
         ax1.plot(x_values, perf_data, color=OPT_LINE_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
-                 marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
+                 marker=OPT_MARKERS[idx], markersize=OPT_MARKER_SIZE, label=str(group))        
         
         idx = idx + 1  
 
@@ -1162,7 +1162,7 @@ def create_ise_line_chart(datasets, sy):
         LOG.info("%s perf_data = %s ", group, str(perf_data))
         
         ax1.plot(x_values, perf_data, color=OPT_LINE_COLORS[idx], linewidth=OPT_LINE_WIDTH, 
-                 marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label=str(group))        
+                 marker=OPT_MARKERS[idx], markersize=OPT_MARKER_SIZE, label=str(group))        
         
     # GRID
     axes = ax1.get_axes()
@@ -1379,7 +1379,7 @@ def btree_plot(log_name):
             fig = create_btree_line_chart(datasets, sy)
                         
             fileName = "btree-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2.5)
             
             
 # ISE -- PLOT
@@ -2789,7 +2789,7 @@ if __name__ == '__main__':
     #create_storage_legend()
     #create_stack_legend()
 
-    ################################ SENSITIVITIY
+    ################################ MISC
 
     if args.btree_eval:
         btree_eval(btree_log_name);
@@ -2803,4 +2803,4 @@ if __name__ == '__main__':
     if args.ise_plot:
         ise_plot(ise_log_name);
 
-    create_line_legend()
+    #create_line_legend()
