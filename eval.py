@@ -118,7 +118,7 @@ ISE_DIR = "../results/ise/"
 NVM_BW_DIR = "../results/nvm_bw/"
 
 # XXX These should match default values in "pbtree.h" and "cow_pbtree.h"
-BTREE_SIZES = ["128", "256", "512", "1024", "2048", "4096", "8192", "16384"]
+BTREE_SIZES = ["64", "128", "256", "512", "1024", "2048", "4096", "8192", "16384"]
 MISC_LATENCIES = ("320",)
 
 BTREE_NODE_SIZE_DEFAULT = "512"
@@ -1066,12 +1066,12 @@ def create_btree_line_chart(datasets, sy):
     # X-AXIS
     btree_node_sizes = BTREE_SIZES
     if sy in ["wal", "opt_wal", "lsm", "opt_lsm"]:
-        btree_node_sizes = ["128", "256", "512", "1024", "2048"]
-        x_axis_min = math.pow(2, 6.75)
+        btree_node_sizes = ["64", "128", "256", "512", "1024", "2048"]
+        x_axis_min = math.pow(2, 5.75)
         x_axis_max =  math.pow(2, 11.25)        
     else:   
-        btree_node_sizes = ["1024", "2048", "4096", "8192", "16384"]
-        x_axis_min = math.pow(2, 9.75)
+        btree_node_sizes = ["512", "1024", "2048", "4096", "8192", "16384"]
+        x_axis_min = math.pow(2, 8.75)
         x_axis_max =  math.pow(2, 14.25)        
 
     x_values = btree_node_sizes
