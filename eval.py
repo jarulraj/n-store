@@ -487,7 +487,7 @@ def create_ycsb_stack_bar_chart(datasets, abs_time):
     label_loc = []
 
     # ABS TIME HACK
-    abs_mode = True
+    abs_mode = False
     idx = 0
     abs_time_subset = []
     
@@ -1176,9 +1176,9 @@ def create_ise_line_chart(datasets, sy):
     # X-AXIS
     #ax1.minorticks_on()
     ax1.set_xlim(0.75, 5.25)
-    ax1.set_xticklabels(("SFENCE", "10", "100", "1000", "10000"))    
+    ax1.set_xticklabels(("Current", "10", "100", "1000", "10000"))    
     ax1.set_xticks(ind + 1)           
-    ax1.set_xlabel("PCOMMIT latency (ns)", fontproperties=LABEL_FP)
+    ax1.set_xlabel("Sync primitive latency (ns)", fontproperties=LABEL_FP)
     ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     
     # LEGEND
@@ -1231,7 +1231,7 @@ def ycsb_stack_plot():
             fig = create_ycsb_stack_bar_chart(datasets, abs_time)
             
             fileName = "ycsb-stack-%s-%s.pdf" % (workload, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2.0)
                    
 # YCSB STORAGE -- PLOT               
 def ycsb_storage_plot():    
@@ -1242,7 +1242,7 @@ def ycsb_storage_plot():
                                       
     fig = create_ycsb_storage_bar_chart(datasets)
     fileName = "ycsb-storage.pdf"
-    saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5)
+    saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2.0)
 
 # YCSB NVM -- PLOT               
 def ycsb_nvm_plot():    
@@ -1302,7 +1302,7 @@ def tpcc_storage_plot():
     fig = create_tpcc_storage_bar_chart(datasets)
                         
     fileName = "tpcc-storage.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2.0) 
 
 # TPCC NVM -- PLOT               
 def tpcc_nvm_plot():    
@@ -1314,12 +1314,12 @@ def tpcc_nvm_plot():
     # LOADS                                                               
     fig = create_tpcc_nvm_bar_chart(datasets,0)                        
     fileName = "tpcc-nvm-loads.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2) 
 
     # STORES                                                               
     fig = create_tpcc_nvm_bar_chart(datasets,1)                        
     fileName = "tpcc-nvm-stores.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/1.5) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH/2.0, height=OPT_GRAPH_HEIGHT/2) 
 
 # TPCC RECOVERY -- PLOT
 def  tpcc_recovery_plot():   
@@ -1379,7 +1379,7 @@ def btree_plot(log_name):
             fig = create_btree_line_chart(datasets, sy)
                         
             fileName = "btree-%s-%s.pdf" % (sy, lat)
-            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/2.5)
+            saveGraph(fig, fileName, width= OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5)
             
             
 # ISE -- PLOT
