@@ -30,6 +30,7 @@ from operator import add
 
 import csv
 import brewer2mpl
+import matplotlib
 
 from options import *
 from functools import wraps       
@@ -156,9 +157,16 @@ BAR_LINEWIDTH = 1.2
 #rc('text', usetex=True)
 #rc('font',**fontProperties)
 
+# SET TYPE1 FONTS
+
+matplotlib.rcParams['ps.useafm'] = True
+matplotlib.rcParams['pdf.use14corefonts'] = True
+matplotlib.rcParams['text.usetex'] = True
+matplotlib.rcParams['text.latex.preamble']=[r'\usepackage{bm}\usepackage{euler}']
+
 LABEL_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=LABEL_FONT_SIZE, weight='bold')
-TICK_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TICK_FONT_SIZE)
-TINY_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TINY_FONT_SIZE)
+TICK_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TICK_FONT_SIZE, weight='bold')
+TINY_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TINY_FONT_SIZE, weight='bold')
 
 ###################################################################################                   
 # UTILS
