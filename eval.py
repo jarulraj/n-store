@@ -51,7 +51,7 @@ LOG.setLevel(logging.INFO)
 # # CONFIGURATION
 
 BASE_DIR = os.path.dirname(__file__)
-OPT_FONT_NAME = 'Arial'
+OPT_FONT_NAME = 'Helvetica'
 OPT_GRAPH_HEIGHT = 300
 OPT_GRAPH_WIDTH = 400
 
@@ -145,8 +145,8 @@ TEST_TXNS = 500000
 
 # SET FONT
 
-LABEL_FONT_SIZE = 12
-TICK_FONT_SIZE = 10
+LABEL_FONT_SIZE = 16
+TICK_FONT_SIZE = 14
 TINY_FONT_SIZE = 8
 
 AXIS_LINEWIDTH = 1.3
@@ -162,11 +162,11 @@ BAR_LINEWIDTH = 1.2
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
-matplotlib.rcParams['text.latex.preamble']=[r'\usepackage{bm}\usepackage{euler}']
+#matplotlib.rcParams['text.latex.preamble']=[r'\usepackage{euler}']
 
 LABEL_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=LABEL_FONT_SIZE, weight='bold')
-TICK_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TICK_FONT_SIZE, weight='bold')
-TINY_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TINY_FONT_SIZE, weight='bold')
+TICK_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TICK_FONT_SIZE)
+TINY_FP = FontProperties(family=OPT_FONT_NAME, style='normal', size=TINY_FONT_SIZE)
 
 ###################################################################################                   
 # UTILS
@@ -274,23 +274,23 @@ def create_storage_legend():
     fig = pylab.figure()
     ax1 = fig.add_subplot(111)
 
-    figlegend = pylab.figure(figsize=(11, 0.5))
+    figlegend = pylab.figure(figsize=(10, 0.5))
 
     num_items = 5;   
     ind = np.arange(1)  
     margin = 0.10
     width = (1.0 - 2 * margin) / num_items      
    
-    STORAGE_LABELS = ("Table", "Index", "Log", "Other")
+    STORAGE_LABELS = ("Table", "Index", "Log", "Checkpoint", "Other")
    
     bars = [None] * len(STORAGE_LABELS) * 2
 
-    for group in xrange(len(ENGINES)):        
+    for group in xrange(len(STORAGE_LABELS)):        
         data = [1]
         bars[group] = ax1.bar(ind + margin + (group * width), data, width, color=OPT_STACK_COLORS[group], linewidth=BAR_LINEWIDTH)
         
     # LEGEND
-    figlegend.legend(bars, STORAGE_LABELS, prop=LABEL_FP, loc=1, ncol=6, mode="expand", shadow=OPT_LEGEND_SHADOW, 
+    figlegend.legend(bars, STORAGE_LABELS, prop=LABEL_FP, loc=1, ncol=len(STORAGE_LABELS), mode="expand", shadow=OPT_LEGEND_SHADOW, 
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('storage_legend.pdf')    
@@ -420,7 +420,7 @@ def create_ycsb_perf_bar_chart(datasets):
     width = (1.0 - 2 * margin) / num_items      
     bars = [None] * len(LABELS) * 2
 
-    YLIMIT = 5000000
+    YLIMIT = 2000000
 
     def autolabel(rects):
         # attach some text labels
@@ -459,7 +459,7 @@ def create_ycsb_perf_bar_chart(datasets):
     # Y-AXIS
     ax1.yaxis.set_major_locator(MaxNLocator(5))
     ax1.minorticks_on()
-    #ax1.set_ylim([0,YLIMIT])
+    ax1.set_ylim([0,YLIMIT])
         
     # X-AXIS
     ax1.minorticks_on()
@@ -569,7 +569,7 @@ def create_ycsb_stack_bar_chart(datasets, abs_time):
     if abs_mode:
         ax1.set_ylabel("Absolute Time (s)", fontproperties=LABEL_FP)
     else:
-        ax1.set_ylabel("Time (%)", fontproperties=LABEL_FP)
+        ax1.set_ylabel("Time (\%)", fontproperties=LABEL_FP)
         
     ax1.tick_params(axis='x', which='both', bottom='off', top='off')
     ax1.set_xticklabels(LABELS, rotation=60)
@@ -1284,7 +1284,7 @@ def  ycsb_recovery_plot():
     fig = create_ycsb_recovery_bar_chart(datasets)
                         
     fileName = "ycsb-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5) 
 
 # TPCC PERF -- PLOT
 def tpcc_perf_plot():
@@ -1341,7 +1341,7 @@ def  tpcc_recovery_plot():
     fig = create_tpcc_recovery_bar_chart(datasets)
                         
     fileName = "tpcc-recovery.pdf"
-    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT) 
+    saveGraph(fig, fileName, width=OPT_GRAPH_WIDTH, height=OPT_GRAPH_HEIGHT/1.5) 
 
 
 # NVM SYNC LANTENCY -- PLOT
@@ -2683,7 +2683,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--tpcc_perf_eval", help='eval tpcc perf', action='store_true')
     parser.add_argument("-q", "--tpcc_storage_eval", help='eval tpcc storage', action='store_true')
     parser.add_argument("-r", "--tpcc_nvm_eval", help='eval tpcc nvm', action='store_true')
-    #parser.add_argument("-j", "--ycsb_recovery_plot", help='ycsb_recovery_plot', action='store_true')
+    parser.add_argument("-j", "--ycsb_recovery_plot", help='ycsb_recovery_plot', action='store_true')
     
     parser.add_argument("-d", "--tpcc_perf_plot", help='plot tpcc perf', action='store_true')
     parser.add_argument("-e", "--tpcc_storage_plot", help='plot tpcc storage', action='store_true')
@@ -2693,17 +2693,17 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--ycsb_perf_plot", help='plot ycsb perf', action='store_true')
     parser.add_argument("-b", "--ycsb_storage_plot", help='plot ycsb storage', action='store_true')
     parser.add_argument("-c", "--ycsb_nvm_plot", help='plot ycsb nvm', action='store_true')    
-    #parser.add_argument("-p", "--tpcc_recovery_plot", help='tpcc_recovery_plot', action='store_true')
+    parser.add_argument("-g", "--tpcc_recovery_plot", help='tpcc_recovery_plot', action='store_true')
 
     parser.add_argument("-w", "--nvm_bw_plot", help='nvm_bw_plot', action='store_true')
 
     parser.add_argument("-m", "--ycsb_stack_eval", help='ycsb_stack_eval', action='store_true')
     parser.add_argument("-z", "--ycsb_stack_plot", help='ycsb_stack_plot', action='store_true')
 
-    parser.add_argument("-g", "--btree_eval", help='btree_eval', action='store_true')
+    #parser.add_argument("-g", "--btree_eval", help='btree_eval', action='store_true')
     parser.add_argument("-k", "--btree_plot", help='btree_plot', action='store_true')
 
-    parser.add_argument("-j", "--ise_eval", help='ise_eval', action='store_true')
+    #parser.add_argument("-j", "--ise_eval", help='ise_eval', action='store_true')
     parser.add_argument("-p", "--ise_plot", help='ise_plot', action='store_true')
     
     args = parser.parse_args()
@@ -2758,8 +2758,8 @@ if __name__ == '__main__':
     if args.ycsb_nvm_plot:                
        ycsb_nvm_plot();                          
 
-    #if args.ycsb_recovery_plot:                
-    #   ycsb_recovery_plot();        
+    if args.ycsb_recovery_plot:                
+       ycsb_recovery_plot();        
        
     if args.ycsb_stack_plot:
         ycsb_stack_plot();                    
@@ -2787,26 +2787,26 @@ if __name__ == '__main__':
     if args.tpcc_nvm_plot:                
        tpcc_nvm_plot();                          
 
-    #if args.tpcc_recovery_plot:                
-    #   tpcc_recovery_plot();                          
+    if args.tpcc_recovery_plot:                
+       tpcc_recovery_plot();                          
 
     if args.nvm_bw_plot:                            
         nvm_bw_plot();   
         
     #create_legend()
-    #create_storage_legend()
+    create_storage_legend()
     #create_stack_legend()
 
     ################################ MISC
 
-    if args.btree_eval:
-        btree_eval(btree_log_name);
+    #if args.btree_eval:
+    #    btree_eval(btree_log_name);
 
     if args.btree_plot:
         btree_plot(btree_log_name);
 
-    if args.ise_eval:
-        ise_eval(ise_log_name);
+    #if args.ise_eval:
+    #    ise_eval(ise_log_name);
 
     if args.ise_plot:
         ise_plot(ise_log_name);
