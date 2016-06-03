@@ -155,7 +155,7 @@ int opt_wal_engine::update(const statement& st) {
   unsigned long key = hash_fn(key_str);
   record* before_rec;
 
-  // Check if key does not exist
+  // Check if key exists. If not, return. There is nothing to update.
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
     rec_ptr->clear_data();
     delete rec_ptr;
