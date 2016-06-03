@@ -17,6 +17,7 @@
 #include <sys/param.h>
 
 #include <mutex>
+#include "utils.h"
 
 namespace storage {
 
@@ -60,6 +61,9 @@ namespace storage {
 
 // size of the static area returned by pmem_static_area()
 #define PMEM_STATIC_SIZE 4096
+
+/* latency in ns */
+#define PCOMMIT_LATENCY 100
 
 // number of onactive/onfree values allowed
 #define PMEM_NUM_ON 3
