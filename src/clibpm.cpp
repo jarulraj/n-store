@@ -7,16 +7,16 @@ std::mutex pmp_mutex;
 // Global new and delete
 
 void* operator new(size_t sz) {
-  //pmp_mutex.lock();
+  pmp_mutex.lock();
   void* ret = storage::pmemalloc_reserve(sz);
-  //pmp_mutex.unlock();
+  pmp_mutex.unlock();
   return ret;
 }
 
 void operator delete(void *p) throw () {
-  //pmp_mutex.lock();
+  pmp_mutex.lock();
   storage::pmemalloc_free(p);
-  //pmp_mutex.unlock();
+  pmp_mutex.unlock();
 }
 
 namespace storage {
