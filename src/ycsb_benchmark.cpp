@@ -15,11 +15,12 @@ class usertable_record : public record {
     if (val.empty())
       return;
 
-    if (!update_one) {
+    if (1 && !update_one) {
       for (int itr = 1; itr <= num_val_fields; itr++) {
         set_varchar(itr, val);
       }
     } else
+	die();
       set_varchar(1, val);
   }
 
@@ -44,10 +45,10 @@ table* create_usertable(config& conf) {
   }
 
   // SCHEMA
-  schema* user_table_schema = new schema(cols);
+  schema* user_table_schema = new ((schema*) pmalloc(sizeof(schema))) schema(cols);
   pmemalloc_activate(user_table_schema);
 
-  table* user_table = new table("user", user_table_schema, 1, conf, sp);
+  table* user_table = new ((table*) pmalloc(sizeof(table))) table("user", user_table_schema, 1, conf, sp);
   pmemalloc_activate(user_table);
 
   // PRIMARY INDEX
@@ -55,12 +56,12 @@ table* create_usertable(config& conf) {
     cols[itr].enabled = 0;
   }
 
-  schema* user_table_index_schema = new schema(cols);
+  schema* user_table_index_schema = new ((schema*) pmalloc(sizeof(schema))) schema(cols);
   pmemalloc_activate(user_table_index_schema);
 
-  table_index* key_index = new table_index(user_table_index_schema,
-                                           conf.ycsb_num_val_fields + 1, conf,
-                                           sp);
+  table_index* key_index = new ((table_index*) pmalloc(sizeof(table_index))) table_index(user_table_index_schema,	\
+                                           					conf.ycsb_num_val_fields + 1, conf,	\
+                                           						sp);
   pmemalloc_activate(key_index);
   user_table->indices->push_back(key_index);
 
@@ -90,7 +91,7 @@ ycsb_benchmark::ycsb_benchmark(config _conf, unsigned int tid, database* _db,
     sp->init = 1;
   } else {
     //cout << "Recovery Mode " << endl;
-    database* db = (database*) sp->ptrs[0];
+    database* db = (database*) sp->ptrs[0]; // We are reusing old tables
     db->reset(conf, tid);
   }
 
@@ -139,8 +140,8 @@ void ycsb_benchmark::load() {
     int key = txn_itr;
     std::string value = get_rand_astring(conf.ycsb_field_size);
 
-    record* rec_ptr = new usertable_record(usertable_schema, key, value,
-                                           conf.ycsb_num_val_fields, false);
+    record* rec_ptr = new ((record*) pmalloc(sizeof(usertable_record))) usertable_record(usertable_schema, key, value,
+                                           					conf.ycsb_num_val_fields, false);
 
     statement st(txn_id, operation_type::Insert, USER_TABLE_ID, rec_ptr);
 
@@ -169,9 +170,9 @@ void ycsb_benchmark::do_update(engine* ee) {
 
     int key = zipf_dist[zipf_dist_offset + stmt_itr];
 
-    record* rec_ptr = new usertable_record(user_table_schema, key, updated_val,
-                                           conf.ycsb_num_val_fields,
-                                           conf.ycsb_update_one);
+    record* rec_ptr = new ((record*) pmalloc(sizeof(usertable_record))) usertable_record(user_table_schema, key, updated_val,
+                                           					conf.ycsb_num_val_fields,
+                                           					conf.ycsb_update_one);
 
     statement st(txn_id, operation_type::Update, USER_TABLE_ID, rec_ptr,
                  update_field_ids);

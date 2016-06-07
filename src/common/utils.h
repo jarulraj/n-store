@@ -6,6 +6,10 @@
 
 #include "config.h"
 
+void* pmalloc(size_t sz);
+void pfree(void *p);
+
+
 namespace storage {
 
 class schema;

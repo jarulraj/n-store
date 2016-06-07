@@ -12,7 +12,10 @@ void* operator new(size_t sz) throw (std::bad_alloc) {
 }
 
 void operator delete(void *p) throw () {
-    free(p);
+    if (LIBPM <= (unsigned long long) p && (unsigned long long) p <= LIBPM + PMSIZE)
+	pfree(p);
+    else
+    	free(p);
 }
 
 void *operator new[](std::size_t sz) throw (std::bad_alloc) {
@@ -21,7 +24,10 @@ void *operator new[](std::size_t sz) throw (std::bad_alloc) {
 }
 
 void operator delete[](void *p) throw () {
-    free(p);
+    if (LIBPM <= (unsigned long long) p && (unsigned long long) p <= LIBPM + PMSIZE)
+	pfree(p);
+    else
+    	free(p);
 }
 
 void* pmalloc(size_t sz) {

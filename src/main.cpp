@@ -231,7 +231,7 @@ namespace storage {
 int main(int argc, char **argv) {
   const char* path = "/dev/shm/zfile";
 
-  size_t pmp_size = 3UL * 1024 * 1024 * 1024;
+  size_t pmp_size = PMSIZE;
   if ((storage::pmp = storage::pmemalloc_init(path, pmp_size)) == NULL)
     std::cout << "pmemalloc_init on :" << path << std::endl;
 

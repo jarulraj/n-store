@@ -17,7 +17,7 @@ class schema {
         deser_len(0){
 
     num_columns = _columns.size();
-    columns = new field_info[num_columns];
+    columns = (field_info*) pmalloc(num_columns*(sizeof(field_info)));//new field_info[num_columns];
     unsigned int itr;
 
     for (itr = 0; itr < num_columns; itr++) {

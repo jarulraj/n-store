@@ -68,7 +68,7 @@ int opt_wal_engine::insert(const statement& st) {
   entry_str = entry_stream.str();
 
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
@@ -126,7 +126,7 @@ int opt_wal_engine::remove(const statement& st) {
 
   entry_str = entry_stream.str();
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   pmemalloc_activate(entry);
@@ -188,7 +188,7 @@ int opt_wal_engine::update(const statement& st) {
   entry_str = entry_stream.str();
 
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   pmemalloc_activate(entry);
@@ -227,7 +227,7 @@ void opt_wal_engine::load(const statement& st) {
 
   entry_str = entry_stream.str();
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
   pmemalloc_activate(entry);
   pm_log->push_back(entry);

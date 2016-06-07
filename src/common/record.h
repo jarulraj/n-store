@@ -18,7 +18,7 @@ class record {
       : sptr(_sptr),
         data(NULL),
         data_len(_sptr->ser_len) {
-    data = new char[data_len];
+    data = (char*) pmalloc(data_len*sizeof(char));//new char[data_len];
   }
 
   ~record() {
@@ -120,7 +120,7 @@ class record {
 
   void set_varchar(const int field_id, std::string vc_str) {
     //assert(sptr->columns[field_id].type == field_type::VARCHAR);
-    char* vc = new char[vc_str.size() + 1];
+    char* vc = (char*) pmalloc((vc_str.size()+1)*sizeof(char));//new char[vc_str.size() + 1];
     strcpy(vc, vc_str.c_str());
     memcpy(&(data[sptr->columns[field_id].offset]), &vc, sizeof(void*));
   }

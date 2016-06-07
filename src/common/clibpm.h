@@ -87,6 +87,7 @@ extern struct static_info* sp;
 #define ALIGN 64
 /* To match Mnemosyne and reuse trace processing tools */
 #define LIBPM 0x0000100000000000
+#define PMSIZE (2UL * 1024 * 1024 * 1024)
 
 static inline void *
 pmem_map(int fd, size_t len) {

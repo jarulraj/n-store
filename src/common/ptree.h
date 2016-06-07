@@ -217,7 +217,7 @@ class ptree {
     node* current_node = (*root);
 
     if (current_node == NULL) {
-      node* np = new node(key, val);
+      node* np = new ((node*) pmalloc(sizeof(node))) node(key, val);
 
       (*root) = np;
       if (activate)
@@ -233,7 +233,7 @@ class ptree {
         break;
       } else if (current_node->key > key) {
         if (current_node->left == NULL) {
-          node* np = new node(key, val);
+      	  node* np = new ((node*) pmalloc(sizeof(node))) node(key, val);
           np->parent = current_node;
           current_node->left = np;
           if (activate)
@@ -248,7 +248,7 @@ class ptree {
         current_node = current_node->left;
       } else {
         if (current_node->right == NULL) {
-          node* np = new node(key, val);
+      	  node* np = new ((node*) pmalloc(sizeof(node))) node(key, val);
           np->parent = current_node;
           current_node->right = np;
           if (activate)
