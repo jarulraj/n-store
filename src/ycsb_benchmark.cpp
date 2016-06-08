@@ -15,7 +15,7 @@ class usertable_record : public record {
     if (val.empty())
       return;
 
-    if (1 && !update_one) {
+    if (1 || !update_one) {
       for (int itr = 1; itr <= num_val_fields; itr++) {
         set_varchar(itr, val);
       }

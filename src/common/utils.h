@@ -21,6 +21,7 @@ class schema;
     {expr;} \
     tm->end(); }
 
+#define die()	assert(0)
 // RAND GEN
 std::string get_rand_astring(size_t len);
 

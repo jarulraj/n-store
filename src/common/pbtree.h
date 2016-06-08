@@ -1337,7 +1337,8 @@ class btree {
   /// Allocate and initialize a leaf node
   // Why do you care what the allocator is ? Simply use pmalloc with placement new ?
   inline leaf_node* allocate_leaf() {
-    leaf_node *n = new (leaf_node_allocator().allocate(1)) leaf_node;
+    //leaf_node *n = new (leaf_node_allocator().allocate(1)) leaf_node;
+    leaf_node *n = new ((leaf_node*)pmalloc(sizeof(leaf_node))) leaf_node;
     if (persist)
       pmemalloc_activate(n);
 
@@ -1348,7 +1349,8 @@ class btree {
 
   /// Allocate and initialize an inner node
   inline inner_node* allocate_inner(unsigned short level) {
-    inner_node *n = new (inner_node_allocator().allocate(1)) inner_node;
+    //inner_node *n = new (inner_node_allocator().allocate(1)) inner_node;
+    inner_node *n = new ((inner_node*)pmalloc(sizeof(inner_node))) inner_node;
     if (persist)
       pmemalloc_activate(n);
 

@@ -23,8 +23,8 @@ class plist {
       : head(NULL),
         tail(NULL),
         activate(false) {
-    head = ((struct node*)*) pmalloc(sizeof(struct node*));//new (struct node*);
-    tail = ((struct node*)*) pmalloc(sizeof(struct node*));//new (struct node*);
+    head = (struct node**) pmalloc(sizeof(struct node*));//new (struct node*);
+    tail = (struct node**) pmalloc(sizeof(struct node*));//new (struct node*);
     (*head) = NULL;
     (*tail) = NULL;
   }

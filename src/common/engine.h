@@ -34,7 +34,6 @@ class engine {
         de = new lsm_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_WAL:
-	die();
         de = new opt_wal_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_SP:
