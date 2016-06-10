@@ -6,6 +6,10 @@
 
 #include "config.h"
 
+void* pmalloc(size_t sz);
+void pfree(void *p);
+
+
 namespace storage {
 
 class schema;
@@ -17,6 +21,7 @@ class schema;
     {expr;} \
     tm->end(); }
 
+#define die()	assert(0)
 // RAND GEN
 std::string get_rand_astring(size_t len);
 

@@ -1,0 +1,37 @@
+
+- How does the database prevent log entries from multiple 
+  threads or transactions from getting interleaved ?
+
+- There seems to be a lot of pointer chasing ? Is that necessary ?
+  More NVM loads than stores !
+
+- It is a test bed ! Not something you would use in commercial setting !
+- No network overhead
+- Database is cleaned up on a shutdown, it does not persist across time
+- Entire heap is persistent - Objects that are required after a crash are "marked",
+  the once that are not needed are not "marked". They are reclaimed on start.
+- All malloc or mmap requests are intercepted and routed to userspace memory allocator
+  that works with best/first fit. It works with variable size chunks and not fixed page sizes
+- Sort of like Mnemosyne
+    - Mmap a file as heap
+    - Atomically update it
+    - intercept all memory allocation requests
+    - memcached asks for a giant heap and uses a slab allocator, traditionally
+    - mnemosyne now manages the slab allocator, making sure all allocations and deallocations are atomic
+    - What about a OS based atomic memory allocator ? What are the software overheads ?
+    - If we have flush on failure, why even bother about ordering ?
+        - Processor catches fire
+        - Memory bus caches fire
+        - Cache hierarchy is corrupted
+
+- There is no pcommit at the end of each transaction. Instead a "gc" thread wakes up every five milliseconds
+  and issues a pcommit.
+- Surprisingly, the gc thread calls fsync on the log file + a pcommit. Redundant. Fsync already calls pcommit.
+- Further, why do you even have to call fsync on the log file when u are using fwrite ?
+- PCOMMIT latency is 100 ns. He use __asm__ __volatile__ ("pause" ::: "memory") in combination with rdtsc
+- One has to remember to call pmemalloc_activate after requesting a block from the memory manager or else it will reclaimed
+  during reboot !
+- wal_engine - fs_log
+    - opt_wal_engine - pm_log
+- To get the db working in the emulator, i had to solve the issue of having two distinct versions of libc on a single machine
+    - look at the sonar wiki

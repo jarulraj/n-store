@@ -31,8 +31,8 @@ class coordinator {
     num_txns = conf.num_txns;
 
     for (unsigned int i = 0; i < num_executors; i++) {
-      tms.push_back(timer());
-      sps.push_back(static_info());
+      tms.push_back(timer()); //volatile
+      sps.push_back(static_info()); // volatile
     }
   }
 
@@ -56,10 +56,10 @@ class coordinator {
 
   void execute(const config conf) {
     std::vector<std::thread> executors;
-    benchmark** partitions = new benchmark*[num_executors];
+    benchmark** partitions = new benchmark*[num_executors]; // volatile
 
     for (unsigned int i = 0; i < num_executors; i++) {
-      database* db = new database(conf, sp, i);
+      database* db = new database(conf, sp, i); // volatile
       partitions[i] = get_benchmark(conf, i, db);
     }
 
@@ -99,18 +99,20 @@ class coordinator {
     // Fix benchmark
     switch (state.btype) {
      case benchmark_type::TEST:
+	die();
       LOG_INFO("TEST");
-      bh = new test_benchmark(state, tid, db, &tms[tid], &sps[tid]);
+      bh = new test_benchmark(state, tid, db, &tms[tid], &sps[tid]); // volatile
       break;
 
      case benchmark_type::YCSB:
         LOG_INFO("YCSB");
-        bh = new ycsb_benchmark(state, tid, db, &tms[tid], &sps[tid]);
+        bh = new ycsb_benchmark(state, tid, db, &tms[tid], &sps[tid]); // volatile
         break;
 
       case benchmark_type::TPCC:
+	die();
         LOG_INFO("TPCC");
-        bh = new tpcc_benchmark(state, tid, db, &tms[tid], &sps[tid]);
+        bh = new tpcc_benchmark(state, tid, db, &tms[tid], &sps[tid]); // volatile
         break;
 
       default:

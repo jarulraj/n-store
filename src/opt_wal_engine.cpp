@@ -68,7 +68,7 @@ int opt_wal_engine::insert(const statement& st) {
   entry_str = entry_stream.str();
 
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
   pmemalloc_activate(entry);
   pm_log->push_back(entry);
@@ -126,7 +126,7 @@ int opt_wal_engine::remove(const statement& st) {
 
   entry_str = entry_stream.str();
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   pmemalloc_activate(entry);
@@ -155,7 +155,7 @@ int opt_wal_engine::update(const statement& st) {
   unsigned long key = hash_fn(key_str);
   record* before_rec;
 
-  // Check if key does not exist
+  // Check if key exists. If not, return. There is nothing to update.
   if (indices->at(0)->pm_map->at(key, &before_rec) == false) {
     rec_ptr->clear_data();
     delete rec_ptr;
@@ -188,7 +188,7 @@ int opt_wal_engine::update(const statement& st) {
   entry_str = entry_stream.str();
 
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
 
   pmemalloc_activate(entry);
@@ -227,7 +227,7 @@ void opt_wal_engine::load(const statement& st) {
 
   entry_str = entry_stream.str();
   size_t entry_str_sz = entry_str.size() + 1;
-  char* entry = new char[entry_str_sz];
+  char* entry = (char*) pmalloc(entry_str_sz*sizeof(char));//new char[entry_str_sz];
   memcpy(entry, entry_str.c_str(), entry_str_sz);
   pmemalloc_activate(entry);
   pm_log->push_back(entry);

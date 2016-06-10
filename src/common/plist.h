@@ -23,8 +23,8 @@ class plist {
       : head(NULL),
         tail(NULL),
         activate(false) {
-    head = new (struct node*);
-    tail = new (struct node*);
+    head = (struct node**) pmalloc(sizeof(struct node*));//new (struct node*);
+    tail = (struct node**) pmalloc(sizeof(struct node*));//new (struct node*);
     (*head) = NULL;
     (*tail) = NULL;
   }
@@ -51,7 +51,7 @@ class plist {
   }
 
   struct node* init(V val) {
-    struct node* np = new struct node;
+    struct node* np = (struct node*) pmalloc(sizeof(struct node));//new struct node;
 
     np->next = (*head);
     np->val = val;
@@ -76,7 +76,7 @@ class plist {
     }
 
     struct node* tailp = NULL;
-    struct node* np = new struct node;
+    struct node* np = (struct node*) pmalloc(sizeof(struct node));// new struct node;
 
     // Link it in at the end of the list
     np->val = val;

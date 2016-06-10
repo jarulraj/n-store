@@ -6,17 +6,41 @@ std::mutex pmp_mutex;
 
 // Global new and delete
 
-void* operator new(size_t sz) {
-  //pmp_mutex.lock();
-  void* ret = storage::pmemalloc_reserve(sz);
-  //pmp_mutex.unlock();
-  return ret;
+void* operator new(size_t sz) throw (std::bad_alloc) {
+    void* ret = calloc(1, sz);
+    return ret;
 }
 
 void operator delete(void *p) throw () {
-  //pmp_mutex.lock();
+    if (LIBPM <= (unsigned long long) p && (unsigned long long) p <= LIBPM + PMSIZE)
+	pfree(p);
+    else
+    	free(p);
+}
+
+void *operator new[](std::size_t sz) throw (std::bad_alloc) {
+    void* ret = calloc(1, sz);
+    return ret;
+}
+
+void operator delete[](void *p) throw () {
+    if (LIBPM <= (unsigned long long) p && (unsigned long long) p <= LIBPM + PMSIZE)
+	pfree(p);
+    else
+    	free(p);
+}
+
+void* pmalloc(size_t sz) {
+  pmp_mutex.lock();
+  void* ret = storage::pmemalloc_reserve(sz);
+  pmp_mutex.unlock();
+  return ret;
+}
+
+void pfree(void *p) {
+  pmp_mutex.lock();
   storage::pmemalloc_free(p);
-  //pmp_mutex.unlock();
+  pmp_mutex.unlock();
 }
 
 namespace storage {

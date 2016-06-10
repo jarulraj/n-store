@@ -34,6 +34,8 @@ build/*
 *core
 *.db
 config
+nstore
+pmem_check
 
 # Log/Tmp files
 log*

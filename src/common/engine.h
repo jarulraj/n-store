@@ -26,18 +26,22 @@ class engine {
         de = new wal_engine(conf, db, read_only, tid);
         break;
       case engine_type::SP:
+	die();
         de = new sp_engine(conf, db, read_only, tid);
         break;
       case engine_type::LSM:
+	die();
         de = new lsm_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_WAL:
         de = new opt_wal_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_SP:
+	die();
         de = new opt_sp_engine(conf, db, read_only, tid);
         break;
       case engine_type::OPT_LSM:
+	die();
         de = new opt_lsm_engine(conf, db, read_only, tid);
         break;
       default:

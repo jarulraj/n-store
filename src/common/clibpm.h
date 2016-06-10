@@ -17,6 +17,7 @@
 #include <sys/param.h>
 
 #include <mutex>
+#include "utils.h"
 
 namespace storage {
 
@@ -61,6 +62,9 @@ namespace storage {
 // size of the static area returned by pmem_static_area()
 #define PMEM_STATIC_SIZE 4096
 
+/* latency in ns */
+#define PCOMMIT_LATENCY 100
+
 // number of onactive/onfree values allowed
 #define PMEM_NUM_ON 3
 
@@ -81,7 +85,9 @@ extern struct static_info* sp;
 
 /* 64B cache line size */
 #define ALIGN 64
-#define LIBPM 0x10000000
+/* To match Mnemosyne and reuse trace processing tools */
+#define LIBPM 0x0000100000000000
+#define PMSIZE (2UL * 1024 * 1024 * 1024)
 
 static inline void *
 pmem_map(int fd, size_t len) {

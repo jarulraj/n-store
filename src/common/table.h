@@ -19,15 +19,15 @@ class table {
         pm_data(NULL) {
 
     size_t len = name_str.size();
-    table_name = new char[len + 1];
+    table_name = (char*) pmalloc((len+1)*sizeof(char));//new char[len + 1];
     memcpy(table_name, name_str.c_str(), len + 1);
     pmemalloc_activate(table_name);
 
-    pm_data = new plist<record*>(&sp->ptrs[get_next_pp()], &sp->ptrs[get_next_pp()]);
+    pm_data = new ((plist<record*>*) pmalloc(sizeof(plist<record*>))) plist<record*>(&sp->ptrs[get_next_pp()], &sp->ptrs[get_next_pp()]);
     pmemalloc_activate(pm_data);
 
-    indices = new plist<table_index*>(&sp->ptrs[get_next_pp()],
-                                      &sp->ptrs[get_next_pp()]);
+    indices = new ((plist<table_index*>*) pmalloc(sizeof(plist<table_index*>))) plist<table_index*>(&sp->ptrs[get_next_pp()],
+                                      					&sp->ptrs[get_next_pp()]);
     pmemalloc_activate(indices);
 
   }

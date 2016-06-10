@@ -18,17 +18,18 @@ class database {
     sp->itr++;
 
     // TABLES
-    plist<table*>* _tables = new plist<table*>(&sp->ptrs[get_next_pp()],
-                                               &sp->ptrs[get_next_pp()]);
+    plist<table*>* _tables = new ((plist<table*>*) pmalloc(sizeof(plist<table*>))) plist<table*>(&sp->ptrs[get_next_pp()],
+                                               					&sp->ptrs[get_next_pp()]);
     pmemalloc_activate(_tables);
     tables = _tables;
 
     // LOG
-    log = new plist<char*>(&sp->ptrs[get_next_pp()], &sp->ptrs[get_next_pp()]);
+    log = new ((plist<char*>*) pmalloc(sizeof(plist<char*>))) plist<char*>(&sp->ptrs[get_next_pp()], &sp->ptrs[get_next_pp()]);
     pmemalloc_activate(log);
 
     // DIRS
     if (conf.etype == engine_type::SP) {
+	die();	
       dirs = new cow_pbtree(
           false, (conf.fs_path + std::to_string(tid) + "_" + "cow.nvm").c_str(),
           NULL);
@@ -36,6 +37,7 @@ class database {
     }
 
     if (conf.etype == engine_type::OPT_SP) {
+	die();	
       dirs = new cow_pbtree(true, NULL, &sp->ptrs[sp->itr++]);
       pmemalloc_activate(dirs);
     }
@@ -54,6 +56,7 @@ class database {
   void reset(config& conf, unsigned int tid) {
 
     if (conf.etype == engine_type::SP) {
+	die();	
       dirs = new cow_pbtree(
           false, (conf.fs_path + std::to_string(tid) + "_" + "cow.nvm").c_str(),
           NULL);
