@@ -354,7 +354,7 @@ def create_line_legend():
         idx = idx + 1
 
     # LEGEND
-    figlegend.legend(lines,  workload_mix, prop=LABEL_FP, loc=1, ncol=4, mode="expand", shadow=OPT_LEGEND_SHADOW,
+    figlegend.legend(lines,  workload_mix, prop=LABEL_FP, loc=1, ncol=2, mode="expand", shadow=OPT_LEGEND_SHADOW,
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('line_legend.pdf')
@@ -366,6 +366,30 @@ def create_line_legend():
                      frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
 
     figlegend.savefig('line_subset_legend.pdf')
+
+def create_nvm_bw_legend():
+    fig = pylab.figure()
+    ax1 = fig.add_subplot(111)
+
+    LABELS = ["Allocator", "Filesystem"]
+    figlegend = pylab.figure(figsize=(5, 0.5))
+    idx = 0
+    lines = [None] * len(LABELS)
+
+    for group in xrange(len(LABELS)):
+        data = [1]
+        x_values = [1]
+
+        lines[idx], = ax1.plot(x_values, data, color=OPT_LINE_COLORS[idx], linewidth=OPT_LINE_WIDTH,
+                 marker=OPT_MARKERS[idx], markersize=OPT_MARKER_SIZE, label=str(group))
+
+        idx = idx + 1
+
+    # LEGEND
+    figlegend.legend(lines, LABELS, prop=LABEL_FP, loc=1, ncol=4, mode="expand", shadow=OPT_LEGEND_SHADOW,
+                     frameon=False, borderaxespad=0.0, handleheight=2, handlelength=3.5)
+
+    figlegend.savefig('line_nvm_bw_legend.pdf')
 
 
 def create_nvm_bw_chart(datasets):
@@ -388,8 +412,8 @@ def create_nvm_bw_chart(datasets):
     LOG.info("nvm_data : %s", nvm_data)
     LOG.info("fs_data : %s", fs_data)
 
-    ax1.plot(x_values, nvm_data, color=OPT_COLORS[3], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label='Allocator')
-    ax1.plot(x_values, fs_data, color=OPT_COLORS[5], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE, label='Filesystem')
+    ax1.plot(x_values, nvm_data, color=OPT_COLORS[0], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[0], markersize=OPT_MARKER_SIZE, label='Allocator')
+    ax1.plot(x_values, fs_data, color=OPT_COLORS[1], linewidth=OPT_LINE_WIDTH, marker=OPT_MARKERS[1], markersize=OPT_MARKER_SIZE, label='Filesystem')
 
     # GRID
     axes = ax1.get_axes()
@@ -409,7 +433,7 @@ def create_nvm_bw_chart(datasets):
     ax1.set_xlabel(get_label("Chunk Size (B)"), fontproperties=LABEL_FP)
 
     # LEGEND
-    legend = ax1.legend(loc='upper left')
+    #legend = ax1.legend(loc='upper left')
 
     for label in ax1.get_yticklabels() :
         label.set_fontproperties(TICK_FP)
@@ -2827,4 +2851,5 @@ if __name__ == '__main__':
     if args.ise_plot:
         ise_plot(ise_log_name);
 
-    create_line_legend()
+    #create_line_legend()
+    create_nvm_bw_legend()
